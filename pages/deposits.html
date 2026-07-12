@@ -343,25 +343,27 @@
             font-weight: 700;
             color: var(--text-primary);
             margin-bottom: 4px;
+            transition: color 0.3s;
         }
         .page-header-left p {
             color: var(--text-secondary);
             font-size: 14px;
+            transition: color 0.3s;
         }
 
         .btn-primary {
-            background: #2d7a3d;
+            background: var(--primary);
             color: #fff;
             border: none;
             padding: 10px 20px;
-            border-radius: 12px;
+            border-radius: var(--radius);
             font-size: 14px;
             font-weight: 600;
             display: inline-flex;
             align-items: center;
             gap: 8px;
             cursor: pointer;
-            transition: 0.2s;
+            transition: all 0.2s;
         }
         .btn-primary:hover {
             background: #1f5e2c;
@@ -377,21 +379,21 @@
             color: var(--text-primary);
             border: none;
             padding: 10px 20px;
-            border-radius: 12px;
+            border-radius: var(--radius);
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
             transition: 0.2s;
         }
         .btn-secondary:hover {
-            background: var(--input-border);
+            background: #d0d7d2;
         }
         .btn-danger {
             background: #e74c3c;
             color: #fff;
             border: none;
             padding: 10px 20px;
-            border-radius: 12px;
+            border-radius: var(--radius);
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
@@ -713,6 +715,16 @@
             box-shadow: 0 6px 24px rgba(255, 152, 0, 0.4);
         }
 
+        .action-btn.edit-btn {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+        }
+        .action-btn.edit-btn:hover {
+            background: linear-gradient(135deg, #f57c00, #e65100);
+            box-shadow: 0 6px 24px rgba(255, 152, 0, 0.4);
+        }
+
         /* ----- PAGINATION ----- */
         .pagination-container {
             display: flex;
@@ -947,6 +959,61 @@
             }
         }
 
+        /* ============================================================
+           EDIT DEPOSIT MODAL
+           ============================================================ */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10001;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: 16px;
+            max-width: 700px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 24px;
+            box-shadow: var(--shadow-lg);
+            transition: background 0.3s;
+        }
+        .modal-content .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+        .modal-content .modal-header h3 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .modal-content .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            line-height: 1;
+        }
+        .modal-content .modal-close:hover {
+            color: var(--danger);
+        }
+
         /* ----- RESPONSIVE ----- */
         @media (max-width: 992px) {
             .form-row {
@@ -1007,6 +1074,10 @@
             .deposit-balance-card {
                 flex-direction: column;
                 text-align: center;
+            }
+            .modal-content {
+                margin: 10px;
+                padding: 16px;
             }
         }
         @media (max-width: 480px) {
@@ -1267,6 +1338,79 @@
     <!-- ===== PRINT SLIP CONTAINER ===== -->
     <div id="slipContainer" class="slip-container"></div>
 
+    <!-- ===== EDIT DEPOSIT MODAL ===== -->
+    <div class="modal-overlay" id="editDepositModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-i18n="editDeposit">Edit Deposit</h3>
+                <button class="modal-close" id="closeEditModal">&times;</button>
+            </div>
+            <form id="editDepositForm">
+                <input type="hidden" id="editDepositId" />
+                <div class="form-row">
+                    <div class="form-group">
+                        <label data-i18n="incomeType">Income Type <span class="required">*</span></label>
+                        <select id="editIncomeType" required>
+                            <option value="Registration Fee">Registration Fee</option>
+                            <option value="Interest">Interest from Loans</option>
+                            <option value="Penalty">Penalty</option>
+                            <option value="Other Deposit">Other Deposit</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="amount">Amount (ETB) <span class="required">*</span></label>
+                        <input type="number" id="editAmount" required step="0.01" min="0.01" />
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="date">Date <span class="required">*</span></label>
+                        <input type="date" id="editDate" required />
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="paymentMethod">Payment Method <span class="required">*</span></label>
+                        <select id="editPaymentMethod" required>
+                            <option value="cash">Cash</option>
+                            <option value="bank">Bank Transfer</option>
+                            <option value="mobile">Mobile Money</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="conditional-fields" id="editConditionalFields">
+                    <div class="form-row two">
+                        <div class="form-group">
+                            <label data-i18n="ttNumber">TT Number <span class="required" id="editTtRequired">*</span></label>
+                            <input type="text" id="editTtNumber" placeholder="Enter TT number" />
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="transferDate">Transfer Date <span class="required" id="editTransferDateRequired">*</span></label>
+                            <input type="date" id="editTransferDate" />
+                        </div>
+                    </div>
+                    <div class="form-row two">
+                        <div class="form-group">
+                            <label data-i18n="bankName">Bank / Provider Name <span class="required" id="editBankRequired">*</span></label>
+                            <input type="text" id="editBankName" placeholder="Enter bank or provider name" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row two">
+                    <div class="form-group">
+                        <label data-i18n="description">Description (optional)</label>
+                        <input type="text" id="editDescription" placeholder="e.g., Member registration fee" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancelEditBtn"><span data-i18n="cancel">Cancel</span></button>
+                    <button type="submit" class="btn-primary" id="updateDepositBtn">
+                        <i class="fas fa-save"></i> <span data-i18n="updateDeposit">Update Deposit</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         // ============================================================
         // FIREBASE CONFIG (UPDATED)
@@ -1352,7 +1496,12 @@
                 amountInWords: 'Amount in words',
                 duplicateTT: 'This TT number and Transfer Date are already registered. Please check and try again.',
                 allYears: 'All Years',
-                selectYear: 'Select Year'
+                selectYear: 'Select Year',
+                editDeposit: 'Edit Deposit',
+                updateDeposit: 'Update Deposit',
+                cancel: 'Cancel',
+                depositUpdated: 'Deposit updated successfully!',
+                depositDeleted: 'Deposit deleted successfully!'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1416,7 +1565,12 @@
                 amountInWords: 'በቃላት መጠን',
                 duplicateTT: 'ይህ ቲቲ ቁጥር እና የዝውውር ቀን ቀድሞ ተመዝግቧል። እባክዎ ይፈትሹ እና እንደገና ይሞክሩ።',
                 allYears: 'ሁሉም ዓመታት',
-                selectYear: 'ዓመት ይምረጡ'
+                selectYear: 'ዓመት ይምረጡ',
+                editDeposit: 'ተቀማጭ ያስተካክሉ',
+                updateDeposit: 'ተቀማጭ ያሻሽሉ',
+                cancel: 'ሰርዝ',
+                depositUpdated: 'ተቀማጭ በተሳካ ሁኔታ ተሻሽሏል!',
+                depositDeleted: 'ተቀማጭ በተሳካ ሁኔታ ተሰርዟል!'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1480,7 +1634,12 @@
                 amountInWords: 'Qaba jechootaan',
                 duplicateTT: 'Lakkoofsi TT fi guyyaan sochoosaa kun duraan galmeefame. Mirkaneessii deebi’i.',
                 allYears: 'Waggaa Hunda',
-                selectYear: 'Waggaa Filadhu'
+                selectYear: 'Waggaa Filadhu',
+                editDeposit: 'Kuusaa Jijjiiri',
+                updateDeposit: 'Kuusaa Fooyyessi',
+                cancel: 'Haqi',
+                depositUpdated: 'Kuusaan sirriitti fooyyeffame!',
+                depositDeleted: 'Kuusaan sirriitti haqame!'
             }
         };
 
@@ -1561,6 +1720,10 @@
             return ['admin', 'manager', 'teller'].includes(currentUserRole);
         }
 
+        function canEditDeposit() {
+            return ['admin', 'manager'].includes(currentUserRole);
+        }
+
         function canDeleteDeposit() {
             return ['admin'].includes(currentUserRole);
         }
@@ -1622,7 +1785,7 @@
         let searchQuery = '';
         let filterYear = 'all';
 
-        // ---- Conditional fields toggle ----
+        // ---- Conditional fields toggle (main form) ----
         function toggleConditionalFields() {
             const method = document.getElementById('paymentMethod')?.value;
             const fields = document.getElementById('conditionalFields');
@@ -1632,6 +1795,43 @@
             const ttInput = document.getElementById('ttNumber');
             const transferDateInput = document.getElementById('transferDate');
             const bankInput = document.getElementById('bankName');
+
+            if (!fields || !ttInput || !transferDateInput || !bankInput) return;
+
+            if (method === 'cash') {
+                fields.style.display = 'none';
+                ttInput.removeAttribute('required');
+                transferDateInput.removeAttribute('required');
+                bankInput.removeAttribute('required');
+                if (ttRequired) ttRequired.textContent = '';
+                if (transferDateRequired) transferDateRequired.textContent = '';
+                if (bankRequired) bankRequired.textContent = '';
+            } else {
+                fields.style.display = 'block';
+                ttInput.setAttribute('required', 'required');
+                transferDateInput.setAttribute('required', 'required');
+                if (method === 'bank') {
+                    bankInput.setAttribute('required', 'required');
+                    if (bankRequired) bankRequired.textContent = '*';
+                } else {
+                    bankInput.removeAttribute('required');
+                    if (bankRequired) bankRequired.textContent = '';
+                }
+                if (ttRequired) ttRequired.textContent = '*';
+                if (transferDateRequired) transferDateRequired.textContent = '*';
+            }
+        }
+
+        // ---- Conditional fields toggle (edit form) ----
+        function toggleEditConditionalFields() {
+            const method = document.getElementById('editPaymentMethod')?.value;
+            const fields = document.getElementById('editConditionalFields');
+            const ttRequired = document.getElementById('editTtRequired');
+            const transferDateRequired = document.getElementById('editTransferDateRequired');
+            const bankRequired = document.getElementById('editBankRequired');
+            const ttInput = document.getElementById('editTtNumber');
+            const transferDateInput = document.getElementById('editTransferDate');
+            const bankInput = document.getElementById('editBankName');
 
             if (!fields || !ttInput || !transferDateInput || !bankInput) return;
 
@@ -1813,6 +2013,15 @@
                         <i class="fas fa-print"></i>
                     </button>
                 `;
+
+                if (canEditDeposit()) {
+                    actionsHtml += `
+                        <button class="action-btn edit-btn" onclick="editDeposit('${d.id}')" title="${t.edit || 'Edit'}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    `;
+                }
+
                 if (canDeleteDeposit()) {
                     actionsHtml += `
                         <button class="action-btn delete-btn" onclick="deleteDeposit('${d.id}')" title="${t.delete}">
@@ -1908,6 +2117,110 @@
             );
         }
 
+        // ---- Edit Deposit (Admin/Manager only) ----
+        function editDeposit(id) {
+            if (!canEditDeposit()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+
+            const d = allDeposits.find(item => item.id === id);
+            if (!d) { showToast('Deposit not found.', 'error'); return; }
+
+            const modal = document.getElementById('editDepositModal');
+            document.getElementById('editDepositId').value = d.id;
+
+            document.getElementById('editIncomeType').value = d.incomeType || 'Other Deposit';
+            document.getElementById('editAmount').value = d.amount || '';
+            const dateVal = d.date ? (d.date.toDate ? d.date.toDate() : new Date(d.date)) : new Date();
+            document.getElementById('editDate').value = dateVal.toISOString().split('T')[0];
+            document.getElementById('editPaymentMethod').value = d.paymentMethod || 'cash';
+            document.getElementById('editTtNumber').value = d.ttNumber || '';
+            const transferDateVal = d.transferDate ? (d.transferDate.toDate ? d.transferDate.toDate() : new Date(d
+                .transferDate)) : null;
+            document.getElementById('editTransferDate').value = transferDateVal ? transferDateVal.toISOString().split('T')[0] :
+                '';
+            document.getElementById('editBankName').value = d.bankName || '';
+            document.getElementById('editDescription').value = d.note || d.description || '';
+
+            // Show/hide conditional fields
+            toggleEditConditionalFields();
+
+            modal.classList.add('active');
+            modal.style.display = 'flex';
+        }
+
+        // ---- Close Edit Modal ----
+        function closeEditModal() {
+            document.getElementById('editDepositModal').classList.remove('active');
+            document.getElementById('editDepositModal').style.display = 'none';
+        }
+
+        // ---- Update Deposit ----
+        async function updateDeposit(e) {
+            e.preventDefault();
+            if (!canEditDeposit()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+
+            const depositId = document.getElementById('editDepositId').value;
+            const incomeType = document.getElementById('editIncomeType').value;
+            const amount = parseFloat(document.getElementById('editAmount').value);
+            const date = document.getElementById('editDate').value;
+            const paymentMethod = document.getElementById('editPaymentMethod').value;
+            const ttNumber = document.getElementById('editTtNumber').value.trim();
+            const transferDate = document.getElementById('editTransferDate').value;
+            const bankName = document.getElementById('editBankName').value.trim();
+            const description = document.getElementById('editDescription').value.trim();
+
+            if (!amount || amount <= 0) { showToast('Please enter a valid amount.', 'warning'); return; }
+            if (!date) { showToast('Please select a date.', 'warning'); return; }
+
+            if (paymentMethod !== 'cash') {
+                if (!ttNumber) { showToast('Please enter the TT number.', 'warning'); return; }
+                if (!transferDate) { showToast('Please select the transfer date.', 'warning'); return; }
+                if (paymentMethod === 'bank' && !bankName) { showToast('Please enter the bank name.', 'warning'); return; }
+            }
+
+            const btn = document.getElementById('updateDepositBtn');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+
+            try {
+                const docRef = db.collection('transactions').doc(depositId);
+                const updateData = {
+                    incomeType: incomeType,
+                    amount: Math.round(amount * 100) / 100,
+                    date: new Date(date),
+                    paymentMethod: paymentMethod,
+                    ttNumber: (paymentMethod === 'cash' ? '' : ttNumber),
+                    bankName: (paymentMethod === 'cash' ? '' : bankName),
+                    note: description,
+                    description: description,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                if (paymentMethod !== 'cash' && transferDate) {
+                    updateData.transferDate = new Date(transferDate);
+                } else {
+                    updateData.transferDate = null;
+                }
+
+                await docRef.update(updateData);
+                showToast(translations[currentLang].depositUpdated, 'success');
+                closeEditModal();
+                await loadDeposits();
+                await getTotalDeposits();
+            } catch (error) {
+                showToast('Error updating deposit: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
         // ---- Delete Deposit (Admin only) ----
         async function deleteDeposit(id) {
             if (!canDeleteDeposit()) {
@@ -1999,6 +2312,7 @@
                     amount: amount,
                     date: new Date(date),
                     note: description,
+                    description: description,
                     status: 'completed',
                     paymentMethod: paymentMethod,
                     ttNumber: (paymentMethod === 'cash' ? '' : ttNumber),
@@ -2213,6 +2527,9 @@
                 document.getElementById('paymentMethod').addEventListener('change', toggleConditionalFields);
                 toggleConditionalFields();
 
+                // ---- Edit form conditional fields ----
+                document.getElementById('editPaymentMethod').addEventListener('change', toggleEditConditionalFields);
+
                 await getTotalDeposits();
                 await loadDeposits();
 
@@ -2225,6 +2542,14 @@
                 });
 
                 document.getElementById('depositForm').addEventListener('submit', recordDeposit);
+
+                // ---- Edit modal events ----
+                document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
+                document.getElementById('cancelEditBtn').addEventListener('click', closeEditModal);
+                document.getElementById('editDepositModal').addEventListener('click', function(e) {
+                    if (e.target === this) closeEditModal();
+                });
+                document.getElementById('editDepositForm').addEventListener('submit', updateDeposit);
 
                 document.getElementById('resetFormBtn').addEventListener('click', function() {
                     document.getElementById('depositForm').reset();
@@ -2248,16 +2573,19 @@
                 const searchInput = document.getElementById('searchInput');
                 const t = translations[currentLang];
                 searchInput.placeholder = t.searchPlaceholder || 'Search by description or type...';
+
+                // Expose functions globally
+                window.editDeposit = editDeposit;
+                window.deleteDeposit = deleteDeposit;
+                window.viewDeposit = viewDeposit;
+                window.printDepositSlip = printDepositSlip;
+                window.goToPage = goToPage;
+                window.toggleSidebar = toggleSidebar;
+                window.toggleConditionalFields = toggleConditionalFields;
+                window.toggleEditConditionalFields = toggleEditConditionalFields;
+                window.closeEditModal = closeEditModal;
             });
         });
-
-        // Expose functions for onclick
-        window.viewDeposit = viewDeposit;
-        window.deleteDeposit = deleteDeposit;
-        window.printDepositSlip = printDepositSlip;
-        window.goToPage = goToPage;
-        window.toggleSidebar = toggleSidebar;
-        window.toggleConditionalFields = toggleConditionalFields;
     </script>
     <script>
         // ============================================================
