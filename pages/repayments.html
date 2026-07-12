@@ -1,0 +1,2813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Repayments – GERESU DHUKI SACCO</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js">
+    </script>
+
+    <style>
+        /* ===== ALL STYLES ===== */
+        :root {
+            --bg-primary: #f5f7f6;
+            --bg-card: #ffffff;
+            --bg-sidebar: #1a2e1f;
+            --text-primary: #1a2e1f;
+            --text-secondary: #6c7d70;
+            --border-color: #e8ede9;
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+            --input-bg: #ffffff;
+            --input-border: #d0d7d2;
+            --input-focus: rgba(45, 122, 61, 0.1);
+            --success: #2d7a3d;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #2196f3;
+            --primary: #2d7a3d;
+            --primary-light: #e8f5ee;
+            --radius: 12px;
+            --radius-sm: 8px;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1a2e;
+            --bg-card: #16213e;
+            --bg-sidebar: #0f0f1a;
+            --text-primary: #e8f0ea;
+            --text-secondary: #a0aec0;
+            --border-color: #2d3748;
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+            --input-bg: #2d3748;
+            --input-border: #4a5568;
+            --input-focus: rgba(45, 122, 61, 0.2);
+            --primary: #2d7a3d;
+            --primary-light: #1a2e24;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* ----- SIDEBAR ----- */
+        .sidebar {
+            width: 260px;
+            background: var(--bg-sidebar);
+            color: #e8f0ea;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+            box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+        .sidebar-brand {
+            padding: 24px 20px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .brand-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            overflow: hidden;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .brand-logo-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            padding: 4px;
+            display: block;
+        }
+        .brand-text .brand-name {
+            font-size: 20px;
+            font-weight: 700;
+            display: block;
+            line-height: 1.2;
+        }
+        .brand-text .brand-sub {
+            font-size: 12px;
+            opacity: 0.7;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 12px;
+            overflow-y: auto;
+        }
+        .sidebar-nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .sidebar-nav li {
+            margin-bottom: 4px;
+        }
+        .sidebar-nav li a {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            color: #c4d4c9;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 15px;
+            transition: 0.2s;
+        }
+        .sidebar-nav li a i {
+            width: 22px;
+            text-align: center;
+            font-size: 18px;
+        }
+        .sidebar-nav li a:hover {
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+        }
+        .sidebar-nav li.active a {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 4px 10px rgba(45, 122, 61, 0.3);
+        }
+        .sidebar-footer {
+            padding: 16px 20px 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .logout-btn {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: #e8f0ea;
+            font-size: 15px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .logout-btn:hover {
+            background: rgba(255, 70, 70, 0.15);
+            border-color: var(--danger);
+            color: #ff6b6b;
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 999;
+        }
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        .main-content {
+            margin-left: 260px;
+            flex: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ----- HEADER ----- */
+        .top-header {
+            background: var(--bg-card);
+            padding: 16px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 999;
+            box-shadow: var(--shadow);
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .menu-toggle {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: none;
+            transition: color 0.3s;
+        }
+        .page-title h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+            transition: color 0.3s;
+        }
+        .breadcrumb {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-left: 8px;
+            transition: color 0.3s;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .lang-switcher {
+            display: flex;
+            gap: 4px;
+        }
+        .lang-btn {
+            background: transparent;
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: 0.2s;
+        }
+        .lang-btn:hover {
+            background: var(--border-color);
+        }
+        .lang-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        .notif-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            position: relative;
+            transition: color 0.3s;
+        }
+        .notif-btn:hover {
+            color: var(--text-primary);
+        }
+        .badge {
+            position: absolute;
+            top: -4px;
+            right: -6px;
+            background: var(--danger);
+            color: #fff;
+            font-size: 11px;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-profile img {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--primary);
+            background: #f5f7f6;
+        }
+        .user-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+            transition: color 0.3s;
+        }
+
+        /* ----- DASHBOARD CONTENT ----- */
+        .dashboard-content {
+            padding: 24px 30px 30px;
+            flex: 1;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .page-header-left h2 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+        .page-header-left p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: #2d7a3d;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-primary:hover {
+            background: #1f5e2c;
+            transform: scale(1.02);
+        }
+        .btn-primary:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-secondary {
+            background: var(--border-color);
+            color: var(--text-primary);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-secondary:hover {
+            background: var(--input-border);
+        }
+        .btn-danger {
+            background: var(--danger);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .form-section {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+            transition: all 0.3s;
+        }
+        .form-section h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        #loanSuggestions {
+            position: absolute;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 10;
+            width: 100%;
+            box-shadow: var(--shadow-md);
+            top: 100%;
+            left: 0;
+        }
+        #loanSuggestions div {
+            padding: 10px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        #loanSuggestions div:hover {
+            background: var(--bg-primary);
+        }
+        #loanSuggestions div:last-child {
+            border-bottom: none;
+        }
+
+        .loan-info-display {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 12px;
+            display: none;
+            transition: all 0.3s;
+        }
+        .loan-info-display.active {
+            display: block;
+        }
+        .loan-info-display .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px 16px;
+        }
+        .loan-info-display .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            font-size: 13px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .loan-info-display .info-row:last-child {
+            border-bottom: none;
+        }
+        .loan-info-display .info-row .label {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        .loan-info-display .info-row .value {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .loan-info-display .info-row .value.remaining {
+            color: var(--primary);
+            font-size: 15px;
+        }
+        .loan-info-display .info-row .value.remaining.warning {
+            color: var(--danger);
+        }
+
+        .amount-wrapper {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .amount-wrapper input {
+            flex: 1;
+        }
+        .btn-repay-all {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: 0.2s;
+        }
+        .btn-repay-all:hover {
+            background: #1f5e2c;
+            transform: scale(1.02);
+        }
+        .btn-repay-all:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .form-group {
+            position: relative;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .form-row.two {
+            grid-template-columns: 1fr 1fr;
+        }
+        .form-row.three {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+        .form-group label {
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--text-primary);
+            display: block;
+            margin-bottom: 4px;
+            transition: var(--transition);
+        }
+        .form-group label .required {
+            color: var(--danger);
+            margin-left: 2px;
+        }
+        .form-group input,
+        .form-group select {
+            padding: 10px 14px;
+            border: 1px solid var(--input-border);
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            transition: all 0.2s;
+            width: 100%;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--input-focus);
+        }
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        /* ----- CONDITIONAL FIELDS ----- */
+        .conditional-fields {
+            display: none;
+            border-top: 1px dashed var(--border-color);
+            padding-top: 12px;
+            margin-top: 4px;
+        }
+        .conditional-fields.show {
+            display: block;
+        }
+
+        /* ----- SEARCH & TABLE ----- */
+        .search-bar {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .search-wrapper {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+        .search-wrapper i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+        }
+        .search-wrapper input {
+            width: 100%;
+            padding: 12px 16px 12px 44px;
+            border: 1px solid var(--input-border);
+            border-radius: 12px;
+            font-size: 14px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+        .search-wrapper input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--input-focus);
+        }
+
+        .filter-wrapper select {
+            padding: 12px 16px;
+            border: 1px solid var(--input-border);
+            border-radius: 12px;
+            font-size: 14px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            cursor: pointer;
+            min-width: 140px;
+            transition: all 0.2s;
+        }
+        .filter-wrapper select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--input-focus);
+        }
+
+        .table-container {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: all 0.3s;
+        }
+        .table-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+        .table-wrapper {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        thead {
+            background: var(--bg-primary);
+        }
+        thead th {
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--border-color);
+            white-space: nowrap;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s;
+        }
+        tbody td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+            vertical-align: middle;
+            transition: all 0.3s;
+        }
+        tbody tr:hover {
+            background: var(--bg-primary);
+        }
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .status-badge.completed {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-badge.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status-badge.failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status-badge.printed {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .action-btn {
+            border: none;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin: 0 3px;
+            position: relative;
+            overflow: hidden;
+        }
+        .action-btn i {
+            font-size: 14px;
+            transition: transform 0.3s ease;
+        }
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+        .action-btn:hover i {
+            transform: scale(1.2);
+        }
+        .action-btn:active {
+            transform: scale(0.95);
+        }
+
+        .action-btn.view-btn {
+            background: linear-gradient(135deg, #2196f3, #1976d2);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+        }
+        .action-btn.view-btn:hover {
+            background: linear-gradient(135deg, #1976d2, #0d47a1);
+            box-shadow: 0 6px 24px rgba(33, 150, 243, 0.4);
+        }
+
+        .action-btn.delete-btn {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+        }
+        .action-btn.delete-btn:hover {
+            background: linear-gradient(135deg, #c0392b, #99281b);
+            box-shadow: 0 6px 24px rgba(231, 76, 60, 0.4);
+        }
+
+        .action-btn.print-btn {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+        }
+        .action-btn.print-btn:hover {
+            background: linear-gradient(135deg, #f57c00, #e65100);
+            box-shadow: 0 6px 24px rgba(255, 152, 0, 0.4);
+        }
+
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 12px;
+            transition: all 0.3s;
+        }
+        .pagination-info {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        .pagination-info strong {
+            color: var(--text-primary);
+        }
+        .pagination-buttons {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .pagination-btn {
+            padding: 6px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-card);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            transition: all 0.2s;
+            min-width: 36px;
+            text-align: center;
+        }
+        .pagination-btn:hover:not(:disabled) {
+            background: var(--border-color);
+            border-color: var(--primary);
+        }
+        .pagination-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 14px 24px;
+            border-radius: 12px;
+            color: #fff;
+            font-weight: 500;
+            font-size: 14px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            animation: slideIn 0.3s ease;
+            min-width: 280px;
+            max-width: 400px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .toast i {
+            font-size: 18px;
+        }
+        .toast.success {
+            background: var(--success);
+        }
+        .toast.error {
+            background: var(--danger);
+        }
+        .toast.warning {
+            background: var(--warning);
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .toast.fade-out {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .app-footer {
+            background: var(--bg-card);
+            border-top: 1px solid var(--border-color);
+            padding: 16px 30px;
+            text-align: center;
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: auto;
+            transition: all 0.3s;
+        }
+
+        /* ============================================================
+           PRINT SLIP STYLES (A5 LANDSCAPE) with watermark
+           ============================================================ */
+        .slip-container {
+            display: none;
+            width: 210mm;
+            min-height: 148mm;
+            padding: 8mm 10mm;
+            background: #fff;
+            margin: 0 auto;
+            font-family: 'Inter', sans-serif;
+            color: #1a2e1f;
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
+        }
+        .slip-container::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 80%;
+            background: url('../images/sacco-logo.png') no-repeat center center;
+            background-size: contain;
+            opacity: 0.08;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .slip-container .slip-header {
+            text-align: center;
+            border-bottom: 2px dashed #2d7a3d;
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+        }
+        .slip-container .slip-header h1 {
+            font-size: 20px;
+            color: #2d7a3d;
+            margin: 0;
+        }
+        .slip-container .slip-header p {
+            font-size: 12px;
+            color: #6c7d70;
+            margin: 2px 0;
+        }
+        .slip-container .slip-body {
+            padding: 4px 0;
+            position: relative;
+            z-index: 1;
+        }
+        .slip-container .slip-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            font-size: 13px;
+            border-bottom: 1px solid #f0f3f1;
+        }
+        .slip-container .slip-row .label {
+            font-weight: 500;
+            color: #2d3a31;
+        }
+        .slip-container .slip-row .value {
+            font-weight: 600;
+        }
+        .slip-container .slip-row .value.amount-words {
+            font-weight: 400;
+            font-size: 12px;
+            color: #555;
+        }
+        .slip-container .slip-footer {
+            text-align: center;
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 2px dashed #2d7a3d;
+            font-size: 11px;
+            color: #6c7d70;
+            position: relative;
+            z-index: 1;
+        }
+        .slip-container .slip-footer .thankyou {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2d7a3d;
+            margin-bottom: 2px;
+        }
+
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #slipContainer,
+            #slipContainer * {
+                visibility: visible;
+            }
+            #slipContainer {
+                display: block;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 210mm;
+                min-height: 148mm;
+                margin: 0;
+                padding: 8mm 10mm;
+                box-shadow: none;
+                background: #fff;
+                page-break-after: avoid;
+                page-break-inside: avoid;
+            }
+            #slipContainer::before {
+                opacity: 0.08;
+            }
+            @page {
+                size: A5 landscape;
+                margin: 0;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 280px;
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .menu-toggle {
+                display: block;
+            }
+            .top-header {
+                padding: 12px 16px;
+            }
+            .dashboard-content {
+                padding: 16px;
+            }
+            .form-row,
+            .form-row.two,
+            .form-row.three {
+                grid-template-columns: 1fr;
+            }
+            .loan-info-display .info-grid {
+                grid-template-columns: 1fr;
+            }
+            .page-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .search-bar {
+                flex-direction: column;
+            }
+            .pagination-container {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .pagination-buttons {
+                justify-content: center;
+            }
+            .toast-container {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+            }
+            .toast {
+                min-width: unset;
+                width: 100%;
+            }
+            .user-name {
+                display: none;
+            }
+            .amount-wrapper {
+                flex-direction: column;
+            }
+            .btn-repay-all {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+        @media (max-width: 480px) {
+            .pagination-btn {
+                padding: 4px 10px;
+                font-size: 12px;
+                min-width: 30px;
+            }
+            .pagination-info {
+                font-size: 12px;
+                text-align: center;
+            }
+            table {
+                font-size: 12px;
+            }
+            thead th,
+            tbody td {
+                padding: 8px 10px;
+            }
+            .action-btn {
+                padding: 4px 6px;
+                font-size: 11px;
+            }
+            .action-btn i {
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">
+                <img src="../images/sacco-logo.png" alt="SACCO Logo" class="brand-logo-img" />
+            </div>
+            <div class="brand-text">
+                <span class="brand-name">GERESU DHUKI SACCO</span>
+                <span class="brand-sub" data-i18n="brandSub">Banking System</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <ul>
+                <li><a href="dashboard.html"><i class="fas fa-th-large"></i> <span data-i18n="navDashboard">Dashboard</span></a></li>
+                <li><a href="members.html"><i class="fas fa-users"></i> <span data-i18n="navMembers">Members</span></a></li>
+                <li><a href="savings.html"><i class="fas fa-piggy-bank"></i> <span data-i18n="navSavings">Savings</span></a></li>
+                <li><a href="deposits.html"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="navDeposits">Deposits</span></a></li>
+                <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="navLoans">Loans</span></a></li>
+                <li class="active"><a href="repayments.html"><i class="fas fa-undo-alt"></i> <span data-i18n="navRepayments">Repayments</span></a></li>
+                <li><a href="withdrawals.html"><i class="fas fa-money-bill-wave"></i> <span data-i18n="navWithdrawals">Withdrawals</span></a></li>
+                <li><a href="dividends.html"><i class="fas fa-gift"></i> <span data-i18n="navDividends">Dividends</span></a></li>
+                <li><a href="reports.html"><i class="fas fa-chart-bar"></i> <span data-i18n="navReports">Reports</span></a></li>
+                <li id="usersNavItem"><a href="users.html"><i class="fas fa-user-cog"></i> <span data-i18n="navUsers">Users</span></a></li>
+                <li><a href="settings.html"><i class="fas fa-cog"></i> <span data-i18n="navSettings">Settings</span></a></li>
+            </ul>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> <span data-i18n="logout">Logout</span></button>
+        </div>
+    </aside>
+
+    <main class="main-content">
+
+        <header class="top-header">
+            <div class="header-left">
+                <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+                <div class="page-title">
+                    <h1 data-i18n="pageTitle">Repayments</h1>
+                    <span class="breadcrumb" data-i18n="breadcrumb">Home / Repayments</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="lang-switcher">
+                    <button class="lang-btn active" data-lang="en">EN</button>
+                    <button class="lang-btn" data-lang="am">አማ</button>
+                    <button class="lang-btn" data-lang="om">OM</button>
+                </div>
+                <div class="notifications">
+                    <button class="notif-btn"><i class="fas fa-bell"></i><span class="badge">3</span></button>
+                </div>
+                <div class="user-profile">
+                    <img id="userAvatar" src="../assets/images/avatar.png" alt="User" onerror="this.src='https://ui-avatars.com/api/?name=Admin&background=2d7a3d&color=fff'" />
+                    <span class="user-name" id="userDisplayName">Admin</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="dashboard-content">
+
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h2 data-i18n="repaymentsTitle">Loan Repayments</h2>
+                    <p data-i18n="repaymentsSub">Record and manage loan repayments</p>
+                </div>
+            </div>
+
+            <!-- Record Repayment Form -->
+            <div class="form-section" id="repaymentFormSection">
+                <h3 data-i18n="recordRepayment">Record Repayment</h3>
+                <form id="repaymentForm" novalidate>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label data-i18n="loan">Search Loan <span class="required">*</span></label>
+                            <input type="text" id="loanSearch" placeholder="Search by member name or loan ID..." autocomplete="off" required />
+                            <input type="hidden" id="loanId" />
+                            <div id="loanSuggestions"></div>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="amount">Amount (ETB) <span class="required">*</span></label>
+                            <div class="amount-wrapper">
+                                <input type="number" id="amountInput" required placeholder="0.00" step="0.01" min="0.01" />
+                                <button type="button" class="btn-repay-all" id="repayAllBtn" disabled>
+                                    <i class="fas fa-check-double"></i> Repay All
+                                </button>
+                            </div>
+                            <small id="minAmountHint" style="color:var(--text-secondary); font-size:11px; display:none;">Minimum repayment: <span id="minAmountDisplay">0.00</span> ETB</small>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="date">Date <span class="required">*</span></label>
+                            <input type="date" id="dateInput" required />
+                        </div>
+                    </div>
+
+                    <!-- Loan Info Display -->
+                    <div class="loan-info-display" id="loanInfoDisplay">
+                        <div class="info-grid">
+                            <div class="info-row">
+                                <span class="label" data-i18n="member">Member:</span>
+                                <span class="value" id="loanMemberName">—</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label" data-i18n="amount">Loan Amount:</span>
+                                <span class="value" id="loanAmount">—</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label" data-i18n="totalPayable">Total Payable:</span>
+                                <span class="value" id="loanTotalPayable">—</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label" data-i18n="totalPaid">Total Paid:</span>
+                                <span class="value" id="loanTotalPaid">—</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label" data-i18n="remaining">Remaining:</span>
+                                <span class="value remaining" id="loanRemaining">—</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label" data-i18n="monthlyPayment">Monthly Installment:</span>
+                                <span class="value" id="monthlyPaymentValue">—</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label" data-i18n="minRepaymentStatus">Min Repayment Required:</span>
+                                <span class="value" id="minRepaymentStatus">—</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label" data-i18n="status">Status:</span>
+                                <span class="value" id="loanStatus">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Method & Conditional Fields -->
+                    <div class="form-row three">
+                        <div class="form-group">
+                            <label data-i18n="paymentMethod">Payment Method <span class="required">*</span></label>
+                            <select id="paymentMethod" required>
+                                <option value="cash" data-i18n="cash">Cash</option>
+                                <option value="bank" data-i18n="bankTransfer">Bank Transfer</option>
+                                <option value="mobile" data-i18n="mobileMoney">Mobile Money</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="status">Payment Status</label>
+                            <select id="statusInput">
+                                <option value="completed" data-i18n="completed">Completed</option>
+                                <option value="pending" data-i18n="pending">Pending</option>
+                                <option value="failed" data-i18n="failed">Failed</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="note">Note (optional)</label>
+                            <input type="text" id="noteInput" placeholder="Optional note..." />
+                        </div>
+                    </div>
+
+                    <!-- Conditional Fields: TT Number, Transfer Date, Bank/Provider -->
+                    <div class="conditional-fields" id="conditionalFields">
+                        <div class="form-row two">
+                            <div class="form-group">
+                                <label data-i18n="ttNumber">TT Number <span class="required" id="ttRequired">*</span></label>
+                                <input type="text" id="ttNumber" placeholder="Enter TT number" />
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="transferDate">Transfer Date <span class="required" id="transferDateRequired">*</span></label>
+                                <input type="date" id="transferDate" />
+                            </div>
+                        </div>
+                        <div class="form-row two">
+                            <div class="form-group">
+                                <label data-i18n="bankName">Bank / Provider Name <span class="required" id="bankRequired">*</span></label>
+                                <input type="text" id="bankName" placeholder="Enter bank or provider name" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="reset" class="btn-secondary" id="resetFormBtn"><span data-i18n="clear">Clear</span></button>
+                        <button type="submit" class="btn-primary" id="saveBtn">
+                            <i class="fas fa-save"></i> <span data-i18n="recordPayment">Record Payment</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Repayments List -->
+            <div class="page-header" style="margin-bottom:16px;">
+                <div class="page-header-left">
+                    <h3 style="font-size:18px; font-weight:600;" data-i18n="repaymentsList">Repayment Transactions</h3>
+                </div>
+            </div>
+
+            <!-- Search & Year Filter -->
+            <div class="search-bar">
+                <div class="search-wrapper">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" data-i18n="searchPlaceholder" placeholder="Search by member name..." />
+                </div>
+                <div class="filter-wrapper">
+                    <select id="yearFilter">
+                        <option value="all" data-i18n="allYears">All Years</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="table-header">
+                    <span data-i18n="totalRepayments">Total Repayments: </span>
+                    <strong id="totalCount">0</strong>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th data-i18n="member">Member</th>
+                                <th data-i18n="loanId">Loan ID</th>
+                                <th data-i18n="amount">Amount</th>
+                                <th data-i18n="paymentMethod">Method</th>
+                                <th data-i18n="status">Status</th>
+                                <th data-i18n="date">Date</th>
+                                <th data-i18n="by">By</th>
+                                <th data-i18n="actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="repaymentsBody">
+                            <tr><td colspan="9" style="text-align:center; padding:40px; color:var(--text-secondary);" data-i18n="noRepayments">No repayments found.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        <span data-i18n="showing">Showing</span> <strong id="pageStart">0</strong> - <strong id="pageEnd">0</strong>
+                        <span data-i18n="of">of</span> <strong id="totalRepaymentsCount">0</strong>
+                    </div>
+                    <div class="pagination-buttons">
+                        <button class="pagination-btn" id="prevPage" disabled><i class="fas fa-chevron-left"></i></button>
+                        <div id="pageNumbers"></div>
+                        <button class="pagination-btn" id="nextPage"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <footer class="app-footer">
+            <p>&copy; 2025 GERESU DHUKI SACCO. <span data-i18n="rights">All rights reserved.</span></p>
+        </footer>
+    </main>
+
+    <!-- ===== PRINT SLIP CONTAINER ===== -->
+    <div id="slipContainer" class="slip-container"></div>
+
+    <script>
+        // ============================================================
+        // FIREBASE CONFIG (UPDATED)
+        // ============================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBeQv8YLNfFFaTEZ6pxXaAy_K8n3u8V5X4",
+            authDomain: "geresu-dhuki-sacco-75329.firebaseapp.com",
+            projectId: "geresu-dhuki-sacco-75329",
+            storageBucket: "geresu-dhuki-sacco-75329.firebasestorage.app",
+            messagingSenderId: "431325504753",
+            appId: "1:431325504753:web:f7289fb88d74b82eb0b550",
+            measurementId: "G-3SN99DFJXD"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+
+        // ============================================================
+        // MULTI-LANGUAGE
+        // ============================================================
+        const translations = {
+            en: {
+                brandSub: 'Banking System',
+                navDashboard: 'Dashboard',
+                navMembers: 'Members',
+                navSavings: 'Savings',
+                navDeposits: 'Deposits',
+                navLoans: 'Loans',
+                navRepayments: 'Repayments',
+                navWithdrawals: 'Withdrawals',
+                navDividends: 'Dividends',
+                navReports: 'Reports',
+                navUsers: 'Users',
+                navSettings: 'Settings',
+                logout: 'Logout',
+                pageTitle: 'Repayments',
+                breadcrumb: 'Home / Repayments',
+                rights: 'All rights reserved.',
+                repaymentsTitle: 'Loan Repayments',
+                repaymentsSub: 'Record and manage loan repayments',
+                recordRepayment: 'Record Repayment',
+                loan: 'Search Loan',
+                loanId: 'Loan ID',
+                amount: 'Amount',
+                date: 'Date',
+                paymentMethod: 'Payment Method',
+                cash: 'Cash',
+                bankTransfer: 'Bank Transfer',
+                mobileMoney: 'Mobile Money',
+                ttNumber: 'TT Number',
+                transferDate: 'Transfer Date',
+                bankName: 'Bank / Provider Name',
+                note: 'Note (optional)',
+                status: 'Status',
+                completed: 'Completed',
+                pending: 'Pending',
+                failed: 'Failed',
+                printed: 'Printed',
+                clear: 'Clear',
+                recordPayment: 'Record Payment',
+                repaymentsList: 'Repayment Transactions',
+                totalRepayments: 'Total Repayments: ',
+                noRepayments: 'No repayments found.',
+                showing: 'Showing',
+                of: 'of',
+                prev: 'Previous',
+                next: 'Next',
+                searchPlaceholder: 'Search by member name...',
+                by: 'By',
+                actions: 'Actions',
+                view: 'View',
+                delete: 'Delete',
+                printSlip: 'Print Slip',
+                member: 'Member',
+                totalPayable: 'Total Payable',
+                totalPaid: 'Total Paid',
+                remaining: 'Remaining',
+                monthlyPayment: 'Monthly Installment',
+                minRepaymentStatus: 'Min Repayment Required',
+                paymentRecorded: 'Payment recorded successfully!',
+                paymentError: 'Error recording payment: ',
+                loadError: 'Error loading data: ',
+                selectLoan: 'Select a loan',
+                noLoansFound: 'No active loans found',
+                cannotExceedRemaining: 'Amount cannot exceed remaining balance.',
+                loanNotFound: 'Loan not found.',
+                repaymentDeleted: 'Repayment deleted successfully.',
+                deleteConfirmation: 'Are you sure you want to delete this repayment?',
+                minPaymentNotMet: 'Repayment must be at least the monthly installment amount.',
+                minPaymentMet: '✅ OK',
+                minPaymentNotMetLabel: '❌ Too low',
+                printRecorded: 'Print recorded successfully.',
+                unauthorized: 'You are not authorized to perform this action.',
+                amountInWords: 'Amount in words',
+                duplicateTT: 'This TT number and Transfer Date are already registered. Please check and try again.',
+                allYears: 'All Years',
+                selectYear: 'Select Year'
+            },
+            am: {
+                brandSub: 'ባንክ ስርዓት',
+                navDashboard: 'ዳሽቦርድ',
+                navMembers: 'አባላት',
+                navSavings: 'ቁጠባዎች',
+                navDeposits: 'ተቀማጭ',
+                navLoans: 'ብድር',
+                navRepayments: 'ክፍያዎች',
+                navWithdrawals: 'መውጫዎች',
+                navDividends: 'ክፍፍል',
+                navReports: 'ሪፖርቶች',
+                navUsers: 'ተጠቃሚዎች',
+                navSettings: 'ቅንብሮች',
+                logout: 'ውጣ',
+                pageTitle: 'ክፍያዎች',
+                breadcrumb: 'ዋና ገጽ / ክፍያዎች',
+                rights: 'መብቶች በሙሉ ተጠብቀዋል።',
+                repaymentsTitle: 'የብድር ክፍያዎች',
+                repaymentsSub: 'የብድር ክፍያዎችን ይመዝግቡ እና ያስተዳድሩ',
+                recordRepayment: 'ክፍያ ይመዝግቡ',
+                loan: 'ብድር ይፈልጉ',
+                loanId: 'የብድር መታወቂያ',
+                amount: 'መጠን',
+                date: 'ቀን',
+                paymentMethod: 'የክፍያ ዘዴ',
+                cash: 'ጥሬ ገንዘብ',
+                bankTransfer: 'የባንክ ዝውውር',
+                mobileMoney: 'ሞባይል ገንዘብ',
+                ttNumber: 'ቲቲ ቁጥር',
+                transferDate: 'የዝውውር ቀን',
+                bankName: 'የባንክ / አቅራቢ ስም',
+                note: 'ማስታወሻ (አማራጭ)',
+                status: 'ሁኔታ',
+                completed: 'ተጠናቋል',
+                pending: 'በመጠበቅ ላይ',
+                failed: 'አልተሳካም',
+                printed: 'ታትሟል',
+                clear: 'አጽዳ',
+                recordPayment: 'ክፍያ ይመዝግቡ',
+                repaymentsList: 'የክፍያ ግብይቶች',
+                totalRepayments: 'ጠቅላላ ክፍያዎች: ',
+                noRepayments: 'ምንም ክፍያዎች አልተገኙም።',
+                showing: 'እያሳየ',
+                of: 'ከ',
+                prev: 'ቀዳሚ',
+                next: 'ቀጣይ',
+                searchPlaceholder: 'በአባል ስም ይፈልጉ...',
+                by: 'የመዘገበው',
+                actions: 'ተግባራት',
+                view: 'ይመልከቱ',
+                delete: 'ሰርዝ',
+                printSlip: 'ሪሲት አትም',
+                member: 'አባል',
+                totalPayable: 'ጠቅላላ የሚከፈል',
+                totalPaid: 'የተከፈለ',
+                remaining: 'ቀሪ',
+                monthlyPayment: 'ወርሃዊ ክፍያ',
+                minRepaymentStatus: 'ዝቅተኛ ክፍያ ያስፈልጋል',
+                paymentRecorded: 'ክፍያ በተሳካ ሁኔታ ተመዝግቧል!',
+                paymentError: 'ክፍያ በመመዝገብ ላይ ስህተት: ',
+                loadError: 'ውሂብ በማስገባት ላይ ስህተት: ',
+                selectLoan: 'ብድር ይምረጡ',
+                noLoansFound: 'ምንም ንቁ ብድር አልተገኘም',
+                cannotExceedRemaining: 'መጠን ከቀሪው ሚዛን መብለጥ አይችልም።',
+                loanNotFound: 'ብድር አልተገኘም።',
+                repaymentDeleted: 'ክፍያ በተሳካ ሁኔታ ተሰርዟል።',
+                deleteConfirmation: 'ይህንን ክፍያ መሰረዝ እርግጠኛ ነዎት?',
+                minPaymentNotMet: 'ክፍያ ቢያንስ ወርሃዊ ክፍያ መሆን አለበት።',
+                minPaymentMet: '✅ ደህና',
+                minPaymentNotMetLabel: '❌ በጣም ዝቅተኛ',
+                printRecorded: 'ህትመት በተሳካ ሁኔታ ተመዝግቧል።',
+                unauthorized: 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም።',
+                amountInWords: 'በቃላት መጠን',
+                duplicateTT: 'ይህ ቲቲ ቁጥር እና የዝውውር ቀን ቀድሞ ተመዝግቧል። እባክዎ ይፈትሹ እና እንደገና ይሞክሩ።',
+                allYears: 'ሁሉም ዓመታት',
+                selectYear: 'ዓመት ይምረጡ'
+            },
+            om: {
+                brandSub: 'Sirna Baankii',
+                navDashboard: 'Dashaaboardii',
+                navMembers: 'Miseensota',
+                navSavings: 'Kussaa',
+                navDeposits: 'Kuusaa',
+                navLoans: 'Liqeeffannoo',
+                navRepayments: 'Kaffaltii',
+                navWithdrawals: 'Baasii',
+                navDividends: 'Qooda',
+                navReports: 'Gabaasa',
+                navUsers: 'Fayyadamtota',
+                navSettings: 'Qindaa’ina',
+                logout: 'Baasi',
+                pageTitle: 'Kaffaltii',
+                breadcrumb: 'Mana / Kaffaltii',
+                rights: 'Mirgi hundi eegama.',
+                repaymentsTitle: 'Kaffaltii Liqeeffannoo',
+                repaymentsSub: 'Kaffaltii liqeeffannoo galmeessiifi bulchi',
+                recordRepayment: 'Kaffaltii Galmeessi',
+                loan: 'Liqeeffannoo Barbaadi',
+                loanId: 'ID Liqeeffannoo',
+                amount: 'Qaba',
+                date: 'Guyyaa',
+                paymentMethod: 'Haala Kaffaltii',
+                cash: 'Maallaqa Saaphanaa',
+                bankTransfer: 'Sochoosa Baankii',
+                mobileMoney: 'Maallaqa Moobayilaa',
+                ttNumber: 'Lakkoofsa TT',
+                transferDate: 'Guyyaa Sochoosaa',
+                bankName: 'Maqaa Baankii / Dhiyeessaa',
+                note: 'Hubachi (Filannoo)',
+                status: 'Haala',
+                completed: 'Xumurame',
+                pending: 'Eegamaa',
+                failed: 'Bade',
+                printed: 'Maxxanfame',
+                clear: 'Haqi',
+                recordPayment: 'Kaffaltii Galmeessi',
+                repaymentsList: 'Daldala Kaffaltii',
+                totalRepayments: 'Kaffaltii Waliigalaa: ',
+                noRepayments: 'Kaffaltii hin argamne.',
+                showing: 'Agarsii',
+                of: 'keessaa',
+                prev: 'Dursee',
+                next: 'Itti aansee',
+                searchPlaceholder: 'Maqaa miseensaa-tiin barbaadi...',
+                by: 'Galmeesse',
+                actions: 'Gochaa',
+                view: 'Ilaali',
+                delete: 'Haqi',
+                printSlip: 'Bilbilla maxxansi',
+                member: 'Miseensa',
+                totalPayable: 'Waliigalaa Kaffalamuu Qabu',
+                totalPaid: 'Kaffalame',
+                remaining: 'Haafa',
+                monthlyPayment: 'Kaffaltii Jiʼaa',
+                minRepaymentStatus: 'Kaffaltii Xiqqaa Barbaachisa',
+                paymentRecorded: 'Kaffaltiin sirriitti galmeefame!',
+                paymentError: 'Kaffaltii galmeessuuf dogoggora: ',
+                loadError: 'Datuu galmeessuuf dogoggora: ',
+                selectLoan: 'Liqeeffannoo filadhu',
+                noLoansFound: 'Liqeeffannoo hojiirra jiru hin argamne',
+                cannotExceedRemaining: 'Qabni haafa caaluu hin danda\'u.',
+                loanNotFound: 'Liqeeffannoon hin argamne.',
+                repaymentDeleted: 'Kaffaltiin sirriitti haqame.',
+                deleteConfirmation: 'Kaffaltii kana haquu mirkaneeffattee?',
+                minPaymentNotMet: 'Kaffaltiin xiqqaan kaffaltii ji’aa ta’uu qaba.',
+                minPaymentMet: '✅ Tole',
+                minPaymentNotMetLabel: '❌ Baay’ee xiqqaa',
+                printRecorded: 'Maxxansi sirriitti galmeefame.',
+                unauthorized: 'Gochaa kana raawwachuuf hayyamamtee hin jirtu.',
+                amountInWords: 'Qaba jechootaan',
+                duplicateTT: 'Lakkoofsi TT fi guyyaan sochoosaa kun duraan galmeefame. Mirkaneessii deebi’i.',
+                allYears: 'Waggaa Hunda',
+                selectYear: 'Waggaa Filadhu'
+            }
+        };
+
+        let currentLang = 'en';
+        let currentUserRole = 'viewer';
+        let currentUserDisplayName = 'Admin';
+
+        function setLanguage(lang) {
+            if (!translations[lang]) return;
+            currentLang = lang;
+            const t = translations[lang];
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key] !== undefined) {
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+                        if (el.type !== 'file') el.placeholder = t[key];
+                    } else {
+                        el.innerHTML = t[key];
+                    }
+                }
+            });
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.lang === lang);
+            });
+            try { localStorage.setItem('waciti-lang', lang); } catch (e) {}
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) searchInput.placeholder = t.searchPlaceholder || 'Search by member name...';
+            updatePaginationInfo();
+            renderPageButtons();
+        }
+
+        function initLanguage() {
+            const saved = localStorage.getItem('waciti-lang') || navigator.language.split('-')[0];
+            const valid = ['en', 'am', 'om'];
+            setLanguage(valid.includes(saved) ? saved : 'en');
+        }
+
+        // ============================================================
+        // TOAST
+        // ============================================================
+        function showToast(message, type = 'success') {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'toast-container';
+                document.body.appendChild(container);
+            }
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icon = document.createElement('i');
+            if (type === 'success') icon.className = 'fas fa-check-circle';
+            else if (type === 'error') icon.className = 'fas fa-exclamation-circle';
+            else icon.className = 'fas fa-exclamation-triangle';
+            toast.appendChild(icon);
+            const text = document.createElement('span');
+            text.textContent = message;
+            toast.appendChild(text);
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('fade-out');
+                setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
+            }, 4500);
+        }
+
+        // ============================================================
+        // SIDEBAR TOGGLE
+        // ============================================================
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+
+        // ============================================================
+        // ROLE PERMISSIONS
+        // ============================================================
+        function canAddRepayment() {
+            return ['admin', 'manager', 'teller'].includes(currentUserRole);
+        }
+
+        function canDeleteRepayment() {
+            return ['admin'].includes(currentUserRole);
+        }
+
+        // ============================================================
+        // HELPER: Number to Words
+        // ============================================================
+        function numberToWords(num) {
+            if (num === 0) return 'Zero';
+            const units = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+                'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'
+            ];
+            const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+            const thousands = ['', 'Thousand', 'Million', 'Billion', 'Trillion'];
+
+            function convertHundreds(n) {
+                let result = '';
+                if (n >= 100) {
+                    result += units[Math.floor(n / 100)] + ' Hundred ';
+                    n %= 100;
+                }
+                if (n >= 20) {
+                    result += tens[Math.floor(n / 10)] + ' ';
+                    n %= 10;
+                }
+                if (n > 0) {
+                    result += units[n] + ' ';
+                }
+                return result.trim();
+            }
+
+            if (num < 0) return 'Minus ' + numberToWords(-num);
+            let word = '';
+            let chunkCount = 0;
+            while (num > 0) {
+                const chunk = num % 1000;
+                if (chunk !== 0) {
+                    const chunkWords = convertHundreds(chunk);
+                    if (thousands[chunkCount]) {
+                        word = chunkWords + ' ' + thousands[chunkCount] + ' ' + word;
+                    } else {
+                        word = chunkWords + ' ' + word;
+                    }
+                }
+                num = Math.floor(num / 1000);
+                chunkCount++;
+            }
+            return word.trim() || 'Zero';
+        }
+
+        // ============================================================
+        // REPAYMENTS MODULE
+        // ============================================================
+        let allRepayments = [];
+        let allLoans = [];
+        let membersMap = {};
+        let currentPage = 1;
+        const pageSize = 10;
+        let filteredRepayments = [];
+        let currentUser = null;
+        let searchQuery = '';
+        let filterYear = 'all';
+        let selectedLoanId = null;
+        let isRepayAll = false;
+
+        // ---- Conditional fields toggle ----
+        function toggleConditionalFields() {
+            const method = document.getElementById('paymentMethod')?.value;
+            const fields = document.getElementById('conditionalFields');
+            const ttRequired = document.getElementById('ttRequired');
+            const transferDateRequired = document.getElementById('transferDateRequired');
+            const bankRequired = document.getElementById('bankRequired');
+            const ttInput = document.getElementById('ttNumber');
+            const transferDateInput = document.getElementById('transferDate');
+            const bankInput = document.getElementById('bankName');
+
+            if (!fields || !ttInput || !transferDateInput || !bankInput) return;
+
+            if (method === 'cash') {
+                fields.style.display = 'none';
+                ttInput.removeAttribute('required');
+                transferDateInput.removeAttribute('required');
+                bankInput.removeAttribute('required');
+                if (ttRequired) ttRequired.textContent = '';
+                if (transferDateRequired) transferDateRequired.textContent = '';
+                if (bankRequired) bankRequired.textContent = '';
+            } else {
+                fields.style.display = 'block';
+                ttInput.setAttribute('required', 'required');
+                transferDateInput.setAttribute('required', 'required');
+                if (method === 'bank') {
+                    bankInput.setAttribute('required', 'required');
+                    if (bankRequired) bankRequired.textContent = '*';
+                } else {
+                    bankInput.removeAttribute('required');
+                    if (bankRequired) bankRequired.textContent = '';
+                }
+                if (ttRequired) ttRequired.textContent = '*';
+                if (transferDateRequired) transferDateRequired.textContent = '*';
+            }
+        }
+
+        // ---- Load members map ----
+        async function loadMembers() {
+            try {
+                const snapshot = await db.collection('members').get();
+                membersMap = {};
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    membersMap[doc.id] = {
+                        fullName: data.fullName,
+                        memberId: data.memberId
+                    };
+                });
+                return true;
+            } catch (error) {
+                showToast('Error loading members: ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        // ---- Load active loans for search ----
+        async function loadActiveLoans() {
+            try {
+                const snapshot = await db.collection('transactions')
+                    .where('type', '==', 'loan')
+                    .where('status', 'in', ['active', 'pending'])
+                    .get();
+                allLoans = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const member = membersMap[data.memberId];
+                    allLoans.push({
+                        id: doc.id,
+                        ...data,
+                        memberName: member ? member.fullName : 'Unknown',
+                        memberId: data.memberId
+                    });
+                });
+                return true;
+            } catch (error) {
+                showToast('Error loading loans: ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        // ---- Interest calculations ----
+        function calculateInterest(principal, rate, months, type) {
+            const r = rate / 100;
+            const monthlyRate = r / 12;
+            const n = months;
+            switch (type) {
+                case 'simple':
+                    return principal * r * (n / 12);
+                case 'compound':
+                    return principal * (Math.pow(1 + monthlyRate, n) - 1);
+                case 'fixed':
+                    return principal * r * (n / 12);
+                case 'reducing':
+                    if (monthlyRate === 0) return 0;
+                    const emi = principal * monthlyRate * Math.pow(1 + monthlyRate, n) / (Math.pow(1 + monthlyRate, n) - 1);
+                    return (emi * n) - principal;
+                default:
+                    return principal * r * (n / 12);
+            }
+        }
+
+        function calculateMonthlyPayment(principal, rate, months, type) {
+            const r = rate / 100;
+            const monthlyRate = r / 12;
+            const n = months;
+            if (type === 'reducing') {
+                if (monthlyRate === 0) return principal / n;
+                const emi = principal * monthlyRate * Math.pow(1 + monthlyRate, n) / (Math.pow(1 + monthlyRate, n) - 1);
+                return emi;
+            } else {
+                const totalPayable = principal + calculateInterest(principal, rate, months, type);
+                return totalPayable / n;
+            }
+        }
+
+        // ---- Get loan repayments total ----
+        async function getLoanRepaymentsTotal(loanId) {
+            try {
+                const snapshot = await db.collection('transactions')
+                    .where('loanId', '==', loanId)
+                    .where('type', '==', 'repayment')
+                    .get();
+                let total = 0;
+                snapshot.forEach(doc => {
+                    total += Number(doc.data().amount) || 0;
+                });
+                return total;
+            } catch (error) {
+                console.error('Error getting repayments:', error);
+                return 0;
+            }
+        }
+
+        // ---- Setup loan search ----
+        function setupLoanSearch() {
+            const searchInput = document.getElementById('loanSearch');
+            const hiddenId = document.getElementById('loanId');
+            const suggestions = document.getElementById('loanSuggestions');
+            const loanInfo = document.getElementById('loanInfoDisplay');
+
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                if (!query) {
+                    suggestions.style.display = 'none';
+                    hiddenId.value = '';
+                    loanInfo.classList.remove('active');
+                    return;
+                }
+                const filtered = allLoans.filter(l =>
+                    l.memberName.toLowerCase().includes(query) ||
+                    (l.memberId && l.memberId.toLowerCase().includes(query)) ||
+                    (l.loanId && l.loanId.toLowerCase().includes(query))
+                );
+                if (filtered.length === 0) {
+                    suggestions.style.display = 'none';
+                    return;
+                }
+                let html = '';
+                filtered.forEach(l => {
+                    const member = membersMap[l.memberId];
+                    const name = member ? member.fullName : 'Unknown';
+                    html += `<div onclick="selectLoan('${l.id}', '${name} (${l.memberId || ''})')">
+                                ${name} <span style="color:var(--text-secondary); font-size:12px;">${l.memberId || ''}</span>
+                                <span style="color:var(--primary); font-size:12px; margin-left:8px;">ETB ${Number(l.amount).toLocaleString()}</span>
+                            </div>`;
+                });
+                suggestions.innerHTML = html;
+                suggestions.style.display = 'block';
+            });
+
+            searchInput.addEventListener('blur', function() {
+                setTimeout(() => { suggestions.style.display = 'none'; }, 200);
+            });
+        }
+
+        // ---- Select loan ----
+        async function selectLoan(id, displayName) {
+            const loan = allLoans.find(l => l.id === id);
+            if (!loan) return;
+
+            document.getElementById('loanSearch').value = displayName;
+            document.getElementById('loanId').value = id;
+            document.getElementById('loanSuggestions').style.display = 'none';
+            selectedLoanId = id;
+
+            const loanInfo = document.getElementById('loanInfoDisplay');
+            document.getElementById('loanMemberName').textContent = loan.memberName || 'Unknown';
+            document.getElementById('loanAmount').textContent = Number(loan.amount).toLocaleString();
+            document.getElementById('loanTotalPayable').textContent = Number(loan.totalPayable || loan.amount).toLocaleString();
+            document.getElementById('loanStatus').textContent = loan.status || 'N/A';
+            document.getElementById('loanStatus').style.color = loan.status === 'active' ? 'var(--primary)' : 'var(--warning)';
+
+            const totalPaid = await getLoanRepaymentsTotal(id);
+            const totalPayable = Number(loan.totalPayable || loan.amount);
+            const remaining = Math.max(0, Math.round((totalPayable - totalPaid) * 100) / 100);
+            document.getElementById('loanTotalPaid').textContent = totalPaid.toLocaleString();
+            const remainingEl = document.getElementById('loanRemaining');
+            remainingEl.textContent = remaining.toLocaleString();
+            remainingEl.className = `value remaining ${remaining <= 0 ? 'warning' : ''}`;
+
+            // ---- Monthly installment ----
+            const principal = Number(loan.amount) || 0;
+            const interestRate = Number(loan.interestRate) || 0;
+            const period = Number(loan.repaymentPeriod) || 0;
+            const loanType = loan.loanType || 'simple';
+            const monthlyPayment = calculateMonthlyPayment(principal, interestRate, period, loanType);
+            document.getElementById('monthlyPaymentValue').textContent = monthlyPayment.toFixed(2);
+
+            // ---- Min repayment ----
+            const minRepayment = Math.min(monthlyPayment, remaining);
+            document.getElementById('minAmountDisplay').textContent = minRepayment.toFixed(2);
+            document.getElementById('minAmountHint').style.display = 'block';
+
+            // ---- Min repayment status ----
+            const statusEl = document.getElementById('minRepaymentStatus');
+            const t = translations[currentLang];
+            if (remaining === 0) {
+                statusEl.textContent = 'Fully paid';
+                statusEl.className = 'value';
+            } else {
+                statusEl.textContent = 'Min: ' + minRepayment.toFixed(2) + ' ETB';
+                statusEl.className = 'value';
+            }
+
+            loanInfo.classList.add('active');
+
+            const amountInput = document.getElementById('amountInput');
+            amountInput.max = remaining;
+            amountInput.min = minRepayment;
+            amountInput.placeholder = `Min: ${minRepayment.toFixed(2)} | Max: ${remaining.toLocaleString()}`;
+
+            updateRepayAllButton();
+            document.getElementById('saveBtn').disabled = false;
+        }
+
+        // ---- Repay All button ----
+        function updateRepayAllButton() {
+            const repayAllBtn = document.getElementById('repayAllBtn');
+            const remainingEl = document.getElementById('loanRemaining');
+            const remainingText = remainingEl.textContent;
+            const remaining = parseFloat(remainingText.replace(/,/g, ''));
+            if (remaining > 0 && remaining !== '—' && !isNaN(remaining)) {
+                repayAllBtn.disabled = false;
+            } else {
+                repayAllBtn.disabled = true;
+            }
+        }
+
+        function setupRepayAllButton() {
+            const repayAllBtn = document.getElementById('repayAllBtn');
+            const amountInput = document.getElementById('amountInput');
+            const remainingEl = document.getElementById('loanRemaining');
+
+            repayAllBtn.addEventListener('click', function() {
+                const remainingText = remainingEl.textContent;
+                const remaining = parseFloat(remainingText.replace(/,/g, ''));
+                if (remaining > 0) {
+                    amountInput.min = 0;
+                    const exactValue = (Math.round(remaining * 100) / 100).toFixed(2);
+                    amountInput.value = exactValue;
+                    isRepayAll = true;
+                    amountInput.dispatchEvent(new Event('input'));
+                }
+            });
+
+            const observer = new MutationObserver(updateRepayAllButton);
+            observer.observe(remainingEl, { childList: true, characterData: true, subtree: true });
+            const loanInfoDisplay = document.getElementById('loanInfoDisplay');
+            const displayObserver = new MutationObserver(() => {
+                if (loanInfoDisplay.classList.contains('active')) {
+                    updateRepayAllButton();
+                }
+            });
+            displayObserver.observe(loanInfoDisplay, { attributes: true, attributeFilter: ['class'] });
+            updateRepayAllButton();
+        }
+
+        // ---- Populate Year Filter ----
+        function populateYearFilter() {
+            const yearFilter = document.getElementById('yearFilter');
+            const years = new Set();
+            allRepayments.forEach(r => {
+                const date = r.date ? (r.date.toDate ? r.date.toDate() : new Date(r.date)) : null;
+                if (date && !isNaN(date.getFullYear())) {
+                    years.add(date.getFullYear());
+                }
+            });
+            const currentVal = yearFilter.value;
+            yearFilter.innerHTML = '';
+            const allOpt = document.createElement('option');
+            allOpt.value = 'all';
+            allOpt.setAttribute('data-i18n', 'allYears');
+            allOpt.textContent = translations[currentLang].allYears || 'All Years';
+            yearFilter.appendChild(allOpt);
+            const sortedYears = Array.from(years).sort((a, b) => b - a);
+            sortedYears.forEach(y => {
+                const opt = document.createElement('option');
+                opt.value = y;
+                opt.textContent = y;
+                yearFilter.appendChild(opt);
+            });
+            if (sortedYears.includes(Number(currentVal)) && currentVal !== 'all') {
+                yearFilter.value = currentVal;
+            } else {
+                yearFilter.value = 'all';
+            }
+            filterYear = yearFilter.value;
+        }
+
+        // ---- Load repayments ----
+        async function loadRepayments() {
+            try {
+                const snapshot = await db.collection('transactions')
+                    .where('type', '==', 'repayment')
+                    .get();
+                allRepayments = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const member = membersMap[data.memberId];
+                    allRepayments.push({
+                        id: doc.id,
+                        ...data,
+                        memberName: member ? member.fullName : 'Unknown'
+                    });
+                });
+                allRepayments.sort((a, b) => {
+                    const da = a.date && a.date.toDate ? a.date.toDate() : new Date(a.date);
+                    const db = b.date && b.date.toDate ? b.date.toDate() : new Date(b.date);
+                    return db - da;
+                });
+                populateYearFilter();
+                applySearch();
+                updateTotalCount();
+            } catch (error) {
+                showToast(translations[currentLang].loadError + error.message, 'error');
+            }
+        }
+
+        // ---- Apply search + year filter ----
+        function applySearch() {
+            searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
+            filterYear = document.getElementById('yearFilter').value;
+
+            let filtered = [...allRepayments];
+
+            // Text search
+            if (searchQuery) {
+                filtered = filtered.filter(r =>
+                    r.memberName.toLowerCase().includes(searchQuery) ||
+                    (r.loanId && r.loanId.toLowerCase().includes(searchQuery))
+                );
+            }
+
+            // Year filter
+            if (filterYear !== 'all') {
+                const yearNum = Number(filterYear);
+                filtered = filtered.filter(r => {
+                    const date = r.date ? (r.date.toDate ? r.date.toDate() : new Date(r.date)) : null;
+                    return date && date.getFullYear() === yearNum;
+                });
+            }
+
+            filteredRepayments = filtered;
+            currentPage = 1;
+            paginateRepayments();
+        }
+
+        function paginateRepayments() {
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageItems = filteredRepayments.slice(start, end);
+            renderTable(pageItems);
+            updatePaginationInfo();
+            renderPageButtons();
+        }
+
+        function renderTable(items) {
+            const tbody = document.getElementById('repaymentsBody');
+            const t = translations[currentLang];
+
+            if (!items || items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:40px; color:var(--text-secondary);">${t.noRepayments}</td></tr>`;
+                return;
+            }
+
+            let html = '';
+            items.forEach((r, i) => {
+                let statusClass = 'pending';
+                let statusLabel = t.pending;
+                if (r.printed === true) {
+                    statusClass = 'printed';
+                    statusLabel = t.printed || 'Printed';
+                } else if (r.status === 'completed') {
+                    statusClass = 'completed';
+                    statusLabel = t.completed;
+                } else if (r.status === 'failed') {
+                    statusClass = 'failed';
+                    statusLabel = t.failed;
+                }
+
+                const dateStr = r.date ? (r.date.toDate ? r.date.toDate().toLocaleDateString() : new Date(r.date)
+                    .toLocaleDateString()) : '—';
+                let byUser = r.createdByName || r.createdBy || r.createdByEmail || 'Admin';
+                if (byUser.includes('@')) byUser = byUser.split('@')[0];
+                if (!byUser || byUser.trim() === '') byUser = 'Admin';
+
+                const methodMap = { 'cash': t.cash || 'Cash', 'bank': t.bankTransfer || 'Bank',
+                    'mobile': t.mobileMoney || 'Mobile' };
+                const methodLabel = methodMap[r.paymentMethod] || r.paymentMethod || 'Cash';
+
+                let actionsHtml = `
+                    <button class="action-btn view-btn" onclick="viewRepayment('${r.id}')" title="${t.view}">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="action-btn print-btn" onclick="printRepaymentSlip('${r.id}')" title="${t.printSlip}">
+                        <i class="fas fa-print"></i>
+                    </button>
+                `;
+                if (canDeleteRepayment()) {
+                    actionsHtml += `
+                        <button class="action-btn delete-btn" onclick="deleteRepayment('${r.id}')" title="${t.delete}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    `;
+                }
+
+                html += `<tr>
+                    <td>${(currentPage-1)*pageSize + i + 1}</td>
+                    <td>${r.memberName || 'Unknown'}</td>
+                    <td><span style="font-family:monospace; font-size:12px; background:var(--border-color); padding:2px 6px; border-radius:4px;">${r.loanId ? r.loanId.slice(0,8) : '—'}</span></td>
+                    <td>${Number(r.amount).toLocaleString()}</td>
+                    <td><span style="font-size:11px; background:var(--border-color); padding:2px 8px; border-radius:12px;">${methodLabel}</span></td>
+                    <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+                    <td>${dateStr}</td>
+                    <td>${byUser}</td>
+                    <td>${actionsHtml}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function updatePaginationInfo() {
+            const total = filteredRepayments.length;
+            const start = (currentPage - 1) * pageSize + 1;
+            const end = Math.min(currentPage * pageSize, total);
+            document.getElementById('pageStart').textContent = total > 0 ? start : 0;
+            document.getElementById('pageEnd').textContent = total > 0 ? end : 0;
+            document.getElementById('totalRepaymentsCount').textContent = total;
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = currentPage >= Math.ceil(total / pageSize) || total === 0;
+        }
+
+        function renderPageButtons() {
+            const container = document.getElementById('pageNumbers');
+            const totalPages = Math.ceil(filteredRepayments.length / pageSize);
+            if (totalPages <= 1) { container.innerHTML = ''; return; }
+            let html = '';
+            const maxVisible = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+            if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
+            if (startPage > 1) {
+                html += `<button class="pagination-btn" onclick="goToPage(1)">1</button>`;
+                if (startPage > 2) html += `<button class="pagination-btn" disabled>...</button>`;
+            }
+            for (let i = startPage; i <= endPage; i++) {
+                html +=
+                    `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) html += `<button class="pagination-btn" disabled>...</button>`;
+                html += `<button class="pagination-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function goToPage(page) {
+            const totalPages = Math.ceil(filteredRepayments.length / pageSize);
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            paginateRepayments();
+            document.querySelector('.table-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function updateTotalCount() {
+            const total = allRepayments.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+            document.getElementById('totalCount').textContent = total.toLocaleString();
+        }
+
+        // ---- View Repayment ----
+        function viewRepayment(id) {
+            const repayment = allRepayments.find(r => r.id === id);
+            if (!repayment) return;
+            const t = translations[currentLang];
+            const dateStr = repayment.date ? (repayment.date.toDate ? repayment.date.toDate().toLocaleDateString() : new Date(
+                repayment.date).toLocaleDateString()) : '—';
+            const statusLabel = repayment.printed ? t.printed :
+                repayment.status === 'completed' ? t.completed :
+                repayment.status === 'pending' ? t.pending :
+                t.failed;
+            let byUser = repayment.createdByName || repayment.createdBy || repayment.createdByEmail || 'Admin';
+            if (byUser.includes('@')) byUser = byUser.split('@')[0];
+            if (!byUser || byUser.trim() === '') byUser = 'Admin';
+            const methodMap = { 'cash': t.cash || 'Cash', 'bank': t.bankTransfer || 'Bank',
+                'mobile': t.mobileMoney || 'Mobile' };
+            const methodLabel = methodMap[repayment.paymentMethod] || repayment.paymentMethod || 'Cash';
+            let extra = '';
+            if (repayment.paymentMethod !== 'cash') {
+                extra =
+                    `\n📋 TT Number: ${repayment.ttNumber || '—'}\n📅 Transfer Date: ${repayment.transferDate ? (repayment.transferDate.toDate ? repayment.transferDate.toDate().toLocaleDateString() : new Date(repayment.transferDate).toLocaleDateString()) : '—'}\n🏦 Bank/Provider: ${repayment.bankName || '—'}`;
+            }
+            showToast(
+                `📋 ${t.member}: ${repayment.memberName || 'Unknown'}\n💰 ${t.amount}: ETB ${Number(repayment.amount).toLocaleString()}\n💳 ${t.paymentMethod}: ${methodLabel}${extra}\n📌 ${t.status}: ${statusLabel}\n📅 ${t.date}: ${dateStr}\n👤 ${t.by}: ${byUser}`,
+                'warning'
+            );
+        }
+
+        // ---- Delete Repayment (Admin only) ----
+        async function deleteRepayment(id) {
+            if (!canDeleteRepayment()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+            const t = translations[currentLang];
+            if (!confirm(t.deleteConfirmation)) return;
+
+            try {
+                await db.collection('transactions').doc(id).delete();
+                showToast(t.repaymentDeleted, 'success');
+                await loadRepayments();
+                await loadActiveLoans();
+                if (selectedLoanId) {
+                    const loan = allLoans.find(l => l.id === selectedLoanId);
+                    if (loan) {
+                        const displayName = loan.memberName + ' (' + (loan.memberId || '') + ')';
+                        selectLoan(loan.id, displayName);
+                    }
+                }
+            } catch (error) {
+                showToast('Error deleting repayment: ' + error.message, 'error');
+            }
+        }
+
+        // ---- Record Repayment (with TT + Transfer Date duplicate check) ----
+        async function recordRepayment(e) {
+            e.preventDefault();
+            if (!canAddRepayment()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+
+            const loanId = document.getElementById('loanId').value;
+            let amount = parseFloat(document.getElementById('amountInput').value);
+            const date = document.getElementById('dateInput').value;
+            const note = document.getElementById('noteInput').value.trim();
+            const status = document.getElementById('statusInput').value;
+            const paymentMethod = document.getElementById('paymentMethod').value;
+            const ttNumber = document.getElementById('ttNumber').value.trim();
+            const transferDate = document.getElementById('transferDate').value;
+            const bankName = document.getElementById('bankName').value.trim();
+
+            if (!loanId) { showToast('Please select a loan.', 'warning'); return; }
+            if (!amount || amount <= 0) { showToast('Please enter a valid amount.', 'warning'); return; }
+            if (!date) { showToast('Please select a date.', 'warning'); return; }
+
+            // For non-cash, require TT number and transfer date
+            if (paymentMethod !== 'cash') {
+                if (!ttNumber) { showToast('Please enter the TT number.', 'warning'); return; }
+                if (!transferDate) { showToast('Please select the transfer date.', 'warning'); return; }
+                if (paymentMethod === 'bank' && !bankName) { showToast('Please enter the bank name.', 'warning'); return; }
+            }
+
+            // ---- Duplicate check: same TT number + same transfer date ----
+            if (paymentMethod !== 'cash' && ttNumber && transferDate) {
+                try {
+                    const startOfDay = new Date(transferDate);
+                    startOfDay.setHours(0, 0, 0, 0);
+                    const endOfDay = new Date(transferDate);
+                    endOfDay.setHours(23, 59, 59, 999);
+
+                    const dupSnap = await db.collection('transactions')
+                        .where('type', '==', 'repayment')
+                        .where('ttNumber', '==', ttNumber)
+                        .where('transferDate', '>=', startOfDay)
+                        .where('transferDate', '<=', endOfDay)
+                        .get();
+
+                    if (!dupSnap.empty) {
+                        showToast(translations[currentLang].duplicateTT, 'warning');
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Duplicate check error:', error);
+                    showToast('Error checking duplicates. Please try again.', 'error');
+                    return;
+                }
+            }
+
+            amount = Math.round(amount * 100) / 100;
+
+            // ---- Get remaining balance and validate ----
+            const loan = allLoans.find(l => l.id === loanId);
+            const totalPayable = Number(loan?.totalPayable || loan?.amount || 0);
+            const totalPaid = await getLoanRepaymentsTotal(loanId);
+            const remaining = Math.max(0, Math.round((totalPayable - totalPaid) * 100) / 100);
+
+            if (isRepayAll) {
+                amount = remaining;
+                isRepayAll = false;
+                const principal = Number(loan?.amount) || 0;
+                const interestRate = Number(loan?.interestRate) || 0;
+                const period = Number(loan?.repaymentPeriod) || 0;
+                const loanType = loan?.loanType || 'simple';
+                const monthlyPayment = calculateMonthlyPayment(principal, interestRate, period, loanType);
+                const minRepayment = Math.min(monthlyPayment, remaining);
+                document.getElementById('amountInput').min = minRepayment;
+            } else {
+                const amountCents = Math.round(amount * 100);
+                const remainingCents = Math.round(remaining * 100);
+                if (amountCents > remainingCents && (amountCents - remainingCents) > 1) {
+                    showToast(translations[currentLang].cannotExceedRemaining, 'warning');
+                    return;
+                } else if (amountCents > remainingCents) {
+                    amount = remaining;
+                }
+
+                const principal = Number(loan?.amount) || 0;
+                const interestRate = Number(loan?.interestRate) || 0;
+                const period = Number(loan?.repaymentPeriod) || 0;
+                const loanType = loan?.loanType || 'simple';
+                const monthlyPayment = calculateMonthlyPayment(principal, interestRate, period, loanType);
+                const minRepayment = Math.min(monthlyPayment, remaining);
+                const minCents = Math.round(minRepayment * 100);
+                if (amountCents < minCents && (minCents - amountCents) > 1) {
+                    showToast(translations[currentLang].minPaymentNotMet + ' (Min: ' + minRepayment.toFixed(2) + ' ETB)',
+                    'warning');
+                    return;
+                } else if (amountCents < minCents) {
+                    amount = minRepayment;
+                }
+            }
+
+            const btn = document.getElementById('saveBtn');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Recording...';
+
+            try {
+                const user = auth.currentUser;
+                const createdByName = getDisplayName(user);
+                const memberId = loan?.memberId;
+
+                const docData = {
+                    loanId: loanId,
+                    memberId: memberId,
+                    type: 'repayment',
+                    amount: amount,
+                    date: new Date(date),
+                    note: note,
+                    status: status,
+                    paymentMethod: paymentMethod,
+                    ttNumber: (paymentMethod === 'cash' ? '' : ttNumber),
+                    bankName: (paymentMethod === 'cash' ? '' : bankName),
+                    createdByName: createdByName,
+                    createdBy: createdByName,
+                    createdByEmail: user ? user.email : 'admin@geresu.com',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                if (paymentMethod !== 'cash' && transferDate) {
+                    docData.transferDate = new Date(transferDate);
+                }
+
+                const docRef = db.collection('transactions').doc();
+                await docRef.set(docData);
+
+                const newTotalPaid = totalPaid + amount;
+                if (newTotalPaid >= totalPayable && status === 'completed') {
+                    await db.collection('transactions').doc(loanId).update({
+                        status: 'paid',
+                        paidAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    showToast('Loan fully paid! Status updated to "Paid".', 'success');
+                }
+
+                showToast(translations[currentLang].paymentRecorded, 'success');
+
+                if (loan) {
+                    const displayName = loan.memberName + ' (' + (loan.memberId || '') + ')';
+                    await selectLoan(loan.id, displayName);
+                }
+
+                document.getElementById('amountInput').value = '';
+                document.getElementById('noteInput').value = '';
+                document.getElementById('statusInput').value = 'completed';
+                document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+                document.getElementById('paymentMethod').value = 'cash';
+                document.getElementById('ttNumber').value = '';
+                document.getElementById('transferDate').value = '';
+                document.getElementById('bankName').value = '';
+                toggleConditionalFields();
+
+                await loadRepayments();
+            } catch (error) {
+                showToast(translations[currentLang].paymentError + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                isRepayAll = false;
+            }
+        }
+
+        function getDisplayName(user) {
+            if (!user) return 'Admin';
+            if (currentUserDisplayName) return currentUserDisplayName;
+            const name = user.displayName || user.email || 'Admin';
+            if (name.includes('@')) return name.split('@')[0];
+            return name;
+        }
+
+        // ============================================================
+        // PRINT SLIP (with amount in words)
+        // ============================================================
+        async function printRepaymentSlip(docId) {
+            const repayment = allRepayments.find(r => r.id === docId);
+            if (!repayment) { showToast('Repayment not found.', 'error'); return; }
+
+            const user = auth.currentUser;
+            let printedBy = 'Unknown';
+            if (user) {
+                printedBy = user.displayName || user.email || 'Unknown';
+                if (printedBy.includes('@')) printedBy = printedBy.split('@')[0];
+            }
+
+            try {
+                if (repayment.status !== 'printed') {
+                    await db.collection('transactions').doc(docId).update({
+                        status: 'printed',
+                        printed: true,
+                        printedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        printedBy: printedBy
+                    });
+                    repayment.status = 'printed';
+                    repayment.printed = true;
+                    repayment.printedAt = new Date();
+                    repayment.printedBy = printedBy;
+                    const currentItems = filteredRepayments.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+                    renderTable(currentItems);
+                }
+
+                showToast(translations[currentLang].printRecorded, 'success');
+                generateRepaymentSlipHTML(repayment);
+                window.print();
+
+            } catch (error) {
+                console.error('Error printing:', error);
+                showToast('Failed to print. Please try again.', 'error');
+            }
+        }
+
+        function generateRepaymentSlipHTML(repayment) {
+            const t = translations[currentLang];
+            const dateStr = repayment.date ? (repayment.date.toDate ? repayment.date.toDate().toLocaleString() : new Date(repayment
+                .date)
+                .toLocaleString()) : '—';
+            const byUser = repayment.createdByName || repayment.createdBy || repayment.createdByEmail || 'Admin';
+            const displayName = byUser.includes('@') ? byUser.split('@')[0] : byUser;
+            const note = repayment.note || '—';
+            const amount = Number(repayment.amount) || 0;
+            const amountWords = numberToWords(Math.floor(amount)) + ' ETB';
+            const memberName = repayment.memberName || 'Unknown';
+            const loanIdShort = repayment.loanId ? repayment.loanId.slice(0, 8) : '—';
+            const methodMap = { 'cash': t.cash || 'Cash', 'bank': t.bankTransfer || 'Bank Transfer',
+                'mobile': t.mobileMoney || 'Mobile Money' };
+            const methodLabel = methodMap[repayment.paymentMethod] || repayment.paymentMethod || 'Cash';
+
+            let extraRows = '';
+            if (repayment.paymentMethod !== 'cash') {
+                extraRows += `<div class="slip-row"><span class="label">TT Number</span><span class="value">${repayment.ttNumber || '—'}</span></div>`;
+                const tDate = repayment.transferDate ? (repayment.transferDate.toDate ? repayment.transferDate.toDate()
+                    .toLocaleDateString() : new Date(repayment.transferDate).toLocaleDateString()) : '—';
+                extraRows += `<div class="slip-row"><span class="label">Transfer Date</span><span class="value">${tDate}</span></div>`;
+                extraRows += `<div class="slip-row"><span class="label">Bank / Provider</span><span class="value">${repayment.bankName || '—'}</span></div>`;
+            }
+
+            const slipContainer = document.getElementById('slipContainer');
+            slipContainer.innerHTML = `
+                <div class="slip-header"><h1>GERESU DHUKI SACCO</h1><p>Repayment Receipt</p></div>
+                <div class="slip-body">
+                    <div class="slip-row"><span class="label">Transaction ID</span><span class="value">${repayment.id.slice(0, 12)}</span></div>
+                    <div class="slip-row"><span class="label">Member</span><span class="value">${memberName}</span></div>
+                    <div class="slip-row"><span class="label">Loan ID</span><span class="value">${loanIdShort}</span></div>
+                    <div class="slip-row"><span class="label">Payment Method</span><span class="value">${methodLabel}</span></div>
+                    ${extraRows}
+                    <div class="slip-row"><span class="label">Amount (ETB)</span><span class="value">${amount.toLocaleString()}</span></div>
+                    <div class="slip-row"><span class="label">${t.amountInWords}</span><span class="value amount-words">${amountWords}</span></div>
+                    <div class="slip-row"><span class="label">Status</span><span class="value">${t.printed}</span></div>
+                    <div class="slip-row"><span class="label">Date</span><span class="value">${dateStr}</span></div>
+                    <div class="slip-row"><span class="label">Note</span><span class="value">${note}</span></div>
+                    <div class="slip-row"><span class="label">Recorded By</span><span class="value">${displayName}</span></div>
+                </div>
+                <div class="slip-footer"><div class="thankyou">Thank you!</div><p>Computer-generated receipt.</p></div>
+            `;
+        }
+
+        // ============================================================
+        // PAGE INIT
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', async function() {
+            auth.onAuthStateChanged(async (user) => {
+                if (!user) {
+                    window.location.href = '../index.html';
+                    return;
+                }
+                currentUser = user;
+
+                try {
+                    const doc = await db.collection('users').doc(user.uid).get();
+                    if (doc.exists) {
+                        const data = doc.data();
+                        currentUserRole = data.role || 'viewer';
+                        if (!['admin', 'manager', 'teller', 'accountant', 'viewer'].includes(currentUserRole)) {
+                            currentUserRole = 'viewer';
+                        }
+                        currentUserDisplayName = data.displayName || data.name || user.displayName || user.email?.split(
+                            '@')[0] || 'Admin';
+                    } else {
+                        currentUserRole = 'viewer';
+                        currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'Admin';
+                    }
+                } catch (err) {
+                    console.error('Error fetching user role:', err);
+                    currentUserRole = 'viewer';
+                    currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'Admin';
+                }
+
+                const roleMap = {
+                    admin: 'ADMIN',
+                    manager: 'MANAGER',
+                    teller: 'TELLER',
+                    accountant: 'ACCOUNTANT',
+                    viewer: 'VIEWER'
+                };
+                const roleLabel = roleMap[currentUserRole] || 'VIEWER';
+                const displayName = currentUserDisplayName || 'Admin';
+                document.getElementById('userDisplayName').textContent = displayName + ' (' + roleLabel + ')';
+
+                const usersNav = document.getElementById('usersNavItem');
+                if (usersNav) usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
+
+                const formSection = document.getElementById('repaymentFormSection');
+                if (canAddRepayment()) {
+                    formSection.style.display = 'block';
+                } else {
+                    formSection.style.display = 'none';
+                }
+
+                initLanguage();
+
+                document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
+                document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
+
+                document.querySelectorAll('.lang-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        setLanguage(this.dataset.lang);
+                        const currentItems = filteredRepayments.slice((currentPage - 1) * pageSize,
+                            currentPage * pageSize);
+                        renderTable(currentItems);
+                        updatePaginationInfo();
+                        renderPageButtons();
+                        const searchInput = document.getElementById('searchInput');
+                        const t = translations[currentLang];
+                        searchInput.placeholder = t.searchPlaceholder || 'Search by member name...';
+                    });
+                });
+
+                document.getElementById('logoutBtn').addEventListener('click', async function() {
+                    if (confirm('Are you sure you want to log out?')) {
+                        await auth.signOut();
+                        window.location.href = '../index.html';
+                    }
+                });
+
+                // ---- Conditional fields ----
+                document.getElementById('paymentMethod').addEventListener('change', toggleConditionalFields);
+                toggleConditionalFields();
+
+                await loadMembers();
+                await loadActiveLoans();
+                setupLoanSearch();
+                setupRepayAllButton();
+
+                document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+
+                await loadRepayments();
+
+                document.getElementById('searchInput').addEventListener('input', function() {
+                    applySearch();
+                });
+
+                document.getElementById('yearFilter').addEventListener('change', function() {
+                    applySearch();
+                });
+
+                document.getElementById('repaymentForm').addEventListener('submit', recordRepayment);
+
+                document.getElementById('resetFormBtn').addEventListener('click', function() {
+                    document.getElementById('repaymentForm').reset();
+                    document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+                    document.getElementById('loanInfoDisplay').classList.remove('active');
+                    document.getElementById('loanSearch').value = '';
+                    document.getElementById('loanId').value = '';
+                    selectedLoanId = null;
+                    isRepayAll = false;
+                    document.getElementById('paymentMethod').value = 'cash';
+                    document.getElementById('ttNumber').value = '';
+                    document.getElementById('transferDate').value = '';
+                    document.getElementById('bankName').value = '';
+                    toggleConditionalFields();
+                });
+
+                document.getElementById('prevPage').addEventListener('click', function() {
+                    if (currentPage > 1) goToPage(currentPage - 1);
+                });
+                document.getElementById('nextPage').addEventListener('click', function() {
+                    const totalPages = Math.ceil(filteredRepayments.length / pageSize);
+                    if (currentPage < totalPages) goToPage(currentPage + 1);
+                });
+
+                const searchInput = document.getElementById('searchInput');
+                const t = translations[currentLang];
+                searchInput.placeholder = t.searchPlaceholder || 'Search by member name...';
+
+                window.selectLoan = selectLoan;
+            });
+        });
+
+        window.viewRepayment = viewRepayment;
+        window.deleteRepayment = deleteRepayment;
+        window.printRepaymentSlip = printRepaymentSlip;
+        window.goToPage = goToPage;
+        window.toggleSidebar = toggleSidebar;
+        window.selectLoan = selectLoan;
+    </script>
+    <script>
+        // ============================================================
+        // SESSION TIMEOUT (5 minutes inactivity)
+        // ============================================================
+        (function() {
+            const SESSION_TIMEOUT = 5 * 60 * 1000;
+            const WARNING_TIMEOUT = SESSION_TIMEOUT - 30 * 1000;
+
+            let timer = null;
+            let warningTimer = null;
+            let warningToast = null;
+            let countdownInterval = null;
+
+            function resetTimer() {
+                clearTimeout(timer);
+                clearTimeout(warningTimer);
+                clearInterval(countdownInterval);
+                if (warningToast) {
+                    warningToast.remove();
+                    warningToast = null;
+                }
+                warningTimer = setTimeout(showWarning, WARNING_TIMEOUT);
+                timer = setTimeout(forceLogout, SESSION_TIMEOUT);
+            }
+
+            function showWarning() {
+                const t = translations && translations[currentLang] ? translations[currentLang] : { sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.' };
+                const message = t.sessionTimeout || 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
+
+                let seconds = 30;
+                warningToast = document.createElement('div');
+                warningToast.style.cssText = `
+                    position: fixed;
+                    bottom: 30px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: #f39c12;
+                    color: #fff;
+                    padding: 16px 24px;
+                    border-radius: 12px;
+                    font-size: 15px;
+                    font-weight: 500;
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+                    z-index: 99999;
+                    max-width: 500px;
+                    text-align: center;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    animation: slideUp 0.3s ease;
+                `;
+                warningToast.innerHTML = `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
+
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes slideUp {
+                        from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+                        to { transform: translateX(-50%) translateY(0); opacity: 1; }
+                    }
+                `;
+                document.head.appendChild(style);
+                document.body.appendChild(warningToast);
+
+                countdownInterval = setInterval(() => {
+                    seconds--;
+                    const textEl = document.getElementById('sessionWarningText');
+                    if (textEl) {
+                        textEl.textContent = message.replace('{seconds}', seconds);
+                    }
+                    if (seconds <= 0) {
+                        clearInterval(countdownInterval);
+                    }
+                }, 1000);
+            }
+
+            function forceLogout() {
+                clearInterval(countdownInterval);
+                if (warningToast) {
+                    warningToast.remove();
+                    warningToast = null;
+                }
+                if (typeof auth !== 'undefined' && auth) {
+                    auth.signOut().then(() => {
+                        window.location.href = '../index.html';
+                    }).catch(() => {
+                        window.location.href = '../index.html';
+                    });
+                } else {
+                    window.location.href = '../index.html';
+                }
+            }
+
+            const events = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
+
+            function handleActivity() {
+                resetTimer();
+            }
+            events.forEach(evt => {
+                document.addEventListener(evt, handleActivity);
+            });
+            resetTimer();
+
+            window.addEventListener('beforeunload', function() {
+                clearTimeout(timer);
+                clearTimeout(warningTimer);
+                clearInterval(countdownInterval);
+                if (warningToast) {
+                    warningToast.remove();
+                }
+                events.forEach(evt => {
+                    document.removeEventListener(evt, handleActivity);
+                });
+            });
+        })();
+    </script>
+</body>
+</html>
