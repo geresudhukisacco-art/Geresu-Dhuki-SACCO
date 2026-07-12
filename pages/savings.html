@@ -654,6 +654,18 @@
             background: var(--primary-light);
             transform: scale(1.1);
         }
+        .action-btn.edit-btn {
+            color: var(--info);
+        }
+        .action-btn.edit-btn:hover {
+            background: #d4e8f7;
+        }
+        .action-btn.delete-btn {
+            color: var(--danger);
+        }
+        .action-btn.delete-btn:hover {
+            background: #fdd9d9;
+        }
 
         /* ----- PAGINATION ----- */
         .pagination-container {
@@ -889,6 +901,61 @@
             }
         }
 
+        /* ============================================================
+           EDIT SAVINGS MODAL
+           ============================================================ */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10001;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: 16px;
+            max-width: 700px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 24px;
+            box-shadow: var(--shadow-lg);
+            transition: background 0.3s;
+        }
+        .modal-content .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+        .modal-content .modal-header h3 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .modal-content .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            line-height: 1;
+        }
+        .modal-content .modal-close:hover {
+            color: var(--danger);
+        }
+
         /* ----- RESPONSIVE ----- */
         @media (max-width: 768px) {
             .sidebar {
@@ -940,6 +1007,10 @@
             }
             .user-name {
                 display: none;
+            }
+            .modal-content {
+                margin: 10px;
+                padding: 16px;
             }
         }
         @media (max-width: 480px) {
@@ -1202,6 +1273,82 @@
     <!-- ===== PRINT SLIP ===== -->
     <div id="slipContainer" class="slip-container"></div>
 
+    <!-- ===== EDIT SAVINGS MODAL ===== -->
+    <div class="modal-overlay" id="editSavingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-i18n="editSavings">Edit Savings</h3>
+                <button class="modal-close" id="closeEditModal">&times;</button>
+            </div>
+            <form id="editSavingsForm">
+                <input type="hidden" id="editSavingsId" />
+                <div class="form-row">
+                    <div class="form-group">
+                        <label data-i18n="member">Member <span class="required">*</span></label>
+                        <input type="text" id="editMemberSearch" placeholder="Search member..." autocomplete="off" required />
+                        <input type="hidden" id="editMemberId" />
+                        <div id="editMemberSuggestions"></div>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="amount">Amount (ETB) <span class="required">*</span></label>
+                        <input type="number" id="editAmount" required step="0.01" min="0.01" />
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="date">Date <span class="required">*</span></label>
+                        <input type="date" id="editDate" required />
+                    </div>
+                </div>
+                <div class="form-row two">
+                    <div class="form-group">
+                        <label data-i18n="savingsType">Savings Type <span class="required">*</span></label>
+                        <select id="editSavingsType" required>
+                            <option value="cash">Cash</option>
+                            <option value="mobile">Transfer from Mobile</option>
+                            <option value="bank">Bank Deposit</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="status">Status</label>
+                        <select id="editStatus">
+                            <option value="done">Done</option>
+                            <option value="pending">Pending</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="conditional-fields" id="editConditionalFields">
+                    <div class="form-row two">
+                        <div class="form-group">
+                            <label data-i18n="ttNumber">TT Number <span class="required" id="editTtRequired">*</span></label>
+                            <input type="text" id="editTtNumber" placeholder="Enter TT number" />
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="transferDate">Transfer Date <span class="required" id="editTransferDateRequired">*</span></label>
+                            <input type="date" id="editTransferDate" />
+                        </div>
+                    </div>
+                    <div class="form-row two">
+                        <div class="form-group">
+                            <label data-i18n="bankName">Bank Name <span class="required" id="editBankRequired">*</span></label>
+                            <input type="text" id="editBankName" placeholder="Enter bank name" />
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row two">
+                    <div class="form-group">
+                        <label data-i18n="note">Note (optional)</label>
+                        <input type="text" id="editNote" placeholder="Optional note..." />
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancelEditBtn"><span data-i18n="cancel">Cancel</span></button>
+                    <button type="submit" class="btn-primary" id="updateSavingsBtn">
+                        <i class="fas fa-save"></i> <span data-i18n="updateSavings">Update Savings</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         // ============================================================
         // 1. FIREBASE CONFIG (UPDATED)
@@ -1286,7 +1433,13 @@
                 duplicateTT: 'This TT number and Transfer Date are already registered. Please check and try again.',
                 minSavingsRequired: 'Minimum savings amount is {min} ETB. Please increase the amount.',
                 allYears: 'All Years',
-                selectYear: 'Select Year'
+                selectYear: 'Select Year',
+                editSavings: 'Edit Savings',
+                updateSavings: 'Update Savings',
+                cancel: 'Cancel',
+                savingsUpdated: 'Savings updated successfully!',
+                savingsDeleted: 'Savings deleted successfully!',
+                deleteConfirmation: 'Are you sure you want to delete this savings record? This action cannot be undone.'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1349,7 +1502,13 @@
                 duplicateTT: 'ይህ ቲቲ ቁጥር እና የዝውውር ቀን ቀድሞ ተመዝግቧል። እባክዎ ይፈትሹ እና እንደገና ይሞክሩ።',
                 minSavingsRequired: 'አነስተኛ የቁጠባ መጠን {min} ብር ነው። እባክዎ መጠኑን ይጨምሩ።',
                 allYears: 'ሁሉም ዓመታት',
-                selectYear: 'ዓመት ይምረጡ'
+                selectYear: 'ዓመት ይምረጡ',
+                editSavings: 'ቁጠባ ያስተካክሉ',
+                updateSavings: 'ቁጠባ ያሻሽሉ',
+                cancel: 'ሰርዝ',
+                savingsUpdated: 'ቁጠባ በተሳካ ሁኔታ ተሻሽሏል!',
+                savingsDeleted: 'ቁጠባ በተሳካ ሁኔታ ተሰርዟል!',
+                deleteConfirmation: 'ይህንን የቁጠባ መዝገብ መሰረዝ እርግጠኛ ነዎት? ይህ እርምጃ ሊቀለበስ አይችልም።'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1412,7 +1571,13 @@
                 duplicateTT: 'Lakkoofsi TT fi guyyaan sochoosaa kun duraan galmeefame. Mirkaneessii deebi’i.',
                 minSavingsRequired: 'Hanga ummata kussaa {min} ETB dha. Maaloo qaba dabali.',
                 allYears: 'Waggaa Hunda',
-                selectYear: 'Waggaa Filadhu'
+                selectYear: 'Waggaa Filadhu',
+                editSavings: 'Kussaa Jijjiiri',
+                updateSavings: 'Kussaa Fooyyessi',
+                cancel: 'Haqi',
+                savingsUpdated: 'Kussaan sirriitti fooyyeffame!',
+                savingsDeleted: 'Kussaan sirriitti haqame!',
+                deleteConfirmation: 'Galmee kussaa kana haquu mirkaneeffattee? Gochi kun deebifamuu hin danda\'u.'
             }
         };
 
@@ -1495,8 +1660,17 @@
             return ['admin', 'manager', 'teller'].includes(currentUserRole);
         }
 
+        function canEditSavings() {
+            return ['admin', 'manager'].includes(currentUserRole);
+        }
+
+        function canDeleteSavings() {
+            return ['admin'].includes(currentUserRole);
+        }
+
         function updateUserInfo() {
-            const roleMap = { admin: 'ADMIN', manager: 'MANAGER', teller: 'TELLER', accountant: 'ACCOUNTANT', viewer: 'VIEWER' };
+            const roleMap = { admin: 'ADMIN', manager: 'MANAGER', teller: 'TELLER', accountant: 'ACCOUNTANT',
+                viewer: 'VIEWER' };
             const roleLabel = roleMap[currentUserRole] || 'VIEWER';
             const displayName = currentUserDisplayName || 'User';
             document.getElementById('userDisplayName').textContent = displayName + ' (' + roleLabel + ')';
@@ -1512,7 +1686,7 @@
                 const doc = await db.collection('settings').doc(SETTINGS_DOC_ID).get();
                 if (doc.exists) {
                     const data = doc.data();
-                    minSavingsAmount = data.minSavings || 0;
+                    minSavingsAmount = data.minSavingsBalance || 0;
                 } else {
                     minSavingsAmount = 0;
                 }
@@ -1591,7 +1765,9 @@
         let searchQuery = '';
         let filterYear = 'all';
         let searchSetupDone = false;
+        let editSearchSetupDone = false;
 
+        // ---- Load members ----
         async function loadMembersForSelect() {
             try {
                 const snapshot = await db.collection('members').get();
@@ -1611,6 +1787,7 @@
             }
         }
 
+        // ---- Main member search ----
         function setupMemberSearch() {
             if (searchSetupDone) return;
             searchSetupDone = true;
@@ -1690,6 +1867,48 @@
             document.getElementById('memberSearch').value = displayName;
             document.getElementById('memberId').value = id;
             document.getElementById('memberSuggestions').style.display = 'none';
+        }
+
+        // ---- Edit member search ----
+        function setupEditMemberSearch() {
+            if (editSearchSetupDone) return;
+            editSearchSetupDone = true;
+            const searchInput = document.getElementById('editMemberSearch');
+            const suggestions = document.getElementById('editMemberSuggestions');
+
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                if (!query) {
+                    suggestions.style.display = 'none';
+                    return;
+                }
+                const filtered = membersList.filter(m =>
+                    (m.fullName && m.fullName.toLowerCase().includes(query)) ||
+                    (m.memberId && m.memberId.toLowerCase().includes(query))
+                );
+                if (filtered.length === 0) {
+                    suggestions.style.display = 'none';
+                    return;
+                }
+                let html = '';
+                filtered.forEach(m => {
+                    html += `<div onclick="selectEditMember('${m.id}', '${m.fullName} (${m.memberId||''})')">
+                                ${m.fullName} <span style="color:var(--text-secondary);font-size:12px;">${m.memberId||''}</span>
+                            </div>`;
+                });
+                suggestions.innerHTML = html;
+                suggestions.style.display = 'block';
+            });
+
+            searchInput.addEventListener('blur', function() {
+                setTimeout(() => { suggestions.style.display = 'none'; }, 200);
+            });
+        }
+
+        function selectEditMember(id, displayName) {
+            document.getElementById('editMemberSearch').value = displayName;
+            document.getElementById('editMemberId').value = id;
+            document.getElementById('editMemberSuggestions').style.display = 'none';
         }
 
         // ===== POPULATE YEAR FILTER =====
@@ -1815,6 +2034,7 @@
         function renderTable(items) {
             const tbody = document.getElementById('savingsBody');
             const t = translations[currentLang];
+            const tLang = translations[currentLang];
 
             if (!items || items.length === 0) {
                 tbody.innerHTML =
@@ -1858,6 +2078,29 @@
 
                 const displayName = memberName + (memberIdDisplay ? ` (${memberIdDisplay})` : '');
 
+                // ---- Actions with Edit and Delete ----
+                let actionsHtml = `
+                    <button class="action-btn" onclick="printSlip('${s.id}')" title="${t.printSlip}">
+                        <i class="fas fa-print"></i>
+                    </button>
+                `;
+
+                if (canEditSavings()) {
+                    actionsHtml += `
+                        <button class="action-btn edit-btn" onclick="editSavings('${s.id}')" title="${t.edit || 'Edit'}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    `;
+                }
+
+                if (canDeleteSavings()) {
+                    actionsHtml += `
+                        <button class="action-btn delete-btn" onclick="deleteSavings('${s.id}')" title="${t.delete || 'Delete'}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    `;
+                }
+
                 html += `<tr>
                     <td>${(currentPage-1)*pageSize + i + 1}</td>
                     <td>${displayName}</td>
@@ -1868,7 +2111,7 @@
                     <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
                     <td>${dateStr}</td>
                     <td>${byUser}</td>
-                    <td><button class="action-btn" onclick="printSlip('${s.id}')" title="${t.printSlip}"><i class="fas fa-print"></i></button></td>
+                    <td>${actionsHtml}</td>
                 </tr>`;
             });
             tbody.innerHTML = html;
@@ -1922,6 +2165,7 @@
             document.getElementById('totalCount').textContent = total.toLocaleString();
         }
 
+        // ---- Toggle conditional fields (main form) ----
         function toggleConditionalFields() {
             const type = document.getElementById('savingsType')?.value;
             const fields = document.getElementById('conditionalFields');
@@ -1961,7 +2205,49 @@
             }
         }
 
-        // ---- Save deposit ----
+        // ---- Toggle conditional fields (edit form) ----
+        function toggleEditConditionalFields() {
+            const type = document.getElementById('editSavingsType')?.value;
+            const fields = document.getElementById('editConditionalFields');
+            const ttRequired = document.getElementById('editTtRequired');
+            const transferDateRequired = document.getElementById('editTransferDateRequired');
+            const bankRequired = document.getElementById('editBankRequired');
+            const ttInput = document.getElementById('editTtNumber');
+            const transferDateInput = document.getElementById('editTransferDate');
+            const bankInput = document.getElementById('editBankName');
+
+            if (!fields || !ttInput || !transferDateInput || !bankInput) return;
+
+            if (type === 'cash') {
+                fields.style.display = 'none';
+                ttInput.removeAttribute('required');
+                transferDateInput.removeAttribute('required');
+                bankInput.removeAttribute('required');
+                if (ttRequired) ttRequired.textContent = '';
+                if (transferDateRequired) transferDateRequired.textContent = '';
+                if (bankRequired) bankRequired.textContent = '';
+            } else if (type === 'mobile') {
+                fields.style.display = 'block';
+                ttInput.setAttribute('required', 'required');
+                transferDateInput.setAttribute('required', 'required');
+                bankInput.removeAttribute('required');
+                if (ttRequired) ttRequired.textContent = '*';
+                if (transferDateRequired) transferDateRequired.textContent = '*';
+                if (bankRequired) bankRequired.textContent = '';
+            } else if (type === 'bank') {
+                fields.style.display = 'block';
+                ttInput.setAttribute('required', 'required');
+                transferDateInput.setAttribute('required', 'required');
+                bankInput.setAttribute('required', 'required');
+                if (ttRequired) ttRequired.textContent = '*';
+                if (transferDateRequired) transferDateRequired.textContent = '*';
+                if (bankRequired) bankRequired.textContent = '*';
+            }
+        }
+
+        // ============================================================
+        // SAVE DEPOSIT
+        // ============================================================
         async function saveDeposit(e) {
             e.preventDefault();
             if (!canAddSavings()) {
@@ -2078,7 +2364,147 @@
             }
         }
 
-        // ---- Print slip ----
+        // ============================================================
+        // EDIT SAVINGS
+        // ============================================================
+        function editSavings(txId) {
+            if (!canEditSavings()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+
+            const tx = allSavings.find(s => s.id === txId);
+            if (!tx) { showToast('Transaction not found.', 'error'); return; }
+
+            const modal = document.getElementById('editSavingsModal');
+            document.getElementById('editSavingsId').value = tx.id;
+
+            // Find member
+            const member = membersList.find(m => m.id === tx.memberId);
+            if (member) {
+                document.getElementById('editMemberSearch').value = member.fullName + ' (' + (member.memberId || '') + ')';
+                document.getElementById('editMemberId').value = member.id;
+            } else {
+                document.getElementById('editMemberSearch').value = '';
+                document.getElementById('editMemberId').value = '';
+            }
+
+            document.getElementById('editAmount').value = tx.amount || '';
+            const dateVal = tx.date ? (tx.date.toDate ? tx.date.toDate() : new Date(tx.date)) : new Date();
+            document.getElementById('editDate').value = dateVal.toISOString().split('T')[0];
+            document.getElementById('editSavingsType').value = tx.savingsType || 'cash';
+            document.getElementById('editStatus').value = tx.status || 'done';
+            document.getElementById('editTtNumber').value = tx.ttNumber || '';
+            const transferDateVal = tx.transferDate ? (tx.transferDate.toDate ? tx.transferDate.toDate() : new Date(tx
+                .transferDate)) : null;
+            document.getElementById('editTransferDate').value = transferDateVal ? transferDateVal.toISOString().split('T')[0] :
+                '';
+            document.getElementById('editBankName').value = tx.bankName || '';
+            document.getElementById('editNote').value = tx.note || '';
+
+            // Show/hide conditional fields
+            toggleEditConditionalFields();
+
+            modal.classList.add('active');
+            modal.style.display = 'flex';
+        }
+
+        // ---- Close Edit Modal ----
+        function closeEditModal() {
+            document.getElementById('editSavingsModal').classList.remove('active');
+            document.getElementById('editSavingsModal').style.display = 'none';
+        }
+
+        // ---- Update Savings ----
+        async function updateSavings(e) {
+            e.preventDefault();
+            if (!canEditSavings()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+
+            const txId = document.getElementById('editSavingsId').value;
+            const memberId = document.getElementById('editMemberId').value;
+            const amount = parseFloat(document.getElementById('editAmount').value);
+            const date = document.getElementById('editDate').value;
+            const savingsType = document.getElementById('editSavingsType').value;
+            const status = document.getElementById('editStatus').value;
+            const note = document.getElementById('editNote').value.trim();
+            const ttNumber = document.getElementById('editTtNumber').value.trim();
+            const transferDate = document.getElementById('editTransferDate').value;
+            const bankName = document.getElementById('editBankName').value.trim();
+
+            if (!memberId) { showToast('Please select a member.', 'warning'); return; }
+            if (!amount || amount <= 0) { showToast('Please enter a valid amount.', 'warning'); return; }
+            if (!date) { showToast('Please select a date.', 'warning'); return; }
+
+            if (savingsType === 'mobile' || savingsType === 'bank') {
+                if (!ttNumber) { showToast('Please enter the TT number.', 'warning'); return; }
+                if (!transferDate) { showToast('Please select the transfer date.', 'warning'); return; }
+                if (savingsType === 'bank' && !bankName) { showToast('Please enter the bank name.', 'warning'); return; }
+            }
+
+            const btn = document.getElementById('updateSavingsBtn');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+
+            try {
+                const docRef = db.collection('transactions').doc(txId);
+                const updateData = {
+                    memberId: memberId,
+                    amount: amount,
+                    date: new Date(date),
+                    note: note,
+                    status: status,
+                    savingsType: savingsType,
+                    ttNumber: (savingsType === 'cash' ? '' : ttNumber),
+                    bankName: (savingsType === 'cash' ? '' : bankName),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                if (savingsType !== 'cash' && transferDate) {
+                    updateData.transferDate = new Date(transferDate);
+                } else {
+                    updateData.transferDate = null;
+                }
+
+                await docRef.update(updateData);
+                showToast(translations[currentLang].savingsUpdated, 'success');
+                closeEditModal();
+                await loadSavings();
+            } catch (error) {
+                showToast('Error updating savings: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
+        // ============================================================
+        // DELETE SAVINGS
+        // ============================================================
+        async function deleteSavings(txId) {
+            if (!canDeleteSavings()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+
+            const t = translations[currentLang];
+            if (!confirm(t.deleteConfirmation)) return;
+
+            try {
+                await db.collection('transactions').doc(txId).delete();
+                showToast(t.savingsDeleted, 'success');
+                await loadSavings();
+            } catch (error) {
+                showToast('Error deleting savings: ' + error.message, 'error');
+            }
+        }
+
+        // ============================================================
+        // PRINT SLIP
+        // ============================================================
         async function printSlip(txId) {
             const tx = allSavings.find(s => s.id === txId);
             if (!tx) { showToast('Transaction not found.', 'error'); return; }
@@ -2221,6 +2647,9 @@
                 document.getElementById('savingsType').addEventListener('change', toggleConditionalFields);
                 toggleConditionalFields();
 
+                // Edit form conditional fields
+                document.getElementById('editSavingsType').addEventListener('change', toggleEditConditionalFields);
+
                 document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
                 document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
 
@@ -2247,6 +2676,7 @@
 
                 await loadMembersForSelect();
                 setupMemberSearch();
+                setupEditMemberSearch();
 
                 document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
 
@@ -2261,6 +2691,14 @@
                 });
 
                 document.getElementById('savingsForm').addEventListener('submit', saveDeposit);
+
+                // Edit modal events
+                document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
+                document.getElementById('cancelEditBtn').addEventListener('click', closeEditModal);
+                document.getElementById('editSavingsModal').addEventListener('click', function(e) {
+                    if (e.target === this) closeEditModal();
+                });
+                document.getElementById('editSavingsForm').addEventListener('submit', updateSavings);
 
                 document.getElementById('resetFormBtn').addEventListener('click', function() {
                     document.getElementById('savingsForm').reset();
@@ -2284,14 +2722,20 @@
                 const searchInput = document.getElementById('searchInput');
                 const t = translations[currentLang];
                 searchInput.placeholder = t.searchPlaceholder || 'Search by member name...';
+
+                // Expose functions globally
+                window.printSlip = printSlip;
+                window.editSavings = editSavings;
+                window.deleteSavings = deleteSavings;
+                window.goToPage = goToPage;
+                window.toggleSidebar = toggleSidebar;
+                window.selectMember = selectMember;
+                window.selectEditMember = selectEditMember;
+                window.toggleConditionalFields = toggleConditionalFields;
+                window.toggleEditConditionalFields = toggleEditConditionalFields;
+                window.closeEditModal = closeEditModal;
             });
         });
-
-        window.toggleSidebar = toggleSidebar;
-        window.goToPage = goToPage;
-        window.printSlip = printSlip;
-        window.selectMember = selectMember;
-        window.toggleConditionalFields = toggleConditionalFields;
     </script>
     <script>
         // ============================================================
