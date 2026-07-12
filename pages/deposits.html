@@ -1,0 +1,2798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Deposits – GERESU DHUKI SACCO</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js">
+    </script>
+
+    <style>
+        /* ===== ALL STYLES ===== */
+        :root {
+            --bg-primary: #f5f7f6;
+            --bg-card: #ffffff;
+            --bg-sidebar: #1a2e1f;
+            --text-primary: #1a2e1f;
+            --text-secondary: #6c7d70;
+            --border-color: #e8ede9;
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+            --input-bg: #ffffff;
+            --input-border: #d0d7d2;
+            --input-focus: rgba(45, 122, 61, 0.1);
+            --success: #2d7a3d;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #2196f3;
+            --primary: #2d7a3d;
+            --primary-light: #e8f5ee;
+            --radius: 12px;
+            --radius-sm: 8px;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1a2e;
+            --bg-card: #16213e;
+            --bg-sidebar: #0f0f1a;
+            --text-primary: #e8f0ea;
+            --text-secondary: #a0aec0;
+            --border-color: #2d3748;
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+            --input-bg: #2d3748;
+            --input-border: #4a5568;
+            --input-focus: rgba(45, 122, 61, 0.2);
+            --primary: #2d7a3d;
+            --primary-light: #1a2e24;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* ----- SIDEBAR ----- */
+        .sidebar {
+            width: 260px;
+            background: var(--bg-sidebar);
+            color: #e8f0ea;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+            box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+        .sidebar-brand {
+            padding: 20px 20px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            text-align: center;
+        }
+        .brand-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            overflow: hidden;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(255, 255, 255, 0.12);
+        }
+        .brand-logo-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            padding: 6px;
+            display: block;
+        }
+        .brand-text .brand-name {
+            font-size: 18px;
+            font-weight: 700;
+            display: block;
+            line-height: 1.2;
+            color: #fff;
+            letter-spacing: 0.5px;
+        }
+        .brand-text .brand-sub {
+            font-size: 11px;
+            opacity: 0.6;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 12px;
+            overflow-y: auto;
+        }
+        .sidebar-nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .sidebar-nav li {
+            margin-bottom: 4px;
+        }
+        .sidebar-nav li a {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            color: #c4d4c9;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 15px;
+            transition: 0.2s;
+        }
+        .sidebar-nav li a i {
+            width: 22px;
+            text-align: center;
+            font-size: 18px;
+        }
+        .sidebar-nav li a:hover {
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+        }
+        .sidebar-nav li.active a {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 4px 10px rgba(45, 122, 61, 0.3);
+        }
+        .sidebar-footer {
+            padding: 16px 20px 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .logout-btn {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: #e8f0ea;
+            font-size: 15px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .logout-btn:hover {
+            background: rgba(255, 70, 70, 0.15);
+            border-color: var(--danger);
+            color: #ff6b6b;
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 999;
+        }
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        .main-content {
+            margin-left: 260px;
+            flex: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ----- HEADER ----- */
+        .top-header {
+            background: var(--bg-card);
+            padding: 16px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 999;
+            box-shadow: var(--shadow);
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .menu-toggle {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: none;
+            transition: color 0.3s;
+        }
+        .page-title h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+            transition: color 0.3s;
+        }
+        .breadcrumb {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-left: 8px;
+            transition: color 0.3s;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .lang-switcher {
+            display: flex;
+            gap: 4px;
+        }
+        .lang-btn {
+            background: transparent;
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: 0.2s;
+        }
+        .lang-btn:hover {
+            background: var(--border-color);
+        }
+        .lang-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        .notif-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            position: relative;
+            transition: color 0.3s;
+        }
+        .notif-btn:hover {
+            color: var(--text-primary);
+        }
+        .badge {
+            position: absolute;
+            top: -4px;
+            right: -6px;
+            background: var(--danger);
+            color: #fff;
+            font-size: 11px;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-profile img {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--primary);
+            background: #f5f7f6;
+        }
+        .user-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+            transition: color 0.3s;
+        }
+
+        /* ----- DASHBOARD CONTENT ----- */
+        .dashboard-content {
+            padding: 24px 30px 30px;
+            flex: 1;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .page-header-left h2 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            transition: color 0.3s;
+        }
+        .page-header-left p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            transition: color 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover {
+            background: #1f5e2c;
+            transform: scale(1.02);
+        }
+        .btn-primary:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-secondary {
+            background: var(--border-color);
+            color: var(--text-primary);
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-secondary:hover {
+            background: #d0d7d2;
+        }
+        .btn-danger {
+            background: #e74c3c;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        /* ----- FORM SECTION (with conditional fields) ----- */
+        .form-section {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            padding: 20px 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+            transition: all 0.3s;
+        }
+        .form-section h3 {
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 14px;
+            color: var(--text-primary);
+        }
+
+        .form-group {
+            position: relative;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .form-row.two {
+            grid-template-columns: 1fr 1fr;
+        }
+        .form-group label {
+            font-weight: 500;
+            font-size: 13px;
+            color: var(--text-primary);
+            display: block;
+            margin-bottom: 2px;
+        }
+        .form-group label .required {
+            color: var(--danger);
+            margin-left: 2px;
+        }
+        .form-group input,
+        .form-group select {
+            padding: 7px 10px;
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: inherit;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            transition: all 0.2s;
+            width: 100%;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--input-focus);
+        }
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 6px;
+        }
+
+        /* ----- CONDITIONAL FIELDS (TT Number, Transfer Date, Bank Name) ----- */
+        .conditional-fields {
+            display: none;
+            border-top: 1px dashed var(--border-color);
+            padding-top: 12px;
+            margin-top: 4px;
+        }
+        .conditional-fields.show {
+            display: block;
+        }
+
+        /* Deposit Balance Card */
+        .deposit-balance-card {
+            background: linear-gradient(135deg, #1a5e2a, #2d7a3d);
+            border-radius: 12px;
+            padding: 16px 20px;
+            color: #fff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .deposit-balance-card .balance-label {
+            font-size: 14px;
+            font-weight: 400;
+            opacity: 0.9;
+        }
+        .deposit-balance-card .balance-amount {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        .deposit-balance-card .balance-amount .currency {
+            font-size: 18px;
+            font-weight: 400;
+            opacity: 0.8;
+            margin-right: 4px;
+        }
+
+        /* ----- SEARCH & TABLE ----- */
+        .search-bar {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .search-wrapper {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+        .search-wrapper i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+        }
+        .search-wrapper input {
+            width: 100%;
+            padding: 12px 16px 12px 44px;
+            border: 1px solid var(--input-border);
+            border-radius: 12px;
+            font-size: 14px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+        .search-wrapper input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--input-focus);
+        }
+        .filter-wrapper select {
+            padding: 12px 16px;
+            border: 1px solid var(--input-border);
+            border-radius: 12px;
+            font-size: 14px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            cursor: pointer;
+            min-width: 140px;
+            transition: all 0.2s;
+        }
+        .filter-wrapper select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--input-focus);
+        }
+
+        .table-container {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: all 0.3s;
+        }
+        .table-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+        .table-wrapper {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        thead {
+            background: var(--bg-primary);
+        }
+        thead th {
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--border-color);
+            white-space: nowrap;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s;
+        }
+        tbody td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+            vertical-align: middle;
+            transition: all 0.3s;
+        }
+        tbody tr:hover {
+            background: var(--bg-primary);
+        }
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .type-badge {
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .type-badge.interest {
+            background: #d4edda;
+            color: #155724;
+        }
+        .type-badge.penalty {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .type-badge.other {
+            background: #cce5ff;
+            color: #004085;
+        }
+        .status-badge {
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .status-badge.completed {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-badge.printed {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        /* ===== ACTION BUTTONS ===== */
+        .action-btn {
+            border: none;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin: 0 3px;
+            position: relative;
+            overflow: hidden;
+        }
+        .action-btn i {
+            font-size: 14px;
+            transition: transform 0.3s ease;
+        }
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+        .action-btn:hover i {
+            transform: scale(1.2);
+        }
+        .action-btn:active {
+            transform: scale(0.95);
+        }
+
+        .action-btn.view-btn {
+            background: linear-gradient(135deg, #2196f3, #1976d2);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+        }
+        .action-btn.view-btn:hover {
+            background: linear-gradient(135deg, #1976d2, #0d47a1);
+            box-shadow: 0 6px 24px rgba(33, 150, 243, 0.4);
+        }
+
+        .action-btn.delete-btn {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+        }
+        .action-btn.delete-btn:hover {
+            background: linear-gradient(135deg, #c0392b, #99281b);
+            box-shadow: 0 6px 24px rgba(231, 76, 60, 0.4);
+        }
+
+        .action-btn.print-btn {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+        }
+        .action-btn.print-btn:hover {
+            background: linear-gradient(135deg, #f57c00, #e65100);
+            box-shadow: 0 6px 24px rgba(255, 152, 0, 0.4);
+        }
+
+        .action-btn.edit-btn {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+        }
+        .action-btn.edit-btn:hover {
+            background: linear-gradient(135deg, #f57c00, #e65100);
+            box-shadow: 0 6px 24px rgba(255, 152, 0, 0.4);
+        }
+
+        /* ----- PAGINATION ----- */
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 12px;
+            transition: all 0.3s;
+        }
+        .pagination-info {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        .pagination-info strong {
+            color: var(--text-primary);
+        }
+        .pagination-buttons {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .pagination-btn {
+            padding: 6px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-card);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            transition: all 0.2s;
+            min-width: 36px;
+            text-align: center;
+        }
+        .pagination-btn:hover:not(:disabled) {
+            background: var(--border-color);
+            border-color: var(--primary);
+        }
+        .pagination-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ----- TOAST ----- */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 14px 24px;
+            border-radius: 12px;
+            color: #fff;
+            font-weight: 500;
+            font-size: 14px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            animation: slideIn 0.3s ease;
+            min-width: 280px;
+            max-width: 400px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .toast i {
+            font-size: 18px;
+        }
+        .toast.success {
+            background: var(--success);
+        }
+        .toast.error {
+            background: var(--danger);
+        }
+        .toast.warning {
+            background: var(--warning);
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .toast.fade-out {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .app-footer {
+            background: var(--bg-card);
+            border-top: 1px solid var(--border-color);
+            padding: 16px 30px;
+            text-align: center;
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: auto;
+            transition: all 0.3s;
+        }
+
+        /* ============================================================
+           PRINT SLIP STYLES (A5 LANDSCAPE) with background watermark
+           ============================================================ */
+        .slip-container {
+            display: none;
+            width: 210mm;
+            min-height: 148mm;
+            padding: 8mm 10mm;
+            background: #fff;
+            margin: 0 auto;
+            font-family: 'Inter', sans-serif;
+            color: #1a2e1f;
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
+        }
+        .slip-container::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 80%;
+            background: url('../images/sacco-logo.png') no-repeat center center;
+            background-size: contain;
+            opacity: 0.08;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .slip-container .slip-header {
+            text-align: center;
+            border-bottom: 2px dashed #2d7a3d;
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+        }
+        .slip-container .slip-header h1 {
+            font-size: 20px;
+            color: #2d7a3d;
+            margin: 0;
+        }
+        .slip-container .slip-header p {
+            font-size: 12px;
+            color: #6c7d70;
+            margin: 2px 0;
+        }
+        .slip-container .slip-body {
+            padding: 4px 0;
+            position: relative;
+            z-index: 1;
+        }
+        .slip-container .slip-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            font-size: 13px;
+            border-bottom: 1px solid #f0f3f1;
+        }
+        .slip-container .slip-row .label {
+            font-weight: 500;
+            color: #2d3a31;
+        }
+        .slip-container .slip-row .value {
+            font-weight: 600;
+        }
+        .slip-container .slip-row .value.amount-words {
+            font-weight: 400;
+            font-size: 12px;
+            color: #555;
+        }
+        .slip-container .slip-footer {
+            text-align: center;
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 2px dashed #2d7a3d;
+            font-size: 11px;
+            color: #6c7d70;
+            position: relative;
+            z-index: 1;
+        }
+        .slip-container .slip-footer .thankyou {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2d7a3d;
+            margin-bottom: 2px;
+        }
+
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #slipContainer,
+            #slipContainer * {
+                visibility: visible;
+            }
+            #slipContainer {
+                display: block;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 210mm;
+                min-height: 148mm;
+                margin: 0;
+                padding: 8mm 10mm;
+                box-shadow: none;
+                background: #fff;
+                page-break-after: avoid;
+                page-break-inside: avoid;
+            }
+            #slipContainer::before {
+                opacity: 0.08;
+            }
+            @page {
+                size: A5 landscape;
+                margin: 0;
+            }
+        }
+
+        /* ============================================================
+           EDIT DEPOSIT MODAL
+           ============================================================ */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10001;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: 16px;
+            max-width: 700px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 24px;
+            box-shadow: var(--shadow-lg);
+            transition: background 0.3s;
+        }
+        .modal-content .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+        .modal-content .modal-header h3 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .modal-content .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            line-height: 1;
+        }
+        .modal-content .modal-close:hover {
+            color: var(--danger);
+        }
+
+        /* ----- RESPONSIVE ----- */
+        @media (max-width: 992px) {
+            .form-row {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 280px;
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .menu-toggle {
+                display: block;
+            }
+            .top-header {
+                padding: 12px 16px;
+            }
+            .dashboard-content {
+                padding: 16px;
+            }
+            .form-row,
+            .form-row.two {
+                grid-template-columns: 1fr;
+            }
+            .page-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .search-bar {
+                flex-direction: column;
+            }
+            .pagination-container {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .pagination-buttons {
+                justify-content: center;
+            }
+            .user-name {
+                display: none;
+            }
+            .toast-container {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+            }
+            .toast {
+                min-width: unset;
+                width: 100%;
+            }
+            .deposit-balance-card {
+                flex-direction: column;
+                text-align: center;
+            }
+            .modal-content {
+                margin: 10px;
+                padding: 16px;
+            }
+        }
+        @media (max-width: 480px) {
+            .pagination-btn {
+                padding: 4px 10px;
+                font-size: 12px;
+                min-width: 30px;
+            }
+            .pagination-info {
+                font-size: 12px;
+                text-align: center;
+            }
+            table {
+                font-size: 12px;
+            }
+            thead th,
+            tbody td {
+                padding: 8px 10px;
+            }
+            .action-btn {
+                padding: 4px 6px;
+                font-size: 11px;
+            }
+            .action-btn i {
+                font-size: 12px;
+            }
+            .form-section {
+                padding: 12px 16px;
+            }
+            .form-row {
+                gap: 8px;
+                margin-bottom: 8px;
+            }
+            .form-group input,
+            .form-group select {
+                font-size: 12px;
+                padding: 6px 8px;
+            }
+            .deposit-balance-card .balance-amount {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">
+                <img src="../images/sacco-logo.png" alt="SACCO Logo" class="brand-logo-img" />
+            </div>
+            <div class="brand-text">
+                <span class="brand-name">GERESU DHUKI</span>
+                <span class="brand-sub" data-i18n="brandSub">SACCO Banking</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <ul>
+                <li><a href="dashboard.html"><i class="fas fa-th-large"></i> <span data-i18n="navDashboard">Dashboard</span></a></li>
+                <li><a href="members.html"><i class="fas fa-users"></i> <span data-i18n="navMembers">Members</span></a></li>
+                <li><a href="savings.html"><i class="fas fa-piggy-bank"></i> <span data-i18n="navSavings">Savings</span></a></li>
+                <li class="active"><a href="deposits.html"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="navDeposits">Deposits</span></a></li>
+                <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="navLoans">Loans</span></a></li>
+                <li><a href="repayments.html"><i class="fas fa-undo-alt"></i> <span data-i18n="navRepayments">Repayments</span></a></li>
+                <li><a href="withdrawals.html"><i class="fas fa-money-bill-wave"></i> <span data-i18n="navWithdrawals">Withdrawals</span></a></li>
+                <li><a href="dividends.html"><i class="fas fa-gift"></i> <span data-i18n="navDividends">Dividends</span></a></li>
+                <li><a href="reports.html"><i class="fas fa-chart-bar"></i> <span data-i18n="navReports">Reports</span></a></li>
+                <!-- ===== AUDIT TRAIL LINK ===== -->
+                <li id="auditNavItem" style="display:none;">
+                    <a href="audit.html"><i class="fas fa-clipboard-list"></i> <span data-i18n="navAudit">Audit Trail</span></a>
+                </li>
+                <!-- ===== END AUDIT TRAIL ===== -->
+                <li id="usersNavItem" style="display:none;"><a href="users.html"><i class="fas fa-user-cog"></i> <span data-i18n="navUsers">Users</span></a></li>
+                <li><a href="settings.html"><i class="fas fa-cog"></i> <span data-i18n="navSettings">Settings</span></a></li>
+            </ul>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> <span data-i18n="logout">Logout</span></button>
+        </div>
+    </aside>
+
+    <main class="main-content">
+
+        <header class="top-header">
+            <div class="header-left">
+                <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+                <div class="page-title">
+                    <h1 data-i18n="pageTitle">Deposits</h1>
+                    <span class="breadcrumb" data-i18n="breadcrumb">Home / Deposits</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="lang-switcher">
+                    <button class="lang-btn active" data-lang="en">EN</button>
+                    <button class="lang-btn" data-lang="am">አማ</button>
+                    <button class="lang-btn" data-lang="om">OM</button>
+                </div>
+                <div class="notifications">
+                    <button class="notif-btn"><i class="fas fa-bell"></i><span class="badge">3</span></button>
+                </div>
+                <div class="user-profile">
+                    <img id="userAvatar" src="../assets/images/avatar.png" alt="User" onerror="this.src='https://ui-avatars.com/api/?name=Admin&background=2d7a3d&color=fff'" />
+                    <span class="user-name" id="userDisplayName">Admin</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="dashboard-content">
+
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h2 data-i18n="depositsTitle">Deposits Management</h2>
+                    <p data-i18n="depositsSub">Record income from registration fees, interest, penalties, and other deposits</p>
+                </div>
+            </div>
+
+            <!-- Deposit Balance Card -->
+            <div class="deposit-balance-card">
+                <div>
+                    <div class="balance-label" data-i18n="totalDeposits">Total Deposits (Profit Income)</div>
+                </div>
+                <div class="balance-amount">
+                    <span class="currency">ETB</span>
+                    <span id="depositBalanceDisplay">0.00</span>
+                </div>
+            </div>
+
+            <!-- Record Deposit Form – role-based visibility -->
+            <div class="form-section" id="depositFormSection">
+                <h3 data-i18n="recordDeposit">Record Deposit</h3>
+                <form id="depositForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label data-i18n="incomeType">Income Type <span class="required">*</span></label>
+                            <select id="incomeType" required>
+                                <option value="Registration Fee" data-i18n="registrationFee">Registration Fee</option>
+                                <option value="Interest" data-i18n="interest">Interest from Loans</option>
+                                <option value="Penalty" data-i18n="penalty">Penalty</option>
+                                <option value="Other Deposit" data-i18n="otherDeposit">Other Deposit</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="amount">Amount (ETB) <span class="required">*</span></label>
+                            <input type="number" id="amountInput" required placeholder="0.00" step="0.01" min="0.01" />
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="date">Date <span class="required">*</span></label>
+                            <input type="date" id="dateInput" required />
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="paymentMethod">Payment Method <span class="required">*</span></label>
+                            <select id="paymentMethod" required>
+                                <option value="cash" data-i18n="cash">Cash</option>
+                                <option value="bank" data-i18n="bankTransfer">Bank Transfer</option>
+                                <option value="mobile" data-i18n="mobileMoney">Mobile Money</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Conditional Fields: TT Number, Transfer Date, Bank Name -->
+                    <div class="conditional-fields" id="conditionalFields">
+                        <div class="form-row two">
+                            <div class="form-group">
+                                <label data-i18n="ttNumber">TT Number <span class="required" id="ttRequired">*</span></label>
+                                <input type="text" id="ttNumber" placeholder="Enter TT number" />
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="transferDate">Transfer Date <span class="required" id="transferDateRequired">*</span></label>
+                                <input type="date" id="transferDate" />
+                            </div>
+                        </div>
+                        <div class="form-row two">
+                            <div class="form-group">
+                                <label data-i18n="bankName">Bank / Provider Name <span class="required" id="bankRequired">*</span></label>
+                                <input type="text" id="bankName" placeholder="Enter bank or provider name" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row two">
+                        <div class="form-group">
+                            <label data-i18n="description">Description (optional)</label>
+                            <input type="text" id="descriptionInput" placeholder="e.g., Member registration fee" />
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="reset" class="btn-secondary" id="resetFormBtn"><span data-i18n="clear">Clear</span></button>
+                        <button type="submit" class="btn-primary" id="saveBtn">
+                            <i class="fas fa-save"></i> <span data-i18n="recordDepositBtn">Record Deposit</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Deposits List -->
+            <div class="page-header" style="margin-bottom:16px;">
+                <div class="page-header-left">
+                    <h3 style="font-size:18px; font-weight:600;" data-i18n="depositsList">Deposit Transactions</h3>
+                </div>
+            </div>
+
+            <!-- SEARCH & YEAR FILTER -->
+            <div class="search-bar">
+                <div class="search-wrapper">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" data-i18n="searchPlaceholder" placeholder="Search by description or type..." />
+                </div>
+                <div class="filter-wrapper">
+                    <select id="yearFilter">
+                        <option value="all" data-i18n="allYears">All Years</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="table-header">
+                    <span data-i18n="totalDepositsCount">Total Deposits: </span>
+                    <strong id="totalCount">0</strong>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th data-i18n="incomeType">Income Type</th>
+                                <th data-i18n="amount">Amount</th>
+                                <th data-i18n="paymentMethod">Method</th>
+                                <th data-i18n="description">Description</th>
+                                <th data-i18n="status">Status</th>
+                                <th data-i18n="date">Date</th>
+                                <th data-i18n="by">By</th>
+                                <th data-i18n="actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="depositsBody">
+                            <tr><td colspan="9" style="text-align:center; padding:40px; color:var(--text-secondary);" data-i18n="noDeposits">No deposits found.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        <span data-i18n="showing">Showing</span> <strong id="pageStart">0</strong> - <strong id="pageEnd">0</strong>
+                        <span data-i18n="of">of</span> <strong id="totalDepositsCount">0</strong>
+                    </div>
+                    <div class="pagination-buttons">
+                        <button class="pagination-btn" id="prevPage" disabled><i class="fas fa-chevron-left"></i></button>
+                        <div id="pageNumbers"></div>
+                        <button class="pagination-btn" id="nextPage"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <footer class="app-footer">
+            <p>&copy; 2025 GERESU DHUKI SACCO. <span data-i18n="rights">All rights reserved.</span></p>
+        </footer>
+    </main>
+
+    <!-- ===== PRINT SLIP CONTAINER ===== -->
+    <div id="slipContainer" class="slip-container"></div>
+
+    <!-- ===== EDIT DEPOSIT MODAL ===== -->
+    <div class="modal-overlay" id="editDepositModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 data-i18n="editDeposit">Edit Deposit</h3>
+                <button class="modal-close" id="closeEditModal">&times;</button>
+            </div>
+            <form id="editDepositForm">
+                <input type="hidden" id="editDepositId" />
+                <div class="form-row">
+                    <div class="form-group">
+                        <label data-i18n="incomeType">Income Type <span class="required">*</span></label>
+                        <select id="editIncomeType" required>
+                            <option value="Registration Fee">Registration Fee</option>
+                            <option value="Interest">Interest from Loans</option>
+                            <option value="Penalty">Penalty</option>
+                            <option value="Other Deposit">Other Deposit</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="amount">Amount (ETB) <span class="required">*</span></label>
+                        <input type="number" id="editAmount" required step="0.01" min="0.01" />
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="date">Date <span class="required">*</span></label>
+                        <input type="date" id="editDate" required />
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="paymentMethod">Payment Method <span class="required">*</span></label>
+                        <select id="editPaymentMethod" required>
+                            <option value="cash">Cash</option>
+                            <option value="bank">Bank Transfer</option>
+                            <option value="mobile">Mobile Money</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="conditional-fields" id="editConditionalFields">
+                    <div class="form-row two">
+                        <div class="form-group">
+                            <label data-i18n="ttNumber">TT Number <span class="required" id="editTtRequired">*</span></label>
+                            <input type="text" id="editTtNumber" placeholder="Enter TT number" />
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="transferDate">Transfer Date <span class="required" id="editTransferDateRequired">*</span></label>
+                            <input type="date" id="editTransferDate" />
+                        </div>
+                    </div>
+                    <div class="form-row two">
+                        <div class="form-group">
+                            <label data-i18n="bankName">Bank / Provider Name <span class="required" id="editBankRequired">*</span></label>
+                            <input type="text" id="editBankName" placeholder="Enter bank or provider name" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row two">
+                    <div class="form-group">
+                        <label data-i18n="description">Description (optional)</label>
+                        <input type="text" id="editDescription" placeholder="e.g., Member registration fee" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancelEditBtn"><span data-i18n="cancel">Cancel</span></button>
+                    <button type="submit" class="btn-primary" id="updateDepositBtn">
+                        <i class="fas fa-save"></i> <span data-i18n="updateDeposit">Update Deposit</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // FIREBASE CONFIG (UPDATED)
+        // ============================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBeQv8YLNfFFaTEZ6pxXaAy_K8n3u8V5X4",
+            authDomain: "geresu-dhuki-sacco-75329.firebaseapp.com",
+            projectId: "geresu-dhuki-sacco-75329",
+            storageBucket: "geresu-dhuki-sacco-75329.firebasestorage.app",
+            messagingSenderId: "431325504753",
+            appId: "1:431325504753:web:f7289fb88d74b82eb0b550",
+            measurementId: "G-3SN99DFJXD"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+
+        // ============================================================
+        // MULTI-LANGUAGE
+        // ============================================================
+        const translations = {
+            en: {
+                brandSub: 'SACCO Banking',
+                navDashboard: 'Dashboard',
+                navMembers: 'Members',
+                navSavings: 'Savings',
+                navDeposits: 'Deposits',
+                navLoans: 'Loans',
+                navRepayments: 'Repayments',
+                navWithdrawals: 'Withdrawals',
+                navDividends: 'Dividends',
+                navReports: 'Reports',
+                navAudit: 'Audit Trail',
+                navUsers: 'Users',
+                navSettings: 'Settings',
+                logout: 'Logout',
+                pageTitle: 'Deposits',
+                breadcrumb: 'Home / Deposits',
+                rights: 'All rights reserved.',
+                depositsTitle: 'Deposits Management',
+                depositsSub: 'Record income from registration fees, interest, penalties, and other deposits',
+                totalDeposits: 'Total Deposits (Profit Income)',
+                recordDeposit: 'Record Deposit',
+                incomeType: 'Income Type',
+                registrationFee: 'Registration Fee',
+                interest: 'Interest from Loans',
+                penalty: 'Penalty',
+                otherDeposit: 'Other Deposit',
+                amount: 'Amount',
+                date: 'Date',
+                paymentMethod: 'Payment Method',
+                cash: 'Cash',
+                bankTransfer: 'Bank Transfer',
+                mobileMoney: 'Mobile Money',
+                ttNumber: 'TT Number',
+                transferDate: 'Transfer Date',
+                bankName: 'Bank / Provider Name',
+                description: 'Description (optional)',
+                clear: 'Clear',
+                recordDepositBtn: 'Record Deposit',
+                depositsList: 'Deposit Transactions',
+                totalDepositsCount: 'Total Deposits: ',
+                noDeposits: 'No deposits found.',
+                showing: 'Showing',
+                of: 'of',
+                searchPlaceholder: 'Search by description or type...',
+                by: 'By',
+                actions: 'Actions',
+                view: 'View',
+                delete: 'Delete',
+                printSlip: 'Print Slip',
+                depositRecorded: 'Deposit recorded successfully!',
+                depositError: 'Error recording deposit: ',
+                loadError: 'Error loading data: ',
+                depositDeleted: 'Deposit deleted successfully.',
+                deleteConfirmation: 'Are you sure you want to delete this deposit?',
+                status: 'Status',
+                completed: 'Completed',
+                printed: 'Printed',
+                printRecorded: 'Print recorded successfully.',
+                unauthorized: 'You are not authorized to perform this action.',
+                amountInWords: 'Amount in words',
+                duplicateTT: 'This TT number and Transfer Date are already registered. Please check and try again.',
+                allYears: 'All Years',
+                selectYear: 'Select Year',
+                editDeposit: 'Edit Deposit',
+                updateDeposit: 'Update Deposit',
+                cancel: 'Cancel',
+                depositUpdated: 'Deposit updated successfully!',
+                depositDeleted: 'Deposit deleted successfully!'
+            },
+            am: {
+                brandSub: 'ባንክ ስርዓት',
+                navDashboard: 'ዳሽቦርድ',
+                navMembers: 'አባላት',
+                navSavings: 'ቁጠባዎች',
+                navDeposits: 'ተቀማጭ',
+                navLoans: 'ብድር',
+                navRepayments: 'ክፍያዎች',
+                navWithdrawals: 'መውጫዎች',
+                navDividends: 'ክፍፍል',
+                navReports: 'ሪፖርቶች',
+                navAudit: 'የምዝግብ ታሪክ',
+                navUsers: 'ተጠቃሚዎች',
+                navSettings: 'ቅንብሮች',
+                logout: 'ውጣ',
+                pageTitle: 'ተቀማጭ',
+                breadcrumb: 'ዋና ገጽ / ተቀማጭ',
+                rights: 'መብቶች በሙሉ ተጠብቀዋል።',
+                depositsTitle: 'የተቀማጭ አስተዳደር',
+                depositsSub: 'ከምዝገባ ክፍያ፣ ወለድ፣ ቅጣት እና ሌሎች ተቀማጭ ገቢ ይመዝግቡ',
+                totalDeposits: 'ጠቅላላ ተቀማጭ (የትርፍ ገቢ)',
+                recordDeposit: 'ተቀማጭ ይመዝግቡ',
+                incomeType: 'የገቢ አይነት',
+                registrationFee: 'የምዝገባ ክፍያ',
+                interest: 'ከብድር ወለድ',
+                penalty: 'ቅጣት',
+                otherDeposit: 'ሌላ ተቀማጭ',
+                amount: 'መጠን',
+                date: 'ቀን',
+                paymentMethod: 'የክፍያ ዘዴ',
+                cash: 'ጥሬ ገንዘብ',
+                bankTransfer: 'የባንክ ዝውውር',
+                mobileMoney: 'ሞባይል ገንዘብ',
+                ttNumber: 'ቲቲ ቁጥር',
+                transferDate: 'የዝውውር ቀን',
+                bankName: 'የባንክ / አቅራቢ ስም',
+                description: 'መግለጫ (አማራጭ)',
+                clear: 'አጽዳ',
+                recordDepositBtn: 'ተቀማጭ ይመዝግቡ',
+                depositsList: 'የተቀማጭ ግብይቶች',
+                totalDepositsCount: 'ጠቅላላ ተቀማጭ: ',
+                noDeposits: 'ምንም ተቀማጭ አልተገኘም።',
+                showing: 'እያሳየ',
+                of: 'ከ',
+                searchPlaceholder: 'በመግለጫ ወይም አይነት ይፈልጉ...',
+                by: 'የመዘገበው',
+                actions: 'ተግባራት',
+                view: 'ይመልከቱ',
+                delete: 'ሰርዝ',
+                printSlip: 'ሪሲት አትም',
+                depositRecorded: 'ተቀማጭ በተሳካ ሁኔታ ተመዝግቧል!',
+                depositError: 'ተቀማጭ በመመዝገብ ላይ ስህተት: ',
+                loadError: 'ውሂብ በማስገባት ላይ ስህተት: ',
+                depositDeleted: 'ተቀማጭ በተሳካ ሁኔታ ተሰርዟል።',
+                deleteConfirmation: 'ይህንን ተቀማጭ መሰረዝ እርግጠኛ ነዎት?',
+                status: 'ሁኔታ',
+                completed: 'ተጠናቋል',
+                printed: 'ታትሟል',
+                printRecorded: 'ህትመት በተሳካ ሁኔታ ተመዝግቧል።',
+                unauthorized: 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም።',
+                amountInWords: 'በቃላት መጠን',
+                duplicateTT: 'ይህ ቲቲ ቁጥር እና የዝውውር ቀን ቀድሞ ተመዝግቧል። እባክዎ ይፈትሹ እና እንደገና ይሞክሩ።',
+                allYears: 'ሁሉም ዓመታት',
+                selectYear: 'ዓመት ይምረጡ',
+                editDeposit: 'ተቀማጭ ያስተካክሉ',
+                updateDeposit: 'ተቀማጭ ያሻሽሉ',
+                cancel: 'ሰርዝ',
+                depositUpdated: 'ተቀማጭ በተሳካ ሁኔታ ተሻሽሏል!',
+                depositDeleted: 'ተቀማጭ በተሳካ ሁኔታ ተሰርዟል!'
+            },
+            om: {
+                brandSub: 'Sirna Baankii',
+                navDashboard: 'Dashaaboardii',
+                navMembers: 'Miseensota',
+                navSavings: 'Kussaa',
+                navDeposits: 'Kuusaa',
+                navLoans: 'Liqeeffannoo',
+                navRepayments: 'Kaffaltii',
+                navWithdrawals: 'Baasii',
+                navDividends: 'Qooda',
+                navReports: 'Gabaasa',
+                navAudit: 'Seenaa Galmee',
+                navUsers: 'Fayyadamtota',
+                navSettings: 'Qindaa’ina',
+                logout: 'Baasi',
+                pageTitle: 'Kuusaa',
+                breadcrumb: 'Mana / Kuusaa',
+                rights: 'Mirgi hundi eegama.',
+                depositsTitle: 'Bulchiinsa Kuusaa',
+                depositsSub: 'Galii kaffaltii galmeessaa, dhala, adabaa fi kuusaa biroo galmeessi',
+                totalDeposits: 'Kuusaa Waliigalaa (Galii Bu’aa)',
+                recordDeposit: 'Kuusaa Galmeessi',
+                incomeType: 'Gosa Galii',
+                registrationFee: 'Kaffaltii Galmeessaa',
+                interest: 'Dhala Liqeeffannoo',
+                penalty: 'Adaba',
+                otherDeposit: 'Kuusaa Biroo',
+                amount: 'Qaba',
+                date: 'Guyyaa',
+                paymentMethod: 'Haala Kaffaltii',
+                cash: 'Maallaqa Saaphanaa',
+                bankTransfer: 'Sochoosa Baankii',
+                mobileMoney: 'Maallaqa Moobayilaa',
+                ttNumber: 'Lakkoofsa TT',
+                transferDate: 'Guyyaa Sochoosaa',
+                bankName: 'Maqaa Baankii / Dhiyeessaa',
+                description: 'Ibsa (Filannoo)',
+                clear: 'Haqi',
+                recordDepositBtn: 'Kuusaa Galmeessi',
+                depositsList: 'Daldala Kuusaa',
+                totalDepositsCount: 'Kuusaa Waliigalaa: ',
+                noDeposits: 'Kuusaan hin argamne.',
+                showing: 'Agarsii',
+                of: 'keessaa',
+                searchPlaceholder: 'Ibsaan ykn gosatti barbaadi...',
+                by: 'Galmeesse',
+                actions: 'Gochaa',
+                view: 'Ilaali',
+                delete: 'Haqi',
+                printSlip: 'Bilbilla maxxansi',
+                depositRecorded: 'Kuusaan sirriitti galmeefame!',
+                depositError: 'Kuusaa galmeessuuf dogoggora: ',
+                loadError: 'Datuu galmeessuuf dogoggora: ',
+                depositDeleted: 'Kuusaan sirriitti haqame.',
+                deleteConfirmation: 'Kuusaa kana haquu mirkaneeffattee?',
+                status: 'Haala',
+                completed: 'Xumurame',
+                printed: 'Maxxanfame',
+                printRecorded: 'Maxxansi sirriitti galmeefame.',
+                unauthorized: 'Gochaa kana raawwachuuf hayyamamtee hin jirtu.',
+                amountInWords: 'Qaba jechootaan',
+                duplicateTT: 'Lakkoofsi TT fi guyyaan sochoosaa kun duraan galmeefame. Mirkaneessii deebi’i.',
+                allYears: 'Waggaa Hunda',
+                selectYear: 'Waggaa Filadhu',
+                editDeposit: 'Kuusaa Jijjiiri',
+                updateDeposit: 'Kuusaa Fooyyessi',
+                cancel: 'Haqi',
+                depositUpdated: 'Kuusaan sirriitti fooyyeffame!',
+                depositDeleted: 'Kuusaan sirriitti haqame!'
+            }
+        };
+
+        let currentLang = 'en';
+        let currentUserRole = 'viewer';
+        let currentUserDisplayName = 'Admin';
+
+        function setLanguage(lang) {
+            if (!translations[lang]) return;
+            currentLang = lang;
+            const t = translations[lang];
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key] !== undefined) {
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+                        if (el.type !== 'file') el.placeholder = t[key];
+                    } else {
+                        el.innerHTML = t[key];
+                    }
+                }
+            });
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.lang === lang);
+            });
+            try { localStorage.setItem('waciti-lang', lang); } catch (e) {}
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) searchInput.placeholder = t.searchPlaceholder || 'Search by description or type...';
+            updatePaginationInfo();
+            renderPageButtons();
+        }
+
+        function initLanguage() {
+            const saved = localStorage.getItem('waciti-lang') || navigator.language.split('-')[0];
+            const valid = ['en', 'am', 'om'];
+            setLanguage(valid.includes(saved) ? saved : 'en');
+        }
+
+        // ============================================================
+        // SIDEBAR TOGGLE
+        // ============================================================
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+
+        // ============================================================
+        // TOAST
+        // ============================================================
+        function showToast(message, type = 'success') {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'toast-container';
+                document.body.appendChild(container);
+            }
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icon = document.createElement('i');
+            if (type === 'success') icon.className = 'fas fa-check-circle';
+            else if (type === 'error') icon.className = 'fas fa-exclamation-circle';
+            else icon.className = 'fas fa-exclamation-triangle';
+            toast.appendChild(icon);
+            const text = document.createElement('span');
+            text.textContent = message;
+            toast.appendChild(text);
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('fade-out');
+                setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
+            }, 4500);
+        }
+
+        // ============================================================
+        // ROLE PERMISSIONS
+        // ============================================================
+        function canAddDeposit() {
+            return ['admin', 'manager', 'teller'].includes(currentUserRole);
+        }
+
+        function canEditDeposit() {
+            return ['admin', 'manager'].includes(currentUserRole);
+        }
+
+        function canDeleteDeposit() {
+            return ['admin'].includes(currentUserRole);
+        }
+
+        // ============================================================
+        // AUDIT LOGGING (added for audit trail)
+        // ============================================================
+        async function logAudit(action, collection, documentId, changes = {}, details = '') {
+            try {
+                const user = auth.currentUser;
+                const userEmail = user?.email || 'system';
+                const userName = user?.displayName || user?.email || 'System';
+                const userDisplayName = user?.displayName || 'System';
+
+                await db.collection('audit').add({
+                    action: action,
+                    collection: collection,
+                    documentId: documentId,
+                    changes: changes,
+                    details: details || `${action} ${collection} document ${documentId}`,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    userEmail: userEmail,
+                    userName: userName,
+                    userDisplayName: userDisplayName
+                });
+            } catch (error) {
+                console.error('Error writing to audit log:', error);
+                // Don't throw - audit logging should not break main functionality
+            }
+        }
+
+        // ============================================================
+        // NUMBER TO WORDS (English)
+        // ============================================================
+        function numberToWords(num) {
+            if (num === 0) return 'Zero';
+            const units = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+                'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'
+            ];
+            const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+            const thousands = ['', 'Thousand', 'Million', 'Billion', 'Trillion'];
+
+            function convertHundreds(n) {
+                let result = '';
+                if (n >= 100) {
+                    result += units[Math.floor(n / 100)] + ' Hundred ';
+                    n %= 100;
+                }
+                if (n >= 20) {
+                    result += tens[Math.floor(n / 10)] + ' ';
+                    n %= 10;
+                }
+                if (n > 0) {
+                    result += units[n] + ' ';
+                }
+                return result.trim();
+            }
+
+            if (num < 0) return 'Minus ' + numberToWords(-num);
+            let word = '';
+            let chunkCount = 0;
+            while (num > 0) {
+                const chunk = num % 1000;
+                if (chunk !== 0) {
+                    const chunkWords = convertHundreds(chunk);
+                    if (thousands[chunkCount]) {
+                        word = chunkWords + ' ' + thousands[chunkCount] + ' ' + word;
+                    } else {
+                        word = chunkWords + ' ' + word;
+                    }
+                }
+                num = Math.floor(num / 1000);
+                chunkCount++;
+            }
+            return word.trim() || 'Zero';
+        }
+
+        // ============================================================
+        // DEPOSITS MODULE
+        // ============================================================
+        let allDeposits = [];
+        let currentPage = 1;
+        const pageSize = 10;
+        let filteredDeposits = [];
+        let currentUser = null;
+        let searchQuery = '';
+        let filterYear = 'all';
+
+        // ---- Conditional fields toggle (main form) ----
+        function toggleConditionalFields() {
+            const method = document.getElementById('paymentMethod')?.value;
+            const fields = document.getElementById('conditionalFields');
+            const ttRequired = document.getElementById('ttRequired');
+            const transferDateRequired = document.getElementById('transferDateRequired');
+            const bankRequired = document.getElementById('bankRequired');
+            const ttInput = document.getElementById('ttNumber');
+            const transferDateInput = document.getElementById('transferDate');
+            const bankInput = document.getElementById('bankName');
+
+            if (!fields || !ttInput || !transferDateInput || !bankInput) return;
+
+            if (method === 'cash') {
+                fields.style.display = 'none';
+                ttInput.removeAttribute('required');
+                transferDateInput.removeAttribute('required');
+                bankInput.removeAttribute('required');
+                if (ttRequired) ttRequired.textContent = '';
+                if (transferDateRequired) transferDateRequired.textContent = '';
+                if (bankRequired) bankRequired.textContent = '';
+            } else {
+                fields.style.display = 'block';
+                ttInput.setAttribute('required', 'required');
+                transferDateInput.setAttribute('required', 'required');
+                if (method === 'bank') {
+                    bankInput.setAttribute('required', 'required');
+                    if (bankRequired) bankRequired.textContent = '*';
+                } else {
+                    bankInput.removeAttribute('required');
+                    if (bankRequired) bankRequired.textContent = '';
+                }
+                if (ttRequired) ttRequired.textContent = '*';
+                if (transferDateRequired) transferDateRequired.textContent = '*';
+            }
+        }
+
+        // ---- Conditional fields toggle (edit form) ----
+        function toggleEditConditionalFields() {
+            const method = document.getElementById('editPaymentMethod')?.value;
+            const fields = document.getElementById('editConditionalFields');
+            const ttRequired = document.getElementById('editTtRequired');
+            const transferDateRequired = document.getElementById('editTransferDateRequired');
+            const bankRequired = document.getElementById('editBankRequired');
+            const ttInput = document.getElementById('editTtNumber');
+            const transferDateInput = document.getElementById('editTransferDate');
+            const bankInput = document.getElementById('editBankName');
+
+            if (!fields || !ttInput || !transferDateInput || !bankInput) return;
+
+            if (method === 'cash') {
+                fields.style.display = 'none';
+                ttInput.removeAttribute('required');
+                transferDateInput.removeAttribute('required');
+                bankInput.removeAttribute('required');
+                if (ttRequired) ttRequired.textContent = '';
+                if (transferDateRequired) transferDateRequired.textContent = '';
+                if (bankRequired) bankRequired.textContent = '';
+            } else {
+                fields.style.display = 'block';
+                ttInput.setAttribute('required', 'required');
+                transferDateInput.setAttribute('required', 'required');
+                if (method === 'bank') {
+                    bankInput.setAttribute('required', 'required');
+                    if (bankRequired) bankRequired.textContent = '*';
+                } else {
+                    bankInput.removeAttribute('required');
+                    if (bankRequired) bankRequired.textContent = '';
+                }
+                if (ttRequired) ttRequired.textContent = '*';
+                if (transferDateRequired) transferDateRequired.textContent = '*';
+            }
+        }
+
+        // ---- Populate Year Filter ----
+        function populateYearFilter() {
+            const yearFilter = document.getElementById('yearFilter');
+            const years = new Set();
+            allDeposits.forEach(d => {
+                const date = d.date ? (d.date.toDate ? d.date.toDate() : new Date(d.date)) : null;
+                if (date && !isNaN(date.getFullYear())) {
+                    years.add(date.getFullYear());
+                }
+            });
+            const currentVal = yearFilter.value;
+            yearFilter.innerHTML = '';
+            const allOpt = document.createElement('option');
+            allOpt.value = 'all';
+            allOpt.setAttribute('data-i18n', 'allYears');
+            allOpt.textContent = translations[currentLang].allYears || 'All Years';
+            yearFilter.appendChild(allOpt);
+            const sortedYears = Array.from(years).sort((a, b) => b - a);
+            sortedYears.forEach(y => {
+                const opt = document.createElement('option');
+                opt.value = y;
+                opt.textContent = y;
+                yearFilter.appendChild(opt);
+            });
+            if (sortedYears.includes(Number(currentVal)) && currentVal !== 'all') {
+                yearFilter.value = currentVal;
+            } else {
+                yearFilter.value = 'all';
+            }
+            filterYear = yearFilter.value;
+        }
+
+        // ---- Get total deposits ----
+        async function getTotalDeposits() {
+            try {
+                const snapshot = await db.collection('transactions')
+                    .where('type', '==', 'profit_income')
+                    .get();
+                let total = 0;
+                snapshot.forEach(doc => {
+                    total += Number(doc.data().amount) || 0;
+                });
+                total = Math.round(total * 100) / 100;
+                document.getElementById('depositBalanceDisplay').textContent = total.toFixed(2);
+                return total;
+            } catch (error) {
+                console.error('Error getting total deposits:', error);
+                return 0;
+            }
+        }
+
+        // ---- Load deposits ----
+        async function loadDeposits() {
+            try {
+                const snapshot = await db.collection('transactions')
+                    .where('type', '==', 'profit_income')
+                    .get();
+                allDeposits = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    allDeposits.push({
+                        id: doc.id,
+                        ...data
+                    });
+                });
+                allDeposits.sort((a, b) => {
+                    const da = a.date && a.date.toDate ? a.date.toDate() : new Date(a.date);
+                    const db = b.date && b.date.toDate ? b.date.toDate() : new Date(b.date);
+                    return db - da;
+                });
+                populateYearFilter();
+                applySearch();
+                updateTotalCount();
+            } catch (error) {
+                showToast(translations[currentLang].loadError + error.message, 'error');
+            }
+        }
+
+        // ---- Apply search + year filter ----
+        function applySearch() {
+            searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
+            filterYear = document.getElementById('yearFilter').value;
+
+            let filtered = [...allDeposits];
+
+            // Text search
+            if (searchQuery) {
+                filtered = filtered.filter(d =>
+                    (d.incomeType && d.incomeType.toLowerCase().includes(searchQuery)) ||
+                    (d.note && d.note.toLowerCase().includes(searchQuery)) ||
+                    (d.description && d.description.toLowerCase().includes(searchQuery)) ||
+                    (d.paymentMethod && d.paymentMethod.toLowerCase().includes(searchQuery)) ||
+                    (d.ttNumber && d.ttNumber.toLowerCase().includes(searchQuery))
+                );
+            }
+
+            // Year filter
+            if (filterYear !== 'all') {
+                const yearNum = Number(filterYear);
+                filtered = filtered.filter(d => {
+                    const date = d.date ? (d.date.toDate ? d.date.toDate() : new Date(d.date)) : null;
+                    return date && date.getFullYear() === yearNum;
+                });
+            }
+
+            filteredDeposits = filtered;
+            currentPage = 1;
+            paginateDeposits();
+        }
+
+        function paginateDeposits() {
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageItems = filteredDeposits.slice(start, end);
+            renderTable(pageItems);
+            updatePaginationInfo();
+            renderPageButtons();
+        }
+
+        function renderTable(items) {
+            const tbody = document.getElementById('depositsBody');
+            const t = translations[currentLang];
+
+            if (!items || items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:40px; color:var(--text-secondary);">${t.noDeposits}</td></tr>`;
+                return;
+            }
+
+            let html = '';
+            items.forEach((d, i) => {
+                const dateStr = d.date ? (d.date.toDate ? d.date.toDate().toLocaleDateString() : new Date(d.date)
+                    .toLocaleDateString()) : '—';
+                const byUser = d.createdByName || d.createdBy || d.createdByEmail || 'Admin';
+                const displayName = byUser.includes('@') ? byUser.split('@')[0] : byUser;
+                const incomeType = d.incomeType || 'Other Deposit';
+                const typeClass = incomeType === 'Interest' ? 'interest' :
+                    incomeType === 'Penalty' ? 'penalty' : 'other';
+                const note = d.note || d.description || '—';
+                const status = d.status || 'completed';
+                const statusLabel = status === 'printed' ? t.printed : t.completed;
+                const statusClass = status === 'printed' ? 'printed' : 'completed';
+
+                const methodMap = { 'cash': t.cash || 'Cash', 'bank': t.bankTransfer || 'Bank',
+                    'mobile': t.mobileMoney || 'Mobile' };
+                const methodLabel = methodMap[d.paymentMethod] || d.paymentMethod || 'Cash';
+
+                let actionsHtml = `
+                    <button class="action-btn view-btn" onclick="viewDeposit('${d.id}')" title="${t.view}">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="action-btn print-btn" onclick="printDepositSlip('${d.id}')" title="${t.printSlip}">
+                        <i class="fas fa-print"></i>
+                    </button>
+                `;
+
+                if (canEditDeposit()) {
+                    actionsHtml += `
+                        <button class="action-btn edit-btn" onclick="editDeposit('${d.id}')" title="${t.edit || 'Edit'}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    `;
+                }
+
+                if (canDeleteDeposit()) {
+                    actionsHtml += `
+                        <button class="action-btn delete-btn" onclick="deleteDeposit('${d.id}')" title="${t.delete}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    `;
+                }
+
+                html += `<tr>
+                    <td>${(currentPage-1)*pageSize + i + 1}</td>
+                    <td><span class="type-badge ${typeClass}">${incomeType}</span></td>
+                    <td>${Number(d.amount).toLocaleString()}</td>
+                    <td><span style="font-size:11px; background:var(--border-color); padding:2px 8px; border-radius:12px;">${methodLabel}</span></td>
+                    <td>${note}</td>
+                    <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+                    <td>${dateStr}</td>
+                    <td>${displayName}</td>
+                    <td>${actionsHtml}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function updatePaginationInfo() {
+            const total = filteredDeposits.length;
+            const start = (currentPage - 1) * pageSize + 1;
+            const end = Math.min(currentPage * pageSize, total);
+            document.getElementById('pageStart').textContent = total > 0 ? start : 0;
+            document.getElementById('pageEnd').textContent = total > 0 ? end : 0;
+            document.getElementById('totalDepositsCount').textContent = total;
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = currentPage >= Math.ceil(total / pageSize) || total === 0;
+        }
+
+        function renderPageButtons() {
+            const container = document.getElementById('pageNumbers');
+            const totalPages = Math.ceil(filteredDeposits.length / pageSize);
+            if (totalPages <= 1) { container.innerHTML = ''; return; }
+            let html = '';
+            const maxVisible = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+            if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
+            if (startPage > 1) {
+                html += `<button class="pagination-btn" onclick="goToPage(1)">1</button>`;
+                if (startPage > 2) html += `<button class="pagination-btn" disabled>...</button>`;
+            }
+            for (let i = startPage; i <= endPage; i++) {
+                html +=
+                    `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) html += `<button class="pagination-btn" disabled>...</button>`;
+                html += `<button class="pagination-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function goToPage(page) {
+            const totalPages = Math.ceil(filteredDeposits.length / pageSize);
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            paginateDeposits();
+            document.querySelector('.table-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function updateTotalCount() {
+            const total = allDeposits.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+            document.getElementById('totalCount').textContent = total.toLocaleString();
+        }
+
+        // ---- View Deposit ----
+        function viewDeposit(id) {
+            const d = allDeposits.find(item => item.id === id);
+            if (!d) return;
+            const t = translations[currentLang];
+            const dateStr = d.date ? (d.date.toDate ? d.date.toDate().toLocaleDateString() : new Date(d.date)
+                .toLocaleDateString()) : '—';
+            const byUser = d.createdByName || d.createdBy || d.createdByEmail || 'Admin';
+            const displayName = byUser.includes('@') ? byUser.split('@')[0] : byUser;
+            const note = d.note || d.description || '—';
+            const methodMap = { 'cash': t.cash || 'Cash', 'bank': t.bankTransfer || 'Bank',
+                'mobile': t.mobileMoney || 'Mobile' };
+            const methodLabel = methodMap[d.paymentMethod] || d.paymentMethod || 'Cash';
+            let extra = '';
+            if (d.paymentMethod !== 'cash') {
+                extra =
+                    `\n📋 TT Number: ${d.ttNumber || '—'}\n📅 Transfer Date: ${d.transferDate ? (d.transferDate.toDate ? d.transferDate.toDate().toLocaleDateString() : new Date(d.transferDate).toLocaleDateString()) : '—'}\n🏦 Bank: ${d.bankName || '—'}`;
+            }
+            showToast(
+                `📋 ${t.incomeType}: ${d.incomeType || 'Other'}\n💰 ${t.amount}: ETB ${Number(d.amount).toLocaleString()}\n💳 ${t.paymentMethod}: ${methodLabel}${extra}\n📝 ${t.description}: ${note}\n📅 ${t.date}: ${dateStr}\n👤 ${t.by}: ${displayName}`,
+                'warning'
+            );
+        }
+
+        // ---- Edit Deposit (Admin/Manager only) ----
+        function editDeposit(id) {
+            if (!canEditDeposit()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+
+            const d = allDeposits.find(item => item.id === id);
+            if (!d) { showToast('Deposit not found.', 'error'); return; }
+
+            const modal = document.getElementById('editDepositModal');
+            document.getElementById('editDepositId').value = d.id;
+
+            document.getElementById('editIncomeType').value = d.incomeType || 'Other Deposit';
+            document.getElementById('editAmount').value = d.amount || '';
+            const dateVal = d.date ? (d.date.toDate ? d.date.toDate() : new Date(d.date)) : new Date();
+            document.getElementById('editDate').value = dateVal.toISOString().split('T')[0];
+            document.getElementById('editPaymentMethod').value = d.paymentMethod || 'cash';
+            document.getElementById('editTtNumber').value = d.ttNumber || '';
+            const transferDateVal = d.transferDate ? (d.transferDate.toDate ? d.transferDate.toDate() : new Date(d
+                .transferDate)) : null;
+            document.getElementById('editTransferDate').value = transferDateVal ? transferDateVal.toISOString().split('T')[0] :
+                '';
+            document.getElementById('editBankName').value = d.bankName || '';
+            document.getElementById('editDescription').value = d.note || d.description || '';
+
+            // Show/hide conditional fields
+            toggleEditConditionalFields();
+
+            modal.classList.add('active');
+            modal.style.display = 'flex';
+        }
+
+        // ---- Close Edit Modal ----
+        function closeEditModal() {
+            document.getElementById('editDepositModal').classList.remove('active');
+            document.getElementById('editDepositModal').style.display = 'none';
+        }
+
+        // ---- Update Deposit (with audit logging) ----
+        async function updateDeposit(e) {
+            e.preventDefault();
+            if (!canEditDeposit()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+
+            const depositId = document.getElementById('editDepositId').value;
+            const incomeType = document.getElementById('editIncomeType').value;
+            const amount = parseFloat(document.getElementById('editAmount').value);
+            const date = document.getElementById('editDate').value;
+            const paymentMethod = document.getElementById('editPaymentMethod').value;
+            const ttNumber = document.getElementById('editTtNumber').value.trim();
+            const transferDate = document.getElementById('editTransferDate').value;
+            const bankName = document.getElementById('editBankName').value.trim();
+            const description = document.getElementById('editDescription').value.trim();
+
+            if (!amount || amount <= 0) { showToast('Please enter a valid amount.', 'warning'); return; }
+            if (!date) { showToast('Please select a date.', 'warning'); return; }
+
+            if (paymentMethod !== 'cash') {
+                if (!ttNumber) { showToast('Please enter the TT number.', 'warning'); return; }
+                if (!transferDate) { showToast('Please select the transfer date.', 'warning'); return; }
+                if (paymentMethod === 'bank' && !bankName) { showToast('Please enter the bank name.', 'warning'); return; }
+            }
+
+            const btn = document.getElementById('updateDepositBtn');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+
+            try {
+                const docRef = db.collection('transactions').doc(depositId);
+                const oldDoc = await docRef.get();
+                const oldData = oldDoc.exists ? oldDoc.data() : {};
+
+                const updateData = {
+                    incomeType: incomeType,
+                    amount: Math.round(amount * 100) / 100,
+                    date: new Date(date),
+                    paymentMethod: paymentMethod,
+                    ttNumber: (paymentMethod === 'cash' ? '' : ttNumber),
+                    bankName: (paymentMethod === 'cash' ? '' : bankName),
+                    note: description,
+                    description: description,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                if (paymentMethod !== 'cash' && transferDate) {
+                    updateData.transferDate = new Date(transferDate);
+                } else {
+                    updateData.transferDate = null;
+                }
+
+                await docRef.update(updateData);
+
+                // ---- AUDIT LOG: Updated ----
+                const changes = {};
+                const fieldsToCompare = ['incomeType', 'amount', 'date', 'paymentMethod', 'ttNumber', 'bankName',
+                    'description', 'note'
+                ];
+                fieldsToCompare.forEach(field => {
+                    const oldVal = oldData[field] !== undefined ? oldData[field] : null;
+                    const newVal = updateData[field] !== undefined ? updateData[field] : null;
+                    if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+                        changes[field] = { old: oldVal, new: newVal };
+                    }
+                });
+
+                await logAudit('updated', 'transactions', depositId, changes,
+                    `Deposit updated: ${incomeType} - ${amount} ETB`);
+
+                showToast(translations[currentLang].depositUpdated, 'success');
+                closeEditModal();
+                await loadDeposits();
+                await getTotalDeposits();
+            } catch (error) {
+                showToast('Error updating deposit: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
+        // ---- Delete Deposit (Admin only, with audit logging) ----
+        async function deleteDeposit(id) {
+            if (!canDeleteDeposit()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+            const t = translations[currentLang];
+            if (!confirm(t.deleteConfirmation)) return;
+
+            try {
+                const docRef = db.collection('transactions').doc(id);
+                const doc = await docRef.get();
+                const data = doc.exists ? doc.data() : {};
+
+                await docRef.delete();
+
+                // ---- AUDIT LOG: Deleted ----
+                await logAudit('deleted', 'transactions', id, data,
+                    `Deposit deleted: ${data.incomeType || 'Unknown'} - ${data.amount || 0} ETB`);
+
+                showToast(t.depositDeleted, 'success');
+                await loadDeposits();
+                await getTotalDeposits();
+            } catch (error) {
+                showToast('Error deleting deposit: ' + error.message, 'error');
+            }
+        }
+
+        // ---- Record Deposit (with audit logging) ----
+        async function recordDeposit(e) {
+            e.preventDefault();
+            if (!canAddDeposit()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+
+            const incomeType = document.getElementById('incomeType').value;
+            let amount = parseFloat(document.getElementById('amountInput').value);
+            const date = document.getElementById('dateInput').value;
+            const description = document.getElementById('descriptionInput').value.trim();
+            const paymentMethod = document.getElementById('paymentMethod').value;
+            const ttNumber = document.getElementById('ttNumber').value.trim();
+            const transferDate = document.getElementById('transferDate').value;
+            const bankName = document.getElementById('bankName').value.trim();
+
+            if (!incomeType) { showToast('Please select an income type.', 'warning'); return; }
+            if (!amount || amount <= 0) { showToast('Please enter a valid amount.', 'warning'); return; }
+            if (!date) { showToast('Please select a date.', 'warning'); return; }
+
+            // For bank/mobile, require TT number and transfer date
+            if (paymentMethod !== 'cash') {
+                if (!ttNumber) { showToast('Please enter the TT number.', 'warning'); return; }
+                if (!transferDate) { showToast('Please select the transfer date.', 'warning'); return; }
+                if (paymentMethod === 'bank' && !bankName) { showToast('Please enter the bank name.', 'warning'); return; }
+            }
+
+            // ---- Duplicate check: same TT number and same transfer date ----
+            if (paymentMethod !== 'cash' && ttNumber && transferDate) {
+                try {
+                    const startOfDay = new Date(transferDate);
+                    startOfDay.setHours(0, 0, 0, 0);
+                    const endOfDay = new Date(transferDate);
+                    endOfDay.setHours(23, 59, 59, 999);
+
+                    const dupSnap = await db.collection('transactions')
+                        .where('type', '==', 'profit_income')
+                        .where('ttNumber', '==', ttNumber)
+                        .where('transferDate', '>=', startOfDay)
+                        .where('transferDate', '<=', endOfDay)
+                        .get();
+
+                    if (!dupSnap.empty) {
+                        showToast(translations[currentLang].duplicateTT, 'warning');
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Duplicate check error:', error);
+                    showToast('Error checking duplicates. Please try again.', 'error');
+                    return;
+                }
+            }
+
+            amount = Math.round(amount * 100) / 100;
+
+            const btn = document.getElementById('saveBtn');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Recording...';
+
+            try {
+                const user = auth.currentUser;
+                const createdByName = getDisplayName(user);
+
+                const docData = {
+                    type: 'profit_income',
+                    transactionType: 'income',
+                    incomeType: incomeType,
+                    amount: amount,
+                    date: new Date(date),
+                    note: description,
+                    description: description,
+                    status: 'completed',
+                    paymentMethod: paymentMethod,
+                    ttNumber: (paymentMethod === 'cash' ? '' : ttNumber),
+                    bankName: (paymentMethod === 'cash' ? '' : bankName),
+                    createdByName: createdByName,
+                    createdBy: createdByName,
+                    createdByEmail: user ? user.email : 'admin@geresu.com',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                if (paymentMethod !== 'cash' && transferDate) {
+                    docData.transferDate = new Date(transferDate);
+                }
+
+                const docRef = await db.collection('transactions').add(docData);
+
+                // ---- AUDIT LOG: Created ----
+                await logAudit('created', 'transactions', docRef.id, {
+                    incomeType: incomeType,
+                    amount: amount,
+                    paymentMethod: paymentMethod,
+                    date: date,
+                    description: description
+                }, `Deposit created: ${incomeType} - ${amount} ETB`);
+
+                showToast(translations[currentLang].depositRecorded, 'success');
+                document.getElementById('depositForm').reset();
+                document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+                document.getElementById('incomeType').value = 'Registration Fee';
+                document.getElementById('paymentMethod').value = 'cash';
+                document.getElementById('ttNumber').value = '';
+                document.getElementById('transferDate').value = '';
+                document.getElementById('bankName').value = '';
+                toggleConditionalFields();
+
+                await loadDeposits();
+                await getTotalDeposits();
+            } catch (error) {
+                showToast(translations[currentLang].depositError + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
+        // ---- Helper ----
+        function getDisplayName(user) {
+            if (!user) return 'Admin';
+            if (currentUserDisplayName) return currentUserDisplayName;
+            const name = user.displayName || user.email || 'Admin';
+            if (name.includes('@')) return name.split('@')[0];
+            return name;
+        }
+
+        // ============================================================
+        // PRINT SLIP (A5 landscape, with audit logging)
+        // ============================================================
+        async function printDepositSlip(docId) {
+            const deposit = allDeposits.find(d => d.id === docId);
+            if (!deposit) { showToast('Deposit not found.', 'error'); return; }
+
+            const user = auth.currentUser;
+            let printedBy = 'Unknown';
+            if (user) {
+                printedBy = user.displayName || user.email || 'Unknown';
+                if (printedBy.includes('@')) printedBy = printedBy.split('@')[0];
+            }
+
+            try {
+                if (deposit.status !== 'printed') {
+                    await db.collection('transactions').doc(docId).update({
+                        status: 'printed',
+                        printed: true,
+                        printedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        printedBy: printedBy
+                    });
+                    deposit.status = 'printed';
+                    deposit.printed = true;
+                    deposit.printedAt = new Date();
+                    deposit.printedBy = printedBy;
+                    const currentItems = filteredDeposits.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+                    renderTable(currentItems);
+                }
+
+                // ---- AUDIT LOG: Printed ----
+                await logAudit('printed', 'transactions', docId, { printedBy: printedBy },
+                    `Deposit slip printed: ${deposit.incomeType || 'Unknown'} - ${deposit.amount || 0} ETB`);
+
+                showToast(translations[currentLang].printRecorded, 'success');
+                generateDepositSlipHTML(deposit);
+                window.print();
+
+            } catch (error) {
+                console.error('Error printing:', error);
+                showToast('Failed to print. Please try again.', 'error');
+            }
+        }
+
+        function generateDepositSlipHTML(deposit) {
+            const t = translations[currentLang];
+            const dateStr = deposit.date ? (deposit.date.toDate ? deposit.date.toDate().toLocaleString() : new Date(deposit.date)
+                .toLocaleString()) : '—';
+            const byUser = deposit.createdByName || deposit.createdBy || deposit.createdByEmail || 'Admin';
+            const displayName = byUser.includes('@') ? byUser.split('@')[0] : byUser;
+            const note = deposit.note || deposit.description || '—';
+            const incomeType = deposit.incomeType || 'Other Deposit';
+            const amount = Number(deposit.amount) || 0;
+            const amountWords = numberToWords(Math.floor(amount)) + ' ETB';
+            const methodMap = { 'cash': t.cash || 'Cash', 'bank': t.bankTransfer || 'Bank Transfer',
+                'mobile': t.mobileMoney || 'Mobile Money' };
+            const methodLabel = methodMap[deposit.paymentMethod] || deposit.paymentMethod || 'Cash';
+
+            let extraRows = '';
+            if (deposit.paymentMethod !== 'cash') {
+                extraRows += `<div class="slip-row"><span class="label">TT Number</span><span class="value">${deposit.ttNumber || '—'}</span></div>`;
+                const tDate = deposit.transferDate ? (deposit.transferDate.toDate ? deposit.transferDate.toDate()
+                    .toLocaleDateString() : new Date(deposit.transferDate).toLocaleDateString()) : '—';
+                extraRows += `<div class="slip-row"><span class="label">Transfer Date</span><span class="value">${tDate}</span></div>`;
+                extraRows += `<div class="slip-row"><span class="label">Bank / Provider</span><span class="value">${deposit.bankName || '—'}</span></div>`;
+            }
+
+            const slipContainer = document.getElementById('slipContainer');
+            slipContainer.innerHTML = `
+                <div class="slip-header"><h1>GERESU DHUKI SACCO</h1><p>Deposit Receipt</p></div>
+                <div class="slip-body">
+                    <div class="slip-row"><span class="label">Transaction ID</span><span class="value">${deposit.id.slice(0, 12)}</span></div>
+                    <div class="slip-row"><span class="label">Income Type</span><span class="value">${incomeType}</span></div>
+                    <div class="slip-row"><span class="label">Payment Method</span><span class="value">${methodLabel}</span></div>
+                    ${extraRows}
+                    <div class="slip-row"><span class="label">Amount (ETB)</span><span class="value">${amount.toLocaleString()}</span></div>
+                    <div class="slip-row"><span class="label">${t.amountInWords}</span><span class="value amount-words">${amountWords}</span></div>
+                    <div class="slip-row"><span class="label">Description</span><span class="value">${note}</span></div>
+                    <div class="slip-row"><span class="label">Status</span><span class="value">${t.printed}</span></div>
+                    <div class="slip-row"><span class="label">Date</span><span class="value">${dateStr}</span></div>
+                    <div class="slip-row"><span class="label">Recorded By</span><span class="value">${displayName}</span></div>
+                </div>
+                <div class="slip-footer"><div class="thankyou">Thank you!</div><p>Computer-generated receipt.</p></div>
+            `;
+        }
+
+        // ============================================================
+        // UPDATE USER INFO (role + audit + users nav)
+        // ============================================================
+        function updateUserInfo() {
+            const roleMap = { admin: 'ADMIN', manager: 'MANAGER', teller: 'TELLER', accountant: 'ACCOUNTANT',
+                viewer: 'VIEWER' };
+            const roleLabel = roleMap[currentUserRole] || 'VIEWER';
+            const displayName = currentUserDisplayName || 'User';
+            document.getElementById('userDisplayName').textContent = displayName + ' (' + roleLabel + ')';
+
+            // ---- Show/hide Audit nav link ----
+            const auditNav = document.getElementById('auditNavItem');
+            if (auditNav) {
+                auditNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
+            }
+
+            // ---- Show/hide Users nav link ----
+            const usersNav = document.getElementById('usersNavItem');
+            if (usersNav) {
+                usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
+            }
+        }
+
+        // ============================================================
+        // PAGE INIT
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', async function() {
+            auth.onAuthStateChanged(async (user) => {
+                if (!user) {
+                    window.location.href = '../index.html';
+                    return;
+                }
+                currentUser = user;
+
+                try {
+                    const doc = await db.collection('users').doc(user.uid).get();
+                    if (doc.exists) {
+                        const data = doc.data();
+                        currentUserRole = data.role || 'viewer';
+                        if (!['admin', 'manager', 'teller', 'accountant', 'viewer'].includes(currentUserRole)) {
+                            currentUserRole = 'viewer';
+                        }
+                        currentUserDisplayName = data.displayName || data.name || user.displayName || user.email?.split(
+                            '@')[0] || 'Admin';
+                    } else {
+                        currentUserRole = 'viewer';
+                        currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'Admin';
+                    }
+                } catch (err) {
+                    console.error('Error fetching user role:', err);
+                    currentUserRole = 'viewer';
+                    currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'Admin';
+                }
+
+                // ---- Update user info (role + audit + users nav) ----
+                updateUserInfo();
+
+                // ---- Show/hide deposit form based on role ----
+                const formSection = document.getElementById('depositFormSection');
+                if (canAddDeposit()) {
+                    formSection.style.display = 'block';
+                } else {
+                    formSection.style.display = 'none';
+                }
+
+                initLanguage();
+
+                document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
+                document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
+
+                document.querySelectorAll('.lang-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        setLanguage(this.dataset.lang);
+                        const currentItems = filteredDeposits.slice((currentPage - 1) * pageSize,
+                            currentPage * pageSize);
+                        renderTable(currentItems);
+                        updatePaginationInfo();
+                        renderPageButtons();
+                        const searchInput = document.getElementById('searchInput');
+                        const t = translations[currentLang];
+                        searchInput.placeholder = t.searchPlaceholder || 'Search by description or type...';
+                    });
+                });
+
+                document.getElementById('logoutBtn').addEventListener('click', async function() {
+                    if (confirm('Are you sure you want to log out?')) {
+                        await auth.signOut();
+                        window.location.href = '../index.html';
+                    }
+                });
+
+                document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+
+                // ---- Conditional fields ----
+                document.getElementById('paymentMethod').addEventListener('change', toggleConditionalFields);
+                toggleConditionalFields();
+
+                // ---- Edit form conditional fields ----
+                document.getElementById('editPaymentMethod').addEventListener('change', toggleEditConditionalFields);
+
+                await getTotalDeposits();
+                await loadDeposits();
+
+                document.getElementById('searchInput').addEventListener('input', function() {
+                    applySearch();
+                });
+
+                document.getElementById('yearFilter').addEventListener('change', function() {
+                    applySearch();
+                });
+
+                document.getElementById('depositForm').addEventListener('submit', recordDeposit);
+
+                // ---- Edit modal events ----
+                document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
+                document.getElementById('cancelEditBtn').addEventListener('click', closeEditModal);
+                document.getElementById('editDepositModal').addEventListener('click', function(e) {
+                    if (e.target === this) closeEditModal();
+                });
+                document.getElementById('editDepositForm').addEventListener('submit', updateDeposit);
+
+                document.getElementById('resetFormBtn').addEventListener('click', function() {
+                    document.getElementById('depositForm').reset();
+                    document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+                    document.getElementById('incomeType').value = 'Registration Fee';
+                    document.getElementById('paymentMethod').value = 'cash';
+                    document.getElementById('ttNumber').value = '';
+                    document.getElementById('transferDate').value = '';
+                    document.getElementById('bankName').value = '';
+                    toggleConditionalFields();
+                });
+
+                document.getElementById('prevPage').addEventListener('click', function() {
+                    if (currentPage > 1) goToPage(currentPage - 1);
+                });
+                document.getElementById('nextPage').addEventListener('click', function() {
+                    const totalPages = Math.ceil(filteredDeposits.length / pageSize);
+                    if (currentPage < totalPages) goToPage(currentPage + 1);
+                });
+
+                const searchInput = document.getElementById('searchInput');
+                const t = translations[currentLang];
+                searchInput.placeholder = t.searchPlaceholder || 'Search by description or type...';
+
+                // Expose functions globally
+                window.editDeposit = editDeposit;
+                window.deleteDeposit = deleteDeposit;
+                window.viewDeposit = viewDeposit;
+                window.printDepositSlip = printDepositSlip;
+                window.goToPage = goToPage;
+                window.toggleSidebar = toggleSidebar;
+                window.toggleConditionalFields = toggleConditionalFields;
+                window.toggleEditConditionalFields = toggleEditConditionalFields;
+                window.closeEditModal = closeEditModal;
+            });
+        });
+    </script>
+    <script>
+        // ============================================================
+        // SESSION TIMEOUT (5 minutes inactivity)
+        // ============================================================
+        (function() {
+            const SESSION_TIMEOUT = 5 * 60 * 1000;
+            const WARNING_TIMEOUT = SESSION_TIMEOUT - 30 * 1000;
+
+            let timer = null;
+            let warningTimer = null;
+            let warningToast = null;
+            let countdownInterval = null;
+
+            function resetTimer() {
+                clearTimeout(timer);
+                clearTimeout(warningTimer);
+                clearInterval(countdownInterval);
+                if (warningToast) {
+                    warningToast.remove();
+                    warningToast = null;
+                }
+                warningTimer = setTimeout(showWarning, WARNING_TIMEOUT);
+                timer = setTimeout(forceLogout, SESSION_TIMEOUT);
+            }
+
+            function showWarning() {
+                const t = translations && translations[currentLang] ? translations[currentLang] : { sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.' };
+                const message = t.sessionTimeout || 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
+
+                let seconds = 30;
+                warningToast = document.createElement('div');
+                warningToast.style.cssText = `
+                    position: fixed;
+                    bottom: 30px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: #f39c12;
+                    color: #fff;
+                    padding: 16px 24px;
+                    border-radius: 12px;
+                    font-size: 15px;
+                    font-weight: 500;
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+                    z-index: 99999;
+                    max-width: 500px;
+                    text-align: center;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    animation: slideUp 0.3s ease;
+                `;
+                warningToast.innerHTML = `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
+
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes slideUp {
+                        from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+                        to { transform: translateX(-50%) translateY(0); opacity: 1; }
+                    }
+                `;
+                document.head.appendChild(style);
+                document.body.appendChild(warningToast);
+
+                countdownInterval = setInterval(() => {
+                    seconds--;
+                    const textEl = document.getElementById('sessionWarningText');
+                    if (textEl) {
+                        textEl.textContent = message.replace('{seconds}', seconds);
+                    }
+                    if (seconds <= 0) {
+                        clearInterval(countdownInterval);
+                    }
+                }, 1000);
+            }
+
+            function forceLogout() {
+                clearInterval(countdownInterval);
+                if (warningToast) {
+                    warningToast.remove();
+                    warningToast = null;
+                }
+                if (typeof auth !== 'undefined' && auth) {
+                    auth.signOut().then(() => {
+                        window.location.href = '../index.html';
+                    }).catch(() => {
+                        window.location.href = '../index.html';
+                    });
+                } else {
+                    window.location.href = '../index.html';
+                }
+            }
+
+            const events = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
+
+            function handleActivity() {
+                resetTimer();
+            }
+            events.forEach(evt => {
+                document.addEventListener(evt, handleActivity);
+            });
+            resetTimer();
+
+            window.addEventListener('beforeunload', function() {
+                clearTimeout(timer);
+                clearTimeout(warningTimer);
+                clearInterval(countdownInterval);
+                if (warningToast) {
+                    warningToast.remove();
+                }
+                events.forEach(evt => {
+                    document.removeEventListener(evt, handleActivity);
+                });
+            });
+        })();
+    </script>
+</body>
+</html>

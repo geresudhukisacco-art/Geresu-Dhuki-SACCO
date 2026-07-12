@@ -1,0 +1,2533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Withdrawals – GERESU DHUKI SACCO</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js">
+    </script>
+
+    <style>
+        /* ============================================================
+           ALL STYLES (with dark mode support)
+           ============================================================ */
+        :root {
+            --bg-primary: #f5f7f6;
+            --bg-card: #ffffff;
+            --bg-sidebar: #1a2e1f;
+            --text-primary: #1a2e1f;
+            --text-secondary: #6c7d70;
+            --text-muted: #8a9e92;
+            --border-color: #e8ede9;
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+            --input-bg: #ffffff;
+            --input-border: #d0d7d2;
+            --input-focus: rgba(45, 122, 61, 0.1);
+            --success: #2d7a3d;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #2196f3;
+            --primary: #2d7a3d;
+            --primary-light: #e8f5ee;
+            --radius: 12px;
+            --radius-sm: 8px;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1a2e;
+            --bg-card: #16213e;
+            --bg-sidebar: #0f0f1a;
+            --text-primary: #e8f0ea;
+            --text-secondary: #a0aec0;
+            --text-muted: #6b7d82;
+            --border-color: #2d3748;
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+            --input-bg: #2d3748;
+            --input-border: #4a5568;
+            --input-focus: rgba(45, 122, 61, 0.2);
+            --primary: #2d7a3d;
+            --primary-light: #1a2e24;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* ----- SIDEBAR (80px centered logo) ----- */
+        .sidebar {
+            width: 260px;
+            background: var(--bg-sidebar);
+            color: #e8f0ea;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+            box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+        .sidebar-brand {
+            padding: 20px 20px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            text-align: center;
+        }
+        .brand-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            overflow: hidden;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(255, 255, 255, 0.12);
+        }
+        .brand-logo-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            padding: 6px;
+            display: block;
+        }
+        .brand-text .brand-name {
+            font-size: 18px;
+            font-weight: 700;
+            display: block;
+            line-height: 1.2;
+            color: #fff;
+            letter-spacing: 0.5px;
+        }
+        .brand-text .brand-sub {
+            font-size: 11px;
+            opacity: 0.6;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 12px;
+            overflow-y: auto;
+        }
+        .sidebar-nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .sidebar-nav li {
+            margin-bottom: 4px;
+        }
+        .sidebar-nav li a {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            color: #c4d4c9;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 15px;
+            transition: 0.2s;
+        }
+        .sidebar-nav li a i {
+            width: 22px;
+            text-align: center;
+            font-size: 18px;
+        }
+        .sidebar-nav li a:hover {
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+        }
+        .sidebar-nav li.active a {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 4px 10px rgba(45, 122, 61, 0.3);
+        }
+        .sidebar-footer {
+            padding: 16px 20px 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .logout-btn {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: #e8f0ea;
+            font-size: 15px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .logout-btn:hover {
+            background: rgba(255, 70, 70, 0.15);
+            border-color: var(--danger);
+            color: #ff6b6b;
+        }
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 999;
+        }
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        .main-content {
+            margin-left: 260px;
+            flex: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ----- HEADER ----- */
+        .top-header {
+            background: var(--bg-card);
+            padding: 16px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 999;
+            box-shadow: var(--shadow);
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .menu-toggle {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: none;
+            transition: color 0.3s;
+        }
+        .page-title h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+            transition: color 0.3s;
+        }
+        .breadcrumb {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-left: 8px;
+            transition: color 0.3s;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .lang-switcher {
+            display: flex;
+            gap: 4px;
+        }
+        .lang-btn {
+            background: transparent;
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: 0.2s;
+        }
+        .lang-btn:hover {
+            background: var(--border-color);
+        }
+        .lang-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        .notif-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            position: relative;
+            transition: color 0.3s;
+        }
+        .notif-btn:hover {
+            color: var(--text-primary);
+        }
+        .badge {
+            position: absolute;
+            top: -4px;
+            right: -6px;
+            background: var(--danger);
+            color: #fff;
+            font-size: 11px;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-profile img {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--primary);
+            background: #f5f7f6;
+        }
+        .user-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+            transition: color 0.3s;
+        }
+
+        /* ----- WITHDRAWALS CONTENT ----- */
+        .dashboard-content {
+            padding: 24px 30px 30px;
+            flex: 1;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .page-header-left h2 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            transition: color 0.3s;
+        }
+        .page-header-left p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            transition: color 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover {
+            background: #1f5e2c;
+            transform: scale(1.02);
+        }
+        .btn-primary:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-secondary {
+            background: var(--border-color);
+            color: var(--text-primary);
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-secondary:hover {
+            background: #d0d7d2;
+        }
+        .btn-danger {
+            background: var(--danger);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        .btn-sm {
+            padding: 6px 14px;
+            font-size: 13px;
+        }
+
+        /* ----- CAPITAL BALANCE CARD (Gold) ----- */
+        .capital-balance-card {
+            background: linear-gradient(135deg, #f1c40f, #f39c12);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            color: #1a2e1f;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 16px rgba(241, 196, 15, 0.3);
+        }
+        .capital-balance-card .balance-label {
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0.8;
+        }
+        .capital-balance-card .balance-amount {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .capital-balance-card .balance-amount .currency {
+            font-size: 18px;
+            font-weight: 400;
+            opacity: 0.8;
+            margin-right: 4px;
+        }
+        .capital-balance-card .balance-details {
+            font-size: 13px;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+
+        /* ----- FORM SECTION ----- */
+        .form-section {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            padding: 18px 22px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .form-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 14px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: color 0.3s;
+        }
+        .form-section h3 i {
+            color: var(--primary);
+        }
+
+        .form-group {
+            position: relative;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        .form-row.two {
+            grid-template-columns: 1fr 1fr;
+        }
+        .form-group label {
+            font-weight: 500;
+            font-size: 13px;
+            color: var(--text-primary);
+            display: block;
+            margin-bottom: 3px;
+            transition: color 0.3s;
+        }
+        .form-group label .required {
+            color: var(--danger);
+            margin-left: 2px;
+        }
+        .form-group input,
+        .form-group select {
+            padding: 7px 10px;
+            border: 1px solid var(--input-border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-family: inherit;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            transition: all 0.2s;
+            width: 100%;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--input-focus);
+        }
+        .form-group .hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 3px;
+            transition: color 0.3s;
+        }
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        /* ----- SEARCH & TABLE ----- */
+        #memberSuggestions {
+            position: absolute;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 10;
+            width: 100%;
+            box-shadow: var(--shadow-md);
+            top: 100%;
+            left: 0;
+            display: none;
+        }
+        #memberSuggestions div {
+            padding: 10px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+        }
+        #memberSuggestions div:hover {
+            background: var(--bg-primary);
+        }
+        #memberSuggestions div:last-child {
+            border-bottom: none;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .search-wrapper {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+        .search-wrapper i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+        .search-wrapper input {
+            width: 100%;
+            padding: 10px 16px 10px 42px;
+            border: 1px solid var(--input-border);
+            border-radius: var(--radius);
+            font-size: 14px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            transition: 0.2s;
+        }
+        .search-wrapper input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--input-focus);
+        }
+        .filter-wrapper select {
+            padding: 10px 16px;
+            border: 1px solid var(--input-border);
+            border-radius: var(--radius);
+            font-size: 14px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            cursor: pointer;
+            min-width: 140px;
+            transition: all 0.2s;
+        }
+        .filter-wrapper select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--input-focus);
+        }
+
+        .table-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .table-header {
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+        .table-header strong {
+            color: var(--primary);
+        }
+        .table-wrapper {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        thead {
+            background: var(--bg-primary);
+        }
+        thead th {
+            padding: 10px 14px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--border-color);
+            white-space: nowrap;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            transition: all 0.3s;
+        }
+        tbody td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+            vertical-align: middle;
+            transition: all 0.3s;
+        }
+        tbody tr:hover {
+            background: var(--bg-primary);
+        }
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .status-badge {
+            padding: 3px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .status-badge.completed {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-badge.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status-badge.failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .action-btn {
+            border: none;
+            padding: 5px 10px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .action-btn i {
+            font-size: 13px;
+        }
+        .action-btn.view-btn {
+            background: var(--info);
+            color: #fff;
+        }
+        .action-btn.view-btn:hover {
+            background: #0d47a1;
+            transform: translateY(-1px);
+        }
+        .action-btn.delete-btn {
+            background: var(--danger);
+            color: #fff;
+        }
+        .action-btn.delete-btn:hover {
+            background: #c0392b;
+            transform: translateY(-1px);
+        }
+        .action-btn.print-btn {
+            background: var(--warning);
+            color: #fff;
+        }
+        .action-btn.print-btn:hover {
+            background: #e67e22;
+            transform: translateY(-1px);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-secondary);
+            transition: color 0.3s;
+        }
+        .empty-state i {
+            font-size: 40px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            display: block;
+            transition: color 0.3s;
+        }
+
+        /* ----- PAGINATION ----- */
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 18px;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 10px;
+            transition: all 0.3s;
+        }
+        .pagination-info {
+            font-size: 13px;
+            color: var(--text-secondary);
+            transition: color 0.3s;
+        }
+        .pagination-info strong {
+            color: var(--text-primary);
+        }
+        .pagination-buttons {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .pagination-btn {
+            padding: 5px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background: var(--bg-card);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            transition: all 0.2s;
+            min-width: 32px;
+            text-align: center;
+        }
+        .pagination-btn:hover:not(:disabled) {
+            background: var(--border-color);
+            border-color: var(--primary);
+        }
+        .pagination-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        .pagination-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* ----- TOAST ----- */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 14px 24px;
+            border-radius: var(--radius);
+            color: #fff;
+            font-weight: 500;
+            font-size: 14px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            animation: slideIn 0.3s ease;
+            min-width: 280px;
+            max-width: 400px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .toast i {
+            font-size: 18px;
+        }
+        .toast.success {
+            background: var(--success);
+        }
+        .toast.error {
+            background: var(--danger);
+        }
+        .toast.warning {
+            background: var(--warning);
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .toast.fade-out {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .app-footer {
+            background: var(--bg-card);
+            border-top: 1px solid var(--border-color);
+            padding: 16px 30px;
+            text-align: center;
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: auto;
+            transition: all 0.3s;
+        }
+
+        /* ============================================================
+           PRINT SLIP STYLES (A5 LANDSCAPE) with watermark
+           ============================================================ */
+        .slip-container {
+            display: none;
+            width: 210mm;
+            min-height: 148mm;
+            padding: 8mm 10mm;
+            background: #fff;
+            margin: 0 auto;
+            font-family: 'Inter', sans-serif;
+            color: #1a2e1f;
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
+        }
+        .slip-container::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 80%;
+            background: url('../images/sacco-logo.png') no-repeat center center;
+            background-size: contain;
+            opacity: 0.08;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .slip-container .slip-header {
+            text-align: center;
+            border-bottom: 2px dashed #2d7a3d;
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+        }
+        .slip-container .slip-header h1 {
+            font-size: 20px;
+            color: #2d7a3d;
+            margin: 0;
+        }
+        .slip-container .slip-header p {
+            font-size: 12px;
+            color: #6c7d70;
+            margin: 2px 0;
+        }
+        .slip-container .slip-body {
+            padding: 4px 0;
+            position: relative;
+            z-index: 1;
+        }
+        .slip-container .slip-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            font-size: 13px;
+            border-bottom: 1px solid #f0f3f1;
+        }
+        .slip-container .slip-row .label {
+            font-weight: 500;
+            color: #2d3a31;
+        }
+        .slip-container .slip-row .value {
+            font-weight: 600;
+        }
+        .slip-container .slip-row .value.amount-words {
+            font-weight: 400;
+            font-size: 12px;
+            color: #555;
+        }
+        .slip-container .slip-footer {
+            text-align: center;
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 2px dashed #2d7a3d;
+            font-size: 11px;
+            color: #6c7d70;
+            position: relative;
+            z-index: 1;
+        }
+        .slip-container .slip-footer .thankyou {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2d7a3d;
+            margin-bottom: 2px;
+        }
+
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #slipContainer,
+            #slipContainer * {
+                visibility: visible;
+            }
+            #slipContainer {
+                display: block;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 210mm;
+                min-height: 148mm;
+                margin: 0;
+                padding: 8mm 10mm;
+                box-shadow: none;
+                background: #fff;
+                page-break-after: avoid;
+                page-break-inside: avoid;
+            }
+            #slipContainer::before {
+                opacity: 0.08;
+            }
+            @page {
+                size: A5 landscape;
+                margin: 0;
+            }
+        }
+
+        /* ----- RESPONSIVE ----- */
+        @media (max-width: 992px) {
+            .form-row {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 280px;
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .menu-toggle {
+                display: block;
+            }
+            .top-header {
+                padding: 12px 16px;
+            }
+            .dashboard-content {
+                padding: 16px;
+            }
+            .form-row,
+            .form-row.two {
+                grid-template-columns: 1fr;
+            }
+            .page-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .pagination-container {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .pagination-buttons {
+                justify-content: center;
+            }
+            .user-name {
+                display: none;
+            }
+            .toast-container {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+            }
+            .toast {
+                min-width: unset;
+                width: 100%;
+            }
+            .capital-balance-card {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+        @media (max-width: 480px) {
+            .form-section {
+                padding: 12px 14px;
+            }
+            table {
+                font-size: 12px;
+            }
+            thead th,
+            tbody td {
+                padding: 6px 8px;
+            }
+            .pagination-btn {
+                padding: 4px 8px;
+                font-size: 12px;
+                min-width: 28px;
+            }
+            .capital-balance-card .balance-amount {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">
+                <img src="../images/sacco-logo.png" alt="SACCO Logo" class="brand-logo-img" />
+            </div>
+            <div class="brand-text">
+                <span class="brand-name">GERESU DHUKI</span>
+                <span class="brand-sub" data-i18n="brandSub">SACCO Banking</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <ul>
+                <li><a href="dashboard.html"><i class="fas fa-th-large"></i> <span data-i18n="navDashboard">Dashboard</span></a></li>
+                <li><a href="members.html"><i class="fas fa-users"></i> <span data-i18n="navMembers">Members</span></a></li>
+                <li><a href="savings.html"><i class="fas fa-piggy-bank"></i> <span data-i18n="navSavings">Savings</span></a></li>
+                <li><a href="deposits.html"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="navDeposits">Deposits</span></a></li>
+                <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="navLoans">Loans</span></a></li>
+                <li><a href="repayments.html"><i class="fas fa-undo-alt"></i> <span data-i18n="navRepayments">Repayments</span></a></li>
+                <li class="active"><a href="withdrawals.html"><i class="fas fa-money-bill-wave"></i> <span data-i18n="navWithdrawals">Withdrawals</span></a></li>
+                <li><a href="dividends.html"><i class="fas fa-gift"></i> <span data-i18n="navDividends">Dividends</span></a></li>
+                <li><a href="reports.html"><i class="fas fa-chart-bar"></i> <span data-i18n="navReports">Reports</span></a></li>
+                <!-- ===== AUDIT TRAIL LINK ===== -->
+                <li id="auditNavItem" style="display:none;">
+                    <a href="audit.html"><i class="fas fa-clipboard-list"></i> <span data-i18n="navAudit">Audit Trail</span></a>
+                </li>
+                <!-- ===== END AUDIT TRAIL ===== -->
+                <li id="usersNavItem" style="display:none;"><a href="users.html"><i class="fas fa-user-cog"></i> <span data-i18n="navUsers">Users</span></a></li>
+                <li><a href="settings.html"><i class="fas fa-cog"></i> <span data-i18n="navSettings">Settings</span></a></li>
+            </ul>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> <span data-i18n="logout">Logout</span></button>
+        </div>
+    </aside>
+
+    <main class="main-content">
+
+        <header class="top-header">
+            <div class="header-left">
+                <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+                <div class="page-title">
+                    <h1 data-i18n="pageTitle">Withdrawals</h1>
+                    <span class="breadcrumb" data-i18n="breadcrumb">Home / Withdrawals</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="lang-switcher">
+                    <button class="lang-btn active" data-lang="en">EN</button>
+                    <button class="lang-btn" data-lang="am">አማ</button>
+                    <button class="lang-btn" data-lang="om">OM</button>
+                </div>
+                <div class="notifications">
+                    <button class="notif-btn"><i class="fas fa-bell"></i><span class="badge">3</span></button>
+                </div>
+                <div class="user-profile">
+                    <img src="../assets/images/avatar.png" alt="User" onerror="this.src='https://ui-avatars.com/api/?name=Admin&background=2d7a3d&color=fff'" />
+                    <span class="user-name" id="userDisplayName">Admin</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="dashboard-content">
+
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h2 data-i18n="withdrawalsTitle">Capital Withdrawals</h2>
+                    <p data-i18n="withdrawalsSub">Members withdraw from their Individual Capital</p>
+                </div>
+                <button class="btn-primary" id="withdrawBtn">
+                    <i class="fas fa-money-bill-wave"></i> <span data-i18n="newWithdrawal">New Withdrawal</span>
+                </button>
+            </div>
+
+            <!-- Capital Balance Card -->
+            <div class="capital-balance-card" id="capitalBalanceCard">
+                <div>
+                    <div class="balance-label" data-i18n="individualCapital">Individual Capital</div>
+                    <div class="balance-details" id="capitalBreakdown">Savings: 0 ETB + Dividends: 0 ETB - Withdrawals: 0 ETB</div>
+                </div>
+                <div>
+                    <div class="balance-amount">
+                        <span class="currency">ETB</span>
+                        <span id="capitalBalanceDisplay">0.00</span>
+                    </div>
+                    <div style="font-size:12px; opacity:0.7; text-align:right;" id="selectedMemberName">Select a member</div>
+                </div>
+            </div>
+
+            <!-- Withdrawal Form -->
+            <div class="form-section" id="withdrawalForm" style="display:none;">
+                <h3><i class="fas fa-hand-holding-heart"></i> <span data-i18n="recordWithdrawal">Record Withdrawal</span></h3>
+                <form id="withdrawalFormSubmit">
+                    <div class="form-row">
+                        <div class="form-group" style="position:relative;">
+                            <label data-i18n="member">Member <span class="required">*</span></label>
+                            <input type="text" id="memberSearch" placeholder="Search member by name..." autocomplete="off" required />
+                            <input type="hidden" id="memberId" />
+                            <div id="memberSuggestions"></div>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="amount">Amount (ETB) <span class="required">*</span></label>
+                            <input type="number" id="amountInput" required placeholder="0.00" step="0.01" min="0.01" />
+                            <small class="hint" id="amountHint">Min: 0.01 · Max (95%): <span id="availableAmount">0.00</span> ETB</small>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="date">Date <span class="required">*</span></label>
+                            <input type="date" id="dateInput" required />
+                        </div>
+                    </div>
+                    <div class="form-row two">
+                        <div class="form-group">
+                            <label data-i18n="reason">Reason</label>
+                            <select id="reasonInput">
+                                <option value="Personal" data-i18n="reasonPersonal">Personal</option>
+                                <option value="Business" data-i18n="reasonBusiness">Business</option>
+                                <option value="Education" data-i18n="reasonEducation">Education</option>
+                                <option value="Medical" data-i18n="reasonMedical">Medical</option>
+                                <option value="Emergency" data-i18n="reasonEmergency">Emergency</option>
+                                <option value="Other" data-i18n="reasonOther">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="note">Note (optional)</label>
+                            <input type="text" id="noteInput" placeholder="Optional note..." />
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" id="cancelWithdrawBtn"><span data-i18n="cancel">Cancel</span></button>
+                        <button type="submit" class="btn-primary" id="saveBtn">
+                            <i class="fas fa-save"></i> <span data-i18n="withdrawBtn">Withdraw</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Withdrawals List -->
+            <div class="table-container">
+                <div class="table-header">
+                    <span data-i18n="withdrawalHistory">Withdrawal History</span>
+                    <strong id="totalWithdrawalsCount">0</strong>
+                </div>
+                <div class="search-bar" style="margin-bottom:0; padding:12px 16px; border-bottom:1px solid var(--border-color);">
+                    <div class="search-wrapper" style="flex:1;">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" data-i18n="searchPlaceholder" placeholder="Search by member name..." />
+                    </div>
+                    <div class="filter-wrapper">
+                        <select id="yearFilter">
+                            <option value="all" data-i18n="allYears">All Years</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th data-i18n="member">Member</th>
+                                <th data-i18n="amount">Amount</th>
+                                <th data-i18n="reason">Reason</th>
+                                <th data-i18n="status">Status</th>
+                                <th data-i18n="date">Date</th>
+                                <th data-i18n="by">By</th>
+                                <th data-i18n="actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="withdrawalsBody">
+                            <tr><td colspan="8"><div class="empty-state"><i class="fas fa-money-bill-wave"></i><span data-i18n="noWithdrawals">No withdrawals found.</span></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        <span data-i18n="showing">Showing</span> <strong id="pageStart">0</strong> - <strong id="pageEnd">0</strong>
+                        <span data-i18n="of">of</span> <strong id="totalWithdrawalsCountPagination">0</strong>
+                    </div>
+                    <div class="pagination-buttons">
+                        <button class="pagination-btn" id="prevPage" disabled><i class="fas fa-chevron-left"></i></button>
+                        <div id="pageNumbers"></div>
+                        <button class="pagination-btn" id="nextPage"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <footer class="app-footer">
+            <p>&copy; 2025 GERESU DHUKI SACCO. <span data-i18n="rights">All rights reserved.</span></p>
+        </footer>
+    </main>
+
+    <!-- ===== PRINT SLIP CONTAINER ===== -->
+    <div id="slipContainer" class="slip-container"></div>
+
+    <script>
+        // ============================================================
+        // FIREBASE CONFIG (UPDATED)
+        // ============================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBeQv8YLNfFFaTEZ6pxXaAy_K8n3u8V5X4",
+            authDomain: "geresu-dhuki-sacco-75329.firebaseapp.com",
+            projectId: "geresu-dhuki-sacco-75329",
+            storageBucket: "geresu-dhuki-sacco-75329.firebasestorage.app",
+            messagingSenderId: "431325504753",
+            appId: "1:431325504753:web:f7289fb88d74b82eb0b550",
+            measurementId: "G-3SN99DFJXD"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+
+        // ============================================================
+        // MULTI-LANGUAGE
+        // ============================================================
+        const translations = {
+            en: {
+                brandSub: 'SACCO Banking',
+                navDashboard: 'Dashboard',
+                navMembers: 'Members',
+                navSavings: 'Savings',
+                navDeposits: 'Deposits',
+                navLoans: 'Loans',
+                navRepayments: 'Repayments',
+                navWithdrawals: 'Withdrawals',
+                navDividends: 'Dividends',
+                navReports: 'Reports',
+                navAudit: 'Audit Trail',
+                navUsers: 'Users',
+                navSettings: 'Settings',
+                logout: 'Logout',
+                pageTitle: 'Withdrawals',
+                breadcrumb: 'Home / Withdrawals',
+                rights: 'All rights reserved.',
+                withdrawalsTitle: 'Capital Withdrawals',
+                withdrawalsSub: 'Members withdraw from their Individual Capital',
+                newWithdrawal: 'New Withdrawal',
+                individualCapital: 'Individual Capital',
+                recordWithdrawal: 'Record Withdrawal',
+                member: 'Member',
+                amount: 'Amount',
+                date: 'Date',
+                reason: 'Reason',
+                reasonPersonal: 'Personal',
+                reasonBusiness: 'Business',
+                reasonEducation: 'Education',
+                reasonMedical: 'Medical',
+                reasonEmergency: 'Emergency',
+                reasonOther: 'Other',
+                note: 'Note (optional)',
+                status: 'Status',
+                completed: 'Completed',
+                pending: 'Pending',
+                failed: 'Failed',
+                cancel: 'Cancel',
+                withdrawBtn: 'Withdraw',
+                withdrawalHistory: 'Withdrawal History',
+                noWithdrawals: 'No withdrawals found.',
+                showing: 'Showing',
+                of: 'of',
+                by: 'By',
+                actions: 'Actions',
+                view: 'View',
+                delete: 'Delete',
+                printSlip: 'Print Slip',
+                searchPlaceholder: 'Search by member name...',
+                availableHint: 'Min: 0.01 · Max (95%)',
+                insufficientCapital: 'This member has no available capital to withdraw.',
+                withdrawalRecorded: 'Withdrawal recorded successfully!',
+                withdrawalError: 'Error recording withdrawal: ',
+                loadError: 'Error loading data: ',
+                selectMember: 'Select Member',
+                noMembers: 'No members found',
+                withdrawalDeleted: 'Withdrawal deleted successfully.',
+                deleteConfirmation: 'Are you sure you want to delete this withdrawal?',
+                unauthorized: 'You are not authorized to perform this action.',
+                enterAmount: 'Amount must be greater than 0.',
+                selectMemberFirst: 'Please select a member.',
+                savings: 'Savings',
+                dividends: 'Dividends',
+                withdrawalsTotal: 'Withdrawals',
+                amountExceedsMax: 'Amount exceeds 95% of capital. Maximum allowed: ',
+                amountInWords: 'Amount in words',
+                printRecorded: 'Print recorded successfully.',
+                allYears: 'All Years',
+                selectYear: 'Select Year'
+            },
+            am: {
+                brandSub: 'ባንክ ስርዓት',
+                navDashboard: 'ዳሽቦርድ',
+                navMembers: 'አባላት',
+                navSavings: 'ቁጠባዎች',
+                navDeposits: 'ተቀማጭ',
+                navLoans: 'ብድር',
+                navRepayments: 'ክፍያዎች',
+                navWithdrawals: 'መውጫዎች',
+                navDividends: 'ክፍፍል',
+                navReports: 'ሪፖርቶች',
+                navAudit: 'የምዝግብ ታሪክ',
+                navUsers: 'ተጠቃሚዎች',
+                navSettings: 'ቅንብሮች',
+                logout: 'ውጣ',
+                pageTitle: 'መውጫዎች',
+                breadcrumb: 'ዋና ገጽ / መውጫዎች',
+                rights: 'መብቶች በሙሉ ተጠብቀዋል።',
+                withdrawalsTitle: 'የካፒታል መውጫዎች',
+                withdrawalsSub: 'አባላት ከግል ካፒታላቸው ያወጣሉ',
+                newWithdrawal: 'አዲስ መውጫ',
+                individualCapital: 'የግል ካፒታል',
+                recordWithdrawal: 'መውጫ ይመዝግቡ',
+                member: 'አባል',
+                amount: 'መጠን',
+                date: 'ቀን',
+                reason: 'ምክንያት',
+                reasonPersonal: 'የግል',
+                reasonBusiness: 'ንግድ',
+                reasonEducation: 'ትምህርት',
+                reasonMedical: 'ህክምና',
+                reasonEmergency: 'ድንገተኛ',
+                reasonOther: 'ሌላ',
+                note: 'ማስታወሻ (አማራጭ)',
+                status: 'ሁኔታ',
+                completed: 'ተጠናቋል',
+                pending: 'በመጠበቅ ላይ',
+                failed: 'አልተሳካም',
+                cancel: 'ሰርዝ',
+                withdrawBtn: 'ያውጡ',
+                withdrawalHistory: 'የመውጫ ታሪክ',
+                noWithdrawals: 'ምንም መውጫዎች አልተገኙም።',
+                showing: 'እያሳየ',
+                of: 'ከ',
+                by: 'አስተናጋጅ',
+                actions: 'ተግባራት',
+                view: 'ይመልከቱ',
+                delete: 'ሰርዝ',
+                printSlip: 'ሪሲት አትም',
+                searchPlaceholder: 'በአባል ስም ይፈልጉ...',
+                availableHint: 'ዝቅተኛ: 0.01 · ከፍተኛ (95%)',
+                insufficientCapital: 'ይህ አባል ምንም ሊያወጣ የሚችል ካፒታል የለውም።',
+                withdrawalRecorded: 'መውጫ በተሳካ ሁኔታ ተመዝግቧል!',
+                withdrawalError: 'መውጫ በመመዝገብ ላይ ስህተት: ',
+                loadError: 'ውሂብ በማስገባት ላይ ስህተት: ',
+                selectMember: 'አባል ይምረጡ',
+                noMembers: 'ምንም አባላት አልተገኙም',
+                withdrawalDeleted: 'መውጫ በተሳካ ሁኔታ ተሰርዟል።',
+                deleteConfirmation: 'ይህንን መውጫ መሰረዝ እርግጠኛ ነዎት?',
+                unauthorized: 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም።',
+                enterAmount: 'መጠን ከ0 መብለጥ አለበት።',
+                selectMemberFirst: 'እባክዎ አባል ይምረጡ።',
+                savings: 'ቁጠባ',
+                dividends: 'ክፍፍል',
+                withdrawalsTotal: 'መውጫዎች',
+                amountExceedsMax: 'መጠን ከካፒታል 95% ይበልጣል። የሚፈቀደው ከፍተኛ: ',
+                amountInWords: 'በቃላት መጠን',
+                printRecorded: 'ህትመት በተሳካ ሁኔታ ተመዝግቧል።',
+                allYears: 'ሁሉም ዓመታት',
+                selectYear: 'ዓመት ይምረጡ'
+            },
+            om: {
+                brandSub: 'Sirna Baankii',
+                navDashboard: 'Dashaaboardii',
+                navMembers: 'Miseensota',
+                navSavings: 'Kussaa',
+                navDeposits: 'Kuusaa',
+                navLoans: 'Liqeeffannoo',
+                navRepayments: 'Kaffaltii',
+                navWithdrawals: 'Baasii',
+                navDividends: 'Qooda',
+                navReports: 'Gabaasa',
+                navAudit: 'Seenaa Galmee',
+                navUsers: 'Fayyadamtota',
+                navSettings: 'Qindaa’ina',
+                logout: 'Baasi',
+                pageTitle: 'Baasii',
+                breadcrumb: 'Mana / Baasii',
+                rights: 'Mirgi hundi eegama.',
+                withdrawalsTitle: 'Baasii Kaapitaalaa',
+                withdrawalsSub: 'Miseensonni kaapitaala dhuunfaa isaanii irraa baasu',
+                newWithdrawal: 'Baasii Haaraa',
+                individualCapital: 'Kaapitaala Dhuunfaa',
+                recordWithdrawal: 'Baasii Galmeessi',
+                member: 'Miseensa',
+                amount: 'Qaba',
+                date: 'Guyyaa',
+                reason: 'Sababa',
+                reasonPersonal: 'Dhuunfaa',
+                reasonBusiness: 'Daldala',
+                reasonEducation: 'Barnoota',
+                reasonMedical: 'Fayyaa',
+                reasonEmergency: 'Dimmoo',
+                reasonOther: 'Kan biraa',
+                note: 'Hubachi (Filannoo)',
+                status: 'Haala',
+                completed: 'Xumurame',
+                pending: 'Eegamaa',
+                failed: 'Bade',
+                cancel: 'Haqi',
+                withdrawBtn: 'Baasi',
+                withdrawalHistory: 'Seenaa Baasii',
+                noWithdrawals: 'Baasiin hin argamne.',
+                showing: 'Agarsii',
+                of: 'keessaa',
+                by: 'Hojjedhe',
+                actions: 'Gochaa',
+                view: 'Ilaali',
+                delete: 'Haqi',
+                printSlip: 'Bilbilla maxxansi',
+                searchPlaceholder: 'Maqaa miseensaa-tiin barbaadi...',
+                availableHint: 'Xiqqaa: 0.01 · Olaanaa (95%)',
+                insufficientCapital: 'Miseensi kun kaapitaala baasuu danda\'u hin qabu.',
+                withdrawalRecorded: 'Baasiin sirriitti galmeefame!',
+                withdrawalError: 'Baasii galmeessuuf dogoggora: ',
+                loadError: 'Datuu galmeessuuf dogoggora: ',
+                selectMember: 'Miseensa filadhu',
+                noMembers: 'Miseensonni hin argamne',
+                withdrawalDeleted: 'Baasiin sirriitti haqame.',
+                deleteConfirmation: 'Baasii kana haquu mirkaneeffattee?',
+                unauthorized: 'Gochaa kana raawwachuuf hayyamamtee hin jirtu.',
+                enterAmount: 'Qabni 0 ol ta’uu qaba.',
+                selectMemberFirst: 'Maaloo miseensa filadhu.',
+                savings: 'Kussaa',
+                dividends: 'Qooda',
+                withdrawalsTotal: 'Baasii',
+                amountExceedsMax: 'Qabni 95% kaapitaalaa caala. Olaanaa hayyamame: ',
+                amountInWords: 'Qaba jechootaan',
+                printRecorded: 'Maxxansi sirriitti galmeefame.',
+                allYears: 'Waggaa Hunda',
+                selectYear: 'Waggaa Filadhu'
+            }
+        };
+
+        let currentLang = 'en';
+        let currentUserRole = 'viewer';
+        let currentUserDisplayName = 'Admin';
+        let currentPage = 1;
+        const pageSize = 10;
+        let selectedMemberId = null;
+        let allWithdrawals = [];
+        let filteredWithdrawals = [];
+        let membersList = [];
+        let searchQuery = '';
+        let filterYear = 'all';
+
+        // ============================================================
+        // LANGUAGE FUNCTIONS
+        // ============================================================
+        function setLanguage(lang) {
+            if (!translations[lang]) return;
+            currentLang = lang;
+            const t = translations[lang];
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key] !== undefined) {
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+                        if (el.type !== 'file') el.placeholder = t[key];
+                    } else {
+                        el.innerHTML = t[key];
+                    }
+                }
+            });
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.lang === lang);
+            });
+            try { localStorage.setItem('waciti-lang', lang); } catch (e) {}
+            updatePaginationInfo();
+            renderPageButtons();
+        }
+
+        function initLanguage() {
+            const saved = localStorage.getItem('waciti-lang') || navigator.language.split('-')[0];
+            const valid = ['en', 'am', 'om'];
+            setLanguage(valid.includes(saved) ? saved : 'en');
+        }
+
+        // ============================================================
+        // SIDEBAR TOGGLE
+        // ============================================================
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+
+        // ============================================================
+        // TOAST
+        // ============================================================
+        function showToast(message, type = 'success') {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'toast-container';
+                document.body.appendChild(container);
+            }
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icon = document.createElement('i');
+            if (type === 'success') icon.className = 'fas fa-check-circle';
+            else if (type === 'error') icon.className = 'fas fa-exclamation-circle';
+            else icon.className = 'fas fa-exclamation-triangle';
+            toast.appendChild(icon);
+            const text = document.createElement('span');
+            text.textContent = message;
+            toast.appendChild(text);
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('fade-out');
+                setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
+            }, 4500);
+        }
+
+        // ============================================================
+        // USER INFO (combined name + role) WITH AUDIT & USERS NAV
+        // ============================================================
+        function updateUserInfo() {
+            const roleMap = { admin: 'ADMIN', manager: 'MANAGER', teller: 'TELLER', accountant: 'ACCOUNTANT',
+                viewer: 'VIEWER' };
+            const roleLabel = roleMap[currentUserRole] || 'VIEWER';
+            const displayName = currentUserDisplayName || 'User';
+            document.getElementById('userDisplayName').textContent = displayName + ' (' + roleLabel + ')';
+
+            // ---- Show/hide Audit nav link ----
+            const auditNav = document.getElementById('auditNavItem');
+            if (auditNav) {
+                auditNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
+            }
+
+            // ---- Show/hide Users nav link ----
+            const usersNav = document.getElementById('usersNavItem');
+            if (usersNav) {
+                usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
+            }
+        }
+
+        // ============================================================
+        // ROLE PERMISSIONS
+        // ============================================================
+        function canAddWithdrawal() {
+            return ['admin', 'manager', 'teller'].includes(currentUserRole);
+        }
+
+        function canDeleteWithdrawal() {
+            return ['admin'].includes(currentUserRole);
+        }
+
+        // ============================================================
+        // HELPER: Get display name
+        // ============================================================
+        function getDisplayName(user) {
+            if (!user) return 'Admin';
+            if (currentUserDisplayName) return currentUserDisplayName;
+            const name = user.displayName || user.email || 'Admin';
+            if (name.includes('@')) return name.split('@')[0];
+            return name;
+        }
+
+        // ============================================================
+        // TO DATE HELPER
+        // ============================================================
+        function toDate(value) {
+            if (!value) return null;
+            if (value.toDate) return value.toDate();
+            if (typeof value === 'string') return new Date(value);
+            return value;
+        }
+
+        function formatDate(d) {
+            if (!d) return '—';
+            const date = toDate(d);
+            if (!date) return '—';
+            return date.toLocaleDateString();
+        }
+
+        function isInYear(dateValue, year) {
+            const d = toDate(dateValue);
+            if (!d) return false;
+            return d.getFullYear() === year;
+        }
+
+        // ============================================================
+        // LOAD MEMBERS FOR SEARCH
+        // ============================================================
+        async function loadMembersForSelect() {
+            try {
+                const snapshot = await db.collection('members').get();
+                membersList = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    membersList.push({
+                        id: doc.id,
+                        fullName: data.fullName,
+                        memberId: data.memberId
+                    });
+                });
+                return true;
+            } catch (error) {
+                showToast(translations[currentLang].loadError + error.message, 'error');
+                return false;
+            }
+        }
+
+        // ============================================================
+        // MEMBER SEARCH SETUP
+        // ============================================================
+        function setupMemberSearch() {
+            const searchInput = document.getElementById('memberSearch');
+            const hiddenId = document.getElementById('memberId');
+            const suggestions = document.getElementById('memberSuggestions');
+
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                if (!query) {
+                    suggestions.style.display = 'none';
+                    hiddenId.value = '';
+                    return;
+                }
+                const filtered = membersList.filter(m =>
+                    m.fullName.toLowerCase().includes(query) ||
+                    (m.memberId && m.memberId.toLowerCase().includes(query))
+                );
+                if (filtered.length === 0) {
+                    suggestions.style.display = 'none';
+                    return;
+                }
+                let html = '';
+                filtered.forEach(m => {
+                    html += `<div onclick="selectMember('${m.id}', '${m.fullName} (${m.memberId||''})')">
+                                ${m.fullName} <span style="color:var(--text-muted);font-size:12px;">${m.memberId||''}</span>
+                            </div>`;
+                });
+                suggestions.innerHTML = html;
+                suggestions.style.display = 'block';
+            });
+
+            searchInput.addEventListener('blur', function() {
+                setTimeout(() => { suggestions.style.display = 'none'; }, 200);
+            });
+        }
+
+        async function selectMember(id, displayName) {
+            document.getElementById('memberSearch').value = displayName;
+            document.getElementById('memberId').value = id;
+            document.getElementById('memberSuggestions').style.display = 'none';
+            selectedMemberId = id;
+
+            // Load member's individual capital
+            const capitalData = await updateCapitalBalance(id);
+            const capital = capitalData.capital;
+
+            // Calculate 95% limit
+            const maxWithdrawal = Math.round((capital * 0.95) * 100) / 100;
+
+            const amountInput = document.getElementById('amountInput');
+            const saveBtn = document.getElementById('saveBtn');
+            const hint = document.getElementById('availableAmount');
+
+            if (capital <= 0) {
+                // No capital available - disable form
+                amountInput.value = '';
+                amountInput.min = 0;
+                amountInput.max = 0;
+                amountInput.disabled = true;
+                amountInput.placeholder = 'No capital available';
+                hint.textContent = '0.00';
+                saveBtn.disabled = true;
+                showToast(translations[currentLang].insufficientCapital, 'warning');
+            } else {
+                // Capital available - enable form
+                amountInput.disabled = false;
+                amountInput.min = 0.01;
+                amountInput.max = maxWithdrawal;
+                amountInput.step = 0.01;
+                amountInput.placeholder = `Min: 0.01 · Max: ${maxWithdrawal.toFixed(2)}`;
+                hint.textContent = maxWithdrawal.toFixed(2);
+                saveBtn.disabled = false;
+                amountInput.focus();
+            }
+
+            // Show form
+            document.getElementById('withdrawalForm').style.display = 'block';
+            document.getElementById('withdrawBtn').style.display = 'none';
+        }
+
+        // ============================================================
+        // CALCULATE INDIVIDUAL CAPITAL
+        // ============================================================
+        async function getIndividualCapital(memberId) {
+            try {
+                // Get all transactions for this member
+                const snapshot = await db.collection('transactions')
+                    .where('memberId', '==', memberId)
+                    .get();
+
+                let totalSavings = 0;
+                let totalDividends = 0;
+                let totalWithdrawals = 0;
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const amount = Number(data.amount) || 0;
+
+                    switch (data.type) {
+                        case 'savings':
+                            totalSavings += amount;
+                            break;
+                        case 'profit_withdrawal':
+                            if (data.reason === 'Dividend') {
+                                totalDividends += amount;
+                            }
+                            break;
+                        case 'withdrawal':
+                            totalWithdrawals += amount;
+                            break;
+                    }
+                });
+
+                const capital = Math.round((totalSavings + totalDividends - totalWithdrawals) * 100) / 100;
+
+                return {
+                    totalSavings,
+                    totalDividends,
+                    totalWithdrawals,
+                    capital
+                };
+
+            } catch (error) {
+                console.error('Error calculating individual capital:', error);
+                return {
+                    totalSavings: 0,
+                    totalDividends: 0,
+                    totalWithdrawals: 0,
+                    capital: 0
+                };
+            }
+        }
+
+        async function updateCapitalBalance(memberId) {
+            const data = await getIndividualCapital(memberId);
+            const t = translations[currentLang];
+
+            const member = membersList.find(m => m.id === memberId);
+            const memberName = member ? member.fullName : 'Unknown';
+
+            document.getElementById('capitalBalanceDisplay').textContent = data.capital.toFixed(2);
+            document.getElementById('capitalBreakdown').textContent =
+                `${t.savings}: ${data.totalSavings.toFixed(2)} ETB + ${t.dividends}: ${data.totalDividends.toFixed(2)} ETB - ${t.withdrawalsTotal}: ${data.totalWithdrawals.toFixed(2)} ETB`;
+            document.getElementById('selectedMemberName').textContent = memberName;
+
+            return data;
+        }
+
+        // ============================================================
+        // POPULATE YEAR FILTER
+        // ============================================================
+        function populateYearFilter() {
+            const yearFilter = document.getElementById('yearFilter');
+            const years = new Set();
+            allWithdrawals.forEach(w => {
+                const d = toDate(w.date || w.timestamp);
+                if (d && !isNaN(d.getFullYear())) {
+                    years.add(d.getFullYear());
+                }
+            });
+            const currentVal = yearFilter.value;
+            yearFilter.innerHTML = '';
+            const allOpt = document.createElement('option');
+            allOpt.value = 'all';
+            allOpt.setAttribute('data-i18n', 'allYears');
+            allOpt.textContent = translations[currentLang].allYears || 'All Years';
+            yearFilter.appendChild(allOpt);
+            const sortedYears = Array.from(years).sort((a, b) => b - a);
+            sortedYears.forEach(y => {
+                const opt = document.createElement('option');
+                opt.value = y;
+                opt.textContent = y;
+                yearFilter.appendChild(opt);
+            });
+            if (sortedYears.includes(Number(currentVal)) && currentVal !== 'all') {
+                yearFilter.value = currentVal;
+            } else {
+                yearFilter.value = 'all';
+            }
+            filterYear = yearFilter.value;
+        }
+
+        // ============================================================
+        // LOAD WITHDRAWALS
+        // ============================================================
+        async function loadWithdrawals() {
+            try {
+                const snapshot = await db.collection('transactions')
+                    .where('type', '==', 'withdrawal')
+                    .get();
+
+                allWithdrawals = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const member = membersList.find(m => m.id === data.memberId);
+                    allWithdrawals.push({
+                        id: doc.id,
+                        ...data,
+                        memberName: member ? member.fullName : (data.memberName || 'Unknown')
+                    });
+                });
+
+                allWithdrawals.sort((a, b) => {
+                    const da = toDate(a.date || a.timestamp);
+                    const db = toDate(b.date || b.timestamp);
+                    return db - da;
+                });
+
+                populateYearFilter();
+                applySearch();
+                updateTotalCount();
+
+            } catch (error) {
+                console.error('Error loading withdrawals:', error);
+                showToast(translations[currentLang].loadError + error.message, 'error');
+            }
+        }
+
+        // ============================================================
+        // APPLY SEARCH + YEAR FILTER
+        // ============================================================
+        function applySearch() {
+            searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
+            filterYear = document.getElementById('yearFilter').value;
+
+            let filtered = [...allWithdrawals];
+
+            // Text search
+            if (searchQuery) {
+                filtered = filtered.filter(w =>
+                    w.memberName.toLowerCase().includes(searchQuery)
+                );
+            }
+
+            // Year filter
+            if (filterYear !== 'all') {
+                const yearNum = Number(filterYear);
+                filtered = filtered.filter(w => isInYear(w.date || w.timestamp, yearNum));
+            }
+
+            filteredWithdrawals = filtered;
+            currentPage = 1;
+            paginateWithdrawals();
+        }
+
+        // ============================================================
+        // PAGINATION
+        // ============================================================
+        function paginateWithdrawals() {
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageItems = filteredWithdrawals.slice(start, end);
+            renderTable(pageItems);
+            updatePaginationInfo();
+            renderPageButtons();
+        }
+
+        // ============================================================
+        // RENDER TABLE (with print button)
+        // ============================================================
+        function renderTable(items) {
+            const tbody = document.getElementById('withdrawalsBody');
+            const t = translations[currentLang];
+
+            if (!items || items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><i class="fas fa-money-bill-wave"></i><span>${t.noWithdrawals}</span></div></td></tr>`;
+                return;
+            }
+
+            let html = '';
+            items.forEach((w, i) => {
+                const statusClass = w.status === 'completed' ? 'completed' :
+                    w.status === 'pending' ? 'pending' : 'failed';
+                const statusLabel = w.status === 'completed' ? t.completed :
+                    w.status === 'pending' ? t.pending : t.failed;
+
+                const dateStr = formatDate(w.date || w.timestamp);
+                let byUser = w.createdByName || w.createdBy || w.createdByEmail || 'Admin';
+                if (byUser.includes('@')) byUser = byUser.split('@')[0];
+                if (!byUser || byUser.trim() === '') byUser = 'Admin';
+                const reason = w.reason || '—';
+
+                let actionsHtml = `
+                    <button class="action-btn view-btn" onclick="viewWithdrawal('${w.id}')" title="${t.view}">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="action-btn print-btn" onclick="printWithdrawalSlip('${w.id}')" title="${t.printSlip}">
+                        <i class="fas fa-print"></i>
+                    </button>
+                `;
+
+                if (canDeleteWithdrawal()) {
+                    actionsHtml += `
+                        <button class="action-btn delete-btn" onclick="deleteWithdrawal('${w.id}')" title="${t.delete}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    `;
+                }
+
+                html += `<tr>
+                    <td>${(currentPage-1)*pageSize + i + 1}</td>
+                    <td>${w.memberName || 'Unknown'}</td>
+                    <td>${Number(w.amount).toLocaleString()}</td>
+                    <td><span style="background:var(--bg-primary);padding:2px 8px;border-radius:12px;font-size:12px;">${reason}</span></td>
+                    <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+                    <td>${dateStr}</td>
+                    <td>${byUser}</td>
+                    <td>${actionsHtml}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function updatePaginationInfo() {
+            const total = filteredWithdrawals.length;
+            const start = (currentPage - 1) * pageSize + 1;
+            const end = Math.min(currentPage * pageSize, total);
+            document.getElementById('pageStart').textContent = total > 0 ? start : 0;
+            document.getElementById('pageEnd').textContent = total > 0 ? end : 0;
+            document.getElementById('totalWithdrawalsCountPagination').textContent = total;
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = currentPage >= Math.ceil(total / pageSize) || total === 0;
+            document.getElementById('totalWithdrawalsCount').textContent = total;
+        }
+
+        function renderPageButtons() {
+            const container = document.getElementById('pageNumbers');
+            const totalPages = Math.ceil(filteredWithdrawals.length / pageSize);
+            if (totalPages <= 1) { container.innerHTML = ''; return; }
+            let html = '';
+            const maxVisible = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+            if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
+            if (startPage > 1) {
+                html += `<button class="pagination-btn" onclick="goToPage(1)">1</button>`;
+                if (startPage > 2) html += `<button class="pagination-btn" disabled>...</button>`;
+            }
+            for (let i = startPage; i <= endPage; i++) {
+                html +=
+                    `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) html += `<button class="pagination-btn" disabled>...</button>`;
+                html += `<button class="pagination-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function goToPage(page) {
+            const totalPages = Math.ceil(filteredWithdrawals.length / pageSize);
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            paginateWithdrawals();
+            document.querySelector('.table-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function updateTotalCount() {
+            const total = allWithdrawals.reduce((sum, w) => sum + (Number(w.amount) || 0), 0);
+            document.getElementById('totalWithdrawalsCount').textContent = total.toLocaleString();
+        }
+
+        // ============================================================
+        // VIEW WITHDRAWAL
+        // ============================================================
+        function viewWithdrawal(id) {
+            const w = allWithdrawals.find(item => item.id === id);
+            if (!w) return;
+            const t = translations[currentLang];
+            const dateStr = formatDate(w.date || w.timestamp);
+            let byUser = w.createdByName || w.createdBy || w.createdByEmail || 'Admin';
+            if (byUser.includes('@')) byUser = byUser.split('@')[0];
+            if (!byUser || byUser.trim() === '') byUser = 'Admin';
+
+            showToast(
+                `📋 ${t.member}: ${w.memberName || 'Unknown'}\n💰 ${t.amount}: ETB ${Number(w.amount).toLocaleString()}\n📌 ${t.reason}: ${w.reason || '—'}\n📅 ${t.date}: ${dateStr}\n👤 ${t.by}: ${byUser}`,
+                'warning'
+            );
+        }
+
+        // ============================================================
+        // DELETE WITHDRAWAL
+        // ============================================================
+        async function deleteWithdrawal(id) {
+            if (!canDeleteWithdrawal()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+            const t = translations[currentLang];
+            if (!confirm(t.deleteConfirmation)) return;
+
+            try {
+                await db.collection('transactions').doc(id).delete();
+                showToast(t.withdrawalDeleted, 'success');
+                await loadWithdrawals();
+                if (selectedMemberId) {
+                    await updateCapitalBalance(selectedMemberId);
+                }
+            } catch (error) {
+                showToast('Error deleting withdrawal: ' + error.message, 'error');
+            }
+        }
+
+        // ============================================================
+        // RECORD WITHDRAWAL
+        // ============================================================
+        async function recordWithdrawal(e) {
+            e.preventDefault();
+            if (!canAddWithdrawal()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+
+            const memberId = document.getElementById('memberId').value;
+            let amount = parseFloat(document.getElementById('amountInput').value);
+            const date = document.getElementById('dateInput').value;
+            const reason = document.getElementById('reasonInput').value;
+            const note = document.getElementById('noteInput').value.trim();
+
+            if (!memberId) {
+                showToast(translations[currentLang].selectMemberFirst, 'warning');
+                return;
+            }
+            if (!amount || amount <= 0) {
+                showToast(translations[currentLang].enterAmount, 'warning');
+                return;
+            }
+            if (!date) {
+                showToast('Please select a date.', 'warning');
+                return;
+            }
+
+            // Check if withdrawal exceeds 95% of individual capital
+            const capitalData = await getIndividualCapital(memberId);
+            const maxAllowed = Math.round((capitalData.capital * 0.95) * 100) / 100;
+
+            if (amount > maxAllowed) {
+                const t = translations[currentLang];
+                showToast(t.amountExceedsMax + maxAllowed.toFixed(2) + ' ETB', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('saveBtn');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+            try {
+                const user = auth.currentUser;
+                const createdByName = getDisplayName(user);
+                const member = membersList.find(m => m.id === memberId);
+
+                await db.collection('transactions').add({
+                    memberId: memberId,
+                    memberName: member ? member.fullName : 'Unknown',
+                    type: 'withdrawal',
+                    transactionType: 'withdrawal',
+                    amount: Math.round(amount * 100) / 100,
+                    date: new Date(date),
+                    reason: reason || 'Personal',
+                    note: note,
+                    status: 'completed',
+                    createdByName: createdByName,
+                    createdBy: createdByName,
+                    createdByEmail: user ? user.email : 'admin@geresu.com',
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                showToast(translations[currentLang].withdrawalRecorded, 'success');
+
+                // Reset form
+                document.getElementById('withdrawalFormSubmit').reset();
+                document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+                document.getElementById('memberId').value = '';
+                document.getElementById('memberSearch').value = '';
+                document.getElementById('withdrawalForm').style.display = 'none';
+                document.getElementById('withdrawBtn').style.display = 'inline-flex';
+                selectedMemberId = null;
+
+                // Refresh capital balance and withdrawals list
+                await loadWithdrawals();
+                document.getElementById('capitalBalanceDisplay').textContent = '0.00';
+                document.getElementById('capitalBreakdown').textContent = 'Savings: 0 ETB + Dividends: 0 ETB - Withdrawals: 0 ETB';
+                document.getElementById('selectedMemberName').textContent = 'Select a member';
+
+            } catch (error) {
+                showToast(translations[currentLang].withdrawalError + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
+        // ============================================================
+        // PRINT SLIP (with amount in words)
+        // ============================================================
+        function numberToWords(num) {
+            if (num === 0) return 'Zero';
+            const units = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+                'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'
+            ];
+            const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+            const thousands = ['', 'Thousand', 'Million', 'Billion', 'Trillion'];
+
+            function convertHundreds(n) {
+                let result = '';
+                if (n >= 100) {
+                    result += units[Math.floor(n / 100)] + ' Hundred ';
+                    n %= 100;
+                }
+                if (n >= 20) {
+                    result += tens[Math.floor(n / 10)] + ' ';
+                    n %= 10;
+                }
+                if (n > 0) {
+                    result += units[n] + ' ';
+                }
+                return result.trim();
+            }
+
+            if (num < 0) return 'Minus ' + numberToWords(-num);
+            let word = '';
+            let chunkCount = 0;
+            while (num > 0) {
+                const chunk = num % 1000;
+                if (chunk !== 0) {
+                    const chunkWords = convertHundreds(chunk);
+                    if (thousands[chunkCount]) {
+                        word = chunkWords + ' ' + thousands[chunkCount] + ' ' + word;
+                    } else {
+                        word = chunkWords + ' ' + word;
+                    }
+                }
+                num = Math.floor(num / 1000);
+                chunkCount++;
+            }
+            return word.trim() || 'Zero';
+        }
+
+        async function printWithdrawalSlip(docId) {
+            const withdrawal = allWithdrawals.find(w => w.id === docId);
+            if (!withdrawal) { showToast('Withdrawal not found.', 'error'); return; }
+
+            const user = auth.currentUser;
+            let printedBy = 'Unknown';
+            if (user) {
+                printedBy = user.displayName || user.email || 'Unknown';
+                if (printedBy.includes('@')) printedBy = printedBy.split('@')[0];
+            }
+
+            try {
+                if (withdrawal.status !== 'printed') {
+                    await db.collection('transactions').doc(docId).update({
+                        status: 'printed',
+                        printed: true,
+                        printedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        printedBy: printedBy
+                    });
+                    withdrawal.status = 'printed';
+                    withdrawal.printed = true;
+                    withdrawal.printedAt = new Date();
+                    withdrawal.printedBy = printedBy;
+                    const currentItems = filteredWithdrawals.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+                    renderTable(currentItems);
+                }
+
+                showToast(translations[currentLang].printRecorded, 'success');
+                generateWithdrawalSlipHTML(withdrawal);
+                window.print();
+
+            } catch (error) {
+                console.error('Error printing:', error);
+                showToast('Failed to print. Please try again.', 'error');
+            }
+        }
+
+        function generateWithdrawalSlipHTML(withdrawal) {
+            const t = translations[currentLang];
+            const dateStr = withdrawal.date ? (withdrawal.date.toDate ? withdrawal.date.toDate().toLocaleString() : new Date(
+                withdrawal.date).toLocaleString()) : '—';
+            const byUser = withdrawal.createdByName || withdrawal.createdBy || withdrawal.createdByEmail || 'Admin';
+            const displayName = byUser.includes('@') ? byUser.split('@')[0] : byUser;
+            const note = withdrawal.note || '—';
+            const amount = Number(withdrawal.amount) || 0;
+            const amountWords = numberToWords(Math.floor(amount)) + ' ETB';
+            const memberName = withdrawal.memberName || 'Unknown';
+            const reason = withdrawal.reason || '—';
+
+            const slipContainer = document.getElementById('slipContainer');
+            slipContainer.innerHTML = `
+                <div class="slip-header"><h1>GERESU DHUKI SACCO</h1><p>Withdrawal Receipt</p></div>
+                <div class="slip-body">
+                    <div class="slip-row"><span class="label">Transaction ID</span><span class="value">${withdrawal.id.slice(0, 12)}</span></div>
+                    <div class="slip-row"><span class="label">Member</span><span class="value">${memberName}</span></div>
+                    <div class="slip-row"><span class="label">Amount (ETB)</span><span class="value">${amount.toLocaleString()}</span></div>
+                    <div class="slip-row"><span class="label">${t.amountInWords}</span><span class="value amount-words">${amountWords}</span></div>
+                    <div class="slip-row"><span class="label">Reason</span><span class="value">${reason}</span></div>
+                    <div class="slip-row"><span class="label">Status</span><span class="value">${t.printed}</span></div>
+                    <div class="slip-row"><span class="label">Date</span><span class="value">${dateStr}</span></div>
+                    <div class="slip-row"><span class="label">Note</span><span class="value">${note}</span></div>
+                    <div class="slip-row"><span class="label">Recorded By</span><span class="value">${displayName}</span></div>
+                </div>
+                <div class="slip-footer"><div class="thankyou">Thank you!</div><p>Computer-generated receipt.</p></div>
+            `;
+        }
+
+        // ============================================================
+        // TOGGLE FORM
+        // ============================================================
+        function toggleForm() {
+            if (!canAddWithdrawal()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+            const form = document.getElementById('withdrawalForm');
+            const btn = document.getElementById('withdrawBtn');
+
+            if (form.style.display === 'none') {
+                form.style.display = 'block';
+                btn.style.display = 'none';
+                document.getElementById('withdrawalFormSubmit').reset();
+                document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+                document.getElementById('memberId').value = '';
+                document.getElementById('memberSearch').value = '';
+                selectedMemberId = null;
+                document.getElementById('amountInput').max = 0;
+                document.getElementById('amountInput').disabled = false;
+                document.getElementById('saveBtn').disabled = false;
+                document.getElementById('availableAmount').textContent = '0.00';
+                form.scrollIntoView({ behavior: 'smooth' });
+            } else {
+                form.style.display = 'none';
+                btn.style.display = 'inline-flex';
+            }
+        }
+
+        // ============================================================
+        // PAGE INIT
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', async function() {
+            auth.onAuthStateChanged(async (user) => {
+                if (!user) {
+                    window.location.href = '../login.html';
+                    return;
+                }
+
+                // Fetch user role and display name
+                try {
+                    const doc = await db.collection('users').doc(user.uid).get();
+                    if (doc.exists) {
+                        const data = doc.data();
+                        currentUserRole = data.role || 'viewer';
+                        currentUserDisplayName = data.displayName || data.name || user.displayName || user.email?.split(
+                            '@')[0] || 'User';
+                    } else {
+                        currentUserRole = 'viewer';
+                        currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'User';
+                    }
+                } catch (err) {
+                    console.error('Error fetching role:', err);
+                    currentUserRole = 'viewer';
+                    currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'User';
+                }
+
+                // ---- Update user info (role + audit + users nav) ----
+                updateUserInfo();
+
+                initLanguage();
+
+                document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
+                document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
+
+                document.querySelectorAll('.lang-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        setLanguage(this.dataset.lang);
+                        const currentItems = filteredWithdrawals.slice((currentPage - 1) * pageSize,
+                            currentPage * pageSize);
+                        renderTable(currentItems);
+                        updatePaginationInfo();
+                        renderPageButtons();
+                        const searchInput = document.getElementById('searchInput');
+                        const t = translations[currentLang];
+                        searchInput.placeholder = t.searchPlaceholder || 'Search by member name...';
+                    });
+                });
+
+                document.getElementById('logoutBtn').addEventListener('click', async function() {
+                    if (confirm('Are you sure you want to log out?')) {
+                        await auth.signOut();
+                        window.location.href = '../login.html';
+                    }
+                });
+
+                await loadMembersForSelect();
+                setupMemberSearch();
+
+                document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+
+                await loadWithdrawals();
+
+                document.getElementById('searchInput').addEventListener('input', function() {
+                    applySearch();
+                });
+
+                document.getElementById('yearFilter').addEventListener('change', function() {
+                    applySearch();
+                });
+
+                document.getElementById('withdrawBtn').addEventListener('click', toggleForm);
+                document.getElementById('cancelWithdrawBtn').addEventListener('click', toggleForm);
+                document.getElementById('withdrawalFormSubmit').addEventListener('submit', recordWithdrawal);
+
+                document.getElementById('prevPage').addEventListener('click', function() {
+                    if (currentPage > 1) goToPage(currentPage - 1);
+                });
+                document.getElementById('nextPage').addEventListener('click', function() {
+                    const totalPages = Math.ceil(filteredWithdrawals.length / pageSize);
+                    if (currentPage < totalPages) goToPage(currentPage + 1);
+                });
+
+                // Expose functions globally
+                window.goToPage = goToPage;
+                window.toggleSidebar = toggleSidebar;
+                window.selectMember = selectMember;
+                window.viewWithdrawal = viewWithdrawal;
+                window.deleteWithdrawal = deleteWithdrawal;
+                window.toggleForm = toggleForm;
+                window.printWithdrawalSlip = printWithdrawalSlip;
+            });
+        });
+    </script>
+    <script>
+        // ============================================================
+        // SESSION TIMEOUT (5 minutes inactivity)
+        // ============================================================
+        (function() {
+            const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+            const WARNING_TIMEOUT = SESSION_TIMEOUT - 30 * 1000; // 30 seconds before logout
+
+            let timer = null;
+            let warningTimer = null;
+            let warningToast = null;
+            let countdownInterval = null;
+
+            function resetTimer() {
+                clearTimeout(timer);
+                clearTimeout(warningTimer);
+                clearInterval(countdownInterval);
+                if (warningToast) {
+                    warningToast.remove();
+                    warningToast = null;
+                }
+                // Start the warning timer
+                warningTimer = setTimeout(showWarning, WARNING_TIMEOUT);
+                // Start the logout timer
+                timer = setTimeout(forceLogout, SESSION_TIMEOUT);
+            }
+
+            function showWarning() {
+                const t = translations && translations[currentLang] ? translations[currentLang] : { sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.' };
+                const message = t.sessionTimeout || 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
+
+                let seconds = 30;
+                warningToast = document.createElement('div');
+                warningToast.style.cssText = `
+                position: fixed;
+                bottom: 30px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #f39c12;
+                color: #fff;
+                padding: 16px 24px;
+                border-radius: 12px;
+                font-size: 15px;
+                font-weight: 500;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+                z-index: 99999;
+                max-width: 500px;
+                text-align: center;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                animation: slideUp 0.3s ease;
+            `;
+                warningToast.innerHTML = `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
+
+                const style = document.createElement('style');
+                style.textContent = `
+                @keyframes slideUp {
+                    from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+                    to { transform: translateX(-50%) translateY(0); opacity: 1; }
+                }
+            `;
+                document.head.appendChild(style);
+
+                document.body.appendChild(warningToast);
+
+                countdownInterval = setInterval(() => {
+                    seconds--;
+                    const textEl = document.getElementById('sessionWarningText');
+                    if (textEl) {
+                        textEl.textContent = message.replace('{seconds}', seconds);
+                    }
+                    if (seconds <= 0) {
+                        clearInterval(countdownInterval);
+                    }
+                }, 1000);
+            }
+
+            function forceLogout() {
+                clearInterval(countdownInterval);
+                if (warningToast) {
+                    warningToast.remove();
+                    warningToast = null;
+                }
+                // Use Firebase auth to sign out
+                if (typeof auth !== 'undefined' && auth) {
+                    auth.signOut().then(() => {
+                        window.location.href = '../login.html';
+                    }).catch(() => {
+                        window.location.href = '../login.html';
+                    });
+                } else {
+                    // Fallback: redirect to login
+                    window.location.href = '../login.html';
+                }
+            }
+
+            // Reset timer on user activity
+            const events = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
+
+            function handleActivity() {
+                resetTimer();
+            }
+
+            events.forEach(evt => {
+                document.addEventListener(evt, handleActivity);
+            });
+
+            // Initial setup
+            resetTimer();
+
+            // Clean up if page unloads
+            window.addEventListener('beforeunload', function() {
+                clearTimeout(timer);
+                clearTimeout(warningTimer);
+                clearInterval(countdownInterval);
+                if (warningToast) {
+                    warningToast.remove();
+                }
+                events.forEach(evt => {
+                    document.removeEventListener(evt, handleActivity);
+                });
+            });
+
+            // Add translation key if not present
+            if (typeof translations !== 'undefined' && translations.en && !translations.en.sessionTimeout) {
+                translations.en.sessionTimeout = 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
+                translations.am.sessionTimeout = 'የእርስዎ ክፍለ-ጊዜ በ{seconds} ሰከንዶች ውስጥ ያበቃል። በመዳፊት ወይም ቁልፍ ይንቀሳቀሱ ወይም ይጫኑ በመግቢያ ላይ ለመቆየት።';
+                translations.om.sessionTimeout = 'Sessiin keessan {seconds} sekoondii keessatti xumurama. Siiqaa ykn cuqaasaa sochoosuu ykn cuqaasuu akka seenan turtanii.';
+            }
+        })();
+    </script>
+</body>
+</html>

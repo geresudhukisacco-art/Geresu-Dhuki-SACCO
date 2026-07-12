@@ -1,0 +1,2097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Member Profile – GERESU DHUKI SACCO</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js">
+    </script>
+
+    <style>
+        /* ============================================================
+           ALL STYLES (with dark mode support)
+           ============================================================ */
+        :root {
+            --bg-primary: #f5f7f6;
+            --bg-card: #ffffff;
+            --bg-sidebar: #1a2e1f;
+            --text-primary: #1a2e1f;
+            --text-secondary: #6c7d70;
+            --text-muted: #8a9e92;
+            --border-color: #e8ede9;
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+            --input-bg: #ffffff;
+            --input-border: #d0d7d2;
+            --input-focus: rgba(45, 122, 61, 0.1);
+            --success: #2d7a3d;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #2196f3;
+            --primary: #2d7a3d;
+            --primary-light: #e8f5ee;
+            --radius: 12px;
+            --radius-sm: 8px;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1a2e;
+            --bg-card: #16213e;
+            --bg-sidebar: #0f0f1a;
+            --text-primary: #e8f0ea;
+            --text-secondary: #a0aec0;
+            --text-muted: #6b7d82;
+            --border-color: #2d3748;
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+            --input-bg: #2d3748;
+            --input-border: #4a5568;
+            --input-focus: rgba(45, 122, 61, 0.2);
+            --primary: #2d7a3d;
+            --primary-light: #1a2e24;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* ----- SIDEBAR ----- */
+        .sidebar {
+            width: 260px;
+            background: var(--bg-sidebar);
+            color: #e8f0ea;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+            box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+        .sidebar-brand {
+            padding: 20px 20px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            text-align: center;
+        }
+        .brand-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            overflow: hidden;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(255, 255, 255, 0.12);
+        }
+        .brand-logo-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            padding: 6px;
+            display: block;
+        }
+        .brand-text .brand-name {
+            font-size: 18px;
+            font-weight: 700;
+            display: block;
+            line-height: 1.2;
+            color: #fff;
+            letter-spacing: 0.5px;
+        }
+        .brand-text .brand-sub {
+            font-size: 11px;
+            opacity: 0.6;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 12px;
+            overflow-y: auto;
+        }
+        .sidebar-nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .sidebar-nav li {
+            margin-bottom: 4px;
+        }
+        .sidebar-nav li a {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            color: #c4d4c9;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 15px;
+            transition: 0.2s;
+        }
+        .sidebar-nav li a i {
+            width: 22px;
+            text-align: center;
+            font-size: 18px;
+        }
+        .sidebar-nav li a:hover {
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+        }
+        .sidebar-nav li.active a {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 4px 10px rgba(45, 122, 61, 0.3);
+        }
+        .sidebar-footer {
+            padding: 16px 20px 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .logout-btn {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: #e8f0ea;
+            font-size: 15px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .logout-btn:hover {
+            background: rgba(255, 70, 70, 0.15);
+            border-color: var(--danger);
+            color: #ff6b6b;
+        }
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 999;
+        }
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        .main-content {
+            margin-left: 260px;
+            flex: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ----- HEADER ----- */
+        .top-header {
+            background: var(--bg-card);
+            padding: 16px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 999;
+            box-shadow: var(--shadow);
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .menu-toggle {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: none;
+            transition: color 0.3s;
+        }
+        .page-title h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+            transition: color 0.3s;
+        }
+        .breadcrumb {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-left: 8px;
+            transition: color 0.3s;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .lang-switcher {
+            display: flex;
+            gap: 4px;
+        }
+        .lang-btn {
+            background: transparent;
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: 0.2s;
+        }
+        .lang-btn:hover {
+            background: var(--border-color);
+        }
+        .lang-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        .notif-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            position: relative;
+            transition: color 0.3s;
+        }
+        .notif-btn:hover {
+            color: var(--text-primary);
+        }
+        .badge {
+            position: absolute;
+            top: -4px;
+            right: -6px;
+            background: var(--danger);
+            color: #fff;
+            font-size: 11px;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-profile img {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--primary);
+            background: #f5f7f6;
+        }
+        .user-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+            transition: color 0.3s;
+        }
+
+        /* ----- PROFILE CONTENT ----- */
+        .dashboard-content {
+            padding: 24px 30px 30px;
+            flex: 1;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+            margin-bottom: 20px;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .loading-spinner {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+            transition: color 0.3s;
+        }
+        .loading-spinner i {
+            font-size: 40px;
+            color: var(--primary);
+            margin-bottom: 16px;
+            display: block;
+        }
+
+        /* ===== PROFILE CARD WITH PHOTO ===== */
+        .profile-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            padding: 28px 30px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .profile-top {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 18px;
+        }
+        .profile-avatar-large {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            overflow: hidden;
+            flex-shrink: 0;
+            border: 3px solid var(--primary);
+            background: var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        }
+        .profile-avatar-large img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .profile-avatar-large .fallback {
+            font-size: 48px;
+            font-weight: 700;
+            color: #fff;
+            background: var(--primary-gradient, #2d7a3d);
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-transform: uppercase;
+        }
+        .profile-name-section {
+            flex: 1;
+        }
+        .profile-name-section .profile-name {
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--text-primary);
+            transition: color 0.3s;
+        }
+        .profile-name-section .profile-member-id {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        .profile-name-section .profile-member-id span {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .profile-details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 24px;
+        }
+        .profile-details-grid .detail-item {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-primary);
+            flex-wrap: wrap;
+            transition: color 0.3s;
+        }
+        .profile-details-grid .detail-item .label {
+            font-weight: 600;
+            color: var(--text-secondary);
+            min-width: 80px;
+            transition: color 0.3s;
+        }
+        .profile-details-grid .detail-item .value {
+            font-weight: 400;
+            color: var(--text-primary);
+            transition: color 0.3s;
+        }
+        .profile-details-grid .detail-item .status-badge {
+            display: inline-block;
+            padding: 3px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 0;
+        }
+        .profile-details-grid .detail-item .status-badge.active {
+            background: #d4edda;
+            color: #155724;
+        }
+        .profile-details-grid .detail-item .status-badge.inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        /* ----- FINANCIAL SUMMARY (compact) ----- */
+        .financial-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+        .finance-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 14px 18px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow);
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .finance-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+        .finance-card .amount {
+            font-size: 22px;
+            font-weight: 700;
+            display: block;
+            margin-top: 2px;
+            transition: color 0.3s;
+        }
+        .finance-card .label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            display: block;
+            transition: color 0.3s;
+        }
+        .finance-card .icon {
+            font-size: 20px;
+            margin-bottom: 2px;
+        }
+        .finance-card.green {
+            border-left: 4px solid var(--success);
+        }
+        .finance-card.green .icon {
+            color: var(--success);
+        }
+        .finance-card.green .amount {
+            color: var(--success);
+        }
+        .finance-card.blue {
+            border-left: 4px solid var(--info);
+        }
+        .finance-card.blue .icon {
+            color: var(--info);
+        }
+        .finance-card.blue .amount {
+            color: var(--info);
+        }
+        .finance-card.purple {
+            border-left: 4px solid #9c27b0;
+        }
+        .finance-card.purple .icon {
+            color: #9c27b0;
+        }
+        .finance-card.purple .amount {
+            color: #7b1fa2;
+        }
+        .finance-card.orange {
+            border-left: 4px solid var(--warning);
+        }
+        .finance-card.orange .icon {
+            color: var(--warning);
+        }
+        .finance-card.orange .amount {
+            color: #e67e22;
+        }
+        .finance-card.gold {
+            border-left: 4px solid #f1c40f;
+        }
+        .finance-card.gold .icon {
+            color: #f1c40f;
+        }
+        .finance-card.gold .amount {
+            color: #d4a017;
+        }
+        .finance-card.red {
+            border-left: 4px solid var(--danger);
+        }
+        .finance-card.red .icon {
+            color: var(--danger);
+        }
+        .finance-card.red .amount {
+            color: var(--danger);
+        }
+
+        /* ----- ACTIVE LOAN SECTION ----- */
+        .active-loan-section {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .active-loan-section h3 {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: color 0.3s;
+        }
+        .active-loan-section h3 i {
+            color: var(--warning);
+        }
+        .active-loan-item {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px 32px;
+            padding: 10px 14px;
+            background: var(--bg-primary);
+            border-radius: var(--radius-sm);
+            border-left: 4px solid var(--warning);
+            margin-bottom: 8px;
+            transition: background 0.3s;
+        }
+        .active-loan-item:last-child {
+            margin-bottom: 0;
+        }
+        .active-loan-item .loan-field {
+            display: flex;
+            flex-direction: column;
+        }
+        .active-loan-item .loan-field .loan-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            transition: color 0.3s;
+        }
+        .active-loan-item .loan-field .loan-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            transition: color 0.3s;
+        }
+        .active-loan-item .loan-field .loan-value.remaining {
+            color: var(--danger);
+        }
+        .active-loan-item .loan-field .loan-value.amount {
+            color: var(--primary);
+        }
+        .no-active-loan {
+            text-align: center;
+            padding: 16px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            transition: color 0.3s;
+        }
+        .no-active-loan i {
+            color: var(--text-muted);
+            margin-right: 8px;
+        }
+
+        /* ----- TRANSACTIONS TABLE ----- */
+        .table-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .table-header {
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+        .table-wrapper {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        thead {
+            background: var(--bg-primary);
+        }
+        thead th {
+            padding: 10px 14px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--border-color);
+            white-space: nowrap;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            transition: all 0.3s;
+        }
+        tbody td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+            vertical-align: middle;
+            transition: all 0.3s;
+        }
+        tbody tr:hover {
+            background: var(--bg-primary);
+        }
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .transaction-type {
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .transaction-type.savings {
+            background: #d4edda;
+            color: #155724;
+        }
+        .transaction-type.loan {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .transaction-type.repayment {
+            background: #cce5ff;
+            color: #004085;
+        }
+        .transaction-type.withdrawal {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .transaction-type.dividend {
+            background: #e8d5f5;
+            color: #6a1b9a;
+        }
+        .transaction-type.profit_income {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status-badge-table {
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .status-badge-table.done {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-badge-table.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .no-transactions {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+            transition: color 0.3s;
+        }
+
+        /* ----- PAGINATION ----- */
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 18px;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 10px;
+            transition: all 0.3s;
+        }
+        .pagination-info {
+            font-size: 13px;
+            color: var(--text-secondary);
+            transition: color 0.3s;
+        }
+        .pagination-info strong {
+            color: var(--text-primary);
+        }
+        .pagination-buttons {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .pagination-btn {
+            padding: 5px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background: var(--bg-card);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            transition: all 0.2s;
+            min-width: 32px;
+            text-align: center;
+        }
+        .pagination-btn:hover:not(:disabled) {
+            background: var(--border-color);
+            border-color: var(--primary);
+        }
+        .pagination-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        .pagination-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* ----- TOAST ----- */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 14px 24px;
+            border-radius: var(--radius);
+            color: #fff;
+            font-weight: 500;
+            font-size: 14px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            animation: slideIn 0.3s ease;
+            min-width: 280px;
+            max-width: 400px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .toast i {
+            font-size: 18px;
+        }
+        .toast.success {
+            background: var(--success);
+        }
+        .toast.error {
+            background: var(--danger);
+        }
+        .toast.warning {
+            background: var(--warning);
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .toast.fade-out {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .app-footer {
+            background: var(--bg-card);
+            border-top: 1px solid var(--border-color);
+            padding: 16px 30px;
+            text-align: center;
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: auto;
+            transition: all 0.3s;
+        }
+
+        /* ----- RESPONSIVE ----- */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 280px;
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .menu-toggle {
+                display: block;
+            }
+            .top-header {
+                padding: 12px 16px;
+            }
+            .dashboard-content {
+                padding: 16px;
+            }
+            .profile-top {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+            .profile-name-section .profile-name {
+                font-size: 22px;
+            }
+            .profile-details-grid {
+                grid-template-columns: 1fr;
+            }
+            .financial-summary {
+                grid-template-columns: 1fr 1fr;
+            }
+            .pagination-container {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .pagination-buttons {
+                justify-content: center;
+            }
+            .toast-container {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+            }
+            .toast {
+                min-width: unset;
+                width: 100%;
+            }
+            .user-name {
+                display: none;
+            }
+            .active-loan-item {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .sidebar-brand {
+                padding: 16px 16px 12px;
+            }
+            .brand-icon {
+                width: 64px;
+                height: 64px;
+            }
+            .brand-text .brand-name {
+                font-size: 16px;
+            }
+            .profile-avatar-large {
+                width: 80px;
+                height: 80px;
+            }
+            .profile-avatar-large .fallback {
+                font-size: 36px;
+            }
+        }
+        @media (max-width: 480px) {
+            .financial-summary {
+                grid-template-columns: 1fr;
+            }
+            table {
+                font-size: 12px;
+            }
+            thead th,
+            tbody td {
+                padding: 6px 8px;
+            }
+            .pagination-btn {
+                padding: 4px 8px;
+                font-size: 12px;
+                min-width: 28px;
+            }
+            .profile-card {
+                padding: 16px;
+            }
+            .profile-name-section .profile-name {
+                font-size: 20px;
+            }
+            .brand-icon {
+                width: 56px;
+                height: 56px;
+            }
+            .profile-avatar-large {
+                width: 70px;
+                height: 70px;
+            }
+            .profile-avatar-large .fallback {
+                font-size: 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">
+                <img src="../images/sacco-logo.png" alt="SACCO Logo" class="brand-logo-img" />
+            </div>
+            <div class="brand-text">
+                <span class="brand-name">GERESU DHUKI</span>
+                <span class="brand-sub" data-i18n="brandSub">SACCO Banking</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <ul>
+                <li><a href="dashboard.html"><i class="fas fa-th-large"></i> <span data-i18n="navDashboard">Dashboard</span></a></li>
+                <li><a href="members.html"><i class="fas fa-users"></i> <span data-i18n="navMembers">Members</span></a></li>
+                <li><a href="savings.html"><i class="fas fa-piggy-bank"></i> <span data-i18n="navSavings">Savings</span></a></li>
+                <li><a href="deposits.html"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="navDeposits">Deposits</span></a></li>
+                <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="navLoans">Loans</span></a></li>
+                <li><a href="repayments.html"><i class="fas fa-undo-alt"></i> <span data-i18n="navRepayments">Repayments</span></a></li>
+                <li><a href="withdrawals.html"><i class="fas fa-money-bill-wave"></i> <span data-i18n="navWithdrawals">Withdrawals</span></a></li>
+                <li><a href="dividends.html"><i class="fas fa-gift"></i> <span data-i18n="navDividends">Dividends</span></a></li>
+                <li><a href="reports.html"><i class="fas fa-chart-bar"></i> <span data-i18n="navReports">Reports</span></a></li>
+                <!-- ===== AUDIT TRAIL LINK ===== -->
+                <li id="auditNavItem" style="display:none;">
+                    <a href="audit.html"><i class="fas fa-clipboard-list"></i> <span data-i18n="navAudit">Audit Trail</span></a>
+                </li>
+                <!-- ===== END AUDIT TRAIL ===== -->
+                <li id="usersNavItem" style="display:none;"><a href="users.html"><i class="fas fa-user-cog"></i> <span data-i18n="navUsers">Users</span></a></li>
+                <li><a href="settings.html"><i class="fas fa-cog"></i> <span data-i18n="navSettings">Settings</span></a></li>
+            </ul>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> <span data-i18n="logout">Logout</span></button>
+        </div>
+    </aside>
+
+    <main class="main-content">
+
+        <header class="top-header">
+            <div class="header-left">
+                <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+                <div class="page-title">
+                    <h1 data-i18n="pageTitle">Member Profile</h1>
+                    <span class="breadcrumb" data-i18n="breadcrumb">Home / Members / Profile</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="lang-switcher">
+                    <button class="lang-btn active" data-lang="en">EN</button>
+                    <button class="lang-btn" data-lang="am">አማ</button>
+                    <button class="lang-btn" data-lang="om">OM</button>
+                </div>
+                <div class="notifications">
+                    <button class="notif-btn"><i class="fas fa-bell"></i><span class="badge">3</span></button>
+                </div>
+                <div class="user-profile">
+                    <img src="../assets/images/avatar.png" alt="User" onerror="this.src='https://ui-avatars.com/api/?name=Admin&background=2d7a3d&color=fff'" />
+                    <span class="user-name" id="userDisplayName">Admin</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="dashboard-content" id="profileContent">
+
+            <a href="members.html" class="back-link"><i class="fas fa-arrow-left"></i> <span data-i18n="backToMembers">Back to Members</span></a>
+
+            <div id="loadingState" class="loading-spinner">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span data-i18n="loadingProfile">Loading member profile...</span>
+            </div>
+
+            <div id="profileData" style="display:none;">
+
+                <!-- Profile Card with Photo -->
+                <div class="profile-card">
+                    <div class="profile-top">
+                        <!-- Photo -->
+                        <div class="profile-avatar-large" id="profileAvatarContainer">
+                            <img id="profileAvatarImg" src="" alt="Member Photo" style="display:none;" />
+                            <div id="profileAvatarFallback" class="fallback">A</div>
+                        </div>
+                        <!-- Name & Member ID -->
+                        <div class="profile-name-section">
+                            <div class="profile-name" id="profileName">Abdi Furgasa Gutema</div>
+                            <div class="profile-member-id">
+                                <span data-i18n="memberId">Member ID:</span>
+                                <span id="profileMemberId">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="profile-details-grid">
+                        <div class="detail-item">
+                            <span class="label" data-i18n="nid">NID</span>
+                            <span class="value" id="profileNid">—</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label" data-i18n="phone">Phone</span>
+                            <span class="value" id="profilePhone">—</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label" data-i18n="gender">Gender</span>
+                            <span class="value" id="profileGender">—</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label" data-i18n="address">Address</span>
+                            <span class="value" id="profileAddress">—</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label" data-i18n="nationality">Nationality</span>
+                            <span class="value" id="profileNationality">—</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label" data-i18n="status">Status</span>
+                            <span id="profileStatusBadge" class="status-badge active">Active</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Financial Summary -->
+                <div class="financial-summary">
+                    <div class="finance-card green">
+                        <div class="icon"><i class="fas fa-piggy-bank"></i></div>
+                        <span class="label" data-i18n="statSavings">Savings</span>
+                        <span class="amount" id="profileSavings">0</span>
+                    </div>
+                    <div class="finance-card blue">
+                        <div class="icon"><i class="fas fa-hand-holding-usd"></i></div>
+                        <span class="label" data-i18n="statLoans">Total Loans</span>
+                        <span class="amount" id="profileLoans">0</span>
+                    </div>
+                    <div class="finance-card red">
+                        <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
+                        <span class="label" data-i18n="remainingActive">Active Loan Remaining</span>
+                        <span class="amount" id="profileRemaining">0</span>
+                    </div>
+                    <div class="finance-card purple">
+                        <div class="icon"><i class="fas fa-gift"></i></div>
+                        <span class="label" data-i18n="dividendsReceived">Dividends Received</span>
+                        <span class="amount" id="profileDividends">0</span>
+                    </div>
+                    <div class="finance-card gold">
+                        <div class="icon"><i class="fas fa-crown"></i></div>
+                        <span class="label" data-i18n="individualCapital">Individual Capital</span>
+                        <span class="amount" id="profileCapital">0</span>
+                    </div>
+                </div>
+
+                <!-- Active Loan Section -->
+                <div class="active-loan-section">
+                    <h3><i class="fas fa-exclamation-triangle"></i> <span data-i18n="activeLoans">Active Loans</span></h3>
+                    <div id="activeLoanContainer">
+                        <div class="no-active-loan"><i class="fas fa-check-circle"></i> <span data-i18n="noActiveLoan">No active loans</span></div>
+                    </div>
+                </div>
+
+                <!-- Transactions Table -->
+                <div class="table-container">
+                    <div class="table-header">
+                        <span data-i18n="transactions">Transactions</span>
+                        <span id="transactionCount">0</span>
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th data-i18n="type">Type</th>
+                                    <th data-i18n="amount">Amount</th>
+                                    <th data-i18n="prevBalance">Prev</th>
+                                    <th data-i18n="totalBalance">Total</th>
+                                    <th data-i18n="status">Status</th>
+                                    <th data-i18n="date">Date</th>
+                                    <th data-i18n="by">By</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transactionsBody">
+                                <tr>
+                                    <td colspan="7" class="no-transactions" data-i18n="noTransactions">No transactions found.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pagination-container" id="paginationContainer">
+                        <div class="pagination-info">
+                            <span data-i18n="showing">Showing</span> <strong id="pageStart">0</strong> - <strong id="pageEnd">0</strong>
+                            <span data-i18n="of">of</span> <strong id="totalTransactionsCount">0</strong>
+                        </div>
+                        <div class="pagination-buttons">
+                            <button class="pagination-btn" id="prevPage" disabled><i class="fas fa-chevron-left"></i></button>
+                            <div id="pageNumbers"></div>
+                            <button class="pagination-btn" id="nextPage"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+        <footer class="app-footer">
+            <p>&copy; 2025 GERESU DHUKI SACCO. <span data-i18n="rights">All rights reserved.</span></p>
+        </footer>
+    </main>
+
+    <script>
+        // ============================================================
+        // FIREBASE CONFIG (UPDATED)
+        // ============================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBeQv8YLNfFFaTEZ6pxXaAy_K8n3u8V5X4",
+            authDomain: "geresu-dhuki-sacco-75329.firebaseapp.com",
+            projectId: "geresu-dhuki-sacco-75329",
+            storageBucket: "geresu-dhuki-sacco-75329.firebasestorage.app",
+            messagingSenderId: "431325504753",
+            appId: "1:431325504753:web:f7289fb88d74b82eb0b550",
+            measurementId: "G-3SN99DFJXD"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+
+        // ============================================================
+        // MULTI-LANGUAGE
+        // ============================================================
+        const translations = {
+            en: {
+                brandSub: 'SACCO Banking',
+                navDashboard: 'Dashboard',
+                navMembers: 'Members',
+                navSavings: 'Savings',
+                navDeposits: 'Deposits',
+                navLoans: 'Loans',
+                navRepayments: 'Repayments',
+                navWithdrawals: 'Withdrawals',
+                navDividends: 'Dividends',
+                navReports: 'Reports',
+                navAudit: 'Audit Trail',
+                navUsers: 'Users',
+                navSettings: 'Settings',
+                logout: 'Logout',
+                pageTitle: 'Member Profile',
+                breadcrumb: 'Home / Members / Profile',
+                rights: 'All rights reserved.',
+                backToMembers: 'Back to Members',
+                loadingProfile: 'Loading member profile...',
+                nid: 'NID',
+                phone: 'Phone',
+                gender: 'Gender',
+                address: 'Address',
+                nationality: 'Nationality',
+                status: 'Status',
+                statSavings: 'Savings',
+                statLoans: 'Total Loans',
+                remainingActive: 'Active Loan Remaining',
+                dividendsReceived: 'Dividends Received',
+                individualCapital: 'Individual Capital',
+                activeLoans: 'Active Loans',
+                noActiveLoan: 'No active loans',
+                transactions: 'Transactions',
+                type: 'Type',
+                amount: 'Amount',
+                prevBalance: 'Prev',
+                totalBalance: 'Total',
+                date: 'Date',
+                by: 'By',
+                noTransactions: 'No transactions found.',
+                active: 'Active',
+                inactive: 'Inactive',
+                done: 'Done',
+                pending: 'Pending',
+                errorLoading: 'Error loading profile: ',
+                showing: 'Showing',
+                of: 'of',
+                loanAmount: 'Loan Amount',
+                interestRate: 'Interest',
+                remainingBalance: 'Remaining',
+                monthlyPayment: 'Monthly',
+                statusLabel: 'Status',
+                memberId: 'Member ID'
+            },
+            am: {
+                brandSub: 'ባንክ ስርዓት',
+                navDashboard: 'ዳሽቦርድ',
+                navMembers: 'አባላት',
+                navSavings: 'ቁጠባዎች',
+                navDeposits: 'ተቀማጭ',
+                navLoans: 'ብድር',
+                navRepayments: 'ክፍያዎች',
+                navWithdrawals: 'መውጫዎች',
+                navDividends: 'ክፍፍል',
+                navReports: 'ሪፖርቶች',
+                navAudit: 'የምዝግብ ታሪክ',
+                navUsers: 'ተጠቃሚዎች',
+                navSettings: 'ቅንብሮች',
+                logout: 'ውጣ',
+                pageTitle: 'የአባል መገለጫ',
+                breadcrumb: 'ዋና ገጽ / አባላት / መገለጫ',
+                rights: 'መብቶች በሙሉ ተጠብቀዋል።',
+                backToMembers: 'ወደ አባላት ተመለስ',
+                loadingProfile: 'የአባል መገለጫ በማስገባት ላይ...',
+                nid: 'ብሔራዊ መታወቂያ',
+                phone: 'ስልክ',
+                gender: 'ጾታ',
+                address: 'አድራሻ',
+                nationality: 'ዜግነት',
+                status: 'ሁኔታ',
+                statSavings: 'ቁጠባ',
+                statLoans: 'ጠቅላላ ብድር',
+                remainingActive: 'ንቁ ብድር ቀሪ',
+                dividendsReceived: 'የተቀበለው ክፍፍል',
+                individualCapital: 'የግል ካፒታል',
+                activeLoans: 'ንቁ ብድሮች',
+                noActiveLoan: 'ምንም ንቁ ብድር የለም',
+                transactions: 'ግብይቶች',
+                type: 'አይነት',
+                amount: 'መጠን',
+                prevBalance: 'ቀዳሚ',
+                totalBalance: 'ጠቅላላ',
+                date: 'ቀን',
+                by: 'አስተናጋጅ',
+                noTransactions: 'ምንም ግብይቶች የሉም።',
+                active: 'ንቁ',
+                inactive: 'እንቅስቃሴ የለም',
+                done: 'ተጠናቋል',
+                pending: 'በመጠበቅ ላይ',
+                errorLoading: 'መገለጫ በማስገባት ላይ ስህተት: ',
+                showing: 'እያሳየ',
+                of: 'ከ',
+                loanAmount: 'የብድር መጠን',
+                interestRate: 'ወለድ',
+                remainingBalance: 'ቀሪ',
+                monthlyPayment: 'ወርሃዊ',
+                statusLabel: 'ሁኔታ',
+                memberId: 'የአባል መታወቂያ'
+            },
+            om: {
+                brandSub: 'Sirna Baankii',
+                navDashboard: 'Dashaaboardii',
+                navMembers: 'Miseensota',
+                navSavings: 'Kussaa',
+                navDeposits: 'Kuusaa',
+                navLoans: 'Liqeeffannoo',
+                navRepayments: 'Kaffaltii',
+                navWithdrawals: 'Baasii',
+                navDividends: 'Qooda',
+                navReports: 'Gabaasa',
+                navAudit: 'Seenaa Galmee',
+                navUsers: 'Fayyadamtota',
+                navSettings: 'Qindaa’ina',
+                logout: 'Baasi',
+                pageTitle: 'Bifaa Miseensaa',
+                breadcrumb: 'Mana / Miseensota / Bifaa',
+                rights: 'Mirgi hundi eegama.',
+                backToMembers: 'Gar gara Miseensotaa',
+                loadingProfile: 'Bifaa miseensaa galmeessuuf...',
+                nid: 'ID Biyyaalessaa',
+                phone: 'Bilbila',
+                gender: 'Saala',
+                address: 'Teessoo',
+                nationality: 'Biylisummaa',
+                status: 'Haala',
+                statSavings: 'Kussaa',
+                statLoans: 'Liqeeffannoo Waliigalaa',
+                remainingActive: 'Haafa Liqeeffannoo Hojiirra',
+                dividendsReceived: 'Qooda Argate',
+                individualCapital: 'Kaapitaala Dhuunfaa',
+                activeLoans: 'Liqeeffannoo Hojiirra',
+                noActiveLoan: 'Liqeeffannoo hojiirra hin jiru',
+                transactions: 'Daldala',
+                type: 'Gosa',
+                amount: 'Qaba',
+                prevBalance: 'Dursee',
+                totalBalance: 'Waliigalaa',
+                date: 'Guyyaa',
+                by: 'Hojjedhe',
+                noTransactions: 'Daldala hin argamne.',
+                active: 'Hojiirra',
+                inactive: 'Hojiirra hin jiru',
+                done: 'Xumurame',
+                pending: 'Eegamaa',
+                errorLoading: 'Bifaa galmeessuuf dogoggora: ',
+                showing: 'Agarsii',
+                of: 'keessaa',
+                loanAmount: 'Qaba Liqeeffannoo',
+                interestRate: 'Dhala',
+                remainingBalance: 'Haafa',
+                monthlyPayment: 'Jiʼaa',
+                statusLabel: 'Haala',
+                memberId: 'ID Miseensaa'
+            }
+        };
+
+        let currentLang = 'en';
+        let currentUserRole = 'viewer';
+        let currentUserDisplayName = 'Admin';
+
+        function setLanguage(lang) {
+            if (!translations[lang]) return;
+            currentLang = lang;
+            const t = translations[lang];
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key] !== undefined) {
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+                        if (el.type !== 'file') el.placeholder = t[key];
+                    } else {
+                        el.innerHTML = t[key];
+                    }
+                }
+            });
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.lang === lang);
+            });
+            try { localStorage.setItem('waciti-lang', lang); } catch (e) {}
+            updatePaginationInfo();
+            renderPageButtons();
+        }
+
+        function initLanguage() {
+            const saved = localStorage.getItem('waciti-lang') || navigator.language.split('-')[0];
+            const valid = ['en', 'am', 'om'];
+            setLanguage(valid.includes(saved) ? saved : 'en');
+        }
+
+        function showToast(message, type = 'error') {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'toast-container';
+                document.body.appendChild(container);
+            }
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icon = document.createElement('i');
+            icon.className = type === 'error' ? 'fas fa-exclamation-circle' :
+                type === 'success' ? 'fas fa-check-circle' :
+                'fas fa-exclamation-triangle';
+            toast.appendChild(icon);
+            const text = document.createElement('span');
+            text.textContent = message;
+            toast.appendChild(text);
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('fade-out');
+                setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
+            }, 4500);
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+
+        // ============================================================
+        // USER INFO (combined name + role) with audit link visibility
+        // ============================================================
+        function updateUserInfo() {
+            const roleMap = { admin: 'ADMIN', manager: 'MANAGER', teller: 'TELLER', accountant: 'ACCOUNTANT',
+                viewer: 'VIEWER' };
+            const roleLabel = roleMap[currentUserRole] || 'VIEWER';
+            const displayName = currentUserDisplayName || 'User';
+            document.getElementById('userDisplayName').textContent = displayName + ' (' + roleLabel + ')';
+
+            // ---- Show/hide Audit nav link ----
+            const auditNav = document.getElementById('auditNavItem');
+            if (auditNav) {
+                auditNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
+            }
+
+            // ---- Show/hide Users nav link ----
+            const usersNav = document.getElementById('usersNavItem');
+            if (usersNav) {
+                usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
+            }
+        }
+
+        // ============================================================
+        // TO DATE HELPER
+        // ============================================================
+        function toDate(value) {
+            if (!value) return null;
+            if (value.toDate) return value.toDate();
+            if (typeof value === 'string') return new Date(value);
+            return value;
+        }
+
+        function formatDate(d) {
+            if (!d) return '—';
+            const date = toDate(d);
+            if (!date) return '—';
+            return date.toLocaleDateString();
+        }
+
+        // ============================================================
+        // PROFILE STATE
+        // ============================================================
+        let allTransactions = [];
+        let activeLoans = [];
+        let currentPage = 1;
+        const pageSize = 10;
+        let memberId = null;
+
+        // ============================================================
+        // LOAD PROFILE DATA
+        // ============================================================
+        async function loadProfile(memberId) {
+            const loadingState = document.getElementById('loadingState');
+            const profileData = document.getElementById('profileData');
+
+            try {
+                const memberDoc = await db.collection('members').doc(memberId).get();
+                if (!memberDoc.exists) {
+                    showToast('Member not found.', 'error');
+                    loadingState.innerHTML = '<p style="color:#e74c3c;">Member not found. <a href="members.html">Go back</a></p>';
+                    return;
+                }
+
+                const member = { id: memberDoc.id, ...memberDoc.data() };
+
+                // Load ALL transactions for this member
+                const transactionsSnap = await db.collection('transactions')
+                    .where('memberId', '==', memberId)
+                    .get();
+
+                allTransactions = [];
+                transactionsSnap.forEach(doc => allTransactions.push({ id: doc.id, ...doc.data() }));
+
+                // Sort by date descending (newest first)
+                allTransactions.sort((a, b) => {
+                    const da = toDate(a.date || a.timestamp);
+                    const db = toDate(b.date || b.timestamp);
+                    return db - da;
+                });
+
+                // Extract active loans (status = 'active') - only these are shown in the active loan section
+                activeLoans = allTransactions
+                    .filter(tx => tx.type === 'loan' && tx.status === 'active')
+                    .sort((a, b) => {
+                        const da = toDate(a.date || a.timestamp);
+                        const db = toDate(b.date || b.timestamp);
+                        return db - da;
+                    });
+
+                renderProfile(member);
+
+                loadingState.style.display = 'none';
+                profileData.style.display = 'block';
+
+                currentPage = 1;
+                paginateTransactions();
+
+            } catch (error) {
+                console.error('Error loading profile:', error);
+                showToast(translations[currentLang].errorLoading + error.message, 'error');
+                loadingState.innerHTML = `<p style="color:#e74c3c;">${translations[currentLang].errorLoading} ${error.message}</p>`;
+            }
+        }
+
+        // ============================================================
+        // CALCULATE INTEREST
+        // ============================================================
+        function calculateMonthlyPayment(principal, rate, months, type) {
+            const r = rate / 100;
+            const monthlyRate = r / 12;
+            const n = months;
+            if (type === 'reducing') {
+                if (monthlyRate === 0) return principal / n;
+                const emi = principal * monthlyRate * Math.pow(1 + monthlyRate, n) / (Math.pow(1 + monthlyRate, n) - 1);
+                return emi;
+            } else {
+                const totalPayable = principal + calculateInterest(principal, rate, months, type);
+                return totalPayable / n;
+            }
+        }
+
+        function calculateInterest(principal, rate, months, type) {
+            const r = rate / 100;
+            const monthlyRate = r / 12;
+            const n = months;
+            switch (type) {
+                case 'simple':
+                    return principal * r * (n / 12);
+                case 'compound':
+                    return principal * (Math.pow(1 + monthlyRate, n) - 1);
+                case 'fixed':
+                    return principal * r * (n / 12);
+                case 'reducing':
+                    if (monthlyRate === 0) return 0;
+                    const emi = principal * monthlyRate * Math.pow(1 + monthlyRate, n) / (Math.pow(1 + monthlyRate, n) - 1);
+                    return (emi * n) - principal;
+                default:
+                    return principal * r * (n / 12);
+            }
+        }
+
+        // ============================================================
+        // RENDER PROFILE (with photo)
+        // ============================================================
+        function renderProfile(member) {
+            const t = translations[currentLang];
+
+            // ---- NAME ----
+            document.getElementById('profileName').textContent = member.fullName || 'Unknown Member';
+
+            // ---- MEMBER ID ----
+            document.getElementById('profileMemberId').textContent = member.memberId || '—';
+
+            // ---- PHOTO ----
+            const avatarImg = document.getElementById('profileAvatarImg');
+            const avatarFallback = document.getElementById('profileAvatarFallback');
+
+            if (member.photoURL && member.photoURL.trim() !== '') {
+                avatarImg.src = member.photoURL;
+                avatarImg.style.display = 'block';
+                avatarFallback.style.display = 'none';
+                // On error, fallback to initial
+                avatarImg.onerror = function() {
+                    this.style.display = 'none';
+                    avatarFallback.style.display = 'flex';
+                    avatarFallback.textContent = (member.fullName || 'U').charAt(0).toUpperCase();
+                };
+            } else {
+                avatarImg.style.display = 'none';
+                avatarFallback.style.display = 'flex';
+                avatarFallback.textContent = (member.fullName || 'U').charAt(0).toUpperCase();
+            }
+
+            // ---- DETAILS ----
+            document.getElementById('profileNid').textContent = member.nid || '—';
+            document.getElementById('profilePhone').textContent = member.phone || '—';
+            document.getElementById('profileGender').textContent = member.gender || '—';
+            document.getElementById('profileAddress').textContent = member.address || '—';
+            document.getElementById('profileNationality').textContent = member.nationality || '—';
+
+            const statusBadge = document.getElementById('profileStatusBadge');
+            const isActive = member.status === 'active';
+            statusBadge.textContent = isActive ? t.active : t.inactive;
+            statusBadge.className = `status-badge ${isActive ? 'active' : 'inactive'}`;
+
+            // ---- FINANCIAL SUMMARY ----
+            let totalSavings = 0,
+                totalLoans = 0,
+                totalRepayments = 0,
+                totalDividends = 0,
+                totalWithdrawals = 0;
+
+            allTransactions.forEach(tx => {
+                const amount = Number(tx.amount) || 0;
+                switch (tx.type) {
+                    case 'savings':
+                        totalSavings += amount;
+                        break;
+                    case 'loan':
+                        totalLoans += amount;
+                        break;
+                    case 'repayment':
+                        totalRepayments += amount;
+                        break;
+                    case 'withdrawal':
+                        totalWithdrawals += amount;
+                        break;
+                    case 'profit_withdrawal':
+                        if (tx.reason === 'Dividend') totalDividends += amount;
+                        break;
+                }
+            });
+
+            // ---- REMAINING BALANCE CALCULATION: Only from ACTIVE loans ----
+            let remainingActive = 0;
+            activeLoans.forEach(loan => {
+                const loanId = loan.id;
+                const amount = Number(loan.amount) || 0;
+                const interestRate = Number(loan.interestRate) || 0;
+                const period = Number(loan.repaymentPeriod) || 0;
+                const loanType = loan.loanType || 'simple';
+
+                const repayments = allTransactions
+                    .filter(tx => tx.loanId === loanId && tx.type === 'repayment')
+                    .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+
+                const totalPayable = loan.totalPayable ?
+                    Number(loan.totalPayable) :
+                    amount + calculateInterest(amount, interestRate, period, loanType);
+                const rem = Math.max(0, Math.round((totalPayable - repayments) * 100) / 100);
+                remainingActive += rem;
+            });
+
+            // Individual Capital = Savings + Dividends Received
+            const individualCapital = Math.round((totalSavings + totalDividends) * 100) / 100;
+
+            document.getElementById('profileSavings').textContent = totalSavings.toLocaleString();
+            document.getElementById('profileLoans').textContent = totalLoans.toLocaleString();
+            document.getElementById('profileRemaining').textContent = remainingActive.toLocaleString();
+            document.getElementById('profileDividends').textContent = totalDividends.toLocaleString();
+            document.getElementById('profileCapital').textContent = individualCapital.toLocaleString();
+            document.getElementById('transactionCount').textContent = allTransactions.length;
+
+            // Render Active Loans
+            renderActiveLoans();
+        }
+
+        // ============================================================
+        // RENDER ACTIVE LOANS
+        // ============================================================
+        function renderActiveLoans() {
+            const container = document.getElementById('activeLoanContainer');
+            const t = translations[currentLang];
+
+            if (activeLoans.length === 0) {
+                container.innerHTML = `<div class="no-active-loan"><i class="fas fa-check-circle"></i> <span>${t.noActiveLoan}</span></div>`;
+                return;
+            }
+
+            // For each active loan, calculate remaining balance
+            let html = '';
+            activeLoans.forEach(loan => {
+                const loanId = loan.id;
+                const amount = Number(loan.amount) || 0;
+                const interestRate = Number(loan.interestRate) || 0;
+                const period = Number(loan.repaymentPeriod) || 0;
+                const loanType = loan.loanType || 'simple';
+
+                // Get repayments for this loan
+                const repayments = allTransactions
+                    .filter(tx => tx.loanId === loanId && tx.type === 'repayment')
+                    .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+
+                const totalPayable = loan.totalPayable ?
+                    Number(loan.totalPayable) :
+                    amount + calculateInterest(amount, interestRate, period, loanType);
+                const remainingBalance = Math.max(0, Math.round((totalPayable - repayments) * 100) / 100);
+
+                // Get monthly payment
+                const monthlyPayment = calculateMonthlyPayment(amount, interestRate, period, loanType);
+
+                const dateStr = formatDate(loan.date || loan.timestamp);
+
+                html += `
+                    <div class="active-loan-item">
+                        <div class="loan-field">
+                            <span class="loan-label">${t.loanAmount}</span>
+                            <span class="loan-value amount">ETB ${amount.toLocaleString()}</span>
+                        </div>
+                        <div class="loan-field">
+                            <span class="loan-label">${t.interestRate}</span>
+                            <span class="loan-value">${interestRate}%</span>
+                        </div>
+                        <div class="loan-field">
+                            <span class="loan-label">${t.monthlyPayment}</span>
+                            <span class="loan-value">ETB ${monthlyPayment.toFixed(2)}</span>
+                        </div>
+                        <div class="loan-field">
+                            <span class="loan-label">${t.remainingBalance}</span>
+                            <span class="loan-value remaining">ETB ${remainingBalance.toLocaleString()}</span>
+                        </div>
+                        <div class="loan-field">
+                            <span class="loan-label">${t.statusLabel}</span>
+                            <span class="loan-value"><span class="status-badge active" style="font-size:11px; padding:2px 10px;">${t.active}</span></span>
+                        </div>
+                        <div class="loan-field">
+                            <span class="loan-label">${t.date}</span>
+                            <span class="loan-value">${dateStr}</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // ============================================================
+        // TRANSACTIONS PAGINATION
+        // ============================================================
+        function paginateTransactions() {
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageItems = allTransactions.slice(start, end);
+            renderTransactionsTable(pageItems);
+            updatePaginationInfo();
+            renderPageButtons();
+        }
+
+        function renderTransactionsTable(items) {
+            const tbody = document.getElementById('transactionsBody');
+            const t = translations[currentLang];
+
+            if (!items || items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="no-transactions">${t.noTransactions}</td></tr>`;
+                return;
+            }
+
+            // Sort by date ascending for running balance
+            const sorted = [...items].sort((a, b) => {
+                const da = toDate(a.date || a.timestamp);
+                const db = toDate(b.date || b.timestamp);
+                return da - db;
+            });
+
+            const allSorted = [...allTransactions].sort((a, b) => {
+                const da = toDate(a.date || a.timestamp);
+                const db = toDate(b.date || b.timestamp);
+                return da - db;
+            });
+
+            let runningBalance = 0;
+            const beforePage = allSorted.slice(0, (currentPage - 1) * pageSize);
+            beforePage.forEach(tx => {
+                const amount = Number(tx.amount) || 0;
+                if (tx.type === 'savings' || tx.type === 'repayment') runningBalance += amount;
+                else if (tx.type === 'loan' || tx.type === 'withdrawal') runningBalance -= amount;
+            });
+
+            let html = '';
+            sorted.forEach(tx => {
+                const amount = Number(tx.amount) || 0;
+                const prevBalance = runningBalance;
+                if (tx.type === 'savings' || tx.type === 'repayment') runningBalance += amount;
+                else if (tx.type === 'loan' || tx.type === 'withdrawal') runningBalance -= amount;
+
+                const typeClass = tx.type || 'savings';
+                let typeLabel = tx.type ? tx.type.charAt(0).toUpperCase() + tx.type.slice(1) : 'Savings';
+                if (tx.type === 'profit_withdrawal' && tx.reason === 'Dividend') {
+                    typeLabel = 'Dividend';
+                } else if (tx.type === 'profit_income') {
+                    typeLabel = 'Income';
+                }
+
+                const statusClass = tx.status === 'done' ? 'done' : 'pending';
+                const statusLabel = tx.status === 'done' ? t.done : t.pending;
+                const dateStr = formatDate(tx.date || tx.timestamp);
+
+                let byUser = tx.createdByName || tx.createdBy || tx.createdByEmail || 'Admin';
+                if (byUser.includes('@')) {
+                    byUser = byUser.split('@')[0];
+                }
+                if (!byUser || byUser.trim() === '') byUser = 'Admin';
+
+                html += `<tr>
+                    <td><span class="transaction-type ${typeClass}">${typeLabel}</span></td>
+                    <td>${amount.toLocaleString()}</td>
+                    <td>${prevBalance.toLocaleString()}</td>
+                    <td>${runningBalance.toLocaleString()}</td>
+                    <td><span class="status-badge-table ${statusClass}">${statusLabel}</span></td>
+                    <td>${dateStr}</td>
+                    <td>${byUser}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function updatePaginationInfo() {
+            const total = allTransactions.length;
+            const start = (currentPage - 1) * pageSize + 1;
+            const end = Math.min(currentPage * pageSize, total);
+            document.getElementById('pageStart').textContent = total > 0 ? start : 0;
+            document.getElementById('pageEnd').textContent = total > 0 ? end : 0;
+            document.getElementById('totalTransactionsCount').textContent = total;
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = currentPage >= Math.ceil(total / pageSize) || total === 0;
+        }
+
+        function renderPageButtons() {
+            const container = document.getElementById('pageNumbers');
+            const totalPages = Math.ceil(allTransactions.length / pageSize);
+            if (totalPages <= 1) { container.innerHTML = ''; return; }
+            let html = '';
+            const maxVisible = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+            if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
+            if (startPage > 1) {
+                html += `<button class="pagination-btn" onclick="goToPage(1)">1</button>`;
+                if (startPage > 2) html += `<button class="pagination-btn" disabled>...</button>`;
+            }
+            for (let i = startPage; i <= endPage; i++) {
+                html +=
+                    `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) html += `<button class="pagination-btn" disabled>...</button>`;
+                html += `<button class="pagination-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function goToPage(page) {
+            const totalPages = Math.ceil(allTransactions.length / pageSize);
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            paginateTransactions();
+            document.querySelector('.table-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // ============================================================
+        // PAGE INIT
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', async function() {
+            auth.onAuthStateChanged(async (user) => {
+                if (!user) {
+                    window.location.href = '../index.html';
+                    return;
+                }
+
+                // ---- Fetch user role AND display name from Firestore ----
+                try {
+                    const doc = await db.collection('users').doc(user.uid).get();
+                    if (doc.exists) {
+                        const data = doc.data();
+                        currentUserRole = data.role || 'viewer';
+                        if (!['admin', 'manager', 'teller', 'accountant', 'viewer'].includes(currentUserRole)) {
+                            currentUserRole = 'viewer';
+                        }
+                        currentUserDisplayName = data.displayName || data.name || user.displayName || user.email?.split(
+                            '@')[0] || 'Admin';
+                    } else {
+                        currentUserRole = 'viewer';
+                        currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'Admin';
+                    }
+                } catch (err) {
+                    console.error('Error fetching user role:', err);
+                    currentUserRole = 'viewer';
+                    currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'Admin';
+                }
+
+                // ---- Combine name + role in one span ----
+                const roleMap = { admin: 'ADMIN', manager: 'MANAGER', teller: 'TELLER', accountant: 'ACCOUNTANT',
+                    viewer: 'VIEWER' };
+                const roleLabel = roleMap[currentUserRole] || 'VIEWER';
+                const displayName = currentUserDisplayName || 'Admin';
+                document.getElementById('userDisplayName').textContent = displayName + ' (' + roleLabel + ')';
+
+                // ---- Show/hide Audit nav link ----
+                const auditNav = document.getElementById('auditNavItem');
+                if (auditNav) {
+                    auditNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
+                }
+
+                // ---- Show/hide Users nav link for non-admin ----
+                const usersNav = document.getElementById('usersNavItem');
+                if (usersNav) usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
+
+                initLanguage();
+
+                document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
+                document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
+
+                document.querySelectorAll('.lang-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        setLanguage(this.dataset.lang);
+                        const pageItems = allTransactions.slice((currentPage - 1) * pageSize, currentPage *
+                            pageSize);
+                        renderTransactionsTable(pageItems);
+                        updatePaginationInfo();
+                        renderPageButtons();
+                    });
+                });
+
+                document.getElementById('logoutBtn').addEventListener('click', async function() {
+                    if (confirm('Are you sure you want to log out?')) {
+                        await auth.signOut();
+                        window.location.href = '../index.html';
+                    }
+                });
+
+                const urlParams = new URLSearchParams(window.location.search);
+                memberId = urlParams.get('id');
+
+                if (!memberId) {
+                    document.getElementById('loadingState').innerHTML =
+                        '<p style="color:#e74c3c;">No member ID provided. <a href="members.html">Go back to members</a></p>';
+                    return;
+                }
+
+                await loadProfile(memberId);
+
+                document.getElementById('prevPage').addEventListener('click', function() {
+                    if (currentPage > 1) goToPage(currentPage - 1);
+                });
+                document.getElementById('nextPage').addEventListener('click', function() {
+                    const totalPages = Math.ceil(allTransactions.length / pageSize);
+                    if (currentPage < totalPages) goToPage(currentPage + 1);
+                });
+            });
+        });
+
+        window.goToPage = goToPage;
+        window.toggleSidebar = toggleSidebar;
+    </script>
+    <script>
+        // ============================================================
+        // SESSION TIMEOUT (5 minutes inactivity)
+        // ============================================================
+        (function() {
+            const SESSION_TIMEOUT = 5 * 60 * 1000;
+            const WARNING_TIMEOUT = SESSION_TIMEOUT - 30 * 1000;
+
+            let timer = null;
+            let warningTimer = null;
+            let warningToast = null;
+            let countdownInterval = null;
+
+            function resetTimer() {
+                clearTimeout(timer);
+                clearTimeout(warningTimer);
+                clearInterval(countdownInterval);
+                if (warningToast) {
+                    warningToast.remove();
+                    warningToast = null;
+                }
+                warningTimer = setTimeout(showWarning, WARNING_TIMEOUT);
+                timer = setTimeout(forceLogout, SESSION_TIMEOUT);
+            }
+
+            function showWarning() {
+                const t = translations && translations[currentLang] ? translations[currentLang] : { sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.' };
+                const message = t.sessionTimeout || 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
+
+                let seconds = 30;
+                warningToast = document.createElement('div');
+                warningToast.style.cssText = `
+                    position: fixed;
+                    bottom: 30px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: #f39c12;
+                    color: #fff;
+                    padding: 16px 24px;
+                    border-radius: 12px;
+                    font-size: 15px;
+                    font-weight: 500;
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+                    z-index: 99999;
+                    max-width: 500px;
+                    text-align: center;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    animation: slideUp 0.3s ease;
+                `;
+                warningToast.innerHTML = `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
+
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes slideUp {
+                        from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+                        to { transform: translateX(-50%) translateY(0); opacity: 1; }
+                    }
+                `;
+                document.head.appendChild(style);
+                document.body.appendChild(warningToast);
+
+                countdownInterval = setInterval(() => {
+                    seconds--;
+                    const textEl = document.getElementById('sessionWarningText');
+                    if (textEl) {
+                        textEl.textContent = message.replace('{seconds}', seconds);
+                    }
+                    if (seconds <= 0) {
+                        clearInterval(countdownInterval);
+                    }
+                }, 1000);
+            }
+
+            function forceLogout() {
+                clearInterval(countdownInterval);
+                if (warningToast) {
+                    warningToast.remove();
+                    warningToast = null;
+                }
+                if (typeof auth !== 'undefined' && auth) {
+                    auth.signOut().then(() => {
+                        window.location.href = '../index.html';
+                    }).catch(() => {
+                        window.location.href = '../index.html';
+                    });
+                } else {
+                    window.location.href = '../index.html';
+                }
+            }
+
+            const events = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
+
+            function handleActivity() {
+                resetTimer();
+            }
+            events.forEach(evt => {
+                document.addEventListener(evt, handleActivity);
+            });
+            resetTimer();
+
+            window.addEventListener('beforeunload', function() {
+                clearTimeout(timer);
+                clearTimeout(warningTimer);
+                clearInterval(countdownInterval);
+                if (warningToast) {
+                    warningToast.remove();
+                }
+                events.forEach(evt => {
+                    document.removeEventListener(evt, handleActivity);
+                });
+            });
+        })();
+    </script>
+</body>
+</html>
