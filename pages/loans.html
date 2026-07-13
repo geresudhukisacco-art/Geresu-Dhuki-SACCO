@@ -1779,6 +1779,33 @@
         }
 
         // ============================================================
+        // AUDIT LOGGING (added for audit trail)
+        // ============================================================
+        async function logAudit(action, collection, documentId, changes = {}, details = '') {
+            try {
+                const user = auth.currentUser;
+                const userEmail = user?.email || 'system';
+                const userName = user?.displayName || user?.email || 'System';
+                const userDisplayName = user?.displayName || 'System';
+
+                await db.collection('audit').add({
+                    action: action,
+                    collection: collection,
+                    documentId: documentId,
+                    changes: changes,
+                    details: details || `${action} ${collection} document ${documentId}`,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    userEmail: userEmail,
+                    userName: userName,
+                    userDisplayName: userDisplayName
+                });
+            } catch (error) {
+                console.error('Error writing to audit log:', error);
+                // Don't throw - audit logging should not break main functionality
+            }
+        }
+
+        // ============================================================
         // INTEREST CALCULATIONS
         // ============================================================
         function calculateInterest(principal, rate, months, type) {
@@ -2582,11 +2609,24 @@
             try {
                 const user = auth.currentUser;
                 const adminName = getDisplayName(user);
+
+                // Get old data for audit
+                const loanDoc = await db.collection('transactions').doc(loanId).get();
+                const oldData = loanDoc.exists ? loanDoc.data() : {};
+
                 await db.collection('transactions').doc(loanId).update({
                     status: 'active',
                     approvedBy: adminName,
                     approvedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
+
+                // ---- AUDIT LOG: Approved ----
+                await logAudit('approved', 'transactions', loanId, {
+                    oldStatus: oldData.status || 'pending',
+                    newStatus: 'active',
+                    approvedBy: adminName
+                }, `Loan ${loanId} approved by ${adminName}`);
+
                 showToast(translations[currentLang].loanApproved, 'success');
                 await loadLoans();
             } catch (error) {
@@ -2604,11 +2644,24 @@
             try {
                 const user = auth.currentUser;
                 const adminName = getDisplayName(user);
+
+                // Get old data for audit
+                const loanDoc = await db.collection('transactions').doc(loanId).get();
+                const oldData = loanDoc.exists ? loanDoc.data() : {};
+
                 await db.collection('transactions').doc(loanId).update({
                     status: 'rejected',
                     approvedBy: adminName,
                     approvedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
+
+                // ---- AUDIT LOG: Rejected ----
+                await logAudit('rejected', 'transactions', loanId, {
+                    oldStatus: oldData.status || 'pending',
+                    newStatus: 'rejected',
+                    rejectedBy: adminName
+                }, `Loan ${loanId} rejected by ${adminName}`);
+
                 showToast(translations[currentLang].loanRejected, 'success');
                 await loadLoans();
             } catch (error) {
@@ -2624,7 +2677,17 @@
             }
             if (!confirm('Are you sure you want to delete this loan? This action cannot be undone.')) return;
             try {
-                await db.collection('transactions').doc(loanId).delete();
+                const docRef = db.collection('transactions').doc(loanId);
+                const doc = await docRef.get();
+                const data = doc.exists ? doc.data() : {};
+
+                await docRef.delete();
+
+                // ---- AUDIT LOG: Deleted ----
+                const member = membersList.find(m => m.id === data.memberId);
+                await logAudit('deleted', 'transactions', loanId, data,
+                    `Loan deleted for ${member ? member.fullName : 'Unknown'} (${data.amount || 0} ETB)`);
+
                 showToast('Loan deleted successfully.', 'success');
                 await loadLoans();
             } catch (error) {
@@ -2674,7 +2737,7 @@
             document.getElementById('editLoanModal').style.display = 'none';
         }
 
-        // ---- Update Loan (Admin only) with capital validation ----
+        // ---- Update Loan (Admin only) with capital validation and audit ----
         async function updateLoan(e) {
             e.preventDefault();
             if (!canEdit()) {
@@ -2723,6 +2786,10 @@
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
 
             try {
+                // Get old data for audit
+                const loanDoc = await db.collection('transactions').doc(loanId).get();
+                const oldData = loanDoc.exists ? loanDoc.data() : {};
+
                 const totalPayable = calculateTotalPayable(amount, interestRate, repaymentPeriod, loanType);
                 const updateData = {
                     memberId: memberId,
@@ -2747,6 +2814,24 @@
                 }
 
                 await db.collection('transactions').doc(loanId).update(updateData);
+
+                // ---- AUDIT LOG: Updated ----
+                const changes = {};
+                const fieldsToCompare = ['memberId', 'amount', 'date', 'note', 'status', 'interestRate', 'repaymentPeriod',
+                    'loanType', 'totalPayable', 'guarantees'
+                ];
+                fieldsToCompare.forEach(field => {
+                    const oldVal = oldData[field] !== undefined ? oldData[field] : null;
+                    const newVal = updateData[field] !== undefined ? updateData[field] : null;
+                    if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+                        changes[field] = { old: oldVal, new: newVal };
+                    }
+                });
+
+                const member = membersList.find(m => m.id === memberId);
+                await logAudit('updated', 'transactions', loanId, changes,
+                    `Loan updated for ${member ? member.fullName : 'Unknown'} (${amount} ETB)`);
+
                 showToast('Loan updated successfully.', 'success');
                 closeEditModal();
                 await loadLoans();
@@ -2758,7 +2843,7 @@
             }
         }
 
-        // ---- Apply Loan (with capital validation) ----
+        // ---- Apply Loan (with capital validation and audit) ----
         async function applyLoan(e) {
             e.preventDefault();
             if (!canApply()) {
@@ -2847,6 +2932,19 @@
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     guarantees: guarantees
                 });
+
+                // ---- AUDIT LOG: Created ----
+                const member = membersList.find(m => m.id === memberId);
+                await logAudit('created', 'transactions', docRef.id, {
+                    memberId: memberId,
+                    memberName: member ? member.fullName : 'Unknown',
+                    amount: amount,
+                    interestRate: interestRate,
+                    repaymentPeriod: repaymentPeriod,
+                    loanType: loanType,
+                    totalPayable: totalPayable,
+                    status: status
+                }, `Loan applied for ${member ? member.fullName : 'Unknown'} (${amount} ETB)`);
 
                 showToast(translations[currentLang].loanApplied, 'success');
                 document.getElementById('loansForm').reset();
