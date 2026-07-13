@@ -1443,6 +1443,33 @@
         }
 
         // ============================================================
+        // AUDIT LOGGING (added for audit trail)
+        // ============================================================
+        async function logAudit(action, collection, documentId, changes = {}, details = '') {
+            try {
+                const user = auth.currentUser;
+                const userEmail = user?.email || 'system';
+                const userName = user?.displayName || user?.email || 'System';
+                const userDisplayName = user?.displayName || 'System';
+
+                await db.collection('audit').add({
+                    action: action,
+                    collection: collection,
+                    documentId: documentId,
+                    changes: changes,
+                    details: details || `${action} ${collection} document ${documentId}`,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    userEmail: userEmail,
+                    userName: userName,
+                    userDisplayName: userDisplayName
+                });
+            } catch (error) {
+                console.error('Error writing to audit log:', error);
+                // Don't throw - audit logging should not break main functionality
+            }
+        }
+
+        // ============================================================
         // USERS MODULE
         // ============================================================
         let allUsers = [];
@@ -1686,6 +1713,10 @@
 
             try {
                 if (userId) {
+                    // ---- Get old data for audit ----
+                    const oldDoc = await db.collection('users').doc(userId).get();
+                    const oldData = oldDoc.exists ? oldDoc.data() : {};
+
                     // Update existing user (Firestore only)
                     await db.collection('users').doc(userId).update({
                         displayName: displayName,
@@ -1694,6 +1725,20 @@
                         status: status,
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
+
+                    // ---- AUDIT LOG: Updated ----
+                    const changes = {};
+                    const fieldsToCompare = ['displayName', 'email', 'role', 'status'];
+                    fieldsToCompare.forEach(field => {
+                        const oldVal = oldData[field] !== undefined ? oldData[field] : null;
+                        const newVal = { displayName, email, role, status } [field];
+                        if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+                            changes[field] = { old: oldVal, new: newVal };
+                        }
+                    });
+                    await logAudit('updated', 'users', userId, changes,
+                        `User ${displayName} (${email}) updated`);
+
                     showToast(t.userUpdated, 'success');
                     hideUserForm();
                     await loadUsers();
@@ -1708,7 +1753,8 @@
                     const userCredential = await auth.createUserWithEmailAndPassword(email, password);
                     const newUser = userCredential.user;
                     await newUser.updateProfile({ displayName: displayName });
-                    await db.collection('users').doc(newUser.uid).set({
+                    const docRef = db.collection('users').doc(newUser.uid);
+                    await docRef.set({
                         uid: newUser.uid,
                         displayName: displayName,
                         email: email,
@@ -1717,6 +1763,15 @@
                         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
+
+                    // ---- AUDIT LOG: Created ----
+                    await logAudit('created', 'users', newUser.uid, {
+                        displayName: displayName,
+                        email: email,
+                        role: role,
+                        status: status
+                    }, `User ${displayName} (${email}) created with role ${role}`);
+
                     showToast(t.userAdded, 'success');
                     hideUserForm();
                     // Reload to re-auth as admin (since we got logged out)
@@ -1756,10 +1811,18 @@
             if (!confirm(confirmMsg)) return;
 
             try {
+                const oldStatus = user.status;
+
                 await db.collection('users').doc(userId).update({
                     status: newStatus,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
+
+                // ---- AUDIT LOG: Status toggled ----
+                await logAudit('updated', 'users', userId, {
+                    status: { old: oldStatus, new: newStatus }
+                }, `User ${user.displayName || user.email} status changed from ${oldStatus} to ${newStatus}`);
+
                 showToast(newStatus === 'suspended' ? t.userSuspended : t.userActivated, 'success');
                 await loadUsers();
             } catch (error) {
@@ -1783,7 +1846,15 @@
             if (!confirm(t.deleteConfirmation)) return;
 
             try {
+                // Get user data for audit before deletion
+                const userData = { ...user };
+
                 await db.collection('users').doc(userId).delete();
+
+                // ---- AUDIT LOG: Deleted ----
+                await logAudit('deleted', 'users', userId, userData,
+                    `User ${user.displayName || user.email} deleted`);
+
                 showToast(t.userDeleted, 'success');
                 await loadUsers();
             } catch (error) {
