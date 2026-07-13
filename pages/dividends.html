@@ -1551,6 +1551,33 @@
         }
 
         // ============================================================
+        // AUDIT LOGGING (added for audit trail)
+        // ============================================================
+        async function logAudit(action, collection, documentId, changes = {}, details = '') {
+            try {
+                const user = auth.currentUser;
+                const userEmail = user?.email || 'system';
+                const userName = user?.displayName || user?.email || 'System';
+                const userDisplayName = user?.displayName || 'System';
+
+                await db.collection('audit').add({
+                    action: action,
+                    collection: collection,
+                    documentId: documentId,
+                    changes: changes,
+                    details: details || `${action} ${collection} document ${documentId}`,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    userEmail: userEmail,
+                    userName: userName,
+                    userDisplayName: userDisplayName
+                });
+            } catch (error) {
+                console.error('Error writing to audit log:', error);
+                // Don't throw - audit logging should not break main functionality
+            }
+        }
+
+        // ============================================================
         // ROLE PERMISSIONS
         // ============================================================
         function canManageDividends() {
@@ -1986,7 +2013,7 @@
         }
 
         // ============================================================
-        // DISTRIBUTE DIVIDENDS
+        // DISTRIBUTE DIVIDENDS (with audit logging)
         // ============================================================
         async function distributeDividends() {
             if (!canManageDividends()) {
@@ -2029,6 +2056,7 @@
                 const batch = db.batch();
                 let distributedCount = 0;
                 let totalDistributed = 0;
+                const auditEntries = [];
 
                 for (const item of yearData.previewData) {
                     if (item.dividendAmount > 0.005) {
@@ -2050,10 +2078,35 @@
                         });
                         distributedCount++;
                         totalDistributed += item.dividendAmount;
+
+                        // Collect audit entry for each dividend
+                        auditEntries.push({
+                            memberId: item.memberId,
+                            memberName: item.memberName,
+                            amount: item.dividendAmount
+                        });
                     }
                 }
 
                 await batch.commit();
+
+                // ---- AUDIT LOG: Dividend distributions ----
+                const auditDetails = auditEntries.map(e =>
+                    `${e.memberName}: ${e.amount.toFixed(2)} ETB`
+                ).join('; ');
+
+                await logAudit(
+                    'created',
+                    'transactions',
+                    'dividend_batch_' + Date.now(),
+                    {
+                        year: selectedYear,
+                        totalMembers: distributedCount,
+                        totalAmount: totalDistributed,
+                        details: auditDetails
+                    },
+                    `Dividend distribution for year ${selectedYear}: ${distributedCount} members received total ETB ${totalDistributed.toFixed(2)}`
+                );
 
                 showToast(t.distributionSuccess.replace('{count}', distributedCount).replace('{total}', totalDistributed
                     .toFixed(2)), 'success');
@@ -2078,7 +2131,7 @@
         }
 
         // ============================================================
-        // CLOSE YEAR
+        // CLOSE YEAR (with audit logging)
         // ============================================================
         async function closeYear() {
             if (!canManageDividends()) {
@@ -2112,7 +2165,7 @@
                 const user = auth.currentUser;
                 const createdByName = getDisplayName(user);
 
-                await db.collection('transactions').add({
+                const docRef = await db.collection('transactions').add({
                     type: 'year_close',
                     year: year,
                     createdByName: createdByName,
@@ -2121,6 +2174,20 @@
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     note: `Year ${year} closed by ${createdByName}`
                 });
+
+                // ---- AUDIT LOG: Year closed ----
+                await logAudit(
+                    'created',
+                    'transactions',
+                    docRef.id,
+                    {
+                        year: year,
+                        closedBy: createdByName,
+                        totalDividendsDistributed: yearData.totalDividends,
+                        membersReceived: yearData.dividendsCount
+                    },
+                    `Year ${year} closed by ${createdByName} with ${yearData.dividendsCount} members receiving ETB ${yearData.totalDividends.toFixed(2)} in dividends`
+                );
 
                 showToast(t.closeYearSuccess.replace('{year}', year), 'success');
 
