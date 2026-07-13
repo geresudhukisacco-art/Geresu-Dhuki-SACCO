@@ -631,6 +631,12 @@
         .action-btn.view-details {
             background: var(--info);
         }
+        .action-btn.delete-entry {
+            background: var(--danger);
+        }
+        .action-btn.delete-entry:hover {
+            background: #c0392b;
+        }
 
         .modal-overlay {
             display: none;
@@ -1087,10 +1093,11 @@
                                 <th data-i18n="collection">Collection</th>
                                 <th data-i18n="documentId">Document</th>
                                 <th data-i18n="details">Details</th>
+                                <th data-i18n="actions">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="auditBody">
-                            <tr><td colspan="7"><div class="empty-state"><i class="fas fa-clipboard-list"></i><span data-i18n="noAudit">No audit records found.</span></div></td></tr>
+                            <tr><td colspan="8"><div class="empty-state"><i class="fas fa-clipboard-list"></i><span data-i18n="noAudit">No audit records found.</span></div></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1207,6 +1214,7 @@
                 collection: 'Collection',
                 documentId: 'Document ID',
                 details: 'Details',
+                actions: 'Actions',
                 auditLog: 'Audit Log',
                 noAudit: 'No audit records found.',
                 showing: 'Showing',
@@ -1221,7 +1229,10 @@
                 newValue: 'New Value',
                 field: 'Field',
                 noChanges: 'No changes recorded.',
-                unauthorized: 'You are not authorized to view this page.'
+                unauthorized: 'You are not authorized to view this page.',
+                deleteConfirm: 'Are you sure you want to delete this audit record? This action cannot be undone.',
+                deleteSuccess: 'Audit record deleted successfully.',
+                deleteError: 'Error deleting audit record: '
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1255,6 +1266,7 @@
                 collection: 'ስብስብ',
                 documentId: 'የሰነድ መታወቂያ',
                 details: 'ዝርዝሮች',
+                actions: 'ተግባራት',
                 auditLog: 'የምዝግብ ታሪክ',
                 noAudit: 'ምንም የምዝግብ መዝገቦች አልተገኙም።',
                 showing: 'እያሳየ',
@@ -1269,7 +1281,10 @@
                 newValue: 'አዲስ ዋጋ',
                 field: 'መስክ',
                 noChanges: 'ምንም ለውጦች አልተመዘገቡም።',
-                unauthorized: 'ይህን ገጽ ለማየት ፈቃድ የለዎትም።'
+                unauthorized: 'ይህን ገጽ ለማየት ፈቃድ የለዎትም።',
+                deleteConfirm: 'ይህን የምዝግብ መዝገብ መሰረዝ እርግጠኛ ነዎት? ይህ እርምጃ ሊቀለበስ አይችልም።',
+                deleteSuccess: 'የምዝግብ መዝገብ በተሳካ ሁኔታ ተሰርዟል።',
+                deleteError: 'የምዝግብ መዝገብ በመሰረዝ ላይ ስህተት: '
             },
             om: {
                 brandSub: 'Sistema Baankii',
@@ -1303,6 +1318,7 @@
                 collection: 'Kuusaa',
                 documentId: 'ID Galmee',
                 details: 'Qabxii',
+                actions: 'Gochaa',
                 auditLog: 'Seenaa Galmee',
                 noAudit: 'Galmee seenaa hin argamne.',
                 showing: 'Agarsii',
@@ -1317,7 +1333,10 @@
                 newValue: 'Qaba Haaraa',
                 field: 'Dirree',
                 noChanges: 'Jijjiirami hin galmeefamne.',
-                unauthorized: 'Fuula kana ilaaluuf hayyamamtee hin jirtu.'
+                unauthorized: 'Fuula kana ilaaluuf hayyamamtee hin jirtu.',
+                deleteConfirm: 'Galmee seenaa kana haquu mirkaneeffattee? Gochi kun deebifamuu hin danda\'u.',
+                deleteSuccess: 'Galmeen seenaa sirriitti haqame.',
+                deleteError: 'Galmee seenaa haquuf dogoggora: '
             }
         };
 
@@ -1468,7 +1487,7 @@
                     showToast('Error loading audit data: ' + error.message, 'error');
                 }
                 document.getElementById('auditBody').innerHTML =
-                    `<tr><td colspan="7"><div class="empty-state"><i class="fas fa-exclamation-circle"></i><span>${error.message}</span></div></td></tr>`;
+                    `<tr><td colspan="8"><div class="empty-state"><i class="fas fa-exclamation-circle"></i><span>${error.message}</span></div></td></tr>`;
             }
         }
 
@@ -1543,9 +1562,10 @@
         function renderTable(items) {
             const tbody = document.getElementById('auditBody');
             const t = translations[currentLang];
+            const isAdmin = (currentUserRole === 'admin');
 
             if (!items || items.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><i class="fas fa-clipboard-list"></i><span>${t.noAudit}</span></div></td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><i class="fas fa-clipboard-list"></i><span>${t.noAudit}</span></div></td></tr>`;
                 return;
             }
 
@@ -1559,6 +1579,21 @@
                 const docId = entry.documentId ? entry.documentId.slice(0, 12) : '—';
                 const hasChanges = entry.changes && Object.keys(entry.changes).length > 0;
 
+                // Build actions: View (if has changes) and Delete (if admin)
+                let actionsHtml = '';
+                if (hasChanges) {
+                    actionsHtml += `<button class="action-btn view-details" onclick="showDetails('${entry.id}')">
+                        <i class="fas fa-eye"></i> ${t.details || 'View'}
+                    </button>`;
+                } else {
+                    actionsHtml += `<span style="color:var(--text-muted); font-size:12px;">${entry.details || '—'}</span>`;
+                }
+                if (isAdmin) {
+                    actionsHtml += `<button class="action-btn delete-entry" onclick="deleteAuditEntry('${entry.id}')">
+                        <i class="fas fa-trash"></i> ${t.delete || 'Delete'}
+                    </button>`;
+                }
+
                 html += `<tr>
                     <td>${(currentPage-1)*pageSize + i + 1}</td>
                     <td style="font-size:12px; color:var(--text-secondary);">${timestamp}</td>
@@ -1566,11 +1601,8 @@
                     <td><span class="action-badge ${actionClass}">${actionLabel}</span></td>
                     <td><span class="collection-badge">${collectionLabel}</span></td>
                     <td style="font-family:monospace; font-size:12px;">${docId}</td>
-                    <td>
-                        ${hasChanges ? `<button class="action-btn view-details" onclick="showDetails('${entry.id}')">
-                            <i class="fas fa-eye"></i> ${t.view || 'View'}
-                        </button>` : `<span style="color:var(--text-muted); font-size:12px;">${entry.details || '—'}</span>`}
-                    </td>
+                    <td>${hasChanges ? `<button class="action-btn view-details" onclick="showDetails('${entry.id}')"><i class="fas fa-eye"></i> ${t.details || 'View'}</button>` : `<span style="color:var(--text-muted); font-size:12px;">${entry.details || '—'}</span>`}</td>
+                    <td>${isAdmin ? `<button class="action-btn delete-entry" onclick="deleteAuditEntry('${entry.id}')"><i class="fas fa-trash"></i> ${t.delete || 'Delete'}</button>` : ''}</td>
                 </tr>`;
             });
             tbody.innerHTML = html;
@@ -1689,6 +1721,22 @@
         function closeDetailsModal() {
             document.getElementById('detailsModal').classList.remove('active');
             document.getElementById('detailsModal').style.display = 'none';
+        }
+
+        // ---- Delete audit entry ----
+        async function deleteAuditEntry(entryId) {
+            const t = translations[currentLang];
+            if (!confirm(t.deleteConfirm)) return;
+
+            try {
+                await db.collection('audit').doc(entryId).delete();
+                showToast(t.deleteSuccess, 'success');
+                // Reload data
+                await loadAuditEntries();
+            } catch (error) {
+                console.error('Error deleting audit entry:', error);
+                showToast(t.deleteError + error.message, 'error');
+            }
         }
 
         // ============================================================
@@ -1816,6 +1864,7 @@
                 window.toggleSidebar = toggleSidebar;
                 window.showDetails = showDetails;
                 window.closeDetailsModal = closeDetailsModal;
+                window.deleteAuditEntry = deleteAuditEntry;
             });
         });
     </script>
