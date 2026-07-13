@@ -1720,6 +1720,33 @@
         }
 
         // ============================================================
+        // AUDIT LOGGING (added for audit trail)
+        // ============================================================
+        async function logAudit(action, collection, documentId, changes = {}, details = '') {
+            try {
+                const user = auth.currentUser;
+                const userEmail = user?.email || 'system';
+                const userName = user?.displayName || user?.email || 'System';
+                const userDisplayName = user?.displayName || 'System';
+
+                await db.collection('audit').add({
+                    action: action,
+                    collection: collection,
+                    documentId: documentId,
+                    changes: changes,
+                    details: details || `${action} ${collection} document ${documentId}`,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    userEmail: userEmail,
+                    userName: userName,
+                    userDisplayName: userDisplayName
+                });
+            } catch (error) {
+                console.error('Error writing to audit log:', error);
+                // Don't throw - audit logging should not break main functionality
+            }
+        }
+
+        // ============================================================
         // ROLE PERMISSIONS
         // ============================================================
         function canAddRepayment() {
@@ -2319,7 +2346,15 @@
             if (!confirm(t.deleteConfirmation)) return;
 
             try {
-                await db.collection('transactions').doc(id).delete();
+                const docRef = db.collection('transactions').doc(id);
+                const doc = await docRef.get();
+                const docData = doc.exists ? doc.data() : {};
+
+                await docRef.delete();
+
+                // ---- AUDIT LOG: Deleted ----
+                await logAudit('deleted', 'transactions', id, docData, 'Repayment deleted');
+
                 showToast(t.repaymentDeleted, 'success');
                 await loadRepayments();
                 await loadActiveLoans();
@@ -2468,6 +2503,9 @@
                 const docRef = db.collection('transactions').doc();
                 await docRef.set(docData);
 
+                // ---- AUDIT LOG: Created ----
+                await logAudit('created', 'transactions', docRef.id, docData, `Repayment recorded for loan ${loanId}`);
+
                 const newTotalPaid = totalPaid + amount;
                 if (newTotalPaid >= totalPayable && status === 'completed') {
                     await db.collection('transactions').doc(loanId).update({
@@ -2541,6 +2579,9 @@
                     const currentItems = filteredRepayments.slice((currentPage - 1) * pageSize, currentPage * pageSize);
                     renderTable(currentItems);
                 }
+
+                // ---- AUDIT LOG: Printed ----
+                await logAudit('printed', 'transactions', docId, { printedBy: printedBy }, 'Repayment slip printed');
 
                 showToast(translations[currentLang].printRecorded, 'success');
                 generateRepaymentSlipHTML(repayment);
