@@ -1598,6 +1598,33 @@
         }
 
         // ============================================================
+        // AUDIT LOGGING (added for audit trail)
+        // ============================================================
+        async function logAudit(action, collection, documentId, changes = {}, details = '') {
+            try {
+                const user = auth.currentUser;
+                const userEmail = user?.email || 'system';
+                const userName = user?.displayName || user?.email || 'System';
+                const userDisplayName = user?.displayName || 'System';
+
+                await db.collection('audit').add({
+                    action: action,
+                    collection: collection,
+                    documentId: documentId,
+                    changes: changes,
+                    details: details || `${action} ${collection} document ${documentId}`,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    userEmail: userEmail,
+                    userName: userName,
+                    userDisplayName: userDisplayName
+                });
+            } catch (error) {
+                console.error('Error writing to audit log:', error);
+                // Don't throw - audit logging should not break main functionality
+            }
+        }
+
+        // ============================================================
         // ROLE PERMISSIONS
         // ============================================================
         function canAddWithdrawal() {
@@ -2047,7 +2074,7 @@
         }
 
         // ============================================================
-        // DELETE WITHDRAWAL
+        // DELETE WITHDRAWAL (with audit logging)
         // ============================================================
         async function deleteWithdrawal(id) {
             if (!canDeleteWithdrawal()) {
@@ -2058,7 +2085,16 @@
             if (!confirm(t.deleteConfirmation)) return;
 
             try {
-                await db.collection('transactions').doc(id).delete();
+                const docRef = db.collection('transactions').doc(id);
+                const doc = await docRef.get();
+                const docData = doc.exists ? doc.data() : {};
+
+                await docRef.delete();
+
+                // ---- AUDIT LOG: Deleted ----
+                await logAudit('deleted', 'transactions', id, docData,
+                    `Withdrawal deleted for ${docData.memberName || 'Unknown'} (${docData.amount || 0} ETB)`);
+
                 showToast(t.withdrawalDeleted, 'success');
                 await loadWithdrawals();
                 if (selectedMemberId) {
@@ -2070,7 +2106,7 @@
         }
 
         // ============================================================
-        // RECORD WITHDRAWAL
+        // RECORD WITHDRAWAL (with audit logging)
         // ============================================================
         async function recordWithdrawal(e) {
             e.preventDefault();
@@ -2118,7 +2154,7 @@
                 const createdByName = getDisplayName(user);
                 const member = membersList.find(m => m.id === memberId);
 
-                await db.collection('transactions').add({
+                const docRef = await db.collection('transactions').add({
                     memberId: memberId,
                     memberName: member ? member.fullName : 'Unknown',
                     type: 'withdrawal',
@@ -2133,6 +2169,15 @@
                     createdByEmail: user ? user.email : 'admin@geresu.com',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
+
+                // ---- AUDIT LOG: Created ----
+                await logAudit('created', 'transactions', docRef.id, {
+                    memberId: memberId,
+                    memberName: member ? member.fullName : 'Unknown',
+                    amount: amount,
+                    reason: reason || 'Personal',
+                    date: date
+                }, `Withdrawal recorded for ${member ? member.fullName : 'Unknown'} (${amount} ETB)`);
 
                 showToast(translations[currentLang].withdrawalRecorded, 'success');
 
@@ -2160,7 +2205,7 @@
         }
 
         // ============================================================
-        // PRINT SLIP (with amount in words)
+        // PRINT SLIP (with amount in words and audit logging)
         // ============================================================
         function numberToWords(num) {
             if (num === 0) return 'Zero';
@@ -2231,6 +2276,10 @@
                     const currentItems = filteredWithdrawals.slice((currentPage - 1) * pageSize, currentPage * pageSize);
                     renderTable(currentItems);
                 }
+
+                // ---- AUDIT LOG: Printed ----
+                await logAudit('printed', 'transactions', docId, { printedBy: printedBy },
+                    `Withdrawal slip printed for ${withdrawal.memberName || 'Unknown'} (${withdrawal.amount || 0} ETB)`);
 
                 showToast(translations[currentLang].printRecorded, 'success');
                 generateWithdrawalSlipHTML(withdrawal);
