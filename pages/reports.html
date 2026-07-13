@@ -1100,10 +1100,7 @@
                     <h2 data-i18n="reportsTitle">Financial Reports</h2>
                     <p data-i18n="reportsSub">Generate and view financial reports with yearly breakdown</p>
                 </div>
-                <!-- Dividend Distribution Button (kept) -->
-                <a href="dividends.html" class="btn-success">
-                    <i class="fas fa-gift"></i> <span data-i18n="dividendDistribution">Dividend Distribution</span>
-                </a>
+                <!-- Dividend Distribution Button REMOVED -->
             </div>
 
             <!-- Report Filters -->
@@ -1207,13 +1204,10 @@
                 </div>
             </div>
 
-            <!-- Empty State -->
+            <!-- Empty State (with go to Dividends link removed) -->
             <div id="emptyState" class="empty-state">
                 <i class="fas fa-chart-pie"></i>
                 <p data-i18n="selectFilters">Select report type and filters, then click Generate Report.</p>
-                <a href="dividends.html" class="btn-success" style="display:inline-flex; align-items:center; gap:8px; padding:10px 20px; border-radius:12px; text-decoration:none; background:#28a745; color:#fff; font-size:14px; font-weight:600; margin-top:16px;">
-                    <i class="fas fa-gift"></i> <span data-i18n="goToDividends">Go to Dividend Distribution</span>
-                </a>
             </div>
 
         </section>
@@ -1302,8 +1296,6 @@
                 totalWithdrawals: 'Total Withdrawals',
                 loading: 'Loading...',
                 noData: 'No data found for the selected filters.',
-                dividendDistribution: 'Dividend Distribution',
-                goToDividends: 'Go to Dividend Distribution',
                 refresh: 'Refresh',
                 totalDividends: 'Total Dividends Distributed',
                 dividendHistoryTitle: 'Dividend Distribution History',
@@ -1376,8 +1368,6 @@
                 totalWithdrawals: 'ጠቅላላ መውጫዎች',
                 loading: 'በማስገባት ላይ...',
                 noData: 'ለተመረጡት ማጣሪያዎች ምንም ውሂብ አልተገኘም።',
-                dividendDistribution: 'ክፍፍል ማከፋፈል',
-                goToDividends: 'ወደ ክፍፍል ማከፋፈያ ይሂዱ',
                 refresh: 'አድስ',
                 totalDividends: 'ጠቅላላ የተከፋፈለ ክፍፍል',
                 dividendHistoryTitle: 'የክፍፍል ማከፋፈያ ታሪክ',
@@ -1450,8 +1440,6 @@
                 totalWithdrawals: 'Baasii Waliigalaa',
                 loading: 'Galmeessuuf...',
                 noData: 'Salaantuu filatamaniif daataan hin argamne.',
-                dividendDistribution: 'Qooda Qooduu',
-                goToDividends: 'Gara Qooda Qooduutti Deemi',
                 refresh: 'Haaraa',
                 totalDividends: 'Qoodni Waliigalaa Qoodame',
                 dividendHistoryTitle: 'Seenaa Qooda Qooduu',
@@ -1563,6 +1551,33 @@
             const usersNav = document.getElementById('usersNavItem');
             if (usersNav) {
                 usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
+            }
+        }
+
+        // ============================================================
+        // AUDIT LOGGING (added for audit trail)
+        // ============================================================
+        async function logAudit(action, collection, documentId, changes = {}, details = '') {
+            try {
+                const user = auth.currentUser;
+                const userEmail = user?.email || 'system';
+                const userName = user?.displayName || user?.email || 'System';
+                const userDisplayName = user?.displayName || 'System';
+
+                await db.collection('audit').add({
+                    action: action,
+                    collection: collection,
+                    documentId: documentId,
+                    changes: changes,
+                    details: details || `${action} ${collection} document ${documentId}`,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    userEmail: userEmail,
+                    userName: userName,
+                    userDisplayName: userDisplayName
+                });
+            } catch (error) {
+                console.error('Error writing to audit log:', error);
+                // Don't throw - audit logging should not break main functionality
             }
         }
 
@@ -2322,7 +2337,7 @@
         }
 
         // ============================================================
-        // GENERATE REPORT (main function)
+        // GENERATE REPORT (main function) with audit logging
         // ============================================================
         async function generateReport(e) {
             e.preventDefault();
@@ -2368,7 +2383,6 @@
                             dateFrom, dateTo, memberId, t));
                         break;
                     case 'dividend_history':
-                        // Dividend History report – kept as requested
                         ({ summary, headers, rows, chartData, chartLabel, yearlyData } = generateDividendHistory(data,
                             dateFrom, dateTo, memberId, t));
                         break;
@@ -2397,6 +2411,27 @@
                 document.getElementById('printReportTitle').textContent = document.getElementById('reportType')
                     .options[document.getElementById('reportType').selectedIndex].text;
 
+                // ---- AUDIT LOG: Report generated ----
+                const reportLabel = document.getElementById('reportType')
+                    .options[document.getElementById('reportType').selectedIndex].text;
+                const memberName = memberId ? (membersMap[memberId] || 'Selected member') : 'All Members';
+                await logAudit(
+                    'generated',
+                    'reports',
+                    'report_' + Date.now(),
+                    {
+                        reportType: reportType,
+                        reportLabel: reportLabel,
+                        dateFrom: dateFrom || 'N/A',
+                        dateTo: dateTo || 'N/A',
+                        memberId: memberId || 'all',
+                        memberName: memberName,
+                        recordCount: rows.length,
+                        summary: summary.reduce((acc, card) => { acc[card.label] = card.value; return acc; }, {})
+                    },
+                    `Report generated: ${reportLabel} for ${memberName} (${dateFrom || 'N/A'} - ${dateTo || 'N/A'})`
+                );
+
             } catch (error) {
                 console.error('Error generating report:', error);
                 showToast('Error generating report: ' + error.message, 'error');
@@ -2411,9 +2446,22 @@
         }
 
         // ============================================================
-        // PRINT & EXPORT
+        // PRINT & EXPORT (with audit logging)
         // ============================================================
         function printReport() {
+            // ---- AUDIT LOG: Report printed ----
+            const reportTitle = document.getElementById('printReportTitle')?.textContent || 'Financial Report';
+            logAudit(
+                'printed',
+                'reports',
+                'print_' + Date.now(),
+                {
+                    reportTitle: reportTitle,
+                    generatedAt: document.getElementById('printFooterDate')?.textContent || new Date().toLocaleString()
+                },
+                `Report printed: ${reportTitle}`
+            ).catch(err => console.warn('Audit log error:', err));
+
             window.print();
         }
 
@@ -2434,6 +2482,21 @@
             a.download = `report_${document.getElementById('reportType').value}_${new Date().toISOString().slice(0,10)}.csv`;
             a.click();
             URL.revokeObjectURL(url);
+
+            // ---- AUDIT LOG: Report exported ----
+            const reportTitle = document.getElementById('printReportTitle')?.textContent || 'Financial Report';
+            logAudit(
+                'exported',
+                'reports',
+                'export_' + Date.now(),
+                {
+                    reportTitle: reportTitle,
+                    format: 'CSV',
+                    recordCount: rows.length
+                },
+                `Report exported to CSV: ${reportTitle}`
+            ).catch(err => console.warn('Audit log error:', err));
+
             showToast('CSV exported successfully!', 'success');
         }
 
@@ -2628,7 +2691,7 @@
             if (typeof translations !== 'undefined' && translations.en && !translations.en.sessionTimeout) {
                 translations.en.sessionTimeout = 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
                 translations.am.sessionTimeout = 'የእርስዎ ክፍለ-ጊዜ በ{seconds} ሰከንዶች ውስጥ ያበቃል። በመዳፊት ወይም ቁልፍ ይንቀሳቀሱ ወይም ይጫኑ በመግቢያ ላይ ለመቆየት።';
-                translations.om.sessionTimeout = 'Sessiin keessan {seconds} sekoondii keessatti xumurama. Siiqaa ykn cuqaasaa sochoosuu ykn cuqaasuu akka seenan turtanii.';
+                translations.om.sessionTimeout = 'Sessiin keessan {seconds} sekoondii keessatti xumurama. Siiqaa ykn cuqaasaa sochoosuu ykn cuqaasaa akka seenan turtanii.';
             }
         })();
     </script>
