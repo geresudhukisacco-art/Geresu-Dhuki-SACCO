@@ -40,6 +40,8 @@
             --primary-light: #e8f5ee;
             --radius: 12px;
             --radius-sm: 8px;
+            --transfer-in-color: #1e7e34;
+            --transfer-out-color: #dc3545;
         }
 
         [data-theme="dark"] {
@@ -57,6 +59,8 @@
             --input-focus: rgba(45, 122, 61, 0.2);
             --primary: #2d7a3d;
             --primary-light: #1a2e24;
+            --transfer-in-color: #28a745;
+            --transfer-out-color: #dc3545;
         }
 
         * {
@@ -568,6 +572,24 @@
         .finance-card.red .amount {
             color: var(--danger);
         }
+        .finance-card.teal {
+            border-left: 4px solid #20c997;
+        }
+        .finance-card.teal .icon {
+            color: #20c997;
+        }
+        .finance-card.teal .amount {
+            color: #1ba87b;
+        }
+        .finance-card.pink {
+            border-left: 4px solid #e83e8c;
+        }
+        .finance-card.pink .icon {
+            color: #e83e8c;
+        }
+        .finance-card.pink .amount {
+            color: #c8236c;
+        }
 
         /* ----- ACTIVE LOAN SECTION ----- */
         .active-loan-section {
@@ -731,6 +753,16 @@
         .transaction-type.profit_income {
             background: #d1ecf1;
             color: #0c5460;
+        }
+        .transaction-type.transfer_in {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #28a745;
+        }
+        .transaction-type.transfer_out {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #dc3545;
         }
 
         .status-badge-table {
@@ -1128,6 +1160,16 @@
                         <span class="label" data-i18n="dividendsReceived">Dividends Received</span>
                         <span class="amount" id="profileDividends">0</span>
                     </div>
+                    <div class="finance-card teal">
+                        <div class="icon"><i class="fas fa-arrow-right"></i></div>
+                        <span class="label" data-i18n="transfersIn">Transfers In</span>
+                        <span class="amount" id="profileTransfersIn">0</span>
+                    </div>
+                    <div class="finance-card pink">
+                        <div class="icon"><i class="fas fa-arrow-left"></i></div>
+                        <span class="label" data-i18n="transfersOut">Transfers Out</span>
+                        <span class="amount" id="profileTransfersOut">0</span>
+                    </div>
                     <div class="finance-card gold">
                         <div class="icon"><i class="fas fa-crown"></i></div>
                         <span class="label" data-i18n="individualCapital">Individual Capital</span>
@@ -1244,6 +1286,8 @@
                 statLoans: 'Total Loans',
                 remainingActive: 'Active Loan Remaining',
                 dividendsReceived: 'Dividends Received',
+                transfersIn: 'Transfers In',
+                transfersOut: 'Transfers Out',
                 individualCapital: 'Individual Capital',
                 activeLoans: 'Active Loans',
                 noActiveLoan: 'No active loans',
@@ -1267,7 +1311,9 @@
                 remainingBalance: 'Remaining',
                 monthlyPayment: 'Monthly',
                 statusLabel: 'Status',
-                memberId: 'Member ID'
+                memberId: 'Member ID',
+                transferIn: 'Transfer In',
+                transferOut: 'Transfer Out'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1299,6 +1345,8 @@
                 statLoans: 'ጠቅላላ ብድር',
                 remainingActive: 'ንቁ ብድር ቀሪ',
                 dividendsReceived: 'የተቀበለው ክፍፍል',
+                transfersIn: 'ገቢ ዝውውር',
+                transfersOut: 'ወጪ ዝውውር',
                 individualCapital: 'የግል ካፒታል',
                 activeLoans: 'ንቁ ብድሮች',
                 noActiveLoan: 'ምንም ንቁ ብድር የለም',
@@ -1322,7 +1370,9 @@
                 remainingBalance: 'ቀሪ',
                 monthlyPayment: 'ወርሃዊ',
                 statusLabel: 'ሁኔታ',
-                memberId: 'የአባል መታወቂያ'
+                memberId: 'የአባል መታወቂያ',
+                transferIn: 'ገቢ ዝውውር',
+                transferOut: 'ወጪ ዝውውር'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1354,6 +1404,8 @@
                 statLoans: 'Liqeeffannoo Waliigalaa',
                 remainingActive: 'Haafa Liqeeffannoo Hojiirra',
                 dividendsReceived: 'Qooda Argate',
+                transfersIn: 'Dabarsuu Galchuu',
+                transfersOut: 'Dabarsuu Baasuu',
                 individualCapital: 'Kaapitaala Dhuunfaa',
                 activeLoans: 'Liqeeffannoo Hojiirra',
                 noActiveLoan: 'Liqeeffannoo hojiirra hin jiru',
@@ -1377,7 +1429,9 @@
                 remainingBalance: 'Haafa',
                 monthlyPayment: 'Jiʼaa',
                 statusLabel: 'Haala',
-                memberId: 'ID Miseensaa'
+                memberId: 'ID Miseensaa',
+                transferIn: 'Dabarsuu Galchuu',
+                transferOut: 'Dabarsuu Baasuu'
             }
         };
 
@@ -1586,7 +1640,7 @@
         }
 
         // ============================================================
-        // RENDER PROFILE (with photo)
+        // RENDER PROFILE (with photo and updated capital calculation)
         // ============================================================
         function renderProfile(member) {
             const t = translations[currentLang];
@@ -1629,16 +1683,19 @@
             statusBadge.textContent = isActive ? t.active : t.inactive;
             statusBadge.className = `status-badge ${isActive ? 'active' : 'inactive'}`;
 
-            // ---- FINANCIAL SUMMARY ----
+            // ---- FINANCIAL SUMMARY (including transfers) ----
             let totalSavings = 0,
                 totalLoans = 0,
                 totalRepayments = 0,
                 totalDividends = 0,
-                totalWithdrawals = 0;
+                totalWithdrawals = 0,
+                totalTransfersIn = 0,
+                totalTransfersOut = 0;
 
             allTransactions.forEach(tx => {
                 const amount = Number(tx.amount) || 0;
-                switch (tx.type) {
+                const type = tx.type || '';
+                switch (type) {
                     case 'savings':
                         totalSavings += amount;
                         break;
@@ -1653,6 +1710,12 @@
                         break;
                     case 'profit_withdrawal':
                         if (tx.reason === 'Dividend') totalDividends += amount;
+                        break;
+                    case 'transfer_in':
+                        totalTransfersIn += amount;
+                        break;
+                    case 'transfer_out':
+                        totalTransfersOut += amount;
                         break;
                 }
             });
@@ -1677,13 +1740,16 @@
                 remainingActive += rem;
             });
 
-            // Individual Capital = Savings + Dividends Received
-            const individualCapital = Math.round((totalSavings + totalDividends) * 100) / 100;
+            // Individual Capital = (Savings + Dividends + Transfers In) - (Withdrawals + Transfers Out)
+            const individualCapital = Math.round((totalSavings + totalDividends + totalTransfersIn - totalWithdrawals - totalTransfersOut) *
+                100) / 100;
 
             document.getElementById('profileSavings').textContent = totalSavings.toLocaleString();
             document.getElementById('profileLoans').textContent = totalLoans.toLocaleString();
             document.getElementById('profileRemaining').textContent = remainingActive.toLocaleString();
             document.getElementById('profileDividends').textContent = totalDividends.toLocaleString();
+            document.getElementById('profileTransfersIn').textContent = totalTransfersIn.toLocaleString();
+            document.getElementById('profileTransfersOut').textContent = totalTransfersOut.toLocaleString();
             document.getElementById('profileCapital').textContent = individualCapital.toLocaleString();
             document.getElementById('transactionCount').textContent = allTransactions.length;
 
@@ -1761,7 +1827,7 @@
         }
 
         // ============================================================
-        // TRANSACTIONS PAGINATION
+        // TRANSACTIONS PAGINATION (with transfer handling)
         // ============================================================
         function paginateTransactions() {
             const start = (currentPage - 1) * pageSize;
@@ -1798,23 +1864,40 @@
             const beforePage = allSorted.slice(0, (currentPage - 1) * pageSize);
             beforePage.forEach(tx => {
                 const amount = Number(tx.amount) || 0;
-                if (tx.type === 'savings' || tx.type === 'repayment') runningBalance += amount;
-                else if (tx.type === 'loan' || tx.type === 'withdrawal') runningBalance -= amount;
+                const type = tx.type || '';
+                if (type === 'savings' || type === 'repayment' || type === 'transfer_in') {
+                    runningBalance += amount;
+                } else if (type === 'loan' || type === 'withdrawal' || type === 'transfer_out') {
+                    runningBalance -= amount;
+                }
             });
 
             let html = '';
             sorted.forEach(tx => {
                 const amount = Number(tx.amount) || 0;
                 const prevBalance = runningBalance;
-                if (tx.type === 'savings' || tx.type === 'repayment') runningBalance += amount;
-                else if (tx.type === 'loan' || tx.type === 'withdrawal') runningBalance -= amount;
+                const type = tx.type || '';
+                // Update running balance based on type
+                if (type === 'savings' || type === 'repayment' || type === 'transfer_in') {
+                    runningBalance += amount;
+                } else if (type === 'loan' || type === 'withdrawal' || type === 'transfer_out') {
+                    runningBalance -= amount;
+                }
 
-                const typeClass = tx.type || 'savings';
-                let typeLabel = tx.type ? tx.type.charAt(0).toUpperCase() + tx.type.slice(1) : 'Savings';
-                if (tx.type === 'profit_withdrawal' && tx.reason === 'Dividend') {
+                let typeClass = type;
+                let typeLabel = type ? type.charAt(0).toUpperCase() + type.slice(1) : 'Savings';
+                if (type === 'profit_withdrawal' && tx.reason === 'Dividend') {
                     typeLabel = 'Dividend';
-                } else if (tx.type === 'profit_income') {
+                    typeClass = 'dividend';
+                } else if (type === 'profit_income') {
                     typeLabel = 'Income';
+                    typeClass = 'profit_income';
+                } else if (type === 'transfer_in') {
+                    typeLabel = t.transferIn || 'Transfer In';
+                    typeClass = 'transfer_in';
+                } else if (type === 'transfer_out') {
+                    typeLabel = t.transferOut || 'Transfer Out';
+                    typeClass = 'transfer_out';
                 }
 
                 const statusClass = tx.status === 'done' ? 'done' : 'pending';
