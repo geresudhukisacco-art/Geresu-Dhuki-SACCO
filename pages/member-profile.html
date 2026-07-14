@@ -780,6 +780,22 @@
             background: #fff3cd;
             color: #856404;
         }
+        .status-badge-table.approved {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-badge-table.rejected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status-badge-table.active {
+            background: #cce5ff;
+            color: #004085;
+        }
+        .status-badge-table.paid {
+            background: #d4edda;
+            color: #155724;
+        }
 
         .no-transactions {
             text-align: center;
@@ -1147,7 +1163,7 @@
                     </div>
                     <div class="finance-card blue">
                         <div class="icon"><i class="fas fa-hand-holding-usd"></i></div>
-                        <span class="label" data-i18n="statLoans">Total Loans</span>
+                        <span class="label" data-i18n="statLoans">Total Approved Loans</span>
                         <span class="amount" id="profileLoans">0</span>
                     </div>
                     <div class="finance-card red">
@@ -1283,7 +1299,7 @@
                 nationality: 'Nationality',
                 status: 'Status',
                 statSavings: 'Savings',
-                statLoans: 'Total Loans',
+                statLoans: 'Total Approved Loans',
                 remainingActive: 'Active Loan Remaining',
                 dividendsReceived: 'Dividends Received',
                 transfersIn: 'Transfers In',
@@ -1313,7 +1329,11 @@
                 statusLabel: 'Status',
                 memberId: 'Member ID',
                 transferIn: 'Transfer In',
-                transferOut: 'Transfer Out'
+                transferOut: 'Transfer Out',
+                approved: 'Approved',
+                rejected: 'Rejected',
+                paid: 'Paid',
+                pending_loan: 'Pending'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1342,7 +1362,7 @@
                 nationality: 'ዜግነት',
                 status: 'ሁኔታ',
                 statSavings: 'ቁጠባ',
-                statLoans: 'ጠቅላላ ብድር',
+                statLoans: 'ጠቅላላ የጸደቁ ብድሮች',
                 remainingActive: 'ንቁ ብድር ቀሪ',
                 dividendsReceived: 'የተቀበለው ክፍፍል',
                 transfersIn: 'ገቢ ዝውውር',
@@ -1372,7 +1392,11 @@
                 statusLabel: 'ሁኔታ',
                 memberId: 'የአባል መታወቂያ',
                 transferIn: 'ገቢ ዝውውር',
-                transferOut: 'ወጪ ዝውውር'
+                transferOut: 'ወጪ ዝውውር',
+                approved: 'ጸድቋል',
+                rejected: 'ውድቅ',
+                paid: 'ተከፍሏል',
+                pending_loan: 'በመጠበቅ ላይ'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1401,7 +1425,7 @@
                 nationality: 'Biylisummaa',
                 status: 'Haala',
                 statSavings: 'Kussaa',
-                statLoans: 'Liqeeffannoo Waliigalaa',
+                statLoans: 'Liqeeffannoo Waliigalaa Mirkanaa\'e',
                 remainingActive: 'Haafa Liqeeffannoo Hojiirra',
                 dividendsReceived: 'Qooda Argate',
                 transfersIn: 'Dabarsuu Galchuu',
@@ -1431,7 +1455,11 @@
                 statusLabel: 'Haala',
                 memberId: 'ID Miseensaa',
                 transferIn: 'Dabarsuu Galchuu',
-                transferOut: 'Dabarsuu Baasuu'
+                transferOut: 'Dabarsuu Baasuu',
+                approved: 'Mirkanaa\'e',
+                rejected: 'Garfame',
+                paid: 'Kaffale',
+                pending_loan: 'Eegamaa'
             }
         };
 
@@ -1685,7 +1713,7 @@
 
             // ---- FINANCIAL SUMMARY (including transfers) ----
             let totalSavings = 0,
-                totalLoans = 0,
+                totalApprovedLoans = 0,
                 totalRepayments = 0,
                 totalDividends = 0,
                 totalWithdrawals = 0,
@@ -1695,12 +1723,16 @@
             allTransactions.forEach(tx => {
                 const amount = Number(tx.amount) || 0;
                 const type = tx.type || '';
+                const status = tx.status || '';
                 switch (type) {
                     case 'savings':
                         totalSavings += amount;
                         break;
                     case 'loan':
-                        totalLoans += amount;
+                        // Only count approved loans (status = 'approved' or 'active')
+                        if (status === 'approved' || status === 'active') {
+                            totalApprovedLoans += amount;
+                        }
                         break;
                     case 'repayment':
                         totalRepayments += amount;
@@ -1745,7 +1777,7 @@
                 100) / 100;
 
             document.getElementById('profileSavings').textContent = totalSavings.toLocaleString();
-            document.getElementById('profileLoans').textContent = totalLoans.toLocaleString();
+            document.getElementById('profileLoans').textContent = totalApprovedLoans.toLocaleString();
             document.getElementById('profileRemaining').textContent = remainingActive.toLocaleString();
             document.getElementById('profileDividends').textContent = totalDividends.toLocaleString();
             document.getElementById('profileTransfersIn').textContent = totalTransfersIn.toLocaleString();
@@ -1827,7 +1859,7 @@
         }
 
         // ============================================================
-        // TRANSACTIONS PAGINATION (with transfer handling)
+        // TRANSACTIONS PAGINATION (with dynamic status for loans)
         // ============================================================
         function paginateTransactions() {
             const start = (currentPage - 1) * pageSize;
@@ -1884,6 +1916,48 @@
                     runningBalance -= amount;
                 }
 
+                // ---- Determine Status Label and Class ----
+                let statusClass = 'pending';
+                let statusLabel = t.pending;
+
+                if (type === 'loan') {
+                    // Loan-specific status mapping
+                    const loanStatus = tx.status || 'pending';
+                    switch (loanStatus) {
+                        case 'approved':
+                            statusClass = 'approved';
+                            statusLabel = t.approved || 'Approved';
+                            break;
+                        case 'rejected':
+                            statusClass = 'rejected';
+                            statusLabel = t.rejected || 'Rejected';
+                            break;
+                        case 'active':
+                            statusClass = 'active';
+                            statusLabel = t.active || 'Active';
+                            break;
+                        case 'paid':
+                            statusClass = 'paid';
+                            statusLabel = t.paid || 'Paid';
+                            break;
+                        case 'pending':
+                        default:
+                            statusClass = 'pending';
+                            statusLabel = t.pending_loan || 'Pending';
+                            break;
+                    }
+                } else {
+                    // Non-loan transactions (savings, withdrawal, transfer, etc.)
+                    if (tx.status === 'done' || tx.status === 'completed') {
+                        statusClass = 'done';
+                        statusLabel = t.done;
+                    } else {
+                        statusClass = 'pending';
+                        statusLabel = t.pending;
+                    }
+                }
+
+                // ---- Determine Type Label and Class ----
                 let typeClass = type;
                 let typeLabel = type ? type.charAt(0).toUpperCase() + type.slice(1) : 'Savings';
                 if (type === 'profit_withdrawal' && tx.reason === 'Dividend') {
@@ -1898,10 +1972,20 @@
                 } else if (type === 'transfer_out') {
                     typeLabel = t.transferOut || 'Transfer Out';
                     typeClass = 'transfer_out';
+                } else if (type === 'loan') {
+                    // Show loan status in label for clarity
+                    const loanStatus = tx.status || 'pending';
+                    const statusMap = {
+                        'approved': t.approved || 'Approved',
+                        'active': t.active || 'Active',
+                        'pending': t.pending_loan || 'Pending',
+                        'rejected': t.rejected || 'Rejected',
+                        'paid': t.paid || 'Paid'
+                    };
+                    typeLabel = `Loan (${statusMap[loanStatus] || loanStatus})`;
+                    typeClass = 'loan';
                 }
 
-                const statusClass = tx.status === 'done' ? 'done' : 'pending';
-                const statusLabel = tx.status === 'done' ? t.done : t.pending;
                 const dateStr = formatDate(tx.date || tx.timestamp);
 
                 let byUser = tx.createdByName || tx.createdBy || tx.createdByEmail || 'Admin';
