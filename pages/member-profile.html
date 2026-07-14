@@ -664,6 +664,57 @@
             margin-right: 8px;
         }
 
+        /* ----- SEARCH & FILTER ----- */
+        .search-bar {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .search-wrapper {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+        .search-wrapper i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+        }
+        .search-wrapper input {
+            width: 100%;
+            padding: 10px 16px 10px 42px;
+            border: 1px solid var(--input-border);
+            border-radius: var(--radius);
+            font-size: 14px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            transition: 0.2s;
+        }
+        .search-wrapper input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--input-focus);
+        }
+        .filter-wrapper select {
+            padding: 10px 16px;
+            border: 1px solid var(--input-border);
+            border-radius: var(--radius);
+            font-size: 14px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            cursor: pointer;
+            min-width: 140px;
+            transition: all 0.2s;
+        }
+        .filter-wrapper select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--input-focus);
+        }
+
         /* ----- TRANSACTIONS TABLE ----- */
         .table-container {
             background: var(--bg-card);
@@ -995,6 +1046,12 @@
             .profile-avatar-large .fallback {
                 font-size: 36px;
             }
+            .search-bar {
+                flex-direction: column;
+            }
+            .filter-wrapper select {
+                width: 100%;
+            }
         }
         @media (max-width: 480px) {
             .financial-summary {
@@ -1201,12 +1258,26 @@
                     </div>
                 </div>
 
-                <!-- Transactions Table -->
+                <!-- Transactions Table with Search & Year Filter -->
                 <div class="table-container">
                     <div class="table-header">
                         <span data-i18n="transactions">Transactions</span>
                         <span id="transactionCount">0</span>
                     </div>
+
+                    <!-- SEARCH & YEAR FILTER -->
+                    <div class="search-bar" style="margin-bottom:0; padding:12px 16px; border-bottom:1px solid var(--border-color);">
+                        <div class="search-wrapper" style="flex:1;">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="searchInput" data-i18n="searchPlaceholder" placeholder="Search by type, details..." />
+                        </div>
+                        <div class="filter-wrapper">
+                            <select id="yearFilter">
+                                <option value="all" data-i18n="allYears">All Years</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <div class="table-wrapper">
                         <table>
                             <thead>
@@ -1333,7 +1404,9 @@
                 approved: 'Approved',
                 rejected: 'Rejected',
                 paid: 'Paid',
-                pending_loan: 'Pending'
+                pending_loan: 'Pending',
+                allYears: 'All Years',
+                searchPlaceholder: 'Search by type, details...'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1396,7 +1469,9 @@
                 approved: 'ጸድቋል',
                 rejected: 'ውድቅ',
                 paid: 'ተከፍሏል',
-                pending_loan: 'በመጠበቅ ላይ'
+                pending_loan: 'በመጠበቅ ላይ',
+                allYears: 'ሁሉም ዓመታት',
+                searchPlaceholder: 'በአይነት፣ በዝርዝር ይፈልጉ...'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1459,13 +1534,20 @@
                 approved: 'Mirkanaa\'e',
                 rejected: 'Garfame',
                 paid: 'Kaffale',
-                pending_loan: 'Eegamaa'
+                pending_loan: 'Eegamaa',
+                allYears: 'Waggaa Hunda',
+                searchPlaceholder: 'Gosa, ibsa-tiin barbaadi...'
             }
         };
 
         let currentLang = 'en';
         let currentUserRole = 'viewer';
         let currentUserDisplayName = 'Admin';
+
+        // ---- Filter state ----
+        let searchQuery = '';
+        let filterYear = 'all';
+        let filteredTransactions = [];
 
         function setLanguage(lang) {
             if (!translations[lang]) return;
@@ -1485,6 +1567,8 @@
                 btn.classList.toggle('active', btn.dataset.lang === lang);
             });
             try { localStorage.setItem('waciti-lang', lang); } catch (e) {}
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) searchInput.placeholder = t.searchPlaceholder || 'Search by type, details...';
             updatePaginationInfo();
             renderPageButtons();
         }
@@ -1535,13 +1619,11 @@
             const displayName = currentUserDisplayName || 'User';
             document.getElementById('userDisplayName').textContent = displayName + ' (' + roleLabel + ')';
 
-            // ---- Show/hide Audit nav link ----
             const auditNav = document.getElementById('auditNavItem');
             if (auditNav) {
                 auditNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
             }
 
-            // ---- Show/hide Users nav link ----
             const usersNav = document.getElementById('usersNavItem');
             if (usersNav) {
                 usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
@@ -1563,6 +1645,12 @@
             const date = toDate(d);
             if (!date) return '—';
             return date.toLocaleDateString();
+        }
+
+        function isInYear(dateValue, year) {
+            const d = toDate(dateValue);
+            if (!d) return false;
+            return d.getFullYear() === year;
         }
 
         // ============================================================
@@ -1606,7 +1694,7 @@
                     return db - da;
                 });
 
-                // Extract active loans (status = 'active') - only these are shown in the active loan section
+                // Extract active loans (status = 'active')
                 activeLoans = allTransactions
                     .filter(tx => tx.type === 'loan' && tx.status === 'active')
                     .sort((a, b) => {
@@ -1620,8 +1708,11 @@
                 loadingState.style.display = 'none';
                 profileData.style.display = 'block';
 
-                currentPage = 1;
-                paginateTransactions();
+                // Populate year filter after transactions are loaded
+                populateYearFilter();
+
+                // Apply filters and paginate
+                applyFilters();
 
             } catch (error) {
                 console.error('Error loading profile:', error);
@@ -1668,15 +1759,99 @@
         }
 
         // ============================================================
+        // POPULATE YEAR FILTER
+        // ============================================================
+        function populateYearFilter() {
+            const yearFilter = document.getElementById('yearFilter');
+            const years = new Set();
+            allTransactions.forEach(tx => {
+                const d = toDate(tx.date || tx.timestamp);
+                if (d && !isNaN(d.getFullYear())) {
+                    years.add(d.getFullYear());
+                }
+            });
+            const currentVal = yearFilter.value;
+            yearFilter.innerHTML = '';
+            const allOpt = document.createElement('option');
+            allOpt.value = 'all';
+            allOpt.setAttribute('data-i18n', 'allYears');
+            allOpt.textContent = translations[currentLang].allYears || 'All Years';
+            yearFilter.appendChild(allOpt);
+            const sortedYears = Array.from(years).sort((a, b) => b - a);
+            sortedYears.forEach(y => {
+                const opt = document.createElement('option');
+                opt.value = y;
+                opt.textContent = y;
+                yearFilter.appendChild(opt);
+            });
+            if (sortedYears.includes(Number(currentVal)) && currentVal !== 'all') {
+                yearFilter.value = currentVal;
+            } else {
+                yearFilter.value = 'all';
+            }
+            filterYear = yearFilter.value;
+        }
+
+        // ============================================================
+        // APPLY FILTERS (search + year)
+        // ============================================================
+        function applyFilters() {
+            const searchInput = document.getElementById('searchInput');
+            searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            filterYear = document.getElementById('yearFilter').value;
+
+            filteredTransactions = allTransactions.filter(tx => {
+                // Search filter: check type, reason, details
+                let typeLabel = tx.type || '';
+                if (typeLabel === 'profit_withdrawal' && tx.reason === 'Dividend') typeLabel = 'Dividend';
+                else if (typeLabel === 'profit_income') typeLabel = 'Income';
+                else if (typeLabel === 'transfer_in') typeLabel = 'Transfer In';
+                else if (typeLabel === 'transfer_out') typeLabel = 'Transfer Out';
+                else if (typeLabel === 'loan') {
+                    const statusMap = {
+                        'approved': 'Approved',
+                        'active': 'Active',
+                        'pending': 'Pending',
+                        'rejected': 'Rejected',
+                        'paid': 'Paid'
+                    };
+                    typeLabel = `Loan (${statusMap[tx.status] || tx.status})`;
+                } else if (typeLabel === 'withdrawal') {
+                    typeLabel = 'Withdrawal';
+                } else if (typeLabel === 'savings') {
+                    typeLabel = 'Savings';
+                } else if (typeLabel === 'repayment') {
+                    typeLabel = 'Repayment';
+                }
+
+                const searchText = (typeLabel + ' ' + (tx.reason || '') + ' ' + (tx.note || '') + ' ' + (tx.details || '') +
+                    ' ' + (tx.memberName || '')).toLowerCase();
+                const searchMatch = !searchQuery || searchText.includes(searchQuery);
+
+                // Year filter
+                const yearMatch = filterYear === 'all' || isInYear(tx.date || tx.timestamp, Number(filterYear));
+
+                return searchMatch && yearMatch;
+            });
+
+            // Sort by date descending (newest first)
+            filteredTransactions.sort((a, b) => {
+                const da = toDate(a.date || a.timestamp);
+                const db = toDate(b.date || b.timestamp);
+                return db - da;
+            });
+
+            currentPage = 1;
+            paginateTransactions();
+        }
+
+        // ============================================================
         // RENDER PROFILE (with photo and updated capital calculation)
         // ============================================================
         function renderProfile(member) {
             const t = translations[currentLang];
 
-            // ---- NAME ----
             document.getElementById('profileName').textContent = member.fullName || 'Unknown Member';
-
-            // ---- MEMBER ID ----
             document.getElementById('profileMemberId').textContent = member.memberId || '—';
 
             // ---- PHOTO ----
@@ -1687,7 +1862,6 @@
                 avatarImg.src = member.photoURL;
                 avatarImg.style.display = 'block';
                 avatarFallback.style.display = 'none';
-                // On error, fallback to initial
                 avatarImg.onerror = function() {
                     this.style.display = 'none';
                     avatarFallback.style.display = 'flex';
@@ -1729,7 +1903,6 @@
                         totalSavings += amount;
                         break;
                     case 'loan':
-                        // Only count approved loans (status = 'approved' or 'active')
                         if (status === 'approved' || status === 'active') {
                             totalApprovedLoans += amount;
                         }
@@ -1801,7 +1974,6 @@
                 return;
             }
 
-            // For each active loan, calculate remaining balance
             let html = '';
             activeLoans.forEach(loan => {
                 const loanId = loan.id;
@@ -1810,7 +1982,6 @@
                 const period = Number(loan.repaymentPeriod) || 0;
                 const loanType = loan.loanType || 'simple';
 
-                // Get repayments for this loan
                 const repayments = allTransactions
                     .filter(tx => tx.loanId === loanId && tx.type === 'repayment')
                     .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
@@ -1820,9 +1991,7 @@
                     amount + calculateInterest(amount, interestRate, period, loanType);
                 const remainingBalance = Math.max(0, Math.round((totalPayable - repayments) * 100) / 100);
 
-                // Get monthly payment
                 const monthlyPayment = calculateMonthlyPayment(amount, interestRate, period, loanType);
-
                 const dateStr = formatDate(loan.date || loan.timestamp);
 
                 html += `
@@ -1859,12 +2028,12 @@
         }
 
         // ============================================================
-        // TRANSACTIONS PAGINATION (with dynamic status for loans)
+        // TRANSACTIONS PAGINATION (filtered)
         // ============================================================
         function paginateTransactions() {
             const start = (currentPage - 1) * pageSize;
             const end = start + pageSize;
-            const pageItems = allTransactions.slice(start, end);
+            const pageItems = filteredTransactions.slice(start, end);
             renderTransactionsTable(pageItems);
             updatePaginationInfo();
             renderPageButtons();
@@ -1886,6 +2055,7 @@
                 return da - db;
             });
 
+            // For running balance, we need ALL transactions (not just filtered) up to the current page
             const allSorted = [...allTransactions].sort((a, b) => {
                 const da = toDate(a.date || a.timestamp);
                 const db = toDate(b.date || b.timestamp);
@@ -1893,8 +2063,31 @@
             });
 
             let runningBalance = 0;
-            const beforePage = allSorted.slice(0, (currentPage - 1) * pageSize);
-            beforePage.forEach(tx => {
+            // Calculate running balance up to the start of the current page using ALL transactions
+            const allFiltered = [...allTransactions].sort((a, b) => {
+                const da = toDate(a.date || a.timestamp);
+                const db = toDate(b.date || b.timestamp);
+                return da - db;
+            });
+
+            // Get all transactions before the current page (based on filtered order)
+            // We need to find which transactions are before the current page items in the filtered list
+            const filteredIds = new Set(filteredTransactions.map(t => t.id));
+            const beforePageItems = [];
+            let count = 0;
+            for (const tx of allSorted) {
+                if (filteredIds.has(tx.id)) {
+                    if (count < (currentPage - 1) * pageSize) {
+                        beforePageItems.push(tx);
+                        count++;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            // Calculate running balance from before page items
+            beforePageItems.forEach(tx => {
                 const amount = Number(tx.amount) || 0;
                 const type = tx.type || '';
                 if (type === 'savings' || type === 'repayment' || type === 'transfer_in') {
@@ -1909,7 +2102,7 @@
                 const amount = Number(tx.amount) || 0;
                 const prevBalance = runningBalance;
                 const type = tx.type || '';
-                // Update running balance based on type
+
                 if (type === 'savings' || type === 'repayment' || type === 'transfer_in') {
                     runningBalance += amount;
                 } else if (type === 'loan' || type === 'withdrawal' || type === 'transfer_out') {
@@ -1921,7 +2114,6 @@
                 let statusLabel = t.pending;
 
                 if (type === 'loan') {
-                    // Loan-specific status mapping
                     const loanStatus = tx.status || 'pending';
                     switch (loanStatus) {
                         case 'approved':
@@ -1947,7 +2139,6 @@
                             break;
                     }
                 } else {
-                    // Non-loan transactions (savings, withdrawal, transfer, etc.)
                     if (tx.status === 'done' || tx.status === 'completed') {
                         statusClass = 'done';
                         statusLabel = t.done;
@@ -1973,7 +2164,6 @@
                     typeLabel = t.transferOut || 'Transfer Out';
                     typeClass = 'transfer_out';
                 } else if (type === 'loan') {
-                    // Show loan status in label for clarity
                     const loanStatus = tx.status || 'pending';
                     const statusMap = {
                         'approved': t.approved || 'Approved',
@@ -2008,7 +2198,7 @@
         }
 
         function updatePaginationInfo() {
-            const total = allTransactions.length;
+            const total = filteredTransactions.length;
             const start = (currentPage - 1) * pageSize + 1;
             const end = Math.min(currentPage * pageSize, total);
             document.getElementById('pageStart').textContent = total > 0 ? start : 0;
@@ -2020,7 +2210,7 @@
 
         function renderPageButtons() {
             const container = document.getElementById('pageNumbers');
-            const totalPages = Math.ceil(allTransactions.length / pageSize);
+            const totalPages = Math.ceil(filteredTransactions.length / pageSize);
             if (totalPages <= 1) { container.innerHTML = ''; return; }
             let html = '';
             const maxVisible = 5;
@@ -2043,7 +2233,7 @@
         }
 
         function goToPage(page) {
-            const totalPages = Math.ceil(allTransactions.length / pageSize);
+            const totalPages = Math.ceil(filteredTransactions.length / pageSize);
             if (page < 1 || page > totalPages) return;
             currentPage = page;
             paginateTransactions();
@@ -2060,7 +2250,6 @@
                     return;
                 }
 
-                // ---- Fetch user role AND display name from Firestore ----
                 try {
                     const doc = await db.collection('users').doc(user.uid).get();
                     if (doc.exists) {
@@ -2081,20 +2270,17 @@
                     currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'Admin';
                 }
 
-                // ---- Combine name + role in one span ----
                 const roleMap = { admin: 'ADMIN', manager: 'MANAGER', teller: 'TELLER', accountant: 'ACCOUNTANT',
                     viewer: 'VIEWER' };
                 const roleLabel = roleMap[currentUserRole] || 'VIEWER';
                 const displayName = currentUserDisplayName || 'Admin';
                 document.getElementById('userDisplayName').textContent = displayName + ' (' + roleLabel + ')';
 
-                // ---- Show/hide Audit nav link ----
                 const auditNav = document.getElementById('auditNavItem');
                 if (auditNav) {
                     auditNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
                 }
 
-                // ---- Show/hide Users nav link for non-admin ----
                 const usersNav = document.getElementById('usersNavItem');
                 if (usersNav) usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
 
@@ -2106,11 +2292,15 @@
                 document.querySelectorAll('.lang-btn').forEach(btn => {
                     btn.addEventListener('click', function() {
                         setLanguage(this.dataset.lang);
-                        const pageItems = allTransactions.slice((currentPage - 1) * pageSize, currentPage *
-                            pageSize);
+                        // Re-render with new language
+                        const pageItems = filteredTransactions.slice((currentPage - 1) * pageSize,
+                            currentPage * pageSize);
                         renderTransactionsTable(pageItems);
                         updatePaginationInfo();
                         renderPageButtons();
+                        const searchInput = document.getElementById('searchInput');
+                        const t = translations[currentLang];
+                        searchInput.placeholder = t.searchPlaceholder || 'Search by type, details...';
                     });
                 });
 
@@ -2132,11 +2322,20 @@
 
                 await loadProfile(memberId);
 
+                // ---- Event listeners for search and filter ----
+                document.getElementById('searchInput').addEventListener('input', function() {
+                    applyFilters();
+                });
+
+                document.getElementById('yearFilter').addEventListener('change', function() {
+                    applyFilters();
+                });
+
                 document.getElementById('prevPage').addEventListener('click', function() {
                     if (currentPage > 1) goToPage(currentPage - 1);
                 });
                 document.getElementById('nextPage').addEventListener('click', function() {
-                    const totalPages = Math.ceil(allTransactions.length / pageSize);
+                    const totalPages = Math.ceil(filteredTransactions.length / pageSize);
                     if (currentPage < totalPages) goToPage(currentPage + 1);
                 });
             });
