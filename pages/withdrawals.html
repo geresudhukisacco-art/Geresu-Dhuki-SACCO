@@ -460,6 +460,42 @@
             margin-top: 4px;
         }
 
+        /* ----- SACCO PROFIT CARD ----- */
+        .sacco-profit-card {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            border-radius: var(--radius);
+            padding: 18px 22px;
+            color: #fff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 16px rgba(46, 204, 113, 0.3);
+        }
+        .sacco-profit-card .balance-label {
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0.9;
+        }
+        .sacco-profit-card .balance-amount {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .sacco-profit-card .balance-amount .currency {
+            font-size: 18px;
+            font-weight: 400;
+            opacity: 0.8;
+            margin-right: 4px;
+        }
+        .sacco-profit-card .balance-details {
+            font-size: 13px;
+            opacity: 0.8;
+            margin-top: 4px;
+        }
+
         /* ----- FORM ELEMENTS ----- */
         .form-group {
             position: relative;
@@ -733,6 +769,18 @@
         .status-badge.transfer {
             background: #cce5ff;
             color: #004085;
+        }
+        .status-badge.transfer_in {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-badge.transfer_out {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status-badge.service {
+            background: #d4edda;
+            color: #155724;
         }
 
         .action-btn {
@@ -1071,7 +1119,8 @@
                 min-width: unset;
                 width: 100%;
             }
-            .capital-balance-card {
+            .capital-balance-card,
+            .sacco-profit-card {
                 flex-direction: column;
                 text-align: center;
             }
@@ -1101,7 +1150,8 @@
                 font-size: 12px;
                 min-width: 28px;
             }
-            .capital-balance-card .balance-amount {
+            .capital-balance-card .balance-amount,
+            .sacco-profit-card .balance-amount {
                 font-size: 22px;
             }
         }
@@ -1177,18 +1227,36 @@
                 </div>
             </div>
 
-            <!-- Capital Balance Card -->
-            <div class="capital-balance-card" id="capitalBalanceCard">
-                <div>
-                    <div class="balance-label" data-i18n="individualCapital">Individual Capital</div>
-                    <div class="balance-details" id="capitalBreakdown">Savings: 0 ETB + Dividends: 0 ETB - Withdrawals: 0 ETB</div>
-                </div>
-                <div>
-                    <div class="balance-amount">
-                        <span class="currency">ETB</span>
-                        <span id="capitalBalanceDisplay">0.00</span>
+            <!-- Dynamic Card: Individual Capital or SACCO Profit -->
+            <div id="cardContainer">
+                <!-- Individual Capital Card (shown by default) -->
+                <div class="capital-balance-card" id="individualCard">
+                    <div>
+                        <div class="balance-label" data-i18n="individualCapital">Individual Capital</div>
+                        <div class="balance-details" id="capitalBreakdown">Savings: 0 ETB + Dividends: 0 ETB + Transfers In: 0 ETB - Withdrawals: 0 ETB - Transfers Out: 0 ETB</div>
                     </div>
-                    <div style="font-size:12px; opacity:0.7; text-align:right;" id="selectedMemberName">Select a member</div>
+                    <div>
+                        <div class="balance-amount">
+                            <span class="currency">ETB</span>
+                            <span id="capitalBalanceDisplay">0.00</span>
+                        </div>
+                        <div style="font-size:12px; opacity:0.7; text-align:right;" id="selectedMemberName">Select a member</div>
+                    </div>
+                </div>
+
+                <!-- SACCO Profit Card (hidden by default, shown for Service tab) -->
+                <div class="sacco-profit-card" id="saccoProfitCard" style="display:none;">
+                    <div>
+                        <div class="balance-label" data-i18n="saccoProfit">SACCO Total Profit</div>
+                        <div class="balance-details" id="saccoProfitDetails">Available for services</div>
+                    </div>
+                    <div>
+                        <div class="balance-amount">
+                            <span class="currency">ETB</span>
+                            <span id="saccoProfitDisplay">0.00</span>
+                        </div>
+                        <div style="font-size:12px; opacity:0.8; text-align:right;" id="saccoServiceCount">0 services used</div>
+                    </div>
                 </div>
             </div>
 
@@ -1249,28 +1317,11 @@
                 </div>
 
                 <!-- ============================================================
-                TAB 2: SACCO SERVICES (from total profit)
+                TAB 2: SACCO SERVICES (from total profit - NO MEMBER SEARCH)
                 ============================================================ -->
                 <div class="tab-pane" id="tab-service">
                     <form id="serviceForm">
                         <div class="form-row">
-                            <div class="form-group" style="position:relative;">
-                                <label data-i18n="member">Member <span class="required">*</span></label>
-                                <input type="text" id="svcMemberSearch" placeholder="Search member..." autocomplete="off" required />
-                                <input type="hidden" id="svcMemberId" />
-                                <div class="suggestions-box" id="svcSuggestions"></div>
-                            </div>
-                            <div class="form-group">
-                                <label data-i18n="amount">Amount (ETB) <span class="required">*</span></label>
-                                <input type="number" id="svcAmount" required placeholder="0.00" step="0.01" min="0.01" />
-                                <small class="hint">Available total profit: <span id="svcAvailable">0.00</span> ETB</small>
-                            </div>
-                            <div class="form-group">
-                                <label data-i18n="date">Date <span class="required">*</span></label>
-                                <input type="date" id="svcDate" required />
-                            </div>
-                        </div>
-                        <div class="form-row two">
                             <div class="form-group">
                                 <label data-i18n="serviceType">Service Type <span class="required">*</span></label>
                                 <select id="svcServiceType" required>
@@ -1279,8 +1330,25 @@
                                     <option value="Emergency Relief">Emergency Relief</option>
                                     <option value="Business Support">Business Support</option>
                                     <option value="Social Welfare">Social Welfare</option>
+                                    <option value="Infrastructure">Infrastructure</option>
+                                    <option value="Staff Welfare">Staff Welfare</option>
                                     <option value="Other Service">Other Service</option>
                                 </select>
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="amount">Amount (ETB) <span class="required">*</span></label>
+                                <input type="number" id="svcAmount" required placeholder="0.00" step="0.01" min="0.01" />
+                                <small class="hint">Available: <span id="svcAvailable">0.00</span> ETB</small>
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="date">Date <span class="required">*</span></label>
+                                <input type="date" id="svcDate" required />
+                            </div>
+                        </div>
+                        <div class="form-row two">
+                            <div class="form-group">
+                                <label data-i18n="description">Description</label>
+                                <input type="text" id="svcDescription" placeholder="Brief description of the service..." />
                             </div>
                             <div class="form-group">
                                 <label data-i18n="note">Note (optional)</label>
@@ -1408,7 +1476,8 @@
                                 <option value="withdrawal">Individual Withdrawal</option>
                                 <option value="service_withdrawal">SACCO Service</option>
                                 <option value="leaving_withdrawal">Member Leaving</option>
-                                <option value="transfer">Transfer</option>
+                                <option value="transfer_out">Transfer Out</option>
+                                <option value="transfer_in">Transfer In</option>
                             </select>
                         </div>
                         <div class="filter-wrapper">
@@ -1558,7 +1627,18 @@
                 deleteConfirmation: 'Are you sure you want to delete this transaction?',
                 deleteSuccess: 'Transaction deleted.',
                 loadError: 'Error loading data: ',
-                amountInWords: 'Amount in words'
+                amountInWords: 'Amount in words',
+                saccoProfit: 'SACCO Total Profit',
+                description: 'Description',
+                serviceWithdrawn: 'Service withdrawal recorded!',
+                insufficientProfit: 'Insufficient SACCO profit for this service.',
+                transferOut: 'Transfer Out',
+                transferIn: 'Transfer In',
+                savings: 'Savings',
+                dividends: 'Dividends',
+                transfersIn: 'Transfers In',
+                withdrawalsTotal: 'Withdrawals',
+                transfersOut: 'Transfers Out'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1634,7 +1714,18 @@
                 deleteConfirmation: 'ይህን ግብይት መሰረዝ እርግጠኛ ነዎት?',
                 deleteSuccess: 'ግብይት ተሰርዟል።',
                 loadError: 'ውሂብ በማስገባት ላይ ስህተት: ',
-                amountInWords: 'በቃላት መጠን'
+                amountInWords: 'በቃላት መጠን',
+                saccoProfit: 'የሳኮ ጠቅላላ ትርፍ',
+                description: 'መግለጫ',
+                serviceWithdrawn: 'የአገልግሎት መውጫ ተመዝግቧል!',
+                insufficientProfit: 'ለዚህ አገልግሎት በቂ ትርፍ የለም።',
+                transferOut: 'ወጪ ዝውውር',
+                transferIn: 'ገቢ ዝውውር',
+                savings: 'ቁጠባ',
+                dividends: 'ክፍፍል',
+                transfersIn: 'ገቢ ዝውውሮች',
+                withdrawalsTotal: 'መውጫዎች',
+                transfersOut: 'ወጪ ዝውውሮች'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1710,7 +1801,18 @@
                 deleteConfirmation: 'Dura dabarsii kana haquu mirkaneeffattee?',
                 deleteSuccess: 'Dura dabarsi haqame.',
                 loadError: 'Datuu galmeessuuf dogoggora: ',
-                amountInWords: 'Qaba jechootaan'
+                amountInWords: 'Qaba jechootaan',
+                saccoProfit: 'Bu’aa Waliigalaa SACCO',
+                description: 'Ibsa',
+                serviceWithdrawn: 'Baasiin tajaajilaa galmeefame!',
+                insufficientProfit: 'Bu’aan SACCO tajaajila kanaaf hin ga’u.',
+                transferOut: 'Dabarsuu Baasuu',
+                transferIn: 'Dabarsuu Galchuu',
+                savings: 'Kussaa',
+                dividends: 'Qooda',
+                transfersIn: 'Dabarsuu Galchuu',
+                withdrawalsTotal: 'Baasii',
+                transfersOut: 'Dabarsuu Baasuu'
             }
         };
 
@@ -1937,12 +2039,10 @@
             document.getElementById(hiddenId).value = id;
             document.getElementById(suggestionsId).style.display = 'none';
             if (callback) {
-                // Call the specific handler after selection
                 const activeTab = document.querySelector('.tab-btn.active');
                 if (activeTab) {
                     const tab = activeTab.dataset.tab;
                     if (tab === 'individual') updateIndividualCapital(id);
-                    else if (tab === 'service') updateServiceAvailable(id);
                     else if (tab === 'leaving') updateLeavingCapital(id);
                     else if (tab === 'transfer') updateTransferAvailable();
                 }
@@ -1950,27 +2050,68 @@
         }
 
         // ============================================================
-        // INDIVIDUAL CAPITAL FUNCTIONS
+        // INDIVIDUAL CAPITAL FUNCTIONS - FIXED FORMULA
+        // Capital = (Savings + Dividends + Transfer_In) - (Withdrawals + Transfer_Out)
         // ============================================================
         async function getIndividualCapital(memberId) {
             try {
                 const snapshot = await db.collection('transactions')
                     .where('memberId', '==', memberId)
                     .get();
+
                 let totalSavings = 0,
                     totalDividends = 0,
-                    totalWithdrawals = 0;
+                    totalTransfersIn = 0,
+                    totalWithdrawals = 0,
+                    totalTransfersOut = 0;
+
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     const amt = Number(data.amount) || 0;
-                    if (data.type === 'savings' || data.transactionType === 'savings') totalSavings += amt;
-                    else if (data.type === 'profit_withdrawal' || data.reason === 'Dividend') totalDividends += amt;
-                    else if (data.type === 'withdrawal' || data.type === 'service_withdrawal' || data.type ===
-                        'leaving_withdrawal' || data.type === 'transfer_out') totalWithdrawals += amt;
+                    const type = data.type || data.transactionType || '';
+
+                    // POSITIVE (add to capital)
+                    if (type === 'savings' || type === 'savings_deposit') {
+                        totalSavings += amt;
+                    } else if (type === 'profit_withdrawal' || type === 'dividend' || data.reason === 'Dividend') {
+                        totalDividends += amt;
+                    } else if (type === 'transfer_in') {
+                        totalTransfersIn += amt;
+                    }
+
+                    // NEGATIVE (deduct from capital)
+                    if (type === 'withdrawal' || type === 'individual_withdrawal') {
+                        totalWithdrawals += amt;
+                    } else if (type === 'transfer_out') {
+                        totalTransfersOut += amt;
+                    } else if (type === 'leaving_withdrawal') {
+                        totalWithdrawals += amt;
+                    }
                 });
-                const capital = Math.round((totalSavings + totalDividends - totalWithdrawals) * 100) / 100;
-                return { totalSavings, totalDividends, totalWithdrawals, capital };
-            } catch (e) { return { totalSavings: 0, totalDividends: 0, totalWithdrawals: 0, capital: 0 }; }
+
+                // Capital = (Savings + Dividends + Transfer_In) - (Withdrawals + Transfer_Out)
+                const capital = Math.round((totalSavings + totalDividends + totalTransfersIn - totalWithdrawals - totalTransfersOut) *
+                    100) / 100;
+
+                return {
+                    totalSavings,
+                    totalDividends,
+                    totalTransfersIn,
+                    totalWithdrawals,
+                    totalTransfersOut,
+                    capital
+                };
+            } catch (e) {
+                console.error('Error calculating capital:', e);
+                return {
+                    totalSavings: 0,
+                    totalDividends: 0,
+                    totalTransfersIn: 0,
+                    totalWithdrawals: 0,
+                    totalTransfersOut: 0,
+                    capital: 0
+                };
+            }
         }
 
         async function updateIndividualCapital(memberId) {
@@ -1979,9 +2120,11 @@
             const member = membersList.find(m => m.id === memberId);
             const name = member ? member.fullName : 'Unknown';
             document.getElementById('capitalBalanceDisplay').textContent = data.capital.toFixed(2);
+
             const t = translations[currentLang];
             document.getElementById('capitalBreakdown').textContent =
-                `${t.savings || 'Savings'}: ${data.totalSavings.toFixed(2)} ETB + ${t.dividends || 'Dividends'}: ${data.totalDividends.toFixed(2)} ETB - ${t.withdrawalsTotal || 'Withdrawals'}: ${data.totalWithdrawals.toFixed(2)} ETB`;
+                `${t.savings || 'Savings'}: ${data.totalSavings.toFixed(2)} ETB + ${t.dividends || 'Dividends'}: ${data.totalDividends.toFixed(2)} ETB + ${t.transfersIn || 'Transfers In'}: ${data.totalTransfersIn.toFixed(2)} ETB - ${t.withdrawalsTotal || 'Withdrawals'}: ${data.totalWithdrawals.toFixed(2)} ETB - ${t.transfersOut || 'Transfers Out'}: ${data.totalTransfersOut.toFixed(2)} ETB`;
+
             document.getElementById('selectedMemberName').textContent = name;
 
             const maxAllowed = Math.round((data.capital * 0.95) * 100) / 100;
@@ -1997,22 +2140,6 @@
                 else amountInput.placeholder = `Max: ${maxAllowed.toFixed(2)}`;
             }
             return data;
-        }
-
-        async function updateServiceAvailable(memberId) {
-            if (!memberId) return;
-            const data = await getIndividualCapital(memberId);
-            const profit = Math.round((data.capital * 0.05) * 100) / 100; // 5% of capital as available service profit
-            const availSpan = document.getElementById('svcAvailable');
-            if (availSpan) availSpan.textContent = profit.toFixed(2);
-            const amountInput = document.getElementById('svcAmount');
-            if (amountInput) {
-                amountInput.max = profit;
-                amountInput.min = 0.01;
-                amountInput.disabled = (profit <= 0);
-                if (profit <= 0) amountInput.placeholder = 'No profit available';
-                else amountInput.placeholder = `Max: ${profit.toFixed(2)}`;
-            }
         }
 
         async function updateLeavingCapital(memberId) {
@@ -2042,12 +2169,86 @@
         }
 
         // ============================================================
+        // SACCO PROFIT FUNCTIONS
+        // ============================================================
+        async function getSaccoProfit() {
+            try {
+                const doc = await db.collection('sacco').doc('profit').get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    return {
+                        totalProfit: data.totalProfit || 0,
+                        totalServices: data.totalServices || 0,
+                        serviceHistory: data.serviceHistory || []
+                    };
+                } else {
+                    await db.collection('sacco').doc('profit').set({
+                        totalProfit: 0,
+                        totalServices: 0,
+                        serviceHistory: [],
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    return { totalProfit: 0, totalServices: 0, serviceHistory: [] };
+                }
+            } catch (e) {
+                console.error('Error getting SACCO profit:', e);
+                return { totalProfit: 0, totalServices: 0, serviceHistory: [] };
+            }
+        }
+
+        async function updateSaccoProfitDisplay() {
+            const data = await getSaccoProfit();
+            document.getElementById('saccoProfitDisplay').textContent = data.totalProfit.toFixed(2);
+            document.getElementById('saccoServiceCount').textContent = `${data.totalServices} services used`;
+            document.getElementById('svcAvailable').textContent = data.totalProfit.toFixed(2);
+
+            const amountInput = document.getElementById('svcAmount');
+            if (amountInput) {
+                amountInput.max = data.totalProfit;
+                amountInput.min = 0.01;
+                amountInput.disabled = (data.totalProfit <= 0);
+                if (data.totalProfit <= 0) amountInput.placeholder = 'No profit available';
+                else amountInput.placeholder = `Max: ${data.totalProfit.toFixed(2)}`;
+            }
+            return data;
+        }
+
+        async function deductSaccoProfit(amount, serviceType, description) {
+            try {
+                const docRef = db.collection('sacco').doc('profit');
+                const doc = await docRef.get();
+                const currentData = doc.exists ? doc.data() : { totalProfit: 0, totalServices: 0, serviceHistory: [] };
+                const newProfit = Math.round((currentData.totalProfit - amount) * 100) / 100;
+                const newServices = (currentData.totalServices || 0) + 1;
+
+                await docRef.update({
+                    totalProfit: newProfit,
+                    totalServices: newServices,
+                    serviceHistory: firebase.firestore.FieldValue.arrayUnion({
+                        amount: Math.round(amount * 100) / 100,
+                        serviceType: serviceType,
+                        description: description || '',
+                        date: firebase.firestore.FieldValue.serverTimestamp(),
+                        recordedBy: getDisplayName(auth.currentUser)
+                    }),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                return true;
+            } catch (e) {
+                console.error('Error deducting SACCO profit:', e);
+                throw e;
+            }
+        }
+
+        // ============================================================
         // LOAD TRANSACTIONS
         // ============================================================
         async function loadTransactions() {
             try {
                 const snapshot = await db.collection('transactions')
-                    .where('type', 'in', ['withdrawal', 'service_withdrawal', 'leaving_withdrawal', 'transfer'])
+                    .where('type', 'in', ['withdrawal', 'service_withdrawal', 'leaving_withdrawal', 'transfer_out',
+                        'transfer_in', 'savings', 'profit_withdrawal'
+                    ])
                     .get();
                 allTransactions = [];
                 snapshot.forEach(doc => {
@@ -2056,9 +2257,15 @@
                     const memberName = member ? member.fullName : (data.memberName || 'Unknown');
                     let displayType = data.type || 'withdrawal';
                     let details = data.reason || data.serviceType || '—';
-                    if (displayType === 'transfer') {
+                    if (displayType === 'transfer_out') {
                         const toMember = membersList.find(m => m.id === data.toMemberId);
                         details = `To: ${toMember ? toMember.fullName : (data.toMemberName || 'Unknown')}`;
+                    } else if (displayType === 'transfer_in') {
+                        const fromMember = membersList.find(m => m.id === data.fromMemberId);
+                        details = `From: ${fromMember ? fromMember.fullName : (data.fromMemberName || 'Unknown')}`;
+                    } else if (displayType === 'savings' || displayType === 'profit_withdrawal') {
+                        // Skip these in the main list - they're shown elsewhere
+                        return;
                     }
                     allTransactions.push({
                         id: doc.id,
@@ -2134,7 +2341,7 @@
             const t = translations[currentLang];
             if (!items || items.length === 0) {
                 tbody.innerHTML =
-                `<tr><td colspan="9"><div class="empty-state"><i class="fas fa-exchange-alt"></i><span>${t.noTransactions}</span></div></td></tr>`;
+                    `<tr><td colspan="9"><div class="empty-state"><i class="fas fa-exchange-alt"></i><span>${t.noTransactions}</span></div></td></tr>`;
                 return;
             }
             let html = '';
@@ -2151,7 +2358,8 @@
                 if (typeLabel === 'withdrawal') typeLabel = 'Individual';
                 else if (typeLabel === 'service_withdrawal') typeLabel = 'Service';
                 else if (typeLabel === 'leaving_withdrawal') typeLabel = 'Leaving';
-                else if (typeLabel === 'transfer') typeLabel = 'Transfer';
+                else if (typeLabel === 'transfer_out') typeLabel = 'Transfer Out';
+                else if (typeLabel === 'transfer_in') typeLabel = 'Transfer In';
 
                 let actionsHtml = `
                     <button class="action-btn view-btn" onclick="viewTransaction('${tr.id}')" title="${t.view}"><i class="fas fa-eye"></i></button>
@@ -2164,7 +2372,7 @@
 
                 html += `<tr>
                     <td>${(currentPage-1)*pageSize + i + 1}</td>
-                    <td><span class="status-badge ${tr.displayType === 'transfer' ? 'transfer' : statusClass}">${typeLabel}</span></td>
+                    <td><span class="status-badge ${tr.displayType === 'transfer_in' ? 'transfer_in' : tr.displayType === 'transfer_out' ? 'transfer_out' : tr.displayType === 'service_withdrawal' ? 'service' : statusClass}">${typeLabel}</span></td>
                     <td>${tr.memberName}</td>
                     <td>${Number(tr.amount).toLocaleString()}</td>
                     <td style="font-size:12px; color:var(--text-secondary);">${tr.details || '—'}</td>
@@ -2247,6 +2455,10 @@
                 await logAudit('deleted', 'transactions', id, data, `Transaction deleted`);
                 showToast(translations[currentLang].deleteSuccess, 'success');
                 await loadTransactions();
+                const activeTab = document.querySelector('.tab-btn.active');
+                if (activeTab && activeTab.dataset.tab === 'service') {
+                    await updateSaccoProfitDisplay();
+                }
             } catch (e) { showToast('Error: ' + e.message, 'error'); }
         }
 
@@ -2264,19 +2476,26 @@
             if (typeLabel === 'withdrawal') typeLabel = 'Individual Withdrawal';
             else if (typeLabel === 'service_withdrawal') typeLabel = 'SACCO Service';
             else if (typeLabel === 'leaving_withdrawal') typeLabel = 'Member Leaving';
-            else if (typeLabel === 'transfer') typeLabel = 'Transfer';
+            else if (typeLabel === 'transfer_out') typeLabel = 'Transfer Out';
+            else if (typeLabel === 'transfer_in') typeLabel = 'Transfer In';
 
             let extraRows = '';
-            if (tr.displayType === 'transfer') {
+            if (tr.displayType === 'transfer_out') {
                 const toMember = membersList.find(m => m.id === tr.toMemberId);
                 extraRows =
                     `<div class="slip-row"><span class="label">To Member</span><span class="value">${toMember ? toMember.fullName : (tr.toMemberName || 'Unknown')}</span></div>`;
-            }
-            if (tr.displayType === 'service_withdrawal') {
+            } else if (tr.displayType === 'transfer_in') {
+                const fromMember = membersList.find(m => m.id === tr.fromMemberId);
+                extraRows =
+                    `<div class="slip-row"><span class="label">From Member</span><span class="value">${fromMember ? fromMember.fullName : (tr.fromMemberName || 'Unknown')}</span></div>`;
+            } else if (tr.displayType === 'service_withdrawal') {
                 extraRows =
                     `<div class="slip-row"><span class="label">Service Type</span><span class="value">${tr.serviceType || tr.reason || '—'}</span></div>`;
-            }
-            if (tr.displayType === 'leaving_withdrawal') {
+                if (tr.description) {
+                    extraRows +=
+                        `<div class="slip-row"><span class="label">Description</span><span class="value">${tr.description}</span></div>`;
+                }
+            } else if (tr.displayType === 'leaving_withdrawal') {
                 extraRows =
                     `<div class="slip-row"><span class="label">Reason</span><span class="value">${tr.reason || 'Voluntary Exit'}</span></div>`;
             }
@@ -2355,46 +2574,53 @@
         document.getElementById('serviceForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             if (!canAddTransaction()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
-            const memberId = document.getElementById('svcMemberId').value;
             const amount = parseFloat(document.getElementById('svcAmount').value);
             const date = document.getElementById('svcDate').value;
             const serviceType = document.getElementById('svcServiceType').value;
+            const description = document.getElementById('svcDescription').value.trim();
             const note = document.getElementById('svcNote').value.trim();
-            if (!memberId) { showToast(translations[currentLang].selectMemberFirst, 'warning'); return; }
+
             if (!amount || amount <= 0) { showToast(translations[currentLang].enterAmount, 'warning'); return; }
             if (!date) { showToast('Please select a date.', 'warning'); return; }
-            const capital = await getIndividualCapital(memberId);
-            const profit = Math.round((capital.capital * 0.05) * 100) / 100;
-            if (amount > profit) { showToast('Amount exceeds available service profit.', 'warning'); return; }
+
+            const profitData = await getSaccoProfit();
+            if (amount > profitData.totalProfit) {
+                showToast(translations[currentLang].insufficientProfit, 'warning');
+                return;
+            }
 
             const btn = this.querySelector('button[type="submit"]');
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
             try {
                 const user = auth.currentUser;
-                const member = membersList.find(m => m.id === memberId);
+                await deductSaccoProfit(amount, serviceType, description);
+
                 const docRef = await db.collection('transactions').add({
-                    memberId,
-                    memberName: member ? member.fullName : 'Unknown',
+                    memberId: 'sacco',
+                    memberName: 'SACCO (Service)',
                     type: 'service_withdrawal',
                     amount: Math.round(amount * 100) / 100,
                     date: new Date(date),
                     reason: serviceType,
-                    serviceType,
-                    note,
+                    serviceType: serviceType,
+                    description: description || '',
+                    note: note,
                     status: 'completed',
                     createdByName: getDisplayName(user),
                     createdBy: getDisplayName(user),
                     createdByEmail: user?.email || 'admin@geresu.com',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                await logAudit('created', 'transactions', docRef.id, { memberId, amount, serviceType },
-                    `Service withdrawal for ${member ? member.fullName : 'Unknown'}`);
+
+                await logAudit('created', 'transactions', docRef.id, { amount, serviceType, description },
+                    `SACCO service withdrawal: ${serviceType} (${amount} ETB)`);
+
                 showToast(translations[currentLang].serviceRecorded, 'success');
                 this.reset();
                 document.getElementById('svcDate').value = new Date().toISOString().split('T')[0];
-                document.getElementById('svcMemberId').value = '';
-                document.getElementById('svcMemberSearch').value = '';
+                document.getElementById('svcDescription').value = '';
+                await updateSaccoProfitDisplay();
                 await loadTransactions();
             } catch (e) { showToast('Error: ' + e.message, 'error'); } finally { btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-save"></i> Withdraw Service'; }
@@ -2446,7 +2672,7 @@
                 btn.innerHTML = '<i class="fas fa-user-slash"></i> Process Leaving'; }
         });
 
-        // Transfer Form
+        // Transfer Form - creates transfer_out (debit) and transfer_in (credit)
         document.getElementById('transferForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             if (!canAddTransaction()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
@@ -2475,17 +2701,17 @@
                 const fromMember = membersList.find(m => m.id === fromId);
                 const toMember = membersList.find(m => m.id === toId);
 
-                // Create transfer transaction (type: transfer)
-                const docRef = await db.collection('transactions').add({
+                // 1. transfer_out (debit from source)
+                const outRef = await db.collection('transactions').add({
                     memberId: fromId,
                     memberName: fromMember ? fromMember.fullName : 'Unknown',
                     toMemberId: toId,
                     toMemberName: toMember ? toMember.fullName : 'Unknown',
-                    type: 'transfer',
+                    type: 'transfer_out',
                     amount: Math.round(amount * 100) / 100,
                     date: new Date(date),
-                    reason,
-                    note,
+                    reason: reason,
+                    note: note,
                     status: 'completed',
                     createdByName: getDisplayName(user),
                     createdBy: getDisplayName(user),
@@ -2493,10 +2719,12 @@
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-                // Also create a separate credit transaction for the destination member (to track their capital)
-                await db.collection('transactions').add({
+                // 2. transfer_in (credit to destination)
+                const inRef = await db.collection('transactions').add({
                     memberId: toId,
                     memberName: toMember ? toMember.fullName : 'Unknown',
+                    fromMemberId: fromId,
+                    fromMemberName: fromMember ? fromMember.fullName : 'Unknown',
                     type: 'transfer_in',
                     amount: Math.round(amount * 100) / 100,
                     date: new Date(date),
@@ -2509,8 +2737,11 @@
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-                await logAudit('created', 'transactions', docRef.id, { fromId, toId, amount, reason },
-                    `Transfer from ${fromMember ? fromMember.fullName : 'Unknown'} to ${toMember ? toMember.fullName : 'Unknown'}`);
+                await logAudit('created', 'transactions', outRef.id, { fromId, toId, amount, reason },
+                    `Transfer out: ${fromMember ? fromMember.fullName : 'Unknown'} -> ${toMember ? toMember.fullName : 'Unknown'}`);
+                await logAudit('created', 'transactions', inRef.id, { fromId, toId, amount, reason },
+                    `Transfer in: ${fromMember ? fromMember.fullName : 'Unknown'} -> ${toMember ? toMember.fullName : 'Unknown'}`);
+
                 showToast(translations[currentLang].transferSuccess, 'success');
                 this.reset();
                 document.getElementById('transDate').value = new Date().toISOString().split('T')[0];
@@ -2545,16 +2776,24 @@
                     const tabId = this.dataset.tab;
                     if (panes[tabId]) panes[tabId].classList.add('active');
 
-                    // Reset forms when switching
-                    if (tabId === 'individual') {
-                        document.getElementById('indMemberSearch').focus();
-                    } else if (tabId === 'service') {
-                        document.getElementById('svcMemberSearch').focus();
-                    } else if (tabId === 'leaving') {
-                        document.getElementById('leaveMemberSearch').focus();
-                    } else if (tabId === 'transfer') {
-                        document.getElementById('transFromSearch').focus();
+                    const individualCard = document.getElementById('individualCard');
+                    const saccoCard = document.getElementById('saccoProfitCard');
+
+                    if (tabId === 'service') {
+                        individualCard.style.display = 'none';
+                        saccoCard.style.display = 'flex';
+                        updateSaccoProfitDisplay();
+                    } else {
+                        individualCard.style.display = 'flex';
+                        saccoCard.style.display = 'none';
+                        const memberId = document.getElementById('indMemberId').value;
+                        if (memberId && tabId === 'individual') updateIndividualCapital(memberId);
                     }
+
+                    if (tabId === 'individual') document.getElementById('indMemberSearch').focus();
+                    else if (tabId === 'service') document.getElementById('svcServiceType').focus();
+                    else if (tabId === 'leaving') document.getElementById('leaveMemberSearch').focus();
+                    else if (tabId === 'transfer') document.getElementById('transFromSearch').focus();
                 });
             });
         }
@@ -2606,24 +2845,20 @@
 
                 await loadMembers();
 
-                // Setup suggestions for each tab
                 setupSuggestions('indMemberSearch', 'indMemberId', 'indSuggestions', true);
-                setupSuggestions('svcMemberSearch', 'svcMemberId', 'svcSuggestions', true);
                 setupSuggestions('leaveMemberSearch', 'leaveMemberId', 'leaveSuggestions', true);
                 setupSuggestions('transFromSearch', 'transFromMemberId', 'transFromSuggestions', true);
                 setupSuggestions('transToSearch', 'transToMemberId', 'transToSuggestions', true);
 
-                // Set dates
                 const today = new Date().toISOString().split('T')[0];
                 document.getElementById('indDate').value = today;
                 document.getElementById('svcDate').value = today;
                 document.getElementById('leaveDate').value = today;
                 document.getElementById('transDate').value = today;
 
-                // Load transactions
                 await loadTransactions();
+                await updateSaccoProfitDisplay();
 
-                // Filter events
                 document.getElementById('searchInput').addEventListener('input', applyFilters);
                 document.getElementById('typeFilter').addEventListener('change', applyFilters);
                 document.getElementById('yearFilter').addEventListener('change', applyFilters);
@@ -2638,7 +2873,6 @@
 
                 initTabs();
 
-                // Expose
                 window.goToPage = goToPage;
                 window.toggleSidebar = toggleSidebar;
                 window.viewTransaction = viewTransaction;
