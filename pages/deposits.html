@@ -409,6 +409,71 @@
             background: #c0392b;
         }
 
+        /* ----- CUSTOMER/MEMBER SUGGESTIONS ----- */
+        #memberSuggestions {
+            position: absolute;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 10;
+            width: 100%;
+            box-shadow: var(--shadow-md);
+            top: 100%;
+            left: 0;
+        }
+        #memberSuggestions div {
+            padding: 10px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        #memberSuggestions div:hover {
+            background: var(--bg-primary);
+        }
+        #memberSuggestions div:last-child {
+            border-bottom: none;
+        }
+        #editMemberSuggestions {
+            position: absolute;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 10;
+            width: 100%;
+            box-shadow: var(--shadow-md);
+            top: 100%;
+            left: 0;
+        }
+        #editMemberSuggestions div {
+            padding: 10px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        #editMemberSuggestions div:hover {
+            background: var(--bg-primary);
+        }
+        #editMemberSuggestions div:last-child {
+            border-bottom: none;
+        }
+        .reload-btn {
+            font-size: 12px;
+            padding: 4px 12px;
+            margin-left: 8px;
+            background: var(--border-color);
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .reload-btn:hover {
+            background: var(--input-border);
+        }
+
         /* ----- FORM SECTION (with conditional fields) ----- */
         .form-section {
             background: var(--bg-card);
@@ -965,7 +1030,7 @@
         }
 
         /* ============================================================
-           EDIT DEPOSIT MODAL
+           EDIT DEPOSIT MODAL (with member field added)
            ============================================================ */
         .modal-overlay {
             display: none;
@@ -1217,6 +1282,18 @@
                 <h3 data-i18n="recordDeposit">Record Deposit</h3>
                 <form id="depositForm">
                     <div class="form-row">
+                        <!-- ===== NEW: Member Selection ===== -->
+                        <div class="form-group">
+                            <label data-i18n="member">Member <span class="required">*</span>
+                                <button type="button" class="reload-btn" id="reloadMembersBtn">
+                                    <i class="fas fa-sync-alt"></i> Reload Members
+                                </button>
+                            </label>
+                            <input type="text" id="memberSearch" placeholder="Search member by name..." autocomplete="off" required />
+                            <input type="hidden" id="memberId" />
+                            <div id="memberSuggestions"></div>
+                        </div>
+                        <!-- ========================================= -->
                         <div class="form-group">
                             <label data-i18n="incomeType">Income Type <span class="required">*</span></label>
                             <select id="incomeType" required>
@@ -1310,6 +1387,7 @@
                         <thead>
                             <tr>
                                 <th>#</th>
+                                <th data-i18n="member">Member</th>
                                 <th data-i18n="incomeType">Income Type</th>
                                 <th data-i18n="amount">Amount</th>
                                 <th data-i18n="paymentMethod">Method</th>
@@ -1321,7 +1399,7 @@
                             </tr>
                         </thead>
                         <tbody id="depositsBody">
-                            <tr><td colspan="9" style="text-align:center; padding:40px; color:var(--text-secondary);" data-i18n="noDeposits">No deposits found.</td></tr>
+                            <tr><td colspan="10" style="text-align:center; padding:40px; color:var(--text-secondary);" data-i18n="noDeposits">No deposits found.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1348,7 +1426,7 @@
     <!-- ===== PRINT SLIP CONTAINER ===== -->
     <div id="slipContainer" class="slip-container"></div>
 
-    <!-- ===== EDIT DEPOSIT MODAL ===== -->
+    <!-- ===== EDIT DEPOSIT MODAL (with member field added) ===== -->
     <div class="modal-overlay" id="editDepositModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -1358,6 +1436,14 @@
             <form id="editDepositForm">
                 <input type="hidden" id="editDepositId" />
                 <div class="form-row">
+                    <!-- ===== Edit: Member Selection ===== -->
+                    <div class="form-group">
+                        <label data-i18n="member">Member <span class="required">*</span></label>
+                        <input type="text" id="editMemberSearch" placeholder="Search member..." autocomplete="off" required />
+                        <input type="hidden" id="editMemberId" />
+                        <div id="editMemberSuggestions"></div>
+                    </div>
+                    <!-- ========================================= -->
                     <div class="form-group">
                         <label data-i18n="incomeType">Income Type <span class="required">*</span></label>
                         <select id="editIncomeType" required>
@@ -1505,14 +1591,14 @@
                 printRecorded: 'Print recorded successfully.',
                 unauthorized: 'You are not authorized to perform this action.',
                 amountInWords: 'Amount in words',
-                duplicateTT: 'This TT number and Transfer Date are already registered. Please check and try again.',
+                duplicateTT: 'This member already has a Savings, Deposit, or Repayment record with this TT number and Transfer Date. Please check.',
                 allYears: 'All Years',
                 selectYear: 'Select Year',
                 editDeposit: 'Edit Deposit',
                 updateDeposit: 'Update Deposit',
                 cancel: 'Cancel',
                 depositUpdated: 'Deposit updated successfully!',
-                depositDeleted: 'Deposit deleted successfully!'
+                member: 'Member'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1575,14 +1661,14 @@
                 printRecorded: 'ህትመት በተሳካ ሁኔታ ተመዝግቧል።',
                 unauthorized: 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም።',
                 amountInWords: 'በቃላት መጠን',
-                duplicateTT: 'ይህ ቲቲ ቁጥር እና የዝውውር ቀን ቀድሞ ተመዝግቧል። እባክዎ ይፈትሹ እና እንደገና ይሞክሩ።',
+                duplicateTT: 'ይህ አባል ቀድሞ በቁጠባ፣ ተቀማጭ ወይም ክፍያ ላይ ይህን ቲቲ ቁጥር እና የዝውውር ቀን ያለው መዝገብ አለው። እባክዎ ይፈትሹ።',
                 allYears: 'ሁሉም ዓመታት',
                 selectYear: 'ዓመት ይምረጡ',
                 editDeposit: 'ተቀማጭ ያስተካክሉ',
                 updateDeposit: 'ተቀማጭ ያሻሽሉ',
                 cancel: 'ሰርዝ',
                 depositUpdated: 'ተቀማጭ በተሳካ ሁኔታ ተሻሽሏል!',
-                depositDeleted: 'ተቀማጭ በተሳካ ሁኔታ ተሰርዟል!'
+                member: 'አባል'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1645,20 +1731,21 @@
                 printRecorded: 'Maxxansi sirriitti galmeefame.',
                 unauthorized: 'Gochaa kana raawwachuuf hayyamamtee hin jirtu.',
                 amountInWords: 'Qaba jechootaan',
-                duplicateTT: 'Lakkoofsi TT fi guyyaan sochoosaa kun duraan galmeefame. Mirkaneessii deebi’i.',
+                duplicateTT: 'Miseensi kun duraan kussaa, kuusaa, ykn kaffaltii keessatti lakkoofsa TT fi guyyaa sochoosaa kanaan galmee qaba. Mirkaneessii deebi\'i.',
                 allYears: 'Waggaa Hunda',
                 selectYear: 'Waggaa Filadhu',
                 editDeposit: 'Kuusaa Jijjiiri',
                 updateDeposit: 'Kuusaa Fooyyessi',
                 cancel: 'Haqi',
                 depositUpdated: 'Kuusaan sirriitti fooyyeffame!',
-                depositDeleted: 'Kuusaan sirriitti haqame!'
+                member: 'Miseensa'
             }
         };
 
         let currentLang = 'en';
         let currentUserRole = 'viewer';
         let currentUserDisplayName = 'Admin';
+        let membersList = [];
 
         function setLanguage(lang) {
             if (!translations[lang]) return;
@@ -1742,7 +1829,7 @@
         }
 
         // ============================================================
-        // AUDIT LOGGING (added for audit trail)
+        // AUDIT LOGGING
         // ============================================================
         async function logAudit(action, collection, documentId, changes = {}, details = '') {
             try {
@@ -1764,12 +1851,11 @@
                 });
             } catch (error) {
                 console.error('Error writing to audit log:', error);
-                // Don't throw - audit logging should not break main functionality
             }
         }
 
         // ============================================================
-        // NUMBER TO WORDS (English)
+        // NUMBER TO WORDS
         // ============================================================
         function numberToWords(num) {
             if (num === 0) return 'Zero';
@@ -1812,6 +1898,157 @@
                 chunkCount++;
             }
             return word.trim() || 'Zero';
+        }
+
+        // ============================================================
+        // MEMBER SEARCH (copied from savings page)
+        // ============================================================
+        async function loadMembersForSelect() {
+            try {
+                const snapshot = await db.collection('members').get();
+                membersList = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    membersList.push({
+                        id: doc.id,
+                        fullName: data.fullName,
+                        memberId: data.memberId,
+                    });
+                });
+                return true;
+            } catch (error) {
+                showToast(translations[currentLang].loadError + error.message, 'error');
+                return false;
+            }
+        }
+
+        let mainSearchSetup = false;
+        let editSearchSetup = false;
+
+        function setupMainMemberSearch() {
+            if (mainSearchSetup) return;
+            mainSearchSetup = true;
+            const searchInput = document.getElementById('memberSearch');
+            const hiddenId = document.getElementById('memberId');
+            const suggestions = document.getElementById('memberSuggestions');
+
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                if (!query) {
+                    suggestions.style.display = 'none';
+                    hiddenId.value = '';
+                    return;
+                }
+                if (membersList.length === 0) {
+                    suggestions.innerHTML =
+                        `<div style="color:var(--text-secondary); padding:10px;">No members loaded. Click "Reload Members".</div>`;
+                    suggestions.style.display = 'block';
+                    return;
+                }
+                const filtered = membersList.filter(m =>
+                    (m.fullName && m.fullName.toLowerCase().includes(query)) ||
+                    (m.memberId && m.memberId.toLowerCase().includes(query))
+                );
+                if (filtered.length === 0) {
+                    suggestions.innerHTML =
+                        `<div style="color:var(--text-secondary); padding:10px;">No matching members.</div>`;
+                    suggestions.style.display = 'block';
+                    return;
+                }
+                let html = '';
+                filtered.forEach(m => {
+                    const displayText = m.fullName + (m.memberId ? ` (${m.memberId})` : '');
+                    html += `<div onclick="selectMainMember('${m.id}', '${displayText}')">
+                                ${displayText}
+                            </div>`;
+                });
+                suggestions.innerHTML = html;
+                suggestions.style.display = 'block';
+            });
+
+            searchInput.addEventListener('focus', function() {
+                if (membersList.length === 0) {
+                    showToast('Loading members...', 'warning');
+                    loadMembersForSelect().then(() => {
+                        if (membersList.length > 0) {
+                            showToast(`✅ ${membersList.length} members loaded.`, 'success');
+                            searchInput.dispatchEvent(new Event('input'));
+                        }
+                    });
+                } else if (!this.value.trim()) {
+                    let html = '';
+                    membersList.forEach(m => {
+                        const displayText = m.fullName + (m.memberId ? ` (${m.memberId})` : '');
+                        html += `<div onclick="selectMainMember('${m.id}', '${displayText}')">
+                                    ${displayText}
+                                </div>`;
+                    });
+                    suggestions.innerHTML = html;
+                    suggestions.style.display = 'block';
+                }
+            });
+
+            searchInput.addEventListener('blur', function() {
+                setTimeout(() => { suggestions.style.display = 'none'; }, 200);
+            });
+
+            const reloadBtn = document.getElementById('reloadMembersBtn');
+            if (reloadBtn) {
+                reloadBtn.addEventListener('click', async function() {
+                    showToast('Reloading members...', 'warning');
+                    await loadMembersForSelect();
+                    document.getElementById('memberSearch').focus();
+                });
+            }
+        }
+
+        function selectMainMember(id, displayName) {
+            document.getElementById('memberSearch').value = displayName;
+            document.getElementById('memberId').value = id;
+            document.getElementById('memberSuggestions').style.display = 'none';
+        }
+
+        function setupEditMemberSearch() {
+            if (editSearchSetup) return;
+            editSearchSetup = true;
+            const searchInput = document.getElementById('editMemberSearch');
+            const hiddenId = document.getElementById('editMemberId');
+            const suggestions = document.getElementById('editMemberSuggestions');
+
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                if (!query) {
+                    suggestions.style.display = 'none';
+                    hiddenId.value = '';
+                    return;
+                }
+                const filtered = membersList.filter(m =>
+                    (m.fullName && m.fullName.toLowerCase().includes(query)) ||
+                    (m.memberId && m.memberId.toLowerCase().includes(query))
+                );
+                if (filtered.length === 0) {
+                    suggestions.style.display = 'none';
+                    return;
+                }
+                let html = '';
+                filtered.forEach(m => {
+                    html += `<div onclick="selectEditMember('${m.id}', '${m.fullName} (${m.memberId||''})')">
+                                ${m.fullName} <span style="color:var(--text-secondary);font-size:12px;">${m.memberId||''}</span>
+                            </div>`;
+                });
+                suggestions.innerHTML = html;
+                suggestions.style.display = 'block';
+            });
+
+            searchInput.addEventListener('blur', function() {
+                setTimeout(() => { suggestions.style.display = 'none'; }, 200);
+            });
+        }
+
+        function selectEditMember(id, displayName) {
+            document.getElementById('editMemberSearch').value = displayName;
+            document.getElementById('editMemberId').value = id;
+            document.getElementById('editMemberSuggestions').style.display = 'none';
         }
 
         // ============================================================
@@ -1991,7 +2228,8 @@
                     (d.note && d.note.toLowerCase().includes(searchQuery)) ||
                     (d.description && d.description.toLowerCase().includes(searchQuery)) ||
                     (d.paymentMethod && d.paymentMethod.toLowerCase().includes(searchQuery)) ||
-                    (d.ttNumber && d.ttNumber.toLowerCase().includes(searchQuery))
+                    (d.ttNumber && d.ttNumber.toLowerCase().includes(searchQuery)) ||
+                    (d.memberName && d.memberName.toLowerCase().includes(searchQuery))
                 );
             }
 
@@ -2023,12 +2261,15 @@
             const t = translations[currentLang];
 
             if (!items || items.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:40px; color:var(--text-secondary);">${t.noDeposits}</td></tr>`;
+                tbody.innerHTML =
+                    `<tr><td colspan="10" style="text-align:center; padding:40px; color:var(--text-secondary);">${t.noDeposits}</td></tr>`;
                 return;
             }
 
             let html = '';
             items.forEach((d, i) => {
+                const member = membersList.find(m => m.id === d.memberId);
+                const memberName = member ? member.fullName : (d.memberName || 'Unknown');
                 const dateStr = d.date ? (d.date.toDate ? d.date.toDate().toLocaleDateString() : new Date(d.date)
                     .toLocaleDateString()) : '—';
                 const byUser = d.createdByName || d.createdBy || d.createdByEmail || 'Admin';
@@ -2072,6 +2313,7 @@
 
                 html += `<tr>
                     <td>${(currentPage-1)*pageSize + i + 1}</td>
+                    <td>${memberName}</td>
                     <td><span class="type-badge ${typeClass}">${incomeType}</span></td>
                     <td>${Number(d.amount).toLocaleString()}</td>
                     <td><span style="font-size:11px; background:var(--border-color); padding:2px 8px; border-radius:12px;">${methodLabel}</span></td>
@@ -2157,7 +2399,7 @@
             );
         }
 
-        // ---- Edit Deposit (Admin/Manager only) ----
+        // ---- Edit Deposit ----
         function editDeposit(id) {
             if (!canEditDeposit()) {
                 showToast(translations[currentLang].unauthorized, 'error');
@@ -2169,6 +2411,16 @@
 
             const modal = document.getElementById('editDepositModal');
             document.getElementById('editDepositId').value = d.id;
+
+            // Populate member
+            const member = membersList.find(m => m.id === d.memberId);
+            if (member) {
+                document.getElementById('editMemberSearch').value = member.fullName + ' (' + (member.memberId || '') + ')';
+                document.getElementById('editMemberId').value = member.id;
+            } else {
+                document.getElementById('editMemberSearch').value = '';
+                document.getElementById('editMemberId').value = '';
+            }
 
             document.getElementById('editIncomeType').value = d.incomeType || 'Other Deposit';
             document.getElementById('editAmount').value = d.amount || '';
@@ -2183,7 +2435,6 @@
             document.getElementById('editBankName').value = d.bankName || '';
             document.getElementById('editDescription').value = d.note || d.description || '';
 
-            // Show/hide conditional fields
             toggleEditConditionalFields();
 
             modal.classList.add('active');
@@ -2196,7 +2447,7 @@
             document.getElementById('editDepositModal').style.display = 'none';
         }
 
-        // ---- Update Deposit (with audit logging) ----
+        // ---- Update Deposit (with duplicate check) ----
         async function updateDeposit(e) {
             e.preventDefault();
             if (!canEditDeposit()) {
@@ -2205,6 +2456,7 @@
             }
 
             const depositId = document.getElementById('editDepositId').value;
+            const memberId = document.getElementById('editMemberId').value;
             const incomeType = document.getElementById('editIncomeType').value;
             const amount = parseFloat(document.getElementById('editAmount').value);
             const date = document.getElementById('editDate').value;
@@ -2214,6 +2466,7 @@
             const bankName = document.getElementById('editBankName').value.trim();
             const description = document.getElementById('editDescription').value.trim();
 
+            if (!memberId) { showToast('Please select a member.', 'warning'); return; }
             if (!amount || amount <= 0) { showToast('Please enter a valid amount.', 'warning'); return; }
             if (!date) { showToast('Please select a date.', 'warning'); return; }
 
@@ -2221,6 +2474,48 @@
                 if (!ttNumber) { showToast('Please enter the TT number.', 'warning'); return; }
                 if (!transferDate) { showToast('Please select the transfer date.', 'warning'); return; }
                 if (paymentMethod === 'bank' && !bankName) { showToast('Please enter the bank name.', 'warning'); return; }
+            }
+
+            // ---- DUPLICATE CHECK (same member, cross-collection, UTC date) ----
+            if (paymentMethod !== 'cash' && ttNumber && transferDate) {
+                try {
+                    const parts = transferDate.split('-').map(Number);
+                    const start = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 0, 0, 0));
+                    const end = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999));
+
+                    console.log('🔍 [DEPOSIT EDIT] Checking duplicates:', {
+                        memberId: memberId,
+                        ttNumber: ttNumber,
+                        depositId: depositId,
+                        start: start.toISOString(),
+                        end: end.toISOString()
+                    });
+
+                    const dupSnap = await db.collection('transactions')
+                        .where('memberId', '==', memberId)
+                        .where('ttNumber', '==', ttNumber)
+                        .where('transferDate', '>=', start)
+                        .where('transferDate', '<=', end)
+                        .where('type', 'in', ['savings', 'profit_income', 'repayment'])
+                        .get();
+
+                    console.log('📦 [DEPOSIT EDIT] Found:', dupSnap.size, 'documents');
+
+                    // Exclude the current document being edited
+                    const hasDuplicate = dupSnap.docs.some(doc => doc.id !== depositId);
+                    if (hasDuplicate) {
+                        const offenders = dupSnap.docs.filter(d => d.id !== depositId).map(d => ({ id: d.id, type: d.data()
+                                .type }));
+                        console.warn('🚫 [DEPOSIT EDIT] Blocking due to:', offenders);
+                        showToast(translations[currentLang].duplicateTT, 'warning');
+                        return;
+                    }
+                    console.log('✅ [DEPOSIT EDIT] No conflicting duplicates.');
+                } catch (error) {
+                    console.error('Duplicate check error:', error);
+                    showToast('Error checking duplicates. Please try again.', 'error');
+                    return;
+                }
             }
 
             const btn = document.getElementById('updateDepositBtn');
@@ -2234,6 +2529,7 @@
                 const oldData = oldDoc.exists ? oldDoc.data() : {};
 
                 const updateData = {
+                    memberId: memberId,
                     incomeType: incomeType,
                     amount: Math.round(amount * 100) / 100,
                     date: new Date(date),
@@ -2253,10 +2549,9 @@
 
                 await docRef.update(updateData);
 
-                // ---- AUDIT LOG: Updated ----
                 const changes = {};
-                const fieldsToCompare = ['incomeType', 'amount', 'date', 'paymentMethod', 'ttNumber', 'bankName',
-                    'description', 'note'
+                const fieldsToCompare = ['memberId', 'incomeType', 'amount', 'date', 'paymentMethod', 'ttNumber',
+                    'bankName', 'description', 'note'
                 ];
                 fieldsToCompare.forEach(field => {
                     const oldVal = oldData[field] !== undefined ? oldData[field] : null;
@@ -2281,7 +2576,7 @@
             }
         }
 
-        // ---- Delete Deposit (Admin only, with audit logging) ----
+        // ---- Delete Deposit ----
         async function deleteDeposit(id) {
             if (!canDeleteDeposit()) {
                 showToast(translations[currentLang].unauthorized, 'error');
@@ -2297,7 +2592,6 @@
 
                 await docRef.delete();
 
-                // ---- AUDIT LOG: Deleted ----
                 await logAudit('deleted', 'transactions', id, data,
                     `Deposit deleted: ${data.incomeType || 'Unknown'} - ${data.amount || 0} ETB`);
 
@@ -2309,7 +2603,7 @@
             }
         }
 
-        // ---- Record Deposit (with audit logging) ----
+        // ---- Record Deposit (with duplicate check) ----
         async function recordDeposit(e) {
             e.preventDefault();
             if (!canAddDeposit()) {
@@ -2317,6 +2611,7 @@
                 return;
             }
 
+            const memberId = document.getElementById('memberId').value;
             const incomeType = document.getElementById('incomeType').value;
             let amount = parseFloat(document.getElementById('amountInput').value);
             const date = document.getElementById('dateInput').value;
@@ -2326,36 +2621,48 @@
             const transferDate = document.getElementById('transferDate').value;
             const bankName = document.getElementById('bankName').value.trim();
 
+            if (!memberId) { showToast('Please select a member.', 'warning'); return; }
             if (!incomeType) { showToast('Please select an income type.', 'warning'); return; }
             if (!amount || amount <= 0) { showToast('Please enter a valid amount.', 'warning'); return; }
             if (!date) { showToast('Please select a date.', 'warning'); return; }
 
-            // For bank/mobile, require TT number and transfer date
             if (paymentMethod !== 'cash') {
                 if (!ttNumber) { showToast('Please enter the TT number.', 'warning'); return; }
                 if (!transferDate) { showToast('Please select the transfer date.', 'warning'); return; }
                 if (paymentMethod === 'bank' && !bankName) { showToast('Please enter the bank name.', 'warning'); return; }
             }
 
-            // ---- Duplicate check: same TT number and same transfer date ----
+            // ---- DUPLICATE CHECK (same member, cross-collection, UTC date) ----
             if (paymentMethod !== 'cash' && ttNumber && transferDate) {
                 try {
-                    const startOfDay = new Date(transferDate);
-                    startOfDay.setHours(0, 0, 0, 0);
-                    const endOfDay = new Date(transferDate);
-                    endOfDay.setHours(23, 59, 59, 999);
+                    const parts = transferDate.split('-').map(Number);
+                    const start = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 0, 0, 0));
+                    const end = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999));
+
+                    console.log('🔍 [DEPOSIT CREATE] Checking duplicates:', {
+                        memberId: memberId,
+                        ttNumber: ttNumber,
+                        start: start.toISOString(),
+                        end: end.toISOString()
+                    });
 
                     const dupSnap = await db.collection('transactions')
-                        .where('type', '==', 'profit_income')
+                        .where('memberId', '==', memberId)
                         .where('ttNumber', '==', ttNumber)
-                        .where('transferDate', '>=', startOfDay)
-                        .where('transferDate', '<=', endOfDay)
+                        .where('transferDate', '>=', start)
+                        .where('transferDate', '<=', end)
+                        .where('type', 'in', ['savings', 'profit_income', 'repayment'])
                         .get();
 
+                    console.log('📦 [DEPOSIT CREATE] Found:', dupSnap.size, 'documents');
+
                     if (!dupSnap.empty) {
+                        const offenders = dupSnap.docs.map(d => ({ id: d.id, type: d.data().type }));
+                        console.warn('🚫 [DEPOSIT CREATE] Blocking due to:', offenders);
                         showToast(translations[currentLang].duplicateTT, 'warning');
                         return;
                     }
+                    console.log('✅ [DEPOSIT CREATE] No duplicates, proceeding.');
                 } catch (error) {
                     console.error('Duplicate check error:', error);
                     showToast('Error checking duplicates. Please try again.', 'error');
@@ -2373,10 +2680,15 @@
             try {
                 const user = auth.currentUser;
                 const createdByName = getDisplayName(user);
+                const member = membersList.find(m => m.id === memberId);
+                const memberIdCustom = member ? member.memberId : '';
 
                 const docData = {
                     type: 'profit_income',
                     transactionType: 'income',
+                    memberId: memberId,
+                    memberIdCustom: memberIdCustom,
+                    memberName: member ? member.fullName : 'Unknown',
                     incomeType: incomeType,
                     amount: amount,
                     date: new Date(date),
@@ -2398,14 +2710,15 @@
 
                 const docRef = await db.collection('transactions').add(docData);
 
-                // ---- AUDIT LOG: Created ----
                 await logAudit('created', 'transactions', docRef.id, {
+                    memberId: memberId,
+                    memberName: member ? member.fullName : 'Unknown',
                     incomeType: incomeType,
                     amount: amount,
                     paymentMethod: paymentMethod,
                     date: date,
                     description: description
-                }, `Deposit created: ${incomeType} - ${amount} ETB`);
+                }, `Deposit created: ${incomeType} - ${amount} ETB for member ${member ? member.fullName : 'Unknown'}`);
 
                 showToast(translations[currentLang].depositRecorded, 'success');
                 document.getElementById('depositForm').reset();
@@ -2415,6 +2728,8 @@
                 document.getElementById('ttNumber').value = '';
                 document.getElementById('transferDate').value = '';
                 document.getElementById('bankName').value = '';
+                document.getElementById('memberId').value = '';
+                document.getElementById('memberSearch').value = '';
                 toggleConditionalFields();
 
                 await loadDeposits();
@@ -2427,7 +2742,6 @@
             }
         }
 
-        // ---- Helper ----
         function getDisplayName(user) {
             if (!user) return 'Admin';
             if (currentUserDisplayName) return currentUserDisplayName;
@@ -2437,7 +2751,7 @@
         }
 
         // ============================================================
-        // PRINT SLIP (A5 landscape, with audit logging)
+        // PRINT SLIP
         // ============================================================
         async function printDepositSlip(docId) {
             const deposit = allDeposits.find(d => d.id === docId);
@@ -2466,7 +2780,6 @@
                     renderTable(currentItems);
                 }
 
-                // ---- AUDIT LOG: Printed ----
                 await logAudit('printed', 'transactions', docId, { printedBy: printedBy },
                     `Deposit slip printed: ${deposit.incomeType || 'Unknown'} - ${deposit.amount || 0} ETB`);
 
@@ -2493,6 +2806,7 @@
             const methodMap = { 'cash': t.cash || 'Cash', 'bank': t.bankTransfer || 'Bank Transfer',
                 'mobile': t.mobileMoney || 'Mobile Money' };
             const methodLabel = methodMap[deposit.paymentMethod] || deposit.paymentMethod || 'Cash';
+            const memberName = deposit.memberName || 'Unknown';
 
             let extraRows = '';
             if (deposit.paymentMethod !== 'cash') {
@@ -2508,6 +2822,7 @@
                 <div class="slip-header"><h1>GERESU DHUKI SACCO</h1><p>Deposit Receipt</p></div>
                 <div class="slip-body">
                     <div class="slip-row"><span class="label">Transaction ID</span><span class="value">${deposit.id.slice(0, 12)}</span></div>
+                    <div class="slip-row"><span class="label">Member</span><span class="value">${memberName}</span></div>
                     <div class="slip-row"><span class="label">Income Type</span><span class="value">${incomeType}</span></div>
                     <div class="slip-row"><span class="label">Payment Method</span><span class="value">${methodLabel}</span></div>
                     ${extraRows}
@@ -2523,7 +2838,7 @@
         }
 
         // ============================================================
-        // UPDATE USER INFO (role + audit + users nav)
+        // UPDATE USER INFO
         // ============================================================
         function updateUserInfo() {
             const roleMap = { admin: 'ADMIN', manager: 'MANAGER', teller: 'TELLER', accountant: 'ACCOUNTANT',
@@ -2532,13 +2847,11 @@
             const displayName = currentUserDisplayName || 'User';
             document.getElementById('userDisplayName').textContent = displayName + ' (' + roleLabel + ')';
 
-            // ---- Show/hide Audit nav link ----
             const auditNav = document.getElementById('auditNavItem');
             if (auditNav) {
                 auditNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
             }
 
-            // ---- Show/hide Users nav link ----
             const usersNav = document.getElementById('usersNavItem');
             if (usersNav) {
                 usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
@@ -2576,16 +2889,19 @@
                     currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'Admin';
                 }
 
-                // ---- Update user info (role + audit + users nav) ----
                 updateUserInfo();
 
-                // ---- Show/hide deposit form based on role ----
                 const formSection = document.getElementById('depositFormSection');
                 if (canAddDeposit()) {
                     formSection.style.display = 'block';
                 } else {
                     formSection.style.display = 'none';
                 }
+
+                // Load members and setup search
+                await loadMembersForSelect();
+                setupMainMemberSearch();
+                setupEditMemberSearch();
 
                 initLanguage();
 
@@ -2615,11 +2931,9 @@
 
                 document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
 
-                // ---- Conditional fields ----
                 document.getElementById('paymentMethod').addEventListener('change', toggleConditionalFields);
                 toggleConditionalFields();
 
-                // ---- Edit form conditional fields ----
                 document.getElementById('editPaymentMethod').addEventListener('change', toggleEditConditionalFields);
 
                 await getTotalDeposits();
@@ -2635,7 +2949,6 @@
 
                 document.getElementById('depositForm').addEventListener('submit', recordDeposit);
 
-                // ---- Edit modal events ----
                 document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
                 document.getElementById('cancelEditBtn').addEventListener('click', closeEditModal);
                 document.getElementById('editDepositModal').addEventListener('click', function(e) {
@@ -2651,6 +2964,8 @@
                     document.getElementById('ttNumber').value = '';
                     document.getElementById('transferDate').value = '';
                     document.getElementById('bankName').value = '';
+                    document.getElementById('memberId').value = '';
+                    document.getElementById('memberSearch').value = '';
                     toggleConditionalFields();
                 });
 
@@ -2666,7 +2981,6 @@
                 const t = translations[currentLang];
                 searchInput.placeholder = t.searchPlaceholder || 'Search by description or type...';
 
-                // Expose functions globally
                 window.editDeposit = editDeposit;
                 window.deleteDeposit = deleteDeposit;
                 window.viewDeposit = viewDeposit;
@@ -2676,6 +2990,8 @@
                 window.toggleConditionalFields = toggleConditionalFields;
                 window.toggleEditConditionalFields = toggleEditConditionalFields;
                 window.closeEditModal = closeEditModal;
+                window.selectMainMember = selectMainMember;
+                window.selectEditMember = selectEditMember;
             });
         });
     </script>
