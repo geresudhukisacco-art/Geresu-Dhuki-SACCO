@@ -1456,7 +1456,7 @@
                 unauthorized: 'You are not authorized to perform this action.',
                 printRecorded: 'Print recorded successfully.',
                 amountInWords: 'Amount in words',
-                duplicateTT: 'This TT number and Transfer Date are already registered. Please check and try again.',
+                duplicateTT: 'This member already has a Savings, Deposit, or Repayment record with this TT number and Transfer Date. Please check.',
                 minSavingsRequired: 'Minimum savings amount is {min} ETB. Please increase the amount.',
                 allYears: 'All Years',
                 selectYear: 'Select Year',
@@ -1526,7 +1526,7 @@
                 unauthorized: 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም።',
                 printRecorded: 'ህትመት በተሳካ ሁኔታ ተመዝግቧል።',
                 amountInWords: 'በቃላት መጠን',
-                duplicateTT: 'ይህ ቲቲ ቁጥር እና የዝውውር ቀን ቀድሞ ተመዝግቧል። እባክዎ ይፈትሹ እና እንደገና ይሞክሩ።',
+                duplicateTT: 'ይህ አባል ቀድሞ በቁጠባ፣ ተቀማጭ ወይም ክፍያ ላይ ይህን ቲቲ ቁጥር እና የዝውውር ቀን ያለው መዝገብ አለው። እባክዎ ይፈትሹ።',
                 minSavingsRequired: 'አነስተኛ የቁጠባ መጠን {min} ብር ነው። እባክዎ መጠኑን ይጨምሩ።',
                 allYears: 'ሁሉም ዓመታት',
                 selectYear: 'ዓመት ይምረጡ',
@@ -1596,7 +1596,7 @@
                 unauthorized: 'Gochaa kana raawwachuuf hayyamamtee hin jirtu.',
                 printRecorded: 'Maxxansi sirriitti galmeefame.',
                 amountInWords: 'Qaba jechootaan',
-                duplicateTT: 'Lakkoofsi TT fi guyyaan sochoosaa kun duraan galmeefame. Mirkaneessii deebi’i.',
+                duplicateTT: 'Miseensi kun duraan kussaa, kuusaa, ykn kaffaltii keessatti lakkoofsa TT fi guyyaa sochoosaa kanaan galmee qaba. Mirkaneessii deebi\'i.',
                 minSavingsRequired: 'Hanga ummata kussaa {min} ETB dha. Maaloo qaba dabali.',
                 allYears: 'Waggaa Hunda',
                 selectYear: 'Waggaa Filadhu',
@@ -1703,13 +1703,11 @@
             const displayName = currentUserDisplayName || 'User';
             document.getElementById('userDisplayName').textContent = displayName + ' (' + roleLabel + ')';
 
-            // ---- Show/hide Audit nav link ----
             const auditNav = document.getElementById('auditNavItem');
             if (auditNav) {
                 auditNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
             }
 
-            // ---- Show/hide Users nav link ----
             const usersNav = document.getElementById('usersNavItem');
             if (usersNav) {
                 usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
@@ -1717,7 +1715,7 @@
         }
 
         // ============================================================
-        // AUDIT LOGGING (added for audit trail)
+        // AUDIT LOGGING
         // ============================================================
         async function logAudit(action, collection, documentId, changes = {}, details = '') {
             try {
@@ -1739,7 +1737,6 @@
                 });
             } catch (error) {
                 console.error('Error writing to audit log:', error);
-                // Don't throw - audit logging should not break main functionality
             }
         }
 
@@ -2313,7 +2310,7 @@
         }
 
         // ============================================================
-        // SAVE DEPOSIT (with audit logging)
+        // SAVE DEPOSIT (with audit logging) - UPDATED DUPLICATE CHECK
         // ============================================================
         async function saveDeposit(e) {
             e.preventDefault();
@@ -2348,24 +2345,37 @@
                 if (savingsType === 'bank' && !bankName) { showToast('Please enter the bank name.', 'warning'); return; }
             }
 
+            // ---- UPDATED DUPLICATE CHECK (same member, cross-collection, UTC date) ----
             if (savingsType !== 'cash' && ttNumber && transferDate) {
                 try {
-                    const startOfDay = new Date(transferDate);
-                    startOfDay.setHours(0, 0, 0, 0);
-                    const endOfDay = new Date(transferDate);
-                    endOfDay.setHours(23, 59, 59, 999);
+                    const parts = transferDate.split('-').map(Number);
+                    const start = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 0, 0, 0));
+                    const end = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999));
+
+                    console.log('🔍 [SAVINGS CREATE] Checking duplicates:', {
+                        memberId: memberId,
+                        ttNumber: ttNumber,
+                        start: start.toISOString(),
+                        end: end.toISOString()
+                    });
 
                     const dupSnap = await db.collection('transactions')
-                        .where('type', '==', 'savings')
+                        .where('memberId', '==', memberId)
                         .where('ttNumber', '==', ttNumber)
-                        .where('transferDate', '>=', startOfDay)
-                        .where('transferDate', '<=', endOfDay)
+                        .where('transferDate', '>=', start)
+                        .where('transferDate', '<=', end)
+                        .where('type', 'in', ['savings', 'profit_income', 'repayment'])
                         .get();
 
+                    console.log('📦 [SAVINGS CREATE] Found:', dupSnap.size, 'documents');
+
                     if (!dupSnap.empty) {
+                        const offenders = dupSnap.docs.map(d => ({ id: d.id, type: d.data().type }));
+                        console.warn('🚫 [SAVINGS CREATE] Blocking due to:', offenders);
                         showToast(translations[currentLang].duplicateTT, 'warning');
                         return;
                     }
+                    console.log('✅ [SAVINGS CREATE] No duplicates, proceeding.');
                 } catch (error) {
                     console.error('Duplicate check error:', error);
                     showToast('Error checking duplicates. Please try again.', 'error');
@@ -2439,7 +2449,7 @@
         }
 
         // ============================================================
-        // EDIT SAVINGS (with audit logging)
+        // EDIT SAVINGS (with audit logging) - UPDATED DUPLICATE CHECK
         // ============================================================
         function editSavings(txId) {
             if (!canEditSavings()) {
@@ -2513,6 +2523,47 @@
                 if (!ttNumber) { showToast('Please enter the TT number.', 'warning'); return; }
                 if (!transferDate) { showToast('Please select the transfer date.', 'warning'); return; }
                 if (savingsType === 'bank' && !bankName) { showToast('Please enter the bank name.', 'warning'); return; }
+            }
+
+            // ---- UPDATED DUPLICATE CHECK (exclude current document) ----
+            if (savingsType !== 'cash' && ttNumber && transferDate) {
+                try {
+                    const parts = transferDate.split('-').map(Number);
+                    const start = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 0, 0, 0));
+                    const end = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999));
+
+                    console.log('🔍 [SAVINGS EDIT] Checking duplicates:', {
+                        memberId: memberId,
+                        ttNumber: ttNumber,
+                        txId: txId,
+                        start: start.toISOString(),
+                        end: end.toISOString()
+                    });
+
+                    const dupSnap = await db.collection('transactions')
+                        .where('memberId', '==', memberId)
+                        .where('ttNumber', '==', ttNumber)
+                        .where('transferDate', '>=', start)
+                        .where('transferDate', '<=', end)
+                        .where('type', 'in', ['savings', 'profit_income', 'repayment'])
+                        .get();
+
+                    console.log('📦 [SAVINGS EDIT] Found:', dupSnap.size, 'documents');
+
+                    const hasDuplicate = dupSnap.docs.some(doc => doc.id !== txId);
+                    if (hasDuplicate) {
+                        const offenders = dupSnap.docs.filter(d => d.id !== txId).map(d => ({ id: d.id, type: d.data()
+                                .type }));
+                        console.warn('🚫 [SAVINGS EDIT] Blocking due to:', offenders);
+                        showToast(translations[currentLang].duplicateTT, 'warning');
+                        return;
+                    }
+                    console.log('✅ [SAVINGS EDIT] No conflicting duplicates.');
+                } catch (error) {
+                    console.error('Duplicate check error:', error);
+                    showToast('Error checking duplicates. Please try again.', 'error');
+                    return;
+                }
             }
 
             const btn = document.getElementById('updateSavingsBtn');
