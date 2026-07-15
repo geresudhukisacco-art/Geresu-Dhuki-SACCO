@@ -1459,7 +1459,7 @@
                 printRecorded: 'Print recorded successfully.',
                 unauthorized: 'You are not authorized to perform this action.',
                 amountInWords: 'Amount in words',
-                duplicateTT: 'This TT number and Transfer Date are already registered. Please check and try again.',
+                duplicateTT: 'This member already has a Savings, Deposit, or Repayment record with this TT number and Transfer Date. Please check.',
                 allYears: 'All Years',
                 selectYear: 'Select Year'
             },
@@ -1537,7 +1537,7 @@
                 printRecorded: 'ህትመት በተሳካ ሁኔታ ተመዝግቧል።',
                 unauthorized: 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም።',
                 amountInWords: 'በቃላት መጠን',
-                duplicateTT: 'ይህ ቲቲ ቁጥር እና የዝውውር ቀን ቀድሞ ተመዝግቧል። እባክዎ ይፈትሹ እና እንደገና ይሞክሩ።',
+                duplicateTT: 'ይህ አባል ቀድሞ በቁጠባ፣ ተቀማጭ ወይም ክፍያ ላይ ይህን ቲቲ ቁጥር እና የዝውውር ቀን ያለው መዝገብ አለው። እባክዎ ይፈትሹ።',
                 allYears: 'ሁሉም ዓመታት',
                 selectYear: 'ዓመት ይምረጡ'
             },
@@ -1615,7 +1615,7 @@
                 printRecorded: 'Maxxansi sirriitti galmeefame.',
                 unauthorized: 'Gochaa kana raawwachuuf hayyamamtee hin jirtu.',
                 amountInWords: 'Qaba jechootaan',
-                duplicateTT: 'Lakkoofsi TT fi guyyaan sochoosaa kun duraan galmeefame. Mirkaneessii deebi’i.',
+                duplicateTT: 'Miseensi kun duraan kussaa, kuusaa, ykn kaffaltii keessatti lakkoofsa TT fi guyyaa sochoosaa kanaan galmee qaba. Mirkaneessii deebi\'i.',
                 allYears: 'Waggaa Hunda',
                 selectYear: 'Waggaa Filadhu'
             }
@@ -2370,7 +2370,7 @@
             }
         }
 
-        // ---- Record Repayment (with TT + Transfer Date duplicate check) ----
+        // ---- Record Repayment (UPDATED DUPLICATE CHECK) ----
         async function recordRepayment(e) {
             e.preventDefault();
             if (!canAddRepayment()) {
@@ -2399,25 +2399,45 @@
                 if (paymentMethod === 'bank' && !bankName) { showToast('Please enter the bank name.', 'warning'); return; }
             }
 
-            // ---- Duplicate check: same TT number + same transfer date ----
+            // ---- Get the loan to access memberId ----
+            const loan = allLoans.find(l => l.id === loanId);
+            if (!loan) {
+                showToast(translations[currentLang].loanNotFound, 'error');
+                return;
+            }
+            const memberId = loan.memberId;
+
+            // ---- DUPLICATE CHECK (same member, cross-collection, UTC date) ----
             if (paymentMethod !== 'cash' && ttNumber && transferDate) {
                 try {
-                    const startOfDay = new Date(transferDate);
-                    startOfDay.setHours(0, 0, 0, 0);
-                    const endOfDay = new Date(transferDate);
-                    endOfDay.setHours(23, 59, 59, 999);
+                    const parts = transferDate.split('-').map(Number);
+                    const start = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 0, 0, 0));
+                    const end = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999));
+
+                    console.log('🔍 [REPAYMENT CREATE] Checking duplicates:', {
+                        memberId: memberId,
+                        ttNumber: ttNumber,
+                        start: start.toISOString(),
+                        end: end.toISOString()
+                    });
 
                     const dupSnap = await db.collection('transactions')
-                        .where('type', '==', 'repayment')
+                        .where('memberId', '==', memberId)
                         .where('ttNumber', '==', ttNumber)
-                        .where('transferDate', '>=', startOfDay)
-                        .where('transferDate', '<=', endOfDay)
+                        .where('transferDate', '>=', start)
+                        .where('transferDate', '<=', end)
+                        .where('type', 'in', ['savings', 'profit_income', 'repayment'])
                         .get();
 
+                    console.log('📦 [REPAYMENT CREATE] Found:', dupSnap.size, 'documents');
+
                     if (!dupSnap.empty) {
+                        const offenders = dupSnap.docs.map(d => ({ id: d.id, type: d.data().type }));
+                        console.warn('🚫 [REPAYMENT CREATE] Blocking due to:', offenders);
                         showToast(translations[currentLang].duplicateTT, 'warning');
                         return;
                     }
+                    console.log('✅ [REPAYMENT CREATE] No duplicates, proceeding.');
                 } catch (error) {
                     console.error('Duplicate check error:', error);
                     showToast('Error checking duplicates. Please try again.', 'error');
@@ -2428,7 +2448,6 @@
             amount = Math.round(amount * 100) / 100;
 
             // ---- Get remaining balance and validate ----
-            const loan = allLoans.find(l => l.id === loanId);
             const totalPayable = Number(loan?.totalPayable || loan?.amount || 0);
             const totalPaid = await getLoanRepaymentsTotal(loanId);
             const remaining = Math.max(0, Math.round((totalPayable - totalPaid) * 100) / 100);
@@ -2462,7 +2481,7 @@
                 const minCents = Math.round(minRepayment * 100);
                 if (amountCents < minCents && (minCents - amountCents) > 1) {
                     showToast(translations[currentLang].minPaymentNotMet + ' (Min: ' + minRepayment.toFixed(2) + ' ETB)',
-                    'warning');
+                        'warning');
                     return;
                 } else if (amountCents < minCents) {
                     amount = minRepayment;
@@ -2477,7 +2496,6 @@
             try {
                 const user = auth.currentUser;
                 const createdByName = getDisplayName(user);
-                const memberId = loan?.memberId;
 
                 const docData = {
                     loanId: loanId,
