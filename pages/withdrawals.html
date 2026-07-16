@@ -2429,8 +2429,9 @@
         }
 
         // ============================================================
-        // TRANSACTION CRUD
+        // TRANSACTION CRUD - UPDATED WITH CORRECT AUDIT FORMAT
         // ============================================================
+
         function viewTransaction(id) {
             const tr = allTransactions.find(t => t.id === id);
             if (!tr) return;
@@ -2444,6 +2445,7 @@
             );
         }
 
+        // ===== DELETE - UPDATED =====
         async function deleteTransaction(id) {
             if (!canDeleteTransaction()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
             if (!confirm(translations[currentLang].deleteConfirmation)) return;
@@ -2452,7 +2454,9 @@
                 const doc = await docRef.get();
                 const data = doc.exists ? doc.data() : {};
                 await docRef.delete();
-                await logAudit('deleted', 'transactions', id, data, `Transaction deleted`);
+                // Correct delete audit: wrap data in deletedData
+                await logAudit('deleted', 'transactions', id, { deletedData: { old: null, new: data } },
+                    `Transaction deleted (${data.type || 'unknown'})`);
                 showToast(translations[currentLang].deleteSuccess, 'success');
                 await loadTransactions();
                 const activeTab = document.querySelector('.tab-btn.active');
@@ -2462,6 +2466,7 @@
             } catch (e) { showToast('Error: ' + e.message, 'error'); }
         }
 
+        // ===== PRINT SLIP - UPDATED =====
         async function printSlip(id) {
             const tr = allTransactions.find(t => t.id === id);
             if (!tr) return;
@@ -2513,12 +2518,17 @@
                 </div>
                 <div class="slip-footer"><div class="thankyou">Thank you!</div><p>Computer-generated receipt.</p></div>
             `;
-            await logAudit('printed', 'transactions', id, { printedBy: displayName }, 'Slip printed');
+
+            // Correct print audit: printedBy and printedAt with old: null, new: value
+            await logAudit('printed', 'transactions', id, {
+                printedBy: { old: null, new: displayName },
+                printedAt: { old: null, new: new Date().toISOString() }
+            }, 'Slip printed');
             window.print();
         }
 
         // ============================================================
-        // FORM HANDLERS
+        // FORM HANDLERS - UPDATED WITH CORRECT CREATE AUDIT
         // ============================================================
 
         // Individual Withdrawal
@@ -2544,7 +2554,7 @@
             try {
                 const user = auth.currentUser;
                 const member = membersList.find(m => m.id === memberId);
-                const docRef = await db.collection('transactions').add({
+                const docData = {
                     memberId,
                     memberName: member ? member.fullName : 'Unknown',
                     type: 'withdrawal',
@@ -2557,8 +2567,21 @@
                     createdBy: getDisplayName(user),
                     createdByEmail: user?.email || 'admin@geresu.com',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                await logAudit('created', 'transactions', docRef.id, { memberId, amount, reason },
+                };
+                const docRef = await db.collection('transactions').add(docData);
+
+                // Correct create audit: all fields with { old: null, new: value }
+                const auditChanges = {
+                    memberId: { old: null, new: memberId },
+                    memberName: { old: null, new: member ? member.fullName : 'Unknown' },
+                    amount: { old: null, new: amount },
+                    date: { old: null, new: date },
+                    reason: { old: null, new: reason },
+                    note: { old: null, new: note },
+                    status: { old: null, new: 'completed' },
+                    type: { old: null, new: 'withdrawal' }
+                };
+                await logAudit('created', 'transactions', docRef.id, auditChanges,
                     `Individual withdrawal for ${member ? member.fullName : 'Unknown'}`);
                 showToast(translations[currentLang].withdrawalRecorded, 'success');
                 this.reset();
@@ -2596,7 +2619,7 @@
                 const user = auth.currentUser;
                 await deductSaccoProfit(amount, serviceType, description);
 
-                const docRef = await db.collection('transactions').add({
+                const docData = {
                     memberId: 'sacco',
                     memberName: 'SACCO (Service)',
                     type: 'service_withdrawal',
@@ -2611,9 +2634,20 @@
                     createdBy: getDisplayName(user),
                     createdByEmail: user?.email || 'admin@geresu.com',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                };
+                const docRef = await db.collection('transactions').add(docData);
 
-                await logAudit('created', 'transactions', docRef.id, { amount, serviceType, description },
+                // Correct create audit for service
+                const auditChanges = {
+                    amount: { old: null, new: amount },
+                    date: { old: null, new: date },
+                    serviceType: { old: null, new: serviceType },
+                    description: { old: null, new: description },
+                    note: { old: null, new: note },
+                    status: { old: null, new: 'completed' },
+                    type: { old: null, new: 'service_withdrawal' }
+                };
+                await logAudit('created', 'transactions', docRef.id, auditChanges,
                     `SACCO service withdrawal: ${serviceType} (${amount} ETB)`);
 
                 showToast(translations[currentLang].serviceRecorded, 'success');
@@ -2645,7 +2679,7 @@
             try {
                 const user = auth.currentUser;
                 const member = membersList.find(m => m.id === memberId);
-                const docRef = await db.collection('transactions').add({
+                const docData = {
                     memberId,
                     memberName: member ? member.fullName : 'Unknown',
                     type: 'leaving_withdrawal',
@@ -2658,8 +2692,21 @@
                     createdBy: getDisplayName(user),
                     createdByEmail: user?.email || 'admin@geresu.com',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                await logAudit('created', 'transactions', docRef.id, { memberId, amount: capital.capital, reason },
+                };
+                const docRef = await db.collection('transactions').add(docData);
+
+                // Correct create audit for leaving
+                const auditChanges = {
+                    memberId: { old: null, new: memberId },
+                    memberName: { old: null, new: member ? member.fullName : 'Unknown' },
+                    amount: { old: null, new: capital.capital },
+                    date: { old: null, new: date },
+                    reason: { old: null, new: reason },
+                    note: { old: null, new: note },
+                    status: { old: null, new: 'completed' },
+                    type: { old: null, new: 'leaving_withdrawal' }
+                };
+                await logAudit('created', 'transactions', docRef.id, auditChanges,
                     `Member leaving for ${member ? member.fullName : 'Unknown'}`);
                 showToast(translations[currentLang].leavingRecorded, 'success');
                 this.reset();
@@ -2672,7 +2719,7 @@
                 btn.innerHTML = '<i class="fas fa-user-slash"></i> Process Leaving'; }
         });
 
-        // Transfer Form - creates transfer_out (debit) and transfer_in (credit)
+        // Transfer Form - creates transfer_out and transfer_in with correct audit
         document.getElementById('transferForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             if (!canAddTransaction()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
@@ -2702,7 +2749,7 @@
                 const toMember = membersList.find(m => m.id === toId);
 
                 // 1. transfer_out (debit from source)
-                const outRef = await db.collection('transactions').add({
+                const outData = {
                     memberId: fromId,
                     memberName: fromMember ? fromMember.fullName : 'Unknown',
                     toMemberId: toId,
@@ -2717,10 +2764,11 @@
                     createdBy: getDisplayName(user),
                     createdByEmail: user?.email || 'admin@geresu.com',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                };
+                const outRef = await db.collection('transactions').add(outData);
 
                 // 2. transfer_in (credit to destination)
-                const inRef = await db.collection('transactions').add({
+                const inData = {
                     memberId: toId,
                     memberName: toMember ? toMember.fullName : 'Unknown',
                     fromMemberId: fromId,
@@ -2735,11 +2783,39 @@
                     createdBy: getDisplayName(user),
                     createdByEmail: user?.email || 'admin@geresu.com',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                };
+                const inRef = await db.collection('transactions').add(inData);
 
-                await logAudit('created', 'transactions', outRef.id, { fromId, toId, amount, reason },
+                // Audit for transfer_out (correct format)
+                const outAuditChanges = {
+                    memberId: { old: null, new: fromId },
+                    memberName: { old: null, new: fromMember ? fromMember.fullName : 'Unknown' },
+                    toMemberId: { old: null, new: toId },
+                    toMemberName: { old: null, new: toMember ? toMember.fullName : 'Unknown' },
+                    amount: { old: null, new: amount },
+                    date: { old: null, new: date },
+                    reason: { old: null, new: reason },
+                    note: { old: null, new: note },
+                    status: { old: null, new: 'completed' },
+                    type: { old: null, new: 'transfer_out' }
+                };
+                await logAudit('created', 'transactions', outRef.id, outAuditChanges,
                     `Transfer out: ${fromMember ? fromMember.fullName : 'Unknown'} -> ${toMember ? toMember.fullName : 'Unknown'}`);
-                await logAudit('created', 'transactions', inRef.id, { fromId, toId, amount, reason },
+
+                // Audit for transfer_in (correct format)
+                const inAuditChanges = {
+                    memberId: { old: null, new: toId },
+                    memberName: { old: null, new: toMember ? toMember.fullName : 'Unknown' },
+                    fromMemberId: { old: null, new: fromId },
+                    fromMemberName: { old: null, new: fromMember ? fromMember.fullName : 'Unknown' },
+                    amount: { old: null, new: amount },
+                    date: { old: null, new: date },
+                    reason: { old: null, new: `Transfer from ${fromMember ? fromMember.fullName : 'Unknown'}` },
+                    note: { old: null, new: `Transfer from ${fromMember ? fromMember.fullName : 'Unknown'}` },
+                    status: { old: null, new: 'completed' },
+                    type: { old: null, new: 'transfer_in' }
+                };
+                await logAudit('created', 'transactions', inRef.id, inAuditChanges,
                     `Transfer in: ${fromMember ? fromMember.fullName : 'Unknown'} -> ${toMember ? toMember.fullName : 'Unknown'}`);
 
                 showToast(translations[currentLang].transferSuccess, 'success');
