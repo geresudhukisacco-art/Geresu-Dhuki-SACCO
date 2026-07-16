@@ -1551,7 +1551,7 @@
         }
 
         // ============================================================
-        // AUDIT LOGGING (added for audit trail)
+        // AUDIT LOGGING (UPDATED with proper old/new format)
         // ============================================================
         async function logAudit(action, collection, documentId, changes = {}, details = '') {
             try {
@@ -1573,7 +1573,6 @@
                 });
             } catch (error) {
                 console.error('Error writing to audit log:', error);
-                // Don't throw - audit logging should not break main functionality
             }
         }
 
@@ -1825,10 +1824,8 @@
             if (yearClosedSection) yearClosedSection.style.display = 'none';
 
             if (yearData.isClosed) {
-                // Year is closed - show history and closed message
                 if (yearClosedSection) yearClosedSection.style.display = 'block';
             } else {
-                // Year is open
                 if (yearData.profit <= 0) {
                     if (noProfitSection) noProfitSection.style.display = 'block';
                 } else if (yearData.previewData.length === 0) {
@@ -1838,18 +1835,15 @@
                         if (msg) msg.textContent = t.noSavingsFound || 'No savings found for this year.';
                     }
                 } else {
-                    // Show preview
                     if (previewSection) previewSection.style.display = 'block';
                     renderPreviewTable(yearData.previewData, yearData.profit);
 
-                    // Check if dividends were already distributed
                     if (yearData.dividendsCount > 0) {
                         if (previewSection) previewSection.style.display = 'none';
                         if (closeYearSection) closeYearSection.style.display = 'block';
                     } else {
                         const distributeBtn = document.getElementById('distributeBtn');
                         if (distributeBtn) {
-                            // Only show distribute button if user is admin
                             if (canManageDividends()) {
                                 distributeBtn.style.display = 'inline-flex';
                                 distributeBtn.disabled = false;
@@ -1863,7 +1857,6 @@
                 }
             }
 
-            // Hide close year button for non-admin
             const closeBtn = document.getElementById('closeYearBtn');
             if (closeBtn) {
                 if (!canManageDividends()) {
@@ -1873,10 +1866,7 @@
                 }
             }
 
-            // Render history
             renderDividendHistory(yearData.dividendEntries);
-
-            // Update total count for history
             safeSetText('totalDividendsCount', yearData.dividendsCount);
         }
 
@@ -1932,7 +1922,6 @@
                 return;
             }
 
-            // Paginate
             const start = (currentPage - 1) * pageSize;
             const end = Math.min(start + pageSize, entries.length);
             const pageItems = entries.slice(start, end);
@@ -2013,7 +2002,7 @@
         }
 
         // ============================================================
-        // DISTRIBUTE DIVIDENDS (with audit logging)
+        // DISTRIBUTE DIVIDENDS (with audit logging - UPDATED FORMAT)
         // ============================================================
         async function distributeDividends() {
             if (!canManageDividends()) {
@@ -2021,19 +2010,16 @@
                 return;
             }
 
-            // Check if year is already closed
             if (yearData.isClosed) {
                 showToast(translations[currentLang].yearAlreadyClosed.replace('{year}', selectedYear), 'warning');
                 return;
             }
 
-            // Check if profit is zero or negative
             if (yearData.profit <= 0) {
                 showToast('No profit to distribute.', 'warning');
                 return;
             }
 
-            // Check if dividends were already distributed
             if (yearData.dividendsCount > 0) {
                 showToast('Dividends have already been distributed for this year.', 'warning');
                 return;
@@ -2056,7 +2042,7 @@
                 const batch = db.batch();
                 let distributedCount = 0;
                 let totalDistributed = 0;
-                const auditEntries = [];
+                const memberDetails = [];
 
                 for (const item of yearData.previewData) {
                     if (item.dividendAmount > 0.005) {
@@ -2078,44 +2064,32 @@
                         });
                         distributedCount++;
                         totalDistributed += item.dividendAmount;
-
-                        // Collect audit entry for each dividend
-                        auditEntries.push({
-                            memberId: item.memberId,
-                            memberName: item.memberName,
-                            amount: item.dividendAmount
-                        });
+                        memberDetails.push(`${item.memberName}: ${item.dividendAmount.toFixed(2)} ETB`);
                     }
                 }
 
                 await batch.commit();
 
-                // ---- AUDIT LOG: Dividend distributions ----
-                const auditDetails = auditEntries.map(e =>
-                    `${e.memberName}: ${e.amount.toFixed(2)} ETB`
-                ).join('; ');
-
+                // ---- AUDIT LOG: Dividend distributions (UPDATED with proper old/new format) ----
                 await logAudit(
                     'created',
                     'transactions',
                     'dividend_batch_' + Date.now(),
                     {
-                        year: selectedYear,
-                        totalMembers: distributedCount,
-                        totalAmount: totalDistributed,
-                        details: auditDetails
+                        year: { old: null, new: selectedYear },
+                        totalMembers: { old: null, new: distributedCount },
+                        totalAmount: { old: null, new: Math.round(totalDistributed * 100) / 100 },
+                        details: { old: null, new: memberDetails.join('; ') }
                     },
-                    `Dividend distribution for year ${selectedYear}: ${distributedCount} members received total ETB ${totalDistributed.toFixed(2)}`
+                    `Dividend distribution for year ${selectedYear}: ${distributedCount} members received total ETB ${Math.round(totalDistributed * 100) / 100}`
                 );
 
-                showToast(t.distributionSuccess.replace('{count}', distributedCount).replace('{total}', totalDistributed
-                    .toFixed(2)), 'success');
+                showToast(t.distributionSuccess.replace('{count}', distributedCount).replace('{total}', Math.round(
+                    totalDistributed * 100) / 100), 'success');
 
-                // Refresh data
                 await loadYearData(selectedYear);
                 updateUI(yearData);
 
-                // Show close year section
                 const previewSection = document.getElementById('previewSection');
                 const closeYearSection = document.getElementById('closeYearSection');
                 if (previewSection) previewSection.style.display = 'none';
@@ -2131,7 +2105,7 @@
         }
 
         // ============================================================
-        // CLOSE YEAR (with audit logging)
+        // CLOSE YEAR (with audit logging - UPDATED FORMAT)
         // ============================================================
         async function closeYear() {
             if (!canManageDividends()) {
@@ -2175,23 +2149,22 @@
                     note: `Year ${year} closed by ${createdByName}`
                 });
 
-                // ---- AUDIT LOG: Year closed ----
+                // ---- AUDIT LOG: Year closed (UPDATED with proper old/new format) ----
                 await logAudit(
                     'created',
                     'transactions',
                     docRef.id,
                     {
-                        year: year,
-                        closedBy: createdByName,
-                        totalDividendsDistributed: yearData.totalDividends,
-                        membersReceived: yearData.dividendsCount
+                        year: { old: null, new: year },
+                        closedBy: { old: null, new: createdByName },
+                        totalDividendsDistributed: { old: null, new: Math.round(yearData.totalDividends * 100) / 100 },
+                        membersReceived: { old: null, new: yearData.dividendsCount }
                     },
-                    `Year ${year} closed by ${createdByName} with ${yearData.dividendsCount} members receiving ETB ${yearData.totalDividends.toFixed(2)} in dividends`
+                    `Year ${year} closed by ${createdByName} with ${yearData.dividendsCount} members receiving ETB ${Math.round(yearData.totalDividends * 100) / 100} in dividends`
                 );
 
                 showToast(t.closeYearSuccess.replace('{year}', year), 'success');
 
-                // Refresh data
                 await loadYearData(year);
                 updateUI(yearData);
 
@@ -2213,7 +2186,6 @@
         async function loadYearData(year) {
             try {
                 yearData = await calculateYearData(year);
-                // Also store for pagination
                 currentPage = 1;
                 updateUI(yearData);
             } catch (error) {
@@ -2230,7 +2202,6 @@
                 const currentYear = new Date().getFullYear();
                 const yearsSet = new Set();
 
-                // Get years from various transactions
                 const collections = ['profit_withdrawal', 'year_close', 'savings', 'repayment', 'loan', 'profit_income'];
                 for (const type of collections) {
                     const snap = await db.collection('transactions').where('type', '==', type).get();
@@ -2313,7 +2284,6 @@
 
                 isAdmin = currentUserRole === 'admin';
 
-                // ---- Update user info (role + audit + users nav) ----
                 updateUserInfo();
 
                 initLanguage();
@@ -2368,8 +2338,8 @@
         // SESSION TIMEOUT (5 minutes inactivity)
         // ============================================================
         (function() {
-            const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 minutes
-            const WARNING_TIMEOUT = SESSION_TIMEOUT - 30 * 1000; // 30 seconds before logout
+            const SESSION_TIMEOUT = 5 * 60 * 1000;
+            const WARNING_TIMEOUT = SESSION_TIMEOUT - 30 * 1000;
 
             let timer = null;
             let warningTimer = null;
@@ -2384,9 +2354,7 @@
                     warningToast.remove();
                     warningToast = null;
                 }
-                // Start the warning timer
                 warningTimer = setTimeout(showWarning, WARNING_TIMEOUT);
-                // Start the logout timer
                 timer = setTimeout(forceLogout, SESSION_TIMEOUT);
             }
 
@@ -2426,7 +2394,6 @@
                     }
                 `;
                 document.head.appendChild(style);
-
                 document.body.appendChild(warningToast);
 
                 countdownInterval = setInterval(() => {
@@ -2447,7 +2414,6 @@
                     warningToast.remove();
                     warningToast = null;
                 }
-                // Use Firebase auth to sign out
                 if (typeof auth !== 'undefined' && auth) {
                     auth.signOut().then(() => {
                         window.location.href = '../login.html';
@@ -2455,26 +2421,20 @@
                         window.location.href = '../login.html';
                     });
                 } else {
-                    // Fallback: redirect to login
                     window.location.href = '../login.html';
                 }
             }
 
-            // Reset timer on user activity
             const events = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
 
             function handleActivity() {
                 resetTimer();
             }
-
             events.forEach(evt => {
                 document.addEventListener(evt, handleActivity);
             });
-
-            // Initial setup
             resetTimer();
 
-            // Clean up if page unloads
             window.addEventListener('beforeunload', function() {
                 clearTimeout(timer);
                 clearTimeout(warningTimer);
@@ -2487,7 +2447,6 @@
                 });
             });
 
-            // Add translation key if not present
             if (typeof translations !== 'undefined' && translations.en && !translations.en.sessionTimeout) {
                 translations.en.sessionTimeout = 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
                 translations.am.sessionTimeout = 'የእርስዎ ክፍለ-ጊዜ በ{seconds} ሰከንዶች ውስጥ ያበቃል። በመዳፊት ወይም ቁልፍ ይንቀሳቀሱ ወይም ይጫኑ በመግቢያ ላይ ለመቆየት።';
