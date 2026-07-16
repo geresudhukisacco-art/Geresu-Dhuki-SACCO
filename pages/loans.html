@@ -1507,8 +1507,7 @@
                 addGuaranteeFirst: 'Please add at least one guarantee before applying for a loan.',
                 unauthorized: 'You are not authorized to perform this action.',
                 allYears: 'All Years',
-                selectYear: 'Select Year',
-                insufficientCapital: 'The Current Balance Is Not Enough'
+                selectYear: 'Select Year'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1591,8 +1590,7 @@
                 addGuaranteeFirst: 'ብድር ከመጠየቅዎ በፊት እባክዎ ቢያንስ አንድ ዋስትና ያክሉ።',
                 unauthorized: 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም።',
                 allYears: 'ሁሉም ዓመታት',
-                selectYear: 'ዓመት ይምረጡ',
-                insufficientCapital: 'የአሁኑ ሂሳብ በቂ አይደለም'
+                selectYear: 'ዓመት ይምረጡ'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1675,8 +1673,7 @@
                 addGuaranteeFirst: 'Maaloo liqii itti fayyadamuu dura mirkaneessa tokko ykn isaa ol idaahi.',
                 unauthorized: 'Gochaa kana raawwachuuf hayyamamtee hin jirtu.',
                 allYears: 'Waggaa Hunda',
-                selectYear: 'Waggaa Filadhu',
-                insufficientCapital: 'Haala ammaa ga\'aa miti'
+                selectYear: 'Waggaa Filadhu'
             }
         };
 
@@ -1860,43 +1857,6 @@
                 return Math.round(total * 100) / 100;
             } catch (error) {
                 console.error('Error getting member savings:', error);
-                return 0;
-            }
-        }
-
-        // ---- NEW: Get member's total capital (Savings + Dividends - Withdrawals) across all years ----
-        async function getMemberTotalCapital(memberId) {
-            try {
-                const snapshot = await db.collection('transactions')
-                    .where('memberId', '==', memberId)
-                    .get();
-
-                let totalSavings = 0;
-                let totalDividends = 0;
-                let totalWithdrawals = 0;
-
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const amount = Number(data.amount) || 0;
-
-                    switch (data.type) {
-                        case 'savings':
-                            totalSavings += amount;
-                            break;
-                        case 'profit_withdrawal':
-                            if (data.reason === 'Dividend') {
-                                totalDividends += amount;
-                            }
-                            break;
-                        case 'withdrawal':
-                            totalWithdrawals += amount;
-                            break;
-                    }
-                });
-
-                return Math.round((totalSavings + totalDividends - totalWithdrawals) * 100) / 100;
-            } catch (error) {
-                console.error('Error calculating total capital:', error);
                 return 0;
             }
         }
@@ -2737,7 +2697,7 @@
             document.getElementById('editLoanModal').style.display = 'none';
         }
 
-        // ---- Update Loan (Admin only) with capital validation and audit ----
+        // ---- Update Loan (Admin only) with 3× savings validation (CAPITAL CHECK REMOVED) ----
         async function updateLoan(e) {
             e.preventDefault();
             if (!canEdit()) {
@@ -2773,12 +2733,16 @@
                 return;
             }
 
-            // ---- CAPITAL VALIDATION (NEW) ----
-            const capital = await getMemberTotalCapital(memberId);
-            if (amount > capital && capital > 0) {
-                showToast(translations[currentLang].insufficientCapital || 'The Current Balance Is Not Enough', 'error');
+            // ---- 3× SAVINGS RULE (KEEP THIS) ----
+            const savings = await getMemberSavings(memberId);
+            const maxLoan = Math.round(savings * 3 * 100) / 100;
+            if (amount > maxLoan && maxLoan > 0) {
+                const t = translations[currentLang];
+                showToast(t.maxLoanExceeded + ' (Max: ' + maxLoan.toFixed(2) + ' ETB)', 'warning');
                 return;
             }
+
+            // ---- CAPITAL CHECK REMOVED ----
 
             const btn = document.getElementById('updateLoanBtn');
             const original = btn.innerHTML;
@@ -2843,7 +2807,7 @@
             }
         }
 
-        // ---- Apply Loan (with capital validation and audit) ----
+        // ---- Apply Loan (with 3× savings rule, CAPITAL CHECK REMOVED) ----
         async function applyLoan(e) {
             e.preventDefault();
             if (!canApply()) {
@@ -2879,20 +2843,16 @@
                 return;
             }
 
-            // ---- CAPITAL VALIDATION (NEW) ----
-            const capital = await getMemberTotalCapital(memberId);
-            if (amount > capital && capital > 0) {
-                showToast(translations[currentLang].insufficientCapital || 'The Current Balance Is Not Enough', 'error');
-                return;
-            }
-
+            // ---- 3× SAVINGS RULE (KEEP THIS) ----
             const savings = await getMemberSavings(memberId);
             const maxLoan = Math.round(savings * 3 * 100) / 100;
-            if (amount > maxLoan) {
+            if (amount > maxLoan && maxLoan > 0) {
                 const t = translations[currentLang];
                 showToast(t.maxLoanExceeded + ' (Max: ' + maxLoan.toFixed(2) + ' ETB)', 'warning');
                 return;
             }
+
+            // ---- CAPITAL CHECK REMOVED ----
 
             if (guarantees.length === 0) {
                 const t = translations[currentLang];
