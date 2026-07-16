@@ -1715,7 +1715,7 @@
         }
 
         // ============================================================
-        // AUDIT LOGGING
+        // AUDIT LOGGING (UPDATED with proper old/new format)
         // ============================================================
         async function logAudit(action, collection, documentId, changes = {}, details = '') {
             try {
@@ -2310,7 +2310,7 @@
         }
 
         // ============================================================
-        // SAVE DEPOSIT (with audit logging) - UPDATED DUPLICATE CHECK
+        // SAVE DEPOSIT (with audit logging) - UPDATED DUPLICATE CHECK & AUDIT
         // ============================================================
         async function saveDeposit(e) {
             e.preventDefault();
@@ -2345,7 +2345,7 @@
                 if (savingsType === 'bank' && !bankName) { showToast('Please enter the bank name.', 'warning'); return; }
             }
 
-            // ---- UPDATED DUPLICATE CHECK (same member, cross-collection, UTC date) ----
+            // ---- DUPLICATE CHECK (same member, cross-collection, UTC date) ----
             if (savingsType !== 'cash' && ttNumber && transferDate) {
                 try {
                     const parts = transferDate.split('-').map(Number);
@@ -2422,12 +2422,18 @@
                 const docRef = db.collection('transactions').doc();
                 await docRef.set(docData);
 
+                // ---- AUDIT LOG: Created (UPDATED with proper old/new format) ----
                 await logAudit('created', 'transactions', docRef.id, {
-                    memberId: memberId,
-                    memberName: member ? member.fullName : 'Unknown',
-                    amount: amount,
-                    savingsType: savingsType,
-                    date: date
+                    memberId: { old: null, new: memberId },
+                    memberName: { old: null, new: member ? member.fullName : 'Unknown' },
+                    amount: { old: null, new: amount },
+                    savingsType: { old: null, new: savingsType },
+                    date: { old: null, new: date },
+                    note: { old: null, new: note },
+                    status: { old: null, new: status },
+                    ttNumber: { old: null, new: ttNumber || '' },
+                    bankName: { old: null, new: bankName || '' },
+                    transferDate: { old: null, new: transferDate || '' }
                 }, `Savings deposit of ${amount} ETB for ${member ? member.fullName : 'Unknown'}`);
 
                 showToast(translations[currentLang].depositSaved, 'success');
@@ -2525,7 +2531,7 @@
                 if (savingsType === 'bank' && !bankName) { showToast('Please enter the bank name.', 'warning'); return; }
             }
 
-            // ---- UPDATED DUPLICATE CHECK (exclude current document) ----
+            // ---- DUPLICATE CHECK (exclude current document) ----
             if (savingsType !== 'cash' && ttNumber && transferDate) {
                 try {
                     const parts = transferDate.split('-').map(Number);
@@ -2596,6 +2602,7 @@
 
                 await docRef.update(updateData);
 
+                // ---- AUDIT LOG: Updated (already using proper old/new format) ----
                 const changes = {};
                 const fieldsToCompare = ['memberId', 'amount', 'date', 'note', 'status', 'savingsType', 'ttNumber',
                     'bankName'
@@ -2624,7 +2631,7 @@
         }
 
         // ============================================================
-        // DELETE SAVINGS (with audit logging)
+        // DELETE SAVINGS (with audit logging - UPDATED)
         // ============================================================
         async function deleteSavings(txId) {
             if (!canDeleteSavings()) {
@@ -2642,8 +2649,9 @@
 
                 await docRef.delete();
 
+                // ---- AUDIT LOG: Deleted (UPDATED with proper old/new format) ----
                 const member = membersList.find(m => m.id === data.memberId);
-                await logAudit('deleted', 'transactions', txId, data,
+                await logAudit('deleted', 'transactions', txId, { deletedData: { old: null, new: data } },
                     `Savings deleted for ${member ? member.fullName : 'Unknown'} (${data.amount || 0} ETB)`);
 
                 showToast(t.savingsDeleted, 'success');
@@ -2654,7 +2662,7 @@
         }
 
         // ============================================================
-        // PRINT SLIP (with audit logging)
+        // PRINT SLIP (with audit logging - UPDATED)
         // ============================================================
         async function printSlip(txId) {
             const tx = allSavings.find(s => s.id === txId);
@@ -2683,9 +2691,12 @@
                     renderTable(currentItems);
                 }
 
+                // ---- AUDIT LOG: Printed (UPDATED with proper old/new format) ----
                 const member = membersList.find(m => m.id === tx.memberId);
-                await logAudit('printed', 'transactions', txId, { printedBy: printedBy },
-                    `Savings slip printed for ${member ? member.fullName : 'Unknown'} (${tx.amount || 0} ETB)`);
+                await logAudit('printed', 'transactions', txId, {
+                    printedBy: { old: null, new: printedBy },
+                    printedAt: { old: null, new: new Date().toISOString() }
+                }, `Savings slip printed for ${member ? member.fullName : 'Unknown'} (${tx.amount || 0} ETB)`);
 
                 showToast(translations[currentLang].printRecorded, 'success');
                 generateSlipHTML(tx);
