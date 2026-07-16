@@ -1720,7 +1720,7 @@
         }
 
         // ============================================================
-        // AUDIT LOGGING (added for audit trail)
+        // AUDIT LOGGING (UPDATED with proper old/new format)
         // ============================================================
         async function logAudit(action, collection, documentId, changes = {}, details = '') {
             try {
@@ -2352,8 +2352,8 @@
 
                 await docRef.delete();
 
-                // ---- AUDIT LOG: Deleted ----
-                await logAudit('deleted', 'transactions', id, docData, 'Repayment deleted');
+                // ---- AUDIT LOG: Deleted (UPDATED with proper old/new format) ----
+                await logAudit('deleted', 'transactions', id, { deletedData: { old: null, new: docData } }, 'Repayment deleted');
 
                 showToast(t.repaymentDeleted, 'success');
                 await loadRepayments();
@@ -2370,7 +2370,7 @@
             }
         }
 
-        // ---- Record Repayment (UPDATED DUPLICATE CHECK) ----
+        // ---- Record Repayment (UPDATED DUPLICATE CHECK & AUDIT) ----
         async function recordRepayment(e) {
             e.preventDefault();
             if (!canAddRepayment()) {
@@ -2521,8 +2521,20 @@
                 const docRef = db.collection('transactions').doc();
                 await docRef.set(docData);
 
-                // ---- AUDIT LOG: Created ----
-                await logAudit('created', 'transactions', docRef.id, docData, `Repayment recorded for loan ${loanId}`);
+                // ---- AUDIT LOG: Created (UPDATED with proper old/new format) ----
+                await logAudit('created', 'transactions', docRef.id, {
+                    loanId: { old: null, new: loanId },
+                    memberId: { old: null, new: memberId },
+                    memberName: { old: null, new: loan.memberName || 'Unknown' },
+                    amount: { old: null, new: amount },
+                    date: { old: null, new: date },
+                    note: { old: null, new: note },
+                    status: { old: null, new: status },
+                    paymentMethod: { old: null, new: paymentMethod },
+                    ttNumber: { old: null, new: ttNumber || '' },
+                    bankName: { old: null, new: bankName || '' },
+                    transferDate: { old: null, new: transferDate || '' }
+                }, `Repayment recorded for loan ${loanId} by ${createdByName}`);
 
                 const newTotalPaid = totalPaid + amount;
                 if (newTotalPaid >= totalPayable && status === 'completed') {
@@ -2569,7 +2581,7 @@
         }
 
         // ============================================================
-        // PRINT SLIP (with amount in words)
+        // PRINT SLIP (with amount in words and UPDATED AUDIT)
         // ============================================================
         async function printRepaymentSlip(docId) {
             const repayment = allRepayments.find(r => r.id === docId);
@@ -2598,8 +2610,11 @@
                     renderTable(currentItems);
                 }
 
-                // ---- AUDIT LOG: Printed ----
-                await logAudit('printed', 'transactions', docId, { printedBy: printedBy }, 'Repayment slip printed');
+                // ---- AUDIT LOG: Printed (UPDATED with proper old/new format) ----
+                await logAudit('printed', 'transactions', docId, {
+                    printedBy: { old: null, new: printedBy },
+                    printedAt: { old: null, new: new Date().toISOString() }
+                }, 'Repayment slip printed');
 
                 showToast(translations[currentLang].printRecorded, 'success');
                 generateRepaymentSlipHTML(repayment);
