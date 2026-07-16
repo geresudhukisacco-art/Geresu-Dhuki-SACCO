@@ -449,6 +449,9 @@
             border-bottom-color: var(--primary);
             background: var(--bg-primary);
         }
+        .settings-tabs .tab-btn.hidden-tab {
+            display: none !important;
+        }
 
         .settings-tab-content {
             background: var(--bg-card);
@@ -1015,11 +1018,11 @@
 
             <!-- Tabs -->
             <div class="settings-tabs" id="settingsTabs">
-                <button class="tab-btn active" data-tab="general"><i class="fas fa-building"></i> <span data-i18n="generalSettings">General</span></button>
-                <button class="tab-btn" data-tab="rates"><i class="fas fa-percent"></i> <span data-i18n="ratesSettings">Interest &amp; Penalty</span></button>
-                <button class="tab-btn" data-tab="profile"><i class="fas fa-user-shield"></i> <span data-i18n="adminProfile">Profile</span></button>
-                <button class="tab-btn" data-tab="preferences"><i class="fas fa-sliders-h"></i> <span data-i18n="preferences">System Preferences</span></button>
-                <button class="tab-btn" data-tab="data"><i class="fas fa-database"></i> <span data-i18n="dataManagement">Data Management</span></button>
+                <button class="tab-btn active" data-tab="general" data-role="admin"><i class="fas fa-building"></i> <span data-i18n="generalSettings">General</span></button>
+                <button class="tab-btn" data-tab="rates" data-role="admin"><i class="fas fa-percent"></i> <span data-i18n="ratesSettings">Interest &amp; Penalty</span></button>
+                <button class="tab-btn" data-tab="profile" data-role="all"><i class="fas fa-user-shield"></i> <span data-i18n="adminProfile">Profile</span></button>
+                <button class="tab-btn" data-tab="preferences" data-role="all"><i class="fas fa-sliders-h"></i> <span data-i18n="preferences">System Preferences</span></button>
+                <button class="tab-btn" data-tab="data" data-role="admin"><i class="fas fa-database"></i> <span data-i18n="dataManagement">Data Management</span></button>
             </div>
 
             <div class="settings-tab-content">
@@ -1330,7 +1333,8 @@
                 roleManager: 'Manager',
                 roleTeller: 'Teller',
                 roleAccountant: 'Accountant',
-                roleViewer: 'Viewer'
+                roleViewer: 'Viewer',
+                sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1417,7 +1421,8 @@
                 roleManager: 'ሥራ አስኪያጅ',
                 roleTeller: 'ተቀባይ',
                 roleAccountant: 'አካውንታንት',
-                roleViewer: 'ተመልካች'
+                roleViewer: 'ተመልካች',
+                sessionTimeout: 'የእርስዎ ክፍለ-ጊዜ በ{seconds} ሰከንዶች ውስጥ ያበቃል። በመዳፊት ወይም ቁልፍ ይንቀሳቀሱ ወይም ይጫኑ በመግቢያ ላይ ለመቆየት።'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1504,7 +1509,8 @@
                 roleManager: 'Manaajii',
                 roleTeller: 'Baatii',
                 roleAccountant: 'Herregaa',
-                roleViewer: 'Ilaalaa'
+                roleViewer: 'Ilaalaa',
+                sessionTimeout: 'Sessiin keessan {seconds} sekoondii keessatti xumurama. Siiqaa ykn cuqaasaa sochoosuu ykn cuqaasaa akka seenan turtanii.'
             }
         };
 
@@ -1532,6 +1538,7 @@
             try { localStorage.setItem('waciti-lang', lang); } catch (e) {}
             updateUserInfo();
             updateMinSavingsDisplay();
+            applyRoleBasedVisibility();
         }
 
         function initLanguage() {
@@ -1656,6 +1663,32 @@
         }
 
         // ============================================================
+        // ROLE-BASED VISIBILITY
+        // ============================================================
+        function applyRoleBasedVisibility() {
+            const isAdmin = currentUserRole === 'admin';
+            const tabs = document.querySelectorAll('.tab-btn');
+
+            tabs.forEach(btn => {
+                const role = btn.dataset.role || 'admin';
+                if (role === 'all' || (role === 'admin' && isAdmin)) {
+                    btn.classList.remove('hidden-tab');
+                } else {
+                    btn.classList.add('hidden-tab');
+                }
+            });
+
+            // If the currently active tab is hidden, switch to the first visible one
+            const activeTab = document.querySelector('.tab-btn.active');
+            if (activeTab && activeTab.classList.contains('hidden-tab')) {
+                const firstVisible = document.querySelector('.tab-btn:not(.hidden-tab)');
+                if (firstVisible) {
+                    firstVisible.click();
+                }
+            }
+        }
+
+        // ============================================================
         // USER INFO UPDATE (combined name + role) WITH AUDIT & USERS NAV
         // ============================================================
         function updateUserInfo() {
@@ -1688,6 +1721,9 @@
             if (usersNav) {
                 usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
             }
+
+            // ---- Apply role-based visibility for settings tabs ----
+            applyRoleBasedVisibility();
         }
 
         // ============================================================
@@ -1809,7 +1845,6 @@
                             contactPhone: document.getElementById('contactPhone').value.trim(),
                             address: document.getElementById('address').value.trim()
                         };
-                        // Compare fields
                         const generalFields = ['saccoName', 'saccoCode', 'currency', 'contactEmail', 'contactPhone', 'address'];
                         generalFields.forEach(f => {
                             if (oldData[f] !== updateData[f]) {
@@ -2008,7 +2043,7 @@
             }
         }
 
-        // ---- Export Data ----
+        // ---- Export Data (with Audit) ----
         async function exportData() {
             try {
                 const collections = ['savings', 'transactions', 'members', 'users'];
@@ -2029,6 +2064,14 @@
                 a.download = `sacco_export_${new Date().toISOString().slice(0,10)}.json`;
                 a.click();
                 URL.revokeObjectURL(url);
+
+                // ---- AUDIT LOG: Export ----
+                await logAudit('exported', 'system', 'data_export_' + Date.now(), {
+                    exportedAt: { old: null, new: new Date().toISOString() },
+                    collections: { old: null, new: collections.join(', ') },
+                    records: { old: null, new: Object.values(data).reduce((sum, arr) => sum + arr.length, 0) }
+                }, 'All data exported to JSON');
+
                 showToast(translations[currentLang]?.dataExported || 'Data exported successfully!', 'success');
             } catch (error) {
                 console.error('Error exporting data:', error);
@@ -2036,19 +2079,37 @@
             }
         }
 
-        // ---- Clear Data ----
+        // ---- Clear Data (with Audit) ----
         function confirmClearData() {
             const t = translations[currentLang] || translations.en;
             if (!confirm(t.clearConfirmation)) return;
             if (!confirm('⚠️ FINAL WARNING: This will permanently delete ALL data. Are you absolutely sure?')) return;
             showToast('Clearing data... (This feature is disabled for safety. Use Firebase Console to delete collections.)',
                 'warning');
+
+            // ---- AUDIT LOG: Clear Data attempted ----
+            logAudit('cleared', 'system', 'data_clear_attempt_' + Date.now(), {
+                action: { old: null, new: 'clear_all_data_attempted' },
+                timestamp: { old: null, new: new Date().toISOString() }
+            }, 'User attempted to clear all data (feature disabled for safety)').catch(err => console.warn(
+            'Audit log error:', err));
         }
 
-        // ---- Reset Settings ----
+        // ---- Reset Settings (with Audit) ----
         function resetSettings() {
             const t = translations[currentLang] || translations.en;
             if (!confirm(t.resetConfirmation)) return;
+
+            const oldSettings = {};
+            const fields = ['saccoName', 'saccoCode', 'currency', 'contactEmail', 'contactPhone', 'address',
+                'defaultInterestRate', 'penaltyRate', 'gracePeriod', 'minSavingsBalance', 'maxLoanAmount',
+                'defaultLanguage', 'dateFormat', 'timezone', 'itemsPerPage'
+            ];
+            fields.forEach(f => {
+                const el = document.getElementById(f);
+                if (el) oldSettings[f] = el.value;
+            });
+
             setDefaultSettings();
             const updateData = {
                 saccoName: 'GERESU DHUKI SACCO',
@@ -2068,8 +2129,15 @@
                 itemsPerPage: 10,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
+
             db.collection('settings').doc('system').set(updateData, { merge: true })
-                .then(() => {
+                .then(async () => {
+                    // ---- AUDIT LOG: Reset to Defaults ----
+                    await logAudit('reset', 'settings', 'system', {
+                        oldSettings: { old: oldSettings, new: 'defaults' },
+                        resetAt: { old: null, new: new Date().toISOString() }
+                    }, 'Settings reset to defaults');
+
                     showToast('Settings reset to defaults!', 'success');
                     updateMinSavingsDisplay(100);
                 })
@@ -2127,12 +2195,9 @@
                     currentUserRole = 'viewer';
                 }
 
-                // Only admin can access settings
-                if (currentUserRole !== 'admin') {
-                    showToast('Access denied. Only administrators can access settings.', 'error');
-                    setTimeout(() => { window.location.href = 'dashboard.html'; }, 2000);
-                    return;
-                }
+                // ---- REMOVED: The redirect that sent non-admin users to dashboard ----
+                // Now all authenticated users can access Settings, but tabs are hidden based on role.
+                // Role‑based visibility is applied later via applyRoleBasedVisibility().
 
                 initLanguage();
                 initTheme();
@@ -2203,6 +2268,9 @@
 
                 // Initialize tabs
                 initTabs();
+
+                // Apply role-based visibility after everything is loaded
+                applyRoleBasedVisibility();
             });
         });
     </script>
@@ -2325,7 +2393,7 @@
             if (typeof translations !== 'undefined' && translations.en && !translations.en.sessionTimeout) {
                 translations.en.sessionTimeout = 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
                 translations.am.sessionTimeout = 'የእርስዎ ክፍለ-ጊዜ በ{seconds} ሰከንዶች ውስጥ ያበቃል። በመዳፊት ወይም ቁልፍ ይንቀሳቀሱ ወይም ይጫኑ በመግቢያ ላይ ለመቆየት።';
-                translations.om.sessionTimeout = 'Sessiin keessan {seconds} sekoondii keessatti xumurama. Siiqaa ykn cuqaasaa sochoosuu ykn cuqaasuu akka seenan turtanii.';
+                translations.om.sessionTimeout = 'Sessiin keessan {seconds} sekoondii keessatti xumurama. Siiqaa ykn cuqaasaa sochoosuu ykn cuqaasaa akka seenan turtanii.';
             }
         })();
     </script>
