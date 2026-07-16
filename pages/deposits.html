@@ -1829,7 +1829,7 @@
         }
 
         // ============================================================
-        // AUDIT LOGGING
+        // AUDIT LOGGING (UPDATED with proper old/new format)
         // ============================================================
         async function logAudit(action, collection, documentId, changes = {}, details = '') {
             try {
@@ -2447,7 +2447,7 @@
             document.getElementById('editDepositModal').style.display = 'none';
         }
 
-        // ---- Update Deposit (with duplicate check) ----
+        // ---- Update Deposit (with duplicate check and AUDIT changes) ----
         async function updateDeposit(e) {
             e.preventDefault();
             if (!canEditDeposit()) {
@@ -2549,6 +2549,7 @@
 
                 await docRef.update(updateData);
 
+                // ---- AUDIT: Build changes with proper old/new format ----
                 const changes = {};
                 const fieldsToCompare = ['memberId', 'incomeType', 'amount', 'date', 'paymentMethod', 'ttNumber',
                     'bankName', 'description', 'note'
@@ -2556,10 +2557,28 @@
                 fieldsToCompare.forEach(field => {
                     const oldVal = oldData[field] !== undefined ? oldData[field] : null;
                     const newVal = updateData[field] !== undefined ? updateData[field] : null;
-                    if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+                    // For date, convert to string for comparison
+                    if (field === 'date') {
+                        const oldDate = oldVal ? (oldVal.toDate ? oldVal.toDate() : new Date(oldVal)) : null;
+                        const newDate = newVal ? (newVal.toDate ? newVal.toDate() : new Date(newVal)) : null;
+                        if (JSON.stringify(oldDate) !== JSON.stringify(newDate)) {
+                            changes[field] = { old: oldDate ? oldDate.toISOString() : null, new: newDate ? newDate
+                                    .toISOString() : null };
+                        }
+                    } else if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
                         changes[field] = { old: oldVal, new: newVal };
                     }
                 });
+
+                // If transferDate changed
+                const oldTransferDate = oldData.transferDate ? (oldData.transferDate.toDate ? oldData.transferDate.toDate() :
+                    new Date(oldData.transferDate)) : null;
+                const newTransferDate = updateData.transferDate ? (updateData.transferDate.toDate ? updateData.transferDate
+                    .toDate() : new Date(updateData.transferDate)) : null;
+                if (JSON.stringify(oldTransferDate) !== JSON.stringify(newTransferDate)) {
+                    changes.transferDate = { old: oldTransferDate ? oldTransferDate.toISOString() : null, new: newTransferDate ?
+                            newTransferDate.toISOString() : null };
+                }
 
                 await logAudit('updated', 'transactions', depositId, changes,
                     `Deposit updated: ${incomeType} - ${amount} ETB`);
@@ -2592,7 +2611,8 @@
 
                 await docRef.delete();
 
-                await logAudit('deleted', 'transactions', id, data,
+                // ---- AUDIT: Log deleted with proper old/new format ----
+                await logAudit('deleted', 'transactions', id, { deletedData: { old: null, new: data } },
                     `Deposit deleted: ${data.incomeType || 'Unknown'} - ${data.amount || 0} ETB`);
 
                 showToast(t.depositDeleted, 'success');
@@ -2603,7 +2623,7 @@
             }
         }
 
-        // ---- Record Deposit (with duplicate check) ----
+        // ---- Record Deposit (with duplicate check and AUDIT changes) ----
         async function recordDeposit(e) {
             e.preventDefault();
             if (!canAddDeposit()) {
@@ -2710,14 +2730,18 @@
 
                 const docRef = await db.collection('transactions').add(docData);
 
+                // ---- AUDIT: Log created with proper old/new format ----
                 await logAudit('created', 'transactions', docRef.id, {
-                    memberId: memberId,
-                    memberName: member ? member.fullName : 'Unknown',
-                    incomeType: incomeType,
-                    amount: amount,
-                    paymentMethod: paymentMethod,
-                    date: date,
-                    description: description
+                    memberId: { old: null, new: memberId },
+                    memberName: { old: null, new: member ? member.fullName : 'Unknown' },
+                    incomeType: { old: null, new: incomeType },
+                    amount: { old: null, new: amount },
+                    paymentMethod: { old: null, new: paymentMethod },
+                    date: { old: null, new: date },
+                    description: { old: null, new: description },
+                    ttNumber: { old: null, new: ttNumber || '' },
+                    bankName: { old: null, new: bankName || '' },
+                    transferDate: { old: null, new: transferDate || '' }
                 }, `Deposit created: ${incomeType} - ${amount} ETB for member ${member ? member.fullName : 'Unknown'}`);
 
                 showToast(translations[currentLang].depositRecorded, 'success');
@@ -2751,7 +2775,7 @@
         }
 
         // ============================================================
-        // PRINT SLIP
+        // PRINT SLIP (with AUDIT changes)
         // ============================================================
         async function printDepositSlip(docId) {
             const deposit = allDeposits.find(d => d.id === docId);
@@ -2780,8 +2804,11 @@
                     renderTable(currentItems);
                 }
 
-                await logAudit('printed', 'transactions', docId, { printedBy: printedBy },
-                    `Deposit slip printed: ${deposit.incomeType || 'Unknown'} - ${deposit.amount || 0} ETB`);
+                // ---- AUDIT: Log print with proper old/new format ----
+                await logAudit('printed', 'transactions', docId, {
+                    printedBy: { old: null, new: printedBy },
+                    printedAt: { old: null, new: new Date().toISOString() }
+                }, `Deposit slip printed: ${deposit.incomeType || 'Unknown'} - ${deposit.amount || 0} ETB`);
 
                 showToast(translations[currentLang].printRecorded, 'success');
                 generateDepositSlipHTML(deposit);
