@@ -12,6 +12,8 @@
     </script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js">
     </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js">
+    </script>
 
     <style>
         /* ============================================================
@@ -36,8 +38,8 @@
         }
 
         /* ============================================================
-                   RESET & BASE
-                   ============================================================ */
+           RESET & BASE
+           ============================================================ */
         * {
             margin: 0;
             padding: 0;
@@ -55,8 +57,8 @@
         }
 
         /* ============================================================
-                   ANIMATED BACKGROUND
-                   ============================================================ */
+           ANIMATED BACKGROUND
+           ============================================================ */
         .bg-container {
             position: fixed;
             top: 0;
@@ -148,8 +150,8 @@
         }
 
         /* ============================================================
-                   LOGIN WRAPPER
-                   ============================================================ */
+           LOGIN WRAPPER
+           ============================================================ */
         .login-wrapper {
             position: relative;
             z-index: 2;
@@ -681,7 +683,7 @@
 </head>
 <body>
 
-   <!-- ============================================================
+    <!-- ============================================================
     BACKGROUND
     ============================================================ -->
     <div class="bg-container">
@@ -780,6 +782,7 @@
         };
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
+        const db = firebase.firestore();
 
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
             .catch(err => console.warn('Persistence error:', err));
@@ -868,7 +871,30 @@
         }
 
         // ============================================================
-        // 4. PAGE INIT
+        // 4. AUDIT LOGGING (UPDATED with proper old/new format)
+        // ============================================================
+        async function logAudit(action, collection, documentId, changes = {}, details = '') {
+            try {
+                const user = auth.currentUser;
+                await db.collection('audit').add({
+                    action: action,
+                    collection: collection,
+                    documentId: documentId,
+                    changes: changes,
+                    details: details || `${action} ${collection}`,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    userEmail: user?.email || 'system',
+                    userName: user?.displayName || user?.email || 'System',
+                    userDisplayName: user?.displayName || 'System'
+                });
+            } catch (e) {
+                console.error('Audit log error:', e);
+                // Do not throw — audit should not block login
+            }
+        }
+
+        // ============================================================
+        // 5. PAGE INIT
         // ============================================================
         document.addEventListener('DOMContentLoaded', function() {
             // Language
@@ -895,7 +921,7 @@
                 }
             });
 
-            // Login
+            // ----- LOGIN WITH AUDIT -----
             document.getElementById('loginForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 const email = document.getElementById('email').value.trim();
@@ -912,12 +938,31 @@
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing in...';
 
                 try {
-                    await auth.signInWithEmailAndPassword(email, password);
+                    const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                    const user = userCredential.user;
+
+                    // ---- AUDIT LOG: Login Success ----
+                    // Format: { email: { old: null, new: email }, status: { old: null, new: 'success' } }
+                    await logAudit(
+                        'login',
+                        'users',
+                        user.uid,
+                        {
+                            email: { old: null, new: email },
+                            status: { old: null, new: 'success' },
+                            uid: { old: null, new: user.uid }
+                        },
+                        `User ${email} logged in successfully`
+                    );
+
                     showToast('✅ Login successful! Redirecting...', 'success');
                     setTimeout(() => { window.location.href = 'pages/dashboard.html'; }, 500);
+
                 } catch (error) {
                     let msg = 'Login failed.';
-                    switch (error.code) {
+                    let errorCode = error.code || 'unknown';
+
+                    switch (errorCode) {
                         case 'auth/user-not-found':
                             msg = 'No account found.';
                             break;
@@ -927,9 +972,27 @@
                         case 'auth/invalid-email':
                             msg = 'Invalid email.';
                             break;
+                        case 'auth/too-many-requests':
+                            msg = 'Too many failed attempts. Try again later.';
+                            break;
                         default:
                             msg = error.message;
                     }
+
+                    // ---- AUDIT LOG: Login Failed ----
+                    // Use email as documentId since we don't have a UID for failed login
+                    await logAudit(
+                        'login',
+                        'users',
+                        email,
+                        {
+                            email: { old: null, new: email },
+                            status: { old: null, new: 'failed' },
+                            error: { old: null, new: errorCode }
+                        },
+                        `Failed login attempt for ${email}: ${errorCode}`
+                    );
+
                     showToast('❌ ' + msg, 'error');
                     btn.disabled = false;
                     btn.innerHTML = originalHtml;
