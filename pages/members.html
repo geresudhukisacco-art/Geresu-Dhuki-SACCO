@@ -1801,7 +1801,7 @@
         }
 
         // ============================================================
-        // AUDIT LOGGING (added for audit trail)
+        // AUDIT LOGGING (UPDATED with proper old/new format)
         // ============================================================
         async function logAudit(action, collection, documentId, changes = {}, details = '') {
             try {
@@ -1865,6 +1865,7 @@
             try { await storage.ref().child(`members/${memberId}/profile.jpg`).delete(); } catch (e) {}
         }
 
+        // ---- ADD MEMBER (UPDATED AUDIT) ----
         async function addMember(data, file) {
             try {
                 const phone = data.phone.trim();
@@ -1909,14 +1910,19 @@
                     } catch (e) { console.warn('Photo upload failed:', e); }
                 }
 
-                // ---- AUDIT LOG: Created ----
+                // ---- AUDIT LOG: Created (UPDATED with proper old/new format) ----
                 await logAudit('created', 'members', docRef.id, {
-                    fullName: fullNameEn,
-                    fullNameAm: fullNameAm,
-                    phone: phone,
-                    nid: nid,
-                    nationality: data.nationality,
-                    memberId: memberId
+                    fullName: { old: null, new: fullNameEn },
+                    fullNameAm: { old: null, new: fullNameAm },
+                    phone: { old: null, new: phone },
+                    nid: { old: null, new: nid },
+                    nationality: { old: null, new: data.nationality },
+                    memberId: { old: null, new: memberId },
+                    address: { old: null, new: data.address || '' },
+                    gender: { old: null, new: data.gender || 'Male' },
+                    status: { old: null, new: data.status || 'active' },
+                    dateJoined: { old: null, new: data.dateJoined || '' },
+                    photoURL: { old: null, new: photoURL || null }
                 }, `Member ${fullNameEn} (${memberId}) created`);
 
                 showToast(translations[currentLang].memberSaved, 'success');
@@ -1927,6 +1933,7 @@
             }
         }
 
+        // ---- UPDATE MEMBER (already using proper old/new format) ----
         async function updateMember(memberId, data, file) {
             try {
                 const phone = data.phone.trim();
@@ -1963,13 +1970,14 @@
 
                 await docRef.update(updateData);
 
+                let newPhotoURL = oldData.photoURL || null;
                 if (file) {
                     await deletePhoto(memberId);
-                    const photoURL = await uploadPhoto(memberId, file);
-                    await docRef.update({ photoURL });
+                    newPhotoURL = await uploadPhoto(memberId, file);
+                    await docRef.update({ photoURL: newPhotoURL });
                 }
 
-                // ---- AUDIT LOG: Updated ----
+                // ---- AUDIT LOG: Updated (already using proper old/new format) ----
                 const changes = {};
                 const fieldsToCompare = ['firstNameEn', 'middleNameEn', 'lastNameEn', 'firstNameAm', 'middleNameAm',
                     'lastNameAm', 'phone', 'nid', 'nationality', 'address', 'status', 'gender', 'dateJoined'
@@ -1981,8 +1989,8 @@
                         changes[field] = { old: oldVal, new: newVal };
                     }
                 });
-                if (oldData.photoURL !== updateData.photoURL) {
-                    changes.photoURL = { old: oldData.photoURL || null, new: updateData.photoURL || null };
+                if (oldData.photoURL !== newPhotoURL) {
+                    changes.photoURL = { old: oldData.photoURL || null, new: newPhotoURL || null };
                 }
 
                 await logAudit('updated', 'members', memberId, changes,
@@ -1996,6 +2004,7 @@
             }
         }
 
+        // ---- DELETE MEMBER (UPDATED AUDIT) ----
         async function deleteMember(memberId) {
             try {
                 const docRef = db.collection('members').doc(memberId);
@@ -2005,8 +2014,8 @@
                 await deletePhoto(memberId);
                 await docRef.delete();
 
-                // ---- AUDIT LOG: Deleted ----
-                await logAudit('deleted', 'members', memberId, memberData,
+                // ---- AUDIT LOG: Deleted (UPDATED with proper old/new format) ----
+                await logAudit('deleted', 'members', memberId, { deletedData: { old: null, new: memberData } },
                     `Member ${memberData.fullName || 'Unknown'} (${memberData.memberId || 'N/A'}) deleted`);
 
                 showToast(translations[currentLang].memberDeleted, 'success');
