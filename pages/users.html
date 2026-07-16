@@ -1443,7 +1443,7 @@
         }
 
         // ============================================================
-        // AUDIT LOGGING (added for audit trail)
+        // AUDIT LOGGING (UPDATED with proper old/new format)
         // ============================================================
         async function logAudit(action, collection, documentId, changes = {}, details = '') {
             try {
@@ -1465,7 +1465,6 @@
                 });
             } catch (error) {
                 console.error('Error writing to audit log:', error);
-                // Don't throw - audit logging should not break main functionality
             }
         }
 
@@ -1687,7 +1686,7 @@
             document.getElementById('editUserId').value = '';
         }
 
-        // ---- Save User (Admin only) ----
+        // ---- SAVE USER (Admin only) – UPDATED AUDIT FORMAT ----
         async function saveUser(e) {
             e.preventDefault();
             if (!isAdmin()) {
@@ -1717,7 +1716,6 @@
                     const oldDoc = await db.collection('users').doc(userId).get();
                     const oldData = oldDoc.exists ? oldDoc.data() : {};
 
-                    // Update existing user (Firestore only)
                     await db.collection('users').doc(userId).update({
                         displayName: displayName,
                         email: email,
@@ -1726,7 +1724,7 @@
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
 
-                    // ---- AUDIT LOG: Updated ----
+                    // ---- AUDIT LOG: Updated (correct format) ----
                     const changes = {};
                     const fieldsToCompare = ['displayName', 'email', 'role', 'status'];
                     fieldsToCompare.forEach(field => {
@@ -1743,7 +1741,7 @@
                     hideUserForm();
                     await loadUsers();
                 } else {
-                    // Create new user: requires Auth + Firestore
+                    // Create new user
                     if (!password || password.length < 6) {
                         showToast(t.passwordRequired + ' (minimum 6 characters)', 'warning');
                         btn.disabled = false;
@@ -1764,13 +1762,15 @@
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
 
-                    // ---- AUDIT LOG: Created ----
-                    await logAudit('created', 'users', newUser.uid, {
-                        displayName: displayName,
-                        email: email,
-                        role: role,
-                        status: status
-                    }, `User ${displayName} (${email}) created with role ${role}`);
+                    // ---- AUDIT LOG: Created (UPDATED: all fields with { old: null, new: value }) ----
+                    const createChanges = {
+                        displayName: { old: null, new: displayName },
+                        email: { old: null, new: email },
+                        role: { old: null, new: role },
+                        status: { old: null, new: status }
+                    };
+                    await logAudit('created', 'users', newUser.uid, createChanges,
+                        `User ${displayName} (${email}) created with role ${role}`);
 
                     showToast(t.userAdded, 'success');
                     hideUserForm();
@@ -1818,7 +1818,7 @@
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-                // ---- AUDIT LOG: Status toggled ----
+                // ---- AUDIT LOG: Status toggled (correct format) ----
                 await logAudit('updated', 'users', userId, {
                     status: { old: oldStatus, new: newStatus }
                 }, `User ${user.displayName || user.email} status changed from ${oldStatus} to ${newStatus}`);
@@ -1830,7 +1830,7 @@
             }
         }
 
-        // ---- Delete User (Admin only) ----
+        // ---- DELETE USER (Admin only) – UPDATED AUDIT FORMAT ----
         async function deleteUser(userId) {
             if (!isAdmin()) {
                 showToast(translations[currentLang].unauthorized, 'error');
@@ -1851,8 +1851,9 @@
 
                 await db.collection('users').doc(userId).delete();
 
-                // ---- AUDIT LOG: Deleted ----
-                await logAudit('deleted', 'users', userId, userData,
+                // ---- AUDIT LOG: Deleted (UPDATED: deletedData wrapper) ----
+                await logAudit('deleted', 'users', userId,
+                    { deletedData: { old: null, new: userData } },
                     `User ${user.displayName || user.email} deleted`);
 
                 showToast(t.userDeleted, 'success');
