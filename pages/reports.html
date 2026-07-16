@@ -1100,7 +1100,6 @@
                     <h2 data-i18n="reportsTitle">Financial Reports</h2>
                     <p data-i18n="reportsSub">Generate and view financial reports with yearly breakdown</p>
                 </div>
-                <!-- Dividend Distribution Button REMOVED -->
             </div>
 
             <!-- Report Filters -->
@@ -1204,7 +1203,7 @@
                 </div>
             </div>
 
-            <!-- Empty State (with go to Dividends link removed) -->
+            <!-- Empty State -->
             <div id="emptyState" class="empty-state">
                 <i class="fas fa-chart-pie"></i>
                 <p data-i18n="selectFilters">Select report type and filters, then click Generate Report.</p>
@@ -1555,7 +1554,7 @@
         }
 
         // ============================================================
-        // AUDIT LOGGING (added for audit trail)
+        // AUDIT LOGGING (UPDATED with proper old/new format)
         // ============================================================
         async function logAudit(action, collection, documentId, changes = {}, details = '') {
             try {
@@ -2337,7 +2336,7 @@
         }
 
         // ============================================================
-        // GENERATE REPORT (main function) with audit logging
+        // GENERATE REPORT (main function) with UPDATED AUDIT logging
         // ============================================================
         async function generateReport(e) {
             e.preventDefault();
@@ -2411,7 +2410,7 @@
                 document.getElementById('printReportTitle').textContent = document.getElementById('reportType')
                     .options[document.getElementById('reportType').selectedIndex].text;
 
-                // ---- AUDIT LOG: Report generated ----
+                // ---- AUDIT LOG: Report generated (UPDATED with proper old/new format) ----
                 const reportLabel = document.getElementById('reportType')
                     .options[document.getElementById('reportType').selectedIndex].text;
                 const memberName = memberId ? (membersMap[memberId] || 'Selected member') : 'All Members';
@@ -2420,14 +2419,14 @@
                     'reports',
                     'report_' + Date.now(),
                     {
-                        reportType: reportType,
-                        reportLabel: reportLabel,
-                        dateFrom: dateFrom || 'N/A',
-                        dateTo: dateTo || 'N/A',
-                        memberId: memberId || 'all',
-                        memberName: memberName,
-                        recordCount: rows.length,
-                        summary: summary.reduce((acc, card) => { acc[card.label] = card.value; return acc; }, {})
+                        reportType: { old: null, new: reportType },
+                        reportLabel: { old: null, new: reportLabel },
+                        dateFrom: { old: null, new: dateFrom || 'N/A' },
+                        dateTo: { old: null, new: dateTo || 'N/A' },
+                        memberId: { old: null, new: memberId || 'all' },
+                        memberName: { old: null, new: memberName },
+                        recordCount: { old: null, new: rows.length },
+                        summary: { old: null, new: summary.reduce((acc, card) => { acc[card.label] = card.value; return acc; }, {}) }
                     },
                     `Report generated: ${reportLabel} for ${memberName} (${dateFrom || 'N/A'} - ${dateTo || 'N/A'})`
                 );
@@ -2446,18 +2445,19 @@
         }
 
         // ============================================================
-        // PRINT & EXPORT (with audit logging)
+        // PRINT & EXPORT (with UPDATED AUDIT logging)
         // ============================================================
         function printReport() {
-            // ---- AUDIT LOG: Report printed ----
+            // ---- AUDIT LOG: Report printed (UPDATED with proper old/new format) ----
             const reportTitle = document.getElementById('printReportTitle')?.textContent || 'Financial Report';
+            const generatedAt = document.getElementById('printFooterDate')?.textContent || new Date().toLocaleString();
             logAudit(
                 'printed',
                 'reports',
                 'print_' + Date.now(),
                 {
-                    reportTitle: reportTitle,
-                    generatedAt: document.getElementById('printFooterDate')?.textContent || new Date().toLocaleString()
+                    reportTitle: { old: null, new: reportTitle },
+                    generatedAt: { old: null, new: generatedAt }
                 },
                 `Report printed: ${reportTitle}`
             ).catch(err => console.warn('Audit log error:', err));
@@ -2483,16 +2483,16 @@
             a.click();
             URL.revokeObjectURL(url);
 
-            // ---- AUDIT LOG: Report exported ----
+            // ---- AUDIT LOG: Report exported (UPDATED with proper old/new format) ----
             const reportTitle = document.getElementById('printReportTitle')?.textContent || 'Financial Report';
             logAudit(
                 'exported',
                 'reports',
                 'export_' + Date.now(),
                 {
-                    reportTitle: reportTitle,
-                    format: 'CSV',
-                    recordCount: rows.length
+                    reportTitle: { old: null, new: reportTitle },
+                    format: { old: null, new: 'CSV' },
+                    recordCount: { old: null, new: rows.length }
                 },
                 `Report exported to CSV: ${reportTitle}`
             ).catch(err => console.warn('Audit log error:', err));
