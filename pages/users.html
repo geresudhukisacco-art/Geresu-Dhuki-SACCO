@@ -1,0 +1,2285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Users – GERESU DHUKI SACCO</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js">
+    </script>
+
+    <style>
+        /* ============================================================
+           ROOT VARIABLES (Matches Dashboard)
+           ============================================================ */
+        :root {
+            --primary: #1a6e3a;
+            --primary-dark: #0f4f28;
+            --primary-light: #2e8b4a;
+            --gold: #d4a845;
+            --gold-light: #f0d68a;
+            --gold-dark: #b8922f;
+            --bg-primary: #f5f7f6;
+            --bg-card: #ffffff;
+            --bg-sidebar: #1a6e3a;
+            --text-primary: #1a2e1f;
+            --text-secondary: #6c7d70;
+            --text-muted: #8a9e92;
+            --border-color: #e8ede9;
+            --shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+            --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.1);
+            --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.3);
+            --radius: 16px;
+            --radius-sm: 10px;
+            --success: #2d7a3d;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #2196f3;
+            --input-bg: #ffffff;
+            --input-border: #d0d7d2;
+            --input-focus: rgba(45, 122, 61, 0.1);
+            --transition: 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+            --sidebar-width: 260px;
+            --sidebar-collapsed-width: 72px;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1a2e;
+            --bg-card: #16213e;
+            --bg-sidebar: #0f4f28;
+            --text-primary: #e8f0ea;
+            --text-secondary: #a0aec0;
+            --text-muted: #6b7d82;
+            --border-color: #2d3748;
+            --shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+            --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.4);
+            --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.5);
+            --input-bg: #2d3748;
+            --input-border: #4a5568;
+            --input-focus: rgba(45, 122, 61, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* ============================================================
+           SIDEBAR – Bright green with HIGH CONTRAST text (Matches Dashboard)
+           ============================================================ */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-sidebar);
+            color: #e8f0ea;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s ease, transform 0.3s ease;
+            box-shadow: 2px 0 16px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+        }
+        .sidebar.collapsed {
+            width: var(--sidebar-collapsed-width);
+        }
+        .sidebar.collapsed .brand-text,
+        .sidebar.collapsed .sidebar-nav li a span,
+        .sidebar.collapsed .logout-btn span,
+        .sidebar.collapsed .sidebar-brand .brand-sub {
+            display: none;
+        }
+        .sidebar.collapsed .sidebar-brand {
+            padding: 16px 8px;
+        }
+        .sidebar.collapsed .brand-icon {
+            width: 48px;
+            height: 48px;
+        }
+        .sidebar.collapsed .sidebar-nav li a {
+            justify-content: center;
+            padding: 12px 0;
+        }
+        .sidebar.collapsed .sidebar-nav li a i {
+            font-size: 20px;
+            width: auto;
+        }
+        .sidebar.collapsed .logout-btn {
+            justify-content: center;
+            padding: 10px 0;
+        }
+        .sidebar.collapsed .logout-btn i {
+            font-size: 20px;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--gold-light);
+            border-radius: 4px;
+        }
+
+        /* --- SIDEBAR BRAND --- */
+        .sidebar-brand {
+            padding: 20px 20px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+            text-align: center;
+            transition: padding 0.3s ease;
+            position: relative;
+        }
+        .sidebar-toggle-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s, transform 0.3s ease;
+        }
+        .sidebar-toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        .sidebar.collapsed .sidebar-toggle-btn {
+            transform: rotate(180deg);
+            top: 8px;
+            right: 6px;
+        }
+
+        .brand-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            overflow: hidden;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.12);
+            border: 2px solid var(--gold-light);
+            padding: 4px;
+            transition: width 0.3s ease, height 0.3s ease;
+        }
+        .brand-logo-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        .brand-text .brand-name {
+            font-size: 20px;
+            font-weight: 800;
+            display: block;
+            line-height: 1.2;
+            color: #ffffff;
+            letter-spacing: 0.5px;
+            transition: font-size 0.3s ease;
+        }
+        .brand-text .brand-name span {
+            color: var(--gold-light);
+        }
+        .brand-text .brand-sub {
+            font-size: 11px;
+            opacity: 0.8;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        /* --- SIDEBAR NAVIGATION — HIGH CONTRAST --- */
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 12px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        .sidebar-nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .sidebar-nav li {
+            margin-bottom: 2px;
+        }
+        .sidebar-nav li a {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 16px;
+            border-radius: 10px;
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 14px;
+            transition: 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .sidebar-nav li a i {
+            width: 22px;
+            text-align: center;
+            font-size: 17px;
+            color: rgba(255, 255, 255, 0.75);
+            flex-shrink: 0;
+            transition: color 0.2s;
+        }
+        .sidebar-nav li a:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: #ffffff;
+        }
+        .sidebar-nav li a:hover i {
+            color: var(--gold-light);
+        }
+        .sidebar-nav li.active a {
+            background: rgba(212, 168, 69, 0.25);
+            color: var(--gold-light);
+        }
+        .sidebar-nav li.active a i {
+            color: var(--gold-light);
+        }
+
+        /* --- SIDEBAR FOOTER (Logout) --- */
+        .sidebar-footer {
+            padding: 16px 20px 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            transition: padding 0.3s ease;
+        }
+        .logout-btn {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: inherit;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .logout-btn i {
+            color: rgba(255, 255, 255, 0.7);
+            flex-shrink: 0;
+        }
+        .logout-btn:hover {
+            background: rgba(231, 76, 60, 0.25);
+            border-color: var(--danger);
+            color: #ff6b6b;
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 999;
+        }
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        /* ============================================================
+           MAIN CONTENT
+           ============================================================ */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: margin-left 0.3s ease;
+        }
+        .sidebar.collapsed~.main-content {
+            margin-left: var(--sidebar-collapsed-width);
+        }
+
+        /* ----- HEADER ----- */
+        .top-header {
+            background: var(--bg-card);
+            padding: 16px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 999;
+            box-shadow: var(--shadow);
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .menu-toggle {
+            background: none;
+            border: none;
+            font-size: 22px;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: none;
+            transition: color 0.3s;
+        }
+        .page-title h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+            transition: color 0.3s;
+        }
+        .breadcrumb {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-left: 8px;
+            transition: color 0.3s;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .lang-switcher {
+            display: flex;
+            gap: 4px;
+        }
+        .lang-btn {
+            background: transparent;
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: 0.2s;
+        }
+        .lang-btn:hover {
+            background: var(--border-color);
+        }
+        .lang-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-profile img {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--primary);
+            background: #f5f7f6;
+        }
+        .user-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+            transition: color 0.3s;
+        }
+
+        /* ----- USERS CONTENT ----- */
+        .dashboard-content {
+            padding: 24px 30px 30px;
+            flex: 1;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .page-header-left h2 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            transition: color 0.3s;
+        }
+        .page-header-left p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            transition: color 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover {
+            background: #1f5e2c;
+            transform: scale(1.02);
+        }
+        .btn-primary:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-secondary {
+            background: var(--border-color);
+            color: var(--text-primary);
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-secondary:hover {
+            background: #d0d7d2;
+        }
+        .btn-danger {
+            background: var(--danger);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        /* ----- FORM SECTION ----- */
+        .form-section {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            padding: 20px 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .form-section h3 {
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 14px;
+            color: var(--text-primary);
+            transition: color 0.3s;
+        }
+
+        .form-group {
+            position: relative;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .form-row.two {
+            grid-template-columns: 1fr 1fr;
+        }
+        .form-group label {
+            font-weight: 500;
+            font-size: 13px;
+            color: var(--text-primary);
+            display: block;
+            margin-bottom: 2px;
+            transition: color 0.3s;
+        }
+        .form-group label .required {
+            color: var(--danger);
+            margin-left: 2px;
+        }
+        .form-group input,
+        .form-group select {
+            padding: 7px 10px;
+            border: 1px solid var(--input-border);
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-family: inherit;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            transition: all 0.2s;
+            width: 100%;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--input-focus);
+        }
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 6px;
+        }
+
+        /* ----- SEARCH & TABLE ----- */
+        .search-bar {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .search-wrapper {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+        .search-wrapper i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+        }
+        .search-wrapper input {
+            width: 100%;
+            padding: 12px 16px 12px 44px;
+            border: 1px solid var(--input-border);
+            border-radius: var(--radius);
+            font-size: 14px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+        .search-wrapper input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--input-focus);
+        }
+
+        .filter-wrapper select {
+            padding: 12px 16px;
+            border: 1px solid var(--input-border);
+            border-radius: var(--radius);
+            font-size: 14px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            cursor: pointer;
+            min-width: 140px;
+            transition: all 0.2s;
+        }
+        .filter-wrapper select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--input-focus);
+        }
+
+        .table-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .table-header {
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+        .table-header strong {
+            color: var(--primary);
+        }
+        .table-wrapper {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        thead {
+            background: var(--bg-primary);
+        }
+        thead th {
+            padding: 10px 14px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--border-color);
+            white-space: nowrap;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            transition: all 0.3s;
+        }
+        tbody td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+            vertical-align: middle;
+            transition: all 0.3s;
+        }
+        tbody tr:hover {
+            background: var(--bg-primary);
+        }
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .role-badge {
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .role-badge.admin {
+            background: #e8d5f5;
+            color: #6a1b9a;
+        }
+        .role-badge.manager {
+            background: #d4edda;
+            color: #155724;
+        }
+        .role-badge.teller {
+            background: #cce5ff;
+            color: #004085;
+        }
+        .role-badge.accountant {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .role-badge.viewer {
+            background: #f5f5f5;
+            color: #6c7d70;
+        }
+
+        .status-badge {
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .status-badge.active {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-badge.suspended {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .action-btn {
+            border: none;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin: 0 3px;
+            position: relative;
+            overflow: hidden;
+        }
+        .action-btn i {
+            font-size: 14px;
+            transition: transform 0.3s ease;
+        }
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+        .action-btn:hover i {
+            transform: scale(1.2);
+        }
+        .action-btn:active {
+            transform: scale(0.95);
+        }
+
+        .action-btn.edit-btn {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+        }
+        .action-btn.edit-btn:hover {
+            background: linear-gradient(135deg, #f57c00, #e65100);
+            box-shadow: 0 6px 24px rgba(255, 152, 0, 0.4);
+        }
+        .action-btn.delete-btn {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+        }
+        .action-btn.delete-btn:hover {
+            background: linear-gradient(135deg, #c0392b, #99281b);
+            box-shadow: 0 6px 24px rgba(231, 76, 60, 0.4);
+        }
+        .action-btn.toggle-btn {
+            background: linear-gradient(135deg, #2196f3, #1976d2);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+        }
+        .action-btn.toggle-btn:hover {
+            background: linear-gradient(135deg, #1976d2, #0d47a1);
+            box-shadow: 0 6px 24px rgba(33, 150, 243, 0.4);
+        }
+        .action-btn.toggle-btn.suspend {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+        }
+        .action-btn.toggle-btn.suspend:hover {
+            background: linear-gradient(135deg, #c0392b, #99281b);
+            box-shadow: 0 6px 24px rgba(231, 76, 60, 0.4);
+        }
+
+        /* ----- PAGINATION ----- */
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 18px;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 10px;
+            transition: all 0.3s;
+        }
+        .pagination-info {
+            font-size: 13px;
+            color: var(--text-secondary);
+            transition: color 0.3s;
+        }
+        .pagination-info strong {
+            color: var(--text-primary);
+        }
+        .pagination-buttons {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .pagination-btn {
+            padding: 5px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background: var(--bg-card);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            transition: all 0.2s;
+            min-width: 32px;
+            text-align: center;
+        }
+        .pagination-btn:hover:not(:disabled) {
+            background: var(--border-color);
+            border-color: var(--primary);
+        }
+        .pagination-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        .pagination-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* ----- TOAST ----- */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 14px 24px;
+            border-radius: var(--radius);
+            color: #fff;
+            font-weight: 500;
+            font-size: 14px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            animation: slideIn 0.3s ease;
+            min-width: 280px;
+            max-width: 400px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .toast i {
+            font-size: 18px;
+        }
+        .toast.success {
+            background: var(--success);
+        }
+        .toast.error {
+            background: var(--danger);
+        }
+        .toast.warning {
+            background: var(--warning);
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .toast.fade-out {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .app-footer {
+            background: var(--bg-card);
+            border-top: 1px solid var(--border-color);
+            padding: 16px 30px;
+            text-align: center;
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: auto;
+            transition: all 0.3s;
+        }
+
+        /* ----- RESPONSIVE ----- */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 280px;
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .sidebar.collapsed {
+                width: 280px;
+            }
+            .sidebar.collapsed .brand-text,
+            .sidebar.collapsed .sidebar-nav li a span,
+            .sidebar.collapsed .logout-btn span,
+            .sidebar.collapsed .sidebar-brand .brand-sub {
+                display: inline;
+            }
+            .sidebar.collapsed .brand-icon {
+                width: 72px;
+                height: 72px;
+            }
+            .sidebar.collapsed .sidebar-nav li a {
+                justify-content: flex-start;
+                padding: 10px 16px;
+            }
+            .sidebar.collapsed .sidebar-nav li a i {
+                font-size: 17px;
+                width: 22px;
+            }
+            .sidebar.collapsed .logout-btn {
+                justify-content: flex-start;
+                padding: 10px;
+            }
+            .sidebar.collapsed .logout-btn i {
+                font-size: 17px;
+            }
+            .sidebar.collapsed .sidebar-toggle-btn {
+                transform: none;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+            .sidebar.collapsed~.main-content {
+                margin-left: 0;
+            }
+
+            .menu-toggle {
+                display: block;
+            }
+            .top-header {
+                padding: 12px 16px;
+            }
+            .dashboard-content {
+                padding: 16px;
+            }
+            .form-row,
+            .form-row.two {
+                grid-template-columns: 1fr;
+            }
+            .page-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .search-bar {
+                flex-direction: column;
+            }
+            .pagination-container {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .pagination-buttons {
+                justify-content: center;
+            }
+            .toast-container {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+            }
+            .toast {
+                min-width: unset;
+                width: 100%;
+            }
+            .user-name {
+                display: none;
+            }
+            .sidebar-brand {
+                padding: 16px 16px 12px;
+            }
+            .brand-icon {
+                width: 60px;
+                height: 60px;
+            }
+            .brand-text .brand-name {
+                font-size: 16px;
+            }
+        }
+        @media (max-width: 480px) {
+            .pagination-btn {
+                padding: 4px 10px;
+                font-size: 12px;
+                min-width: 30px;
+            }
+            .pagination-info {
+                font-size: 12px;
+                text-align: center;
+            }
+            table {
+                font-size: 12px;
+            }
+            thead th,
+            tbody td {
+                padding: 8px 10px;
+            }
+            .action-btn {
+                padding: 4px 6px;
+                font-size: 11px;
+            }
+            .action-btn i {
+                font-size: 12px;
+            }
+            .form-section {
+                padding: 12px 16px;
+            }
+            .form-row {
+                gap: 8px;
+                margin-bottom: 8px;
+            }
+            .form-group input,
+            .form-group select {
+                font-size: 12px;
+                padding: 6px 8px;
+            }
+            .brand-icon {
+                width: 50px;
+                height: 50px;
+            }
+            .brand-text .brand-name {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <button class="sidebar-toggle-btn" id="sidebarToggleBtn" title="Toggle Sidebar">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <div class="brand-icon">
+                <img src="../images/sacco-logo.png" alt="SACCO Logo" class="brand-logo-img" />
+            </div>
+            <div class="brand-text">
+                <span class="brand-name">GERESU DHUKI <span>SACCO</span></span>
+                <span class="brand-sub" data-i18n="brandSub">SACCO Banking</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <ul>
+                <li><a href="dashboard.html"><i class="fas fa-th-large"></i> <span data-i18n="navDashboard">Dashboard</span></a></li>
+                <li><a href="customers.html"><i class="fas fa-users"></i> <span data-i18n="navCustomers">Customers</span></a></li>
+                <li><a href="savings.html"><i class="fas fa-piggy-bank"></i> <span data-i18n="navSavings">Savings</span></a></li>
+                <li><a href="deposits.html"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="navDeposits">Deposits</span></a></li>
+                <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="navLoans">Loans</span></a></li>
+                <li><a href="repayments.html"><i class="fas fa-undo-alt"></i> <span data-i18n="navRepayments">Repayments</span></a></li>
+                <li><a href="withdrawals.html"><i class="fas fa-money-bill-wave"></i> <span data-i18n="navWithdrawals">Withdrawals</span></a></li>
+                <li><a href="dividends.html"><i class="fas fa-gift"></i> <span data-i18n="navDividends">Dividends</span></a></li>
+                <li><a href="reports.html"><i class="fas fa-chart-bar"></i> <span data-i18n="navReports">Reports</span></a></li>
+                <!-- ===== AUDIT TRAIL LINK ===== -->
+                <li id="auditNavItem" style="display:none;">
+                    <a href="audit.html"><i class="fas fa-clipboard-list"></i> <span data-i18n="navAudit">Audit Trail</span></a>
+                </li>
+                <!-- ===== END AUDIT TRAIL ===== -->
+                <!-- Users link – visibility toggled by JavaScript -->
+                <li id="usersNavItem" style="display:none;"><a href="users.html"><i class="fas fa-user-cog"></i> <span data-i18n="navUsers">Users</span></a></li>
+                <li><a href="settings.html"><i class="fas fa-cog"></i> <span data-i18n="navSettings">Settings</span></a></li>
+            </ul>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> <span data-i18n="logout">Logout</span></button>
+        </div>
+    </aside>
+
+    <main class="main-content">
+
+        <header class="top-header">
+            <div class="header-left">
+                <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+                <div class="page-title">
+                    <h1 data-i18n="pageTitle">Users</h1>
+                    <span class="breadcrumb" data-i18n="breadcrumb">Home / Users</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="lang-switcher">
+                    <button class="lang-btn active" data-lang="en">EN</button>
+                    <button class="lang-btn" data-lang="am">አማ</button>
+                    <button class="lang-btn" data-lang="om">OM</button>
+                </div>
+                <div class="user-profile">
+                    <img id="userAvatar" src="../assets/images/avatar.png" alt="User" onerror="this.src='https://ui-avatars.com/api/?name=Admin&background=1a6e3a&color=fff'" />
+                    <span class="user-name" id="userDisplayName">Admin</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="dashboard-content">
+
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h2 data-i18n="usersTitle">User Management</h2>
+                    <p data-i18n="usersSub">Manage system users and their permissions</p>
+                </div>
+                <button class="btn-primary" id="addUserBtn">
+                    <i class="fas fa-user-plus"></i> <span data-i18n="addUser">Add User</span>
+                </button>
+            </div>
+
+            <!-- Add/Edit User Form -->
+            <div class="form-section" id="userFormSection" style="display:none;">
+                <h3 id="formTitle" data-i18n="addNewUser">Add New User</h3>
+                <form id="userForm">
+                    <input type="hidden" id="editUserId" />
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label data-i18n="fullName">Full Name <span class="required">*</span></label>
+                            <input type="text" id="userFullName" placeholder="John Doe" required />
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="email">Email <span class="required">*</span></label>
+                            <input type="email" id="userEmail" placeholder="user@example.com" required />
+                        </div>
+                        <div class="form-group" id="passwordGroup">
+                            <label data-i18n="password">Password <span class="required" id="passwordRequired">*</span></label>
+                            <input type="password" id="userPassword" placeholder="••••••••" />
+                            <small style="color:var(--text-secondary); font-size:11px;" data-i18n="passwordHint">Leave blank to keep current password (editing)</small>
+                        </div>
+                    </div>
+                    <div class="form-row two">
+                        <div class="form-group">
+                            <label data-i18n="role">Role <span class="required">*</span></label>
+                            <select id="userRole" required>
+                                <option value="admin" data-i18n="roleAdmin">Admin</option>
+                                <option value="manager" data-i18n="roleManager">Manager</option>
+                                <option value="teller" data-i18n="roleTeller">Teller</option>
+                                <option value="accountant" data-i18n="roleAccountant">Accountant</option>
+                                <option value="viewer" data-i18n="roleViewer">Viewer</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="status">Status <span class="required">*</span></label>
+                            <select id="userStatus" required>
+                                <option value="active" data-i18n="statusActive">Active</option>
+                                <option value="suspended" data-i18n="statusSuspended">Suspended</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" id="cancelUserBtn"><span data-i18n="cancel">Cancel</span></button>
+                        <button type="submit" class="btn-primary" id="saveUserBtn">
+                            <i class="fas fa-save"></i> <span data-i18n="saveUser">Save User</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Users List -->
+            <div class="table-container">
+                <div class="table-header">
+                    <span data-i18n="totalUsers">Total Users: </span>
+                    <strong id="totalCount">0</strong>
+                </div>
+                <div class="search-bar" style="margin-bottom:0; padding:12px 20px; border-bottom:1px solid var(--border-color);">
+                    <div class="search-wrapper" style="flex:1;">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" data-i18n="searchPlaceholder" placeholder="Search by name or email..." />
+                    </div>
+                    <div class="filter-wrapper">
+                        <select id="roleFilter">
+                            <option value="" data-i18n="allRoles">All Roles</option>
+                            <option value="admin">Admin</option>
+                            <option value="manager">Manager</option>
+                            <option value="teller">Teller</option>
+                            <option value="accountant">Accountant</option>
+                            <option value="viewer">Viewer</option>
+                        </select>
+                        <select id="statusFilter">
+                            <option value="" data-i18n="allStatus">All Status</option>
+                            <option value="active" data-i18n="statusActive">Active</option>
+                            <option value="suspended" data-i18n="statusSuspended">Suspended</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th data-i18n="fullName">Full Name</th>
+                                <th data-i18n="email">Email</th>
+                                <th data-i18n="role">Role</th>
+                                <th data-i18n="status">Status</th>
+                                <th data-i18n="lastLogin">Last Login</th>
+                                <th data-i18n="createdAt">Created</th>
+                                <th data-i18n="actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersBody">
+                            <tr><td colspan="8" style="text-align:center; padding:40px; color:var(--text-secondary);" data-i18n="noUsers">No users found.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        <span data-i18n="showing">Showing</span> <strong id="pageStart">0</strong> - <strong id="pageEnd">0</strong>
+                        <span data-i18n="of">of</span> <strong id="totalUsersCount">0</strong>
+                    </div>
+                    <div class="pagination-buttons">
+                        <button class="pagination-btn" id="prevPage" disabled><i class="fas fa-chevron-left"></i></button>
+                        <div id="pageNumbers"></div>
+                        <button class="pagination-btn" id="nextPage"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <footer class="app-footer">
+            <p>© 2026 GERESU DHUKI SACCO. All rights reserved. Designed by : Eng. Abdi.F Software</p>
+        </footer>
+    </main>
+
+    <script>
+        // ============================================================
+        // FIREBASE CONFIG
+        // ============================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBeQv8YLNfFFaTEZ6pxXaAy_K8n3u8V5X4",
+            authDomain: "geresu-dhuki-sacco-75329.firebaseapp.com",
+            projectId: "geresu-dhuki-sacco-75329",
+            storageBucket: "geresu-dhuki-sacco-75329.firebasestorage.app",
+            messagingSenderId: "431325504753",
+            appId: "1:431325504753:web:f7289fb88d74b82eb0b550",
+            measurementId: "G-3SN99DFJXD"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+
+        // ============================================================
+        // MULTI-LANGUAGE (UPDATED: "customer" in sidebar)
+        // ============================================================
+        const translations = {
+            en: {
+                brandSub: 'SACCO Banking',
+                navDashboard: 'Dashboard',
+                navCustomers: 'Customers',
+                navSavings: 'Savings',
+                navDeposits: 'Deposits',
+                navLoans: 'Loans',
+                navRepayments: 'Repayments',
+                navWithdrawals: 'Withdrawals',
+                navDividends: 'Dividends',
+                navReports: 'Reports',
+                navAudit: 'Audit Trail',
+                navUsers: 'Users',
+                navSettings: 'Settings',
+                logout: 'Logout',
+                pageTitle: 'Users',
+                breadcrumb: 'Home / Users',
+                rights: 'All rights reserved.',
+                usersTitle: 'User Management',
+                usersSub: 'Manage system users and their permissions',
+                addUser: 'Add User',
+                addNewUser: 'Add New User',
+                editUser: 'Edit User',
+                fullName: 'Full Name',
+                email: 'Email',
+                password: 'Password',
+                passwordHint: 'Leave blank to keep current password (editing)',
+                role: 'Role',
+                roleAdmin: 'Admin',
+                roleManager: 'Manager',
+                roleTeller: 'Teller',
+                roleAccountant: 'Accountant',
+                roleViewer: 'Viewer',
+                status: 'Status',
+                statusActive: 'Active',
+                statusSuspended: 'Suspended',
+                cancel: 'Cancel',
+                saveUser: 'Save User',
+                totalUsers: 'Total Users: ',
+                noUsers: 'No users found.',
+                showing: 'Showing',
+                of: 'of',
+                searchPlaceholder: 'Search by name or email...',
+                allRoles: 'All Roles',
+                allStatus: 'All Status',
+                lastLogin: 'Last Login',
+                createdAt: 'Created',
+                actions: 'Actions',
+                edit: 'Edit',
+                delete: 'Delete',
+                suspend: 'Suspend',
+                activate: 'Activate',
+                deleteConfirmation: 'Are you sure you want to delete this user? This action cannot be undone.',
+                suspendConfirmation: 'Are you sure you want to suspend this user?',
+                activateConfirmation: 'Are you sure you want to activate this user?',
+                userAdded: 'User added successfully!',
+                userUpdated: 'User updated successfully!',
+                userDeleted: 'User deleted successfully!',
+                userSuspended: 'User suspended successfully!',
+                userActivated: 'User activated successfully!',
+                errorLoading: 'Error loading users: ',
+                errorSaving: 'Error saving user: ',
+                errorDeleting: 'Error deleting user: ',
+                emailInUse: 'This email is already registered.',
+                invalidEmail: 'Please enter a valid email address.',
+                passwordRequired: 'Password is required for new users.',
+                cannotDeleteSelf: 'You cannot delete your own account.',
+                unauthorized: 'You are not authorized to perform this action.'
+            },
+            am: {
+                brandSub: 'ባንክ ስርዓት',
+                navDashboard: 'ዳሽቦርድ',
+                navCustomers: 'ደንበኞች',
+                navSavings: 'ቁጠባዎች',
+                navDeposits: 'ተቀማጭ',
+                navLoans: 'ብድር',
+                navRepayments: 'ክፍያዎች',
+                navWithdrawals: 'መውጫዎች',
+                navDividends: 'ክፍፍል',
+                navReports: 'ሪፖርቶች',
+                navAudit: 'የምዝግብ ታሪክ',
+                navUsers: 'ተጠቃሚዎች',
+                navSettings: 'ቅንብሮች',
+                logout: 'ውጣ',
+                pageTitle: 'ተጠቃሚዎች',
+                breadcrumb: 'ዋና ገጽ / ተጠቃሚዎች',
+                rights: 'መብቶች በሙሉ ተጠብቀዋል።',
+                usersTitle: 'የተጠቃሚ አስተዳደር',
+                usersSub: 'የስርዓት ተጠቃሚዎችን እና ፈቃዶቻቸውን ያስተዳድሩ',
+                addUser: 'ተጠቃሚ ያክሉ',
+                addNewUser: 'አዲስ ተጠቃሚ ያክሉ',
+                editUser: 'ተጠቃሚ ያስተካክሉ',
+                fullName: 'ሙሉ ስም',
+                email: 'ኢሜል',
+                password: 'የይለፍ ቃል',
+                passwordHint: 'ለማስተካከል ባዶ ይተዉት (አሁን ያለውን የይለፍ ቃል ለማቆየት)',
+                role: 'ሚና',
+                roleAdmin: 'አስተዳዳሪ',
+                roleManager: 'ሥራ አስኪያጅ',
+                roleTeller: 'ተቀባይ',
+                roleAccountant: 'አካውንታንት',
+                roleViewer: 'ተመልካች',
+                status: 'ሁኔታ',
+                statusActive: 'ንቁ',
+                statusSuspended: 'ታግዷል',
+                cancel: 'ሰርዝ',
+                saveUser: 'ተጠቃሚ ያስቀምጡ',
+                totalUsers: 'ጠቅላላ ተጠቃሚዎች: ',
+                noUsers: 'ምንም ተጠቃሚዎች አልተገኙም።',
+                showing: 'እያሳየ',
+                of: 'ከ',
+                searchPlaceholder: 'በስም ወይም ኢሜል ይፈልጉ...',
+                allRoles: 'ሁሉም ሚናዎች',
+                allStatus: 'ሁሉም ሁኔታዎች',
+                lastLogin: 'የመጨረሻ መግቢያ',
+                createdAt: 'ተፈጠረ',
+                actions: 'ተግባራት',
+                edit: 'አስተካክል',
+                delete: 'ሰርዝ',
+                suspend: 'ታግድ',
+                activate: 'አንቃ',
+                deleteConfirmation: 'ይህንን ተጠቃሚ መሰረዝ እርግጠኛ ነዎት? ይህ እርምጃ ሊቀለበስ አይችልም።',
+                suspendConfirmation: 'ይህንን ተጠቃሚ ማገድ እርግጠኛ ነዎት?',
+                activateConfirmation: 'ይህንን ተጠቃሚ ማንቃት እርግጠኛ ነዎት?',
+                userAdded: 'ተጠቃሚ በተሳካ ሁኔታ ተጨምሯል!',
+                userUpdated: 'ተጠቃሚ በተሳካ ሁኔታ ተሻሽሏል!',
+                userDeleted: 'ተጠቃሚ በተሳካ ሁኔታ ተሰርዟል!',
+                userSuspended: 'ተጠቃሚ በተሳካ ሁኔታ ታግዷል!',
+                userActivated: 'ተጠቃሚ በተሳካ ሁኔታ ነቅቷል!',
+                errorLoading: 'ተጠቃሚዎችን በማስገባት ላይ ስህተት: ',
+                errorSaving: 'ተጠቃሚን በማስቀመጥ ላይ ስህተት: ',
+                errorDeleting: 'ተጠቃሚን በመሰረዝ ላይ ስህተት: ',
+                emailInUse: 'ይህ ኢሜል ቀድሞውኑ ተመዝግቧል።',
+                invalidEmail: 'እባክዎ ትክክለኛ የኢሜል አድራሻ ያስገቡ።',
+                passwordRequired: 'ለአዲስ ተጠቃሚዎች የይለፍ ቃል ያስፈልጋል።',
+                cannotDeleteSelf: 'የራስዎን አካውንት መሰረዝ አይችሉም።',
+                unauthorized: 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም።'
+            },
+            om: {
+                brandSub: 'Sirna Baankii',
+                navDashboard: 'Gabatee',
+                navCustomers: 'Maamila',
+                navSavings: 'Kusaa',
+                navDeposits: 'Kaasaa',
+                navLoans: 'Liqii',
+                navRepayments: 'Kaffaltuu',
+                navWithdrawals: 'Baasii',
+                navDividends: 'Qooda',
+                navReports: 'Odeeffannoo',
+                navAudit: 'Seenaa Galmee',
+                navUsers: 'Fayyadamtoota',
+                navSettings: 'Qindeessaa',
+                logout: 'Baasi',
+                pageTitle: 'Fayyadamtoota',
+                breadcrumb: 'Mana / Fayyadamtoota',
+                rights: 'Mirgi hundi eegama.',
+                usersTitle: 'Bulchiinsa Fayyadamtoota',
+                usersSub: 'Fayyadamtoota siistamii fi hayyummaa isaanii bulchi',
+                addUser: 'Fayyadamaa Iddahi',
+                addNewUser: 'Fayyadamaa Haaraa Iddahi',
+                editUser: 'Fayyadamaa Jijjiiri',
+                fullName: 'Maqaa Guutuu',
+                email: 'Iimeelii',
+                password: 'Jecha Iccitii',
+                passwordHint: 'Bu’uuf haqi (jecha iccitii ammaa eeguuf)',
+                role: 'Gahee',
+                roleAdmin: 'Meeleessaa',
+                roleManager: 'Manaajii',
+                roleTeller: 'Baatii',
+                roleAccountant: 'Herregaa',
+                roleViewer: 'Ilaalaa',
+                status: 'Haala',
+                statusActive: 'Hojiirra',
+                statusSuspended: 'Dhowwame',
+                cancel: 'Haqi',
+                saveUser: 'Fayyadamaa Kuusi',
+                totalUsers: 'Fayyadamtoota Waliigalaa: ',
+                noUsers: 'Fayyadamtonni hin argamne.',
+                showing: 'Agarsii',
+                of: 'keessaa',
+                searchPlaceholder: 'Maqaa ykn iimeelii-tiin barbaadi...',
+                allRoles: 'Gahee Hunduu',
+                allStatus: 'Haala Hunduu',
+                lastLogin: 'Galii Dhiyoo',
+                createdAt: 'Uumame',
+                actions: 'Gochaa',
+                edit: 'Jijjiiri',
+                delete: 'Haqi',
+                suspend: 'Dhowwi',
+                activate: 'Hoosisi',
+                deleteConfirmation: 'Fayyadamaa kana haquu mirkaneeffattee? Gochi kun deebifamuu hin danda’u.',
+                suspendConfirmation: 'Fayyadamaa kana dhowwuuf mirkaneeffattee?',
+                activateConfirmation: 'Fayyadamaa kana hoosisuuf mirkaneeffattee?',
+                userAdded: 'Fayyadamaan sirriitti ida’ame!',
+                userUpdated: 'Fayyadamaan sirriitti jijjiirame!',
+                userDeleted: 'Fayyadamaan sirriitti haqame!',
+                userSuspended: 'Fayyadamaan sirriitti dhowwame!',
+                userActivated: 'Fayyadamaan sirriitti hoosisame!',
+                errorLoading: 'Fayyadamtoota galmeessuuf dogoggora: ',
+                errorSaving: 'Fayyadamaa kusuuf dogoggora: ',
+                errorDeleting: 'Fayyadamaa haquuf dogoggora: ',
+                emailInUse: 'Iimeeliin kun duraa galmeefamee jira.',
+                invalidEmail: 'Maaloo teessoo iimeelii sirrii ta’e galchi.',
+                passwordRequired: 'Fayyadamaa haaraaf jecha iccitii barbaachisa.',
+                cannotDeleteSelf: 'Akkaawuntii keessan ofii haquu hin dandeessan.',
+                unauthorized: 'Gochaa kana raawwachuuf hayyamamtee hin jirtu.'
+            }
+        };
+
+        let currentLang = 'en';
+        let currentUserRole = 'viewer';
+        let currentUserUid = null;
+        let currentUserDisplayName = 'Admin';
+
+        function setLanguage(lang) {
+            if (!translations[lang]) return;
+            currentLang = lang;
+            const t = translations[lang];
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key] !== undefined) {
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+                        if (el.type !== 'file') el.placeholder = t[key];
+                    } else {
+                        el.innerHTML = t[key];
+                    }
+                }
+            });
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.lang === lang);
+            });
+            try { localStorage.setItem('waciti-lang', lang); } catch (e) {}
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) searchInput.placeholder = t.searchPlaceholder || 'Search by name or email...';
+            document.querySelectorAll('#roleFilter option, #statusFilter option').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (key && t[key]) el.textContent = t[key];
+            });
+            updateFormLabels();
+        }
+
+        function updateFormLabels() {
+            const t = translations[currentLang];
+            const formTitle = document.getElementById('formTitle');
+            if (formTitle) {
+                const isEdit = document.getElementById('editUserId').value;
+                formTitle.textContent = isEdit ? t.editUser : t.addNewUser;
+            }
+            const saveBtn = document.getElementById('saveUserBtn');
+            if (saveBtn) {
+                const isEdit = document.getElementById('editUserId').value;
+                saveBtn.innerHTML = `<i class="fas fa-save"></i> ${isEdit ? t.editUser : t.saveUser}`;
+            }
+            const passwordRequired = document.getElementById('passwordRequired');
+            if (passwordRequired) {
+                const isEdit = document.getElementById('editUserId').value;
+                passwordRequired.textContent = isEdit ? '' : '*';
+                passwordRequired.style.display = isEdit ? 'none' : 'inline';
+            }
+            const passwordHint = document.querySelector('#passwordGroup small');
+            if (passwordHint) {
+                const isEdit = document.getElementById('editUserId').value;
+                passwordHint.style.display = isEdit ? 'block' : 'none';
+            }
+        }
+
+        function initLanguage() {
+            const saved = localStorage.getItem('waciti-lang') || navigator.language.split('-')[0];
+            const valid = ['en', 'am', 'om'];
+            setLanguage(valid.includes(saved) ? saved : 'en');
+        }
+
+        // ============================================================
+        // SIDEBAR TOGGLE
+        // ============================================================
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+
+        function toggleSidebarCollapse() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+            localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed') ? 'true' : 'false');
+        }
+
+        function loadSidebarState() {
+            const sidebar = document.getElementById('sidebar');
+            const isCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+            if (isCollapsed) {
+                sidebar.classList.add('collapsed');
+            } else {
+                sidebar.classList.remove('collapsed');
+            }
+        }
+
+        // ============================================================
+        // TOAST
+        // ============================================================
+        function showToast(message, type = 'error') {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'toast-container';
+                document.body.appendChild(container);
+            }
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icon = document.createElement('i');
+            icon.className = type === 'error' ? 'fas fa-exclamation-circle' :
+                type === 'success' ? 'fas fa-check-circle' :
+                'fas fa-exclamation-triangle';
+            toast.appendChild(icon);
+            const text = document.createElement('span');
+            text.textContent = message;
+            toast.appendChild(text);
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('fade-out');
+                setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
+            }, 4500);
+        }
+
+        // ============================================================
+        // ROLE HELPERS
+        // ============================================================
+        function isAdmin() {
+            return currentUserRole === 'admin';
+        }
+
+        function isManagerOrAbove() {
+            return ['admin', 'manager'].includes(currentUserRole);
+        }
+
+        // ============================================================
+        // AUDIT LOGGING (UPDATED with proper old/new format)
+        // ============================================================
+        async function logAudit(action, collection, documentId, changes = {}, details = '') {
+            try {
+                const user = auth.currentUser;
+                const userEmail = user?.email || 'system';
+                const userName = user?.displayName || user?.email || 'System';
+                const userDisplayName = user?.displayName || 'System';
+
+                await db.collection('audit').add({
+                    action: action,
+                    collection: collection,
+                    documentId: documentId,
+                    changes: changes,
+                    details: details || `${action} ${collection} document ${documentId}`,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    userEmail: userEmail,
+                    userName: userName,
+                    userDisplayName: userDisplayName
+                });
+            } catch (error) {
+                console.error('Error writing to audit log:', error);
+            }
+        }
+
+        // ============================================================
+        // USERS MODULE
+        // ============================================================
+        let allUsers = [];
+        let currentUser = null;
+        let currentPage = 1;
+        const pageSize = 10;
+        let filteredUsers = [];
+
+        function formatDate(timestamp) {
+            if (!timestamp) return '—';
+            const d = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            if (isNaN(d.getTime())) return '—';
+            return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function getRoleClass(role) {
+            const map = { 'admin': 'admin', 'manager': 'manager', 'teller': 'teller', 'accountant': 'accountant',
+                'viewer': 'viewer' };
+            return map[role] || 'viewer';
+        }
+
+        function getRoleLabel(role) {
+            const t = translations[currentLang];
+            const map = { 'admin': t.roleAdmin, 'manager': t.roleManager, 'teller': t.roleTeller,
+                'accountant': t.roleAccountant, 'viewer': t.roleViewer };
+            return map[role] || role;
+        }
+
+        // ---- Load users ----
+        async function loadUsers() {
+            try {
+                const snapshot = await db.collection('users').get();
+                allUsers = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    allUsers.push({ id: doc.id, uid: data.uid || doc.id, ...data });
+                });
+                allUsers.sort((a, b) => {
+                    const da = a.createdAt && a.createdAt.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+                    const db = b.createdAt && b.createdAt.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+                    return db - da;
+                });
+                applyFilters();
+                updateTotalCount();
+            } catch (error) {
+                console.error('Error loading users:', error);
+                showToast(translations[currentLang].errorLoading + error.message, 'error');
+            }
+        }
+
+        // ---- Apply filters ----
+        function applyFilters() {
+            const searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
+            const roleFilter = document.getElementById('roleFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+
+            filteredUsers = allUsers.filter(user => {
+                const nameMatch = (user.displayName || '').toLowerCase().includes(searchQuery);
+                const emailMatch = (user.email || '').toLowerCase().includes(searchQuery);
+                const roleMatch = !roleFilter || user.role === roleFilter;
+                const statusMatch = !statusFilter || user.status === statusFilter;
+                return (nameMatch || emailMatch) && roleMatch && statusMatch;
+            });
+
+            currentPage = 1;
+            paginateUsers();
+        }
+
+        function paginateUsers() {
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageItems = filteredUsers.slice(start, end);
+            renderTable(pageItems);
+            updatePaginationInfo();
+            renderPageButtons();
+        }
+
+        // ---- Render Table (with role-based action hiding) ----
+        function renderTable(users) {
+            const tbody = document.getElementById('usersBody');
+            const t = translations[currentLang];
+
+            if (!users || users.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:40px; color:var(--text-secondary);">${t.noUsers}</td></tr>`;
+                return;
+            }
+
+            let html = '';
+            users.forEach((user, i) => {
+                const roleClass = getRoleClass(user.role);
+                const roleLabel = getRoleLabel(user.role);
+                const statusClass = user.status === 'active' ? 'active' : 'suspended';
+                const statusLabel = user.status === 'active' ? t.statusActive : t.statusSuspended;
+                const createdAt = formatDate(user.createdAt);
+                const lastLogin = user.lastLogin ? formatDate(user.lastLogin) : '—';
+
+                // ---- Actions: only show buttons if Admin ----
+                let actionsHtml = '';
+                if (isAdmin()) {
+                    actionsHtml = `
+                        <button class="action-btn edit-btn" onclick="editUser('${user.id}')" title="${t.edit}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="action-btn toggle-btn ${user.status === 'active' ? 'suspend' : ''}" onclick="toggleUserStatus('${user.id}')" title="${user.status === 'active' ? t.suspend : t.activate}">
+                            <i class="fas ${user.status === 'active' ? 'fa-ban' : 'fa-check-circle'}"></i>
+                        </button>
+                        <button class="action-btn delete-btn" onclick="deleteUser('${user.id}')" title="${t.delete}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    `;
+                } else {
+                    actionsHtml = `<span style="color:var(--text-secondary); font-size:12px;">Read‑only</span>`;
+                }
+
+                html += `<tr>
+                    <td>${(currentPage-1)*pageSize + i + 1}</td>
+                    <td><strong>${user.displayName || '—'}</strong></td>
+                    <td>${user.email || '—'}</td>
+                    <td><span class="role-badge ${roleClass}">${roleLabel}</span></td>
+                    <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+                    <td>${lastLogin}</td>
+                    <td>${createdAt}</td>
+                    <td>${actionsHtml}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function updatePaginationInfo() {
+            const total = filteredUsers.length;
+            const start = (currentPage - 1) * pageSize + 1;
+            const end = Math.min(currentPage * pageSize, total);
+            document.getElementById('pageStart').textContent = total > 0 ? start : 0;
+            document.getElementById('pageEnd').textContent = total > 0 ? end : 0;
+            document.getElementById('totalUsersCount').textContent = total;
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = currentPage >= Math.ceil(total / pageSize) || total === 0;
+        }
+
+        function renderPageButtons() {
+            const container = document.getElementById('pageNumbers');
+            const totalPages = Math.ceil(filteredUsers.length / pageSize);
+            if (totalPages <= 1) { container.innerHTML = ''; return; }
+            let html = '';
+            const maxVisible = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+            if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
+            if (startPage > 1) {
+                html += `<button class="pagination-btn" onclick="goToPage(1)">1</button>`;
+                if (startPage > 2) html += `<button class="pagination-btn" disabled>...</button>`;
+            }
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) html += `<button class="pagination-btn" disabled>...</button>`;
+                html += `<button class="pagination-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function goToPage(page) {
+            const totalPages = Math.ceil(filteredUsers.length / pageSize);
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            paginateUsers();
+        }
+
+        function updateTotalCount() {
+            document.getElementById('totalCount').textContent = allUsers.length;
+        }
+
+        // ---- Show User Form (Admin only) ----
+        function showUserForm(userId = null) {
+            if (!isAdmin()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+            const formSection = document.getElementById('userFormSection');
+            formSection.style.display = 'block';
+            formSection.scrollIntoView({ behavior: 'smooth' });
+            const t = translations[currentLang];
+
+            if (userId) {
+                const user = allUsers.find(u => u.id === userId);
+                if (!user) return;
+                document.getElementById('editUserId').value = user.id;
+                document.getElementById('userFullName').value = user.displayName || '';
+                document.getElementById('userEmail').value = user.email || '';
+                document.getElementById('userPassword').value = '';
+                document.getElementById('userRole').value = user.role || 'viewer';
+                document.getElementById('userStatus').value = user.status || 'active';
+                document.getElementById('formTitle').textContent = t.editUser;
+                document.getElementById('passwordRequired').style.display = 'none';
+                document.querySelector('#passwordGroup small').style.display = 'block';
+            } else {
+                document.getElementById('editUserId').value = '';
+                document.getElementById('userFullName').value = '';
+                document.getElementById('userEmail').value = '';
+                document.getElementById('userPassword').value = '';
+                document.getElementById('userRole').value = 'viewer';
+                document.getElementById('userStatus').value = 'active';
+                document.getElementById('formTitle').textContent = t.addNewUser;
+                document.getElementById('passwordRequired').style.display = 'inline';
+                document.querySelector('#passwordGroup small').style.display = 'none';
+            }
+            document.getElementById('saveUserBtn').innerHTML = `<i class="fas fa-save"></i> ${t.saveUser}`;
+            document.getElementById('userFullName').focus();
+        }
+
+        function hideUserForm() {
+            document.getElementById('userFormSection').style.display = 'none';
+            document.getElementById('userForm').reset();
+            document.getElementById('editUserId').value = '';
+        }
+
+        // ---- SAVE USER (Admin only) – UPDATED AUDIT FORMAT ----
+        async function saveUser(e) {
+            e.preventDefault();
+            if (!isAdmin()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+            const userId = document.getElementById('editUserId').value;
+            const displayName = document.getElementById('userFullName').value.trim();
+            const email = document.getElementById('userEmail').value.trim();
+            const password = document.getElementById('userPassword').value;
+            const role = document.getElementById('userRole').value;
+            const status = document.getElementById('userStatus').value;
+            const t = translations[currentLang];
+
+            if (!displayName) { showToast('Please enter a full name.', 'warning'); return; }
+            if (!email) { showToast('Please enter an email address.', 'warning'); return; }
+            if (!email.includes('@')) { showToast(t.invalidEmail, 'warning'); return; }
+
+            const btn = document.getElementById('saveUserBtn');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+            try {
+                if (userId) {
+                    // ---- Get old data for audit ----
+                    const oldDoc = await db.collection('users').doc(userId).get();
+                    const oldData = oldDoc.exists ? oldDoc.data() : {};
+
+                    await db.collection('users').doc(userId).update({
+                        displayName: displayName,
+                        email: email,
+                        role: role,
+                        status: status,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    // ---- AUDIT LOG: Updated (correct format) ----
+                    const changes = {};
+                    const fieldsToCompare = ['displayName', 'email', 'role', 'status'];
+                    fieldsToCompare.forEach(field => {
+                        const oldVal = oldData[field] !== undefined ? oldData[field] : null;
+                        const newVal = { displayName, email, role, status } [field];
+                        if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+                            changes[field] = { old: oldVal, new: newVal };
+                        }
+                    });
+                    await logAudit('updated', 'users', userId, changes,
+                        `User ${displayName} (${email}) updated`);
+
+                    showToast(t.userUpdated, 'success');
+                    hideUserForm();
+                    await loadUsers();
+                } else {
+                    // Create new user
+                    if (!password || password.length < 6) {
+                        showToast(t.passwordRequired + ' (minimum 6 characters)', 'warning');
+                        btn.disabled = false;
+                        btn.innerHTML = originalHtml;
+                        return;
+                    }
+                    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                    const newUser = userCredential.user;
+                    await newUser.updateProfile({ displayName: displayName });
+                    const docRef = db.collection('users').doc(newUser.uid);
+                    await docRef.set({
+                        uid: newUser.uid,
+                        displayName: displayName,
+                        email: email,
+                        role: role,
+                        status: status,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    // ---- AUDIT LOG: Created (UPDATED: all fields with { old: null, new: value }) ----
+                    const createChanges = {
+                        displayName: { old: null, new: displayName },
+                        email: { old: null, new: email },
+                        role: { old: null, new: role },
+                        status: { old: null, new: status }
+                    };
+                    await logAudit('created', 'users', newUser.uid, createChanges,
+                        `User ${displayName} (${email}) created with role ${role}`);
+
+                    showToast(t.userAdded, 'success');
+                    hideUserForm();
+                    // Reload to re-auth as admin (since we got logged out)
+                    setTimeout(() => location.reload(), 1500);
+                }
+            } catch (error) {
+                console.error('Error saving user:', error);
+                let msg = error.message;
+                if (error.code === 'auth/email-already-in-use') msg = t.emailInUse;
+                showToast(t.errorSaving + msg, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
+        // ---- Edit User (Admin only) ----
+        function editUser(userId) {
+            if (!isAdmin()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+            showUserForm(userId);
+        }
+
+        // ---- Toggle User Status (Admin only) ----
+        async function toggleUserStatus(userId) {
+            if (!isAdmin()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+            const user = allUsers.find(u => u.id === userId);
+            if (!user) return;
+            const t = translations[currentLang];
+            const newStatus = user.status === 'active' ? 'suspended' : 'active';
+            const confirmMsg = newStatus === 'suspended' ? t.suspendConfirmation : t.activateConfirmation;
+            if (!confirm(confirmMsg)) return;
+
+            try {
+                const oldStatus = user.status;
+
+                await db.collection('users').doc(userId).update({
+                    status: newStatus,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                // ---- AUDIT LOG: Status toggled (correct format) ----
+                await logAudit('updated', 'users', userId, {
+                    status: { old: oldStatus, new: newStatus }
+                }, `User ${user.displayName || user.email} status changed from ${oldStatus} to ${newStatus}`);
+
+                showToast(newStatus === 'suspended' ? t.userSuspended : t.userActivated, 'success');
+                await loadUsers();
+            } catch (error) {
+                showToast(t.errorSaving + error.message, 'error');
+            }
+        }
+
+        // ---- DELETE USER (Admin only) – UPDATED AUDIT FORMAT ----
+        async function deleteUser(userId) {
+            if (!isAdmin()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+            const user = allUsers.find(u => u.id === userId);
+            if (!user) return;
+            const t = translations[currentLang];
+            if (auth.currentUser && auth.currentUser.uid === userId) {
+                showToast(t.cannotDeleteSelf, 'warning');
+                return;
+            }
+            if (!confirm(t.deleteConfirmation)) return;
+
+            try {
+                // Get user data for audit before deletion
+                const userData = { ...user };
+
+                await db.collection('users').doc(userId).delete();
+
+                // ---- AUDIT LOG: Deleted (UPDATED: deletedData wrapper) ----
+                await logAudit('deleted', 'users', userId,
+                    { deletedData: { old: null, new: userData } },
+                    `User ${user.displayName || user.email} deleted`);
+
+                showToast(t.userDeleted, 'success');
+                await loadUsers();
+            } catch (error) {
+                showToast(t.errorDeleting + error.message, 'error');
+            }
+        }
+
+        // ============================================================
+        // PAGE INIT
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', async function() {
+            auth.onAuthStateChanged(async (user) => {
+                if (!user) {
+                    window.location.href = '../login.html';
+                    return;
+                }
+                currentUser = user;
+                currentUserUid = user.uid;
+
+                // ---- Fetch user role AND display name from Firestore ----
+                try {
+                    const doc = await db.collection('users').doc(user.uid).get();
+                    if (doc.exists) {
+                        const data = doc.data();
+                        currentUserRole = data.role || 'viewer';
+                        currentUserDisplayName = data.displayName || data.name || user.displayName || user.email?.split(
+                            '@')[0] || 'Admin';
+                    } else {
+                        currentUserRole = 'viewer';
+                        currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'Admin';
+                    }
+                } catch (err) {
+                    console.error('Error fetching user role:', err);
+                    currentUserRole = 'viewer';
+                    currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'Admin';
+                }
+
+                // ---- ROLE CHECK: only Admin and Manager can view this page ----
+                if (!isManagerOrAbove()) {
+                    showToast('Access denied. You do not have permission to view this page.', 'error');
+                    setTimeout(() => { window.location.href = 'dashboard.html'; }, 2000);
+                    return;
+                }
+
+                // ---- Combine name + role in one span ----
+                const roleMap = { admin: 'ADMIN', manager: 'MANAGER', teller: 'TELLER', accountant: 'ACCOUNTANT',
+                    viewer: 'VIEWER' };
+                const roleLabel = roleMap[currentUserRole] || 'VIEWER';
+                const displayName = currentUserDisplayName || 'User';
+                document.getElementById('userDisplayName').textContent = displayName + ' (' + roleLabel + ')';
+
+                // ---- Show/Hide Users nav link (sidebar) ----
+                const usersNav = document.getElementById('usersNavItem');
+                if (usersNav) {
+                    usersNav.style.display = isAdmin() ? '' : 'none';
+                }
+
+                // ---- Show/Hide Audit nav link ----
+                const auditNav = document.getElementById('auditNavItem');
+                if (auditNav) {
+                    auditNav.style.display = isAdmin() ? '' : 'none';
+                }
+
+                // ---- Show/Hide Add User button ----
+                const addBtn = document.getElementById('addUserBtn');
+                addBtn.style.display = isAdmin() ? 'inline-flex' : 'none';
+
+                // ---- If Manager (not Admin), hide the form ----
+                if (!isAdmin()) {
+                    document.getElementById('userFormSection').style.display = 'none';
+                }
+
+                initLanguage();
+                loadSidebarState();
+
+                // ---- Events ----
+                document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
+                document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
+                document.getElementById('sidebarToggleBtn').addEventListener('click', toggleSidebarCollapse);
+
+                document.querySelectorAll('.lang-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        setLanguage(this.dataset.lang);
+                        const currentItems = filteredUsers.slice((currentPage - 1) * pageSize, currentPage *
+                            pageSize);
+                        renderTable(currentItems);
+                        updatePaginationInfo();
+                        renderPageButtons();
+                        const t = translations[currentLang];
+                        document.getElementById('searchInput').placeholder = t.searchPlaceholder ||
+                            'Search by name or email...';
+                        document.querySelectorAll('#roleFilter option, #statusFilter option').forEach(el => {
+                            const key = el.getAttribute('data-i18n');
+                            if (key && t[key]) el.textContent = t[key];
+                        });
+                    });
+                });
+
+                document.getElementById('logoutBtn').addEventListener('click', async function() {
+                    if (confirm('Are you sure you want to log out?')) {
+                        await auth.signOut();
+                        window.location.href = '../login.html';
+                    }
+                });
+
+                document.getElementById('addUserBtn').addEventListener('click', function() {
+                    showUserForm(null);
+                });
+                document.getElementById('cancelUserBtn').addEventListener('click', hideUserForm);
+                document.getElementById('userForm').addEventListener('submit', saveUser);
+
+                document.getElementById('searchInput').addEventListener('input', applyFilters);
+                document.getElementById('roleFilter').addEventListener('change', applyFilters);
+                document.getElementById('statusFilter').addEventListener('change', applyFilters);
+
+                document.getElementById('prevPage').addEventListener('click', function() {
+                    if (currentPage > 1) goToPage(currentPage - 1);
+                });
+                document.getElementById('nextPage').addEventListener('click', function() {
+                    const totalPages = Math.ceil(filteredUsers.length / pageSize);
+                    if (currentPage < totalPages) goToPage(currentPage + 1);
+                });
+
+                await loadUsers();
+
+                // Expose functions globally
+                window.editUser = editUser;
+                window.toggleUserStatus = toggleUserStatus;
+                window.deleteUser = deleteUser;
+                window.goToPage = goToPage;
+                window.toggleSidebar = toggleSidebar;
+            });
+        });
+    </script>
+    <script>
+        // ============================================================
+        // SESSION TIMEOUT (5 minutes inactivity)
+        // ============================================================
+        (function() {
+            const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+            const WARNING_TIMEOUT = SESSION_TIMEOUT - 30 * 1000; // 30 seconds before logout
+
+            let timer = null;
+            let warningTimer = null;
+            let warningToast = null;
+            let countdownInterval = null;
+
+            function resetTimer() {
+                clearTimeout(timer);
+                clearTimeout(warningTimer);
+                clearInterval(countdownInterval);
+                if (warningToast) {
+                    warningToast.remove();
+                    warningToast = null;
+                }
+                // Start the warning timer
+                warningTimer = setTimeout(showWarning, WARNING_TIMEOUT);
+                // Start the logout timer
+                timer = setTimeout(forceLogout, SESSION_TIMEOUT);
+            }
+
+            function showWarning() {
+                const t = translations && translations[currentLang] ? translations[currentLang] : { sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.' };
+                const message = t.sessionTimeout || 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
+
+                let seconds = 30;
+                warningToast = document.createElement('div');
+                warningToast.style.cssText = `
+                    position: fixed;
+                    bottom: 30px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: #f39c12;
+                    color: #fff;
+                    padding: 16px 24px;
+                    border-radius: 12px;
+                    font-size: 15px;
+                    font-weight: 500;
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+                    z-index: 99999;
+                    max-width: 500px;
+                    text-align: center;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    animation: slideUp 0.3s ease;
+                `;
+                warningToast.innerHTML = `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
+
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes slideUp {
+                        from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+                        to { transform: translateX(-50%) translateY(0); opacity: 1; }
+                    }
+                `;
+                document.head.appendChild(style);
+
+                document.body.appendChild(warningToast);
+
+                countdownInterval = setInterval(() => {
+                    seconds--;
+                    const textEl = document.getElementById('sessionWarningText');
+                    if (textEl) {
+                        textEl.textContent = message.replace('{seconds}', seconds);
+                    }
+                    if (seconds <= 0) {
+                        clearInterval(countdownInterval);
+                    }
+                }, 1000);
+            }
+
+            function forceLogout() {
+                clearInterval(countdownInterval);
+                if (warningToast) {
+                    warningToast.remove();
+                    warningToast = null;
+                }
+                // Use Firebase auth to sign out
+                if (typeof auth !== 'undefined' && auth) {
+                    auth.signOut().then(() => {
+                        window.location.href = '../login.html';
+                    }).catch(() => {
+                        window.location.href = '../login.html';
+                    });
+                } else {
+                    // Fallback: redirect to login
+                    window.location.href = '../login.html';
+                }
+            }
+
+            // Reset timer on user activity
+            const events = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
+
+            function handleActivity() {
+                resetTimer();
+            }
+
+            events.forEach(evt => {
+                document.addEventListener(evt, handleActivity);
+            });
+
+            // Initial setup
+            resetTimer();
+
+            // Clean up if page unloads
+            window.addEventListener('beforeunload', function() {
+                clearTimeout(timer);
+                clearTimeout(warningTimer);
+                clearInterval(countdownInterval);
+                if (warningToast) {
+                    warningToast.remove();
+                }
+                events.forEach(evt => {
+                    document.removeEventListener(evt, handleActivity);
+                });
+            });
+
+            // Add translation key if not present
+            if (typeof translations !== 'undefined' && translations.en && !translations.en.sessionTimeout) {
+                translations.en.sessionTimeout = 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
+                translations.am.sessionTimeout = 'የእርስዎ ክፍለ-ጊዜ በ{seconds} ሰከንዶች ውስጥ ያበቃል። በመዳፊት ወይም ቁልፍ ይንቀሳቀሱ ወይም ይጫኑ በመግቢያ ላይ ለመቆየት።';
+                translations.om.sessionTimeout = 'Sessiin keessan {seconds} sekoondii keessatti xumurama. Siiqaa ykn cuqaasaa sochoosuu ykn cuqaasaa akka seenan turtanii.';
+            }
+        })();
+    </script>
+</body>
+</html>

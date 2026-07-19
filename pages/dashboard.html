@@ -1,0 +1,2623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard – GERESU DHUKI SACCO</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
+    </script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js">
+    </script>
+
+    <style>
+        /* ============================================================
+           ROOT VARIABLES
+           ============================================================ */
+        :root {
+            --primary: #1a6e3a;
+            --primary-dark: #0f4f28;
+            --primary-light: #2e8b4a;
+            --gold: #d4a845;
+            --gold-light: #f0d68a;
+            --gold-dark: #b8922f;
+            --bg-primary: #f5f7f6;
+            --bg-card: #ffffff;
+            --bg-sidebar: #1a6e3a;
+            --text-primary: #1a2e1f;
+            --text-secondary: #6c7d70;
+            --text-light: rgba(255, 255, 255, 0.9);
+            --text-muted: rgba(255, 255, 255, 0.6);
+            --border-color: #e8ede9;
+            --shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.1);
+            --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.3);
+            --radius: 16px;
+            --radius-sm: 10px;
+            --success: #2d7a3d;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #2196f3;
+            --transition: 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+            --sidebar-width: 260px;
+            --sidebar-collapsed-width: 72px;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1a2e;
+            --bg-card: #16213e;
+            --bg-sidebar: #0f4f28;
+            --text-primary: #e8f0ea;
+            --text-secondary: #a0aec0;
+            --border-color: #2d3748;
+            --shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+            --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.4);
+            --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* ============================================================
+           SIDEBAR – Bright green with HIGH CONTRAST text
+           ============================================================ */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-sidebar);
+            color: #e8f0ea;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s ease, transform 0.3s ease;
+            box-shadow: 2px 0 16px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+        }
+        .sidebar.collapsed {
+            width: var(--sidebar-collapsed-width);
+        }
+        .sidebar.collapsed .brand-text,
+        .sidebar.collapsed .sidebar-nav li a span,
+        .sidebar.collapsed .logout-btn span,
+        .sidebar.collapsed .sidebar-brand .brand-sub {
+            display: none;
+        }
+        .sidebar.collapsed .sidebar-brand {
+            padding: 16px 8px;
+        }
+        .sidebar.collapsed .brand-icon {
+            width: 48px;
+            height: 48px;
+        }
+        .sidebar.collapsed .sidebar-nav li a {
+            justify-content: center;
+            padding: 12px 0;
+        }
+        .sidebar.collapsed .sidebar-nav li a i {
+            font-size: 20px;
+            width: auto;
+        }
+        .sidebar.collapsed .logout-btn {
+            justify-content: center;
+            padding: 10px 0;
+        }
+        .sidebar.collapsed .logout-btn i {
+            font-size: 20px;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--gold-light);
+            border-radius: 4px;
+        }
+
+        /* --- SIDEBAR BRAND --- */
+        .sidebar-brand {
+            padding: 20px 20px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+            text-align: center;
+            transition: padding 0.3s ease;
+            position: relative;
+        }
+        .sidebar-toggle-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s, transform 0.3s ease;
+        }
+        .sidebar-toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        .sidebar.collapsed .sidebar-toggle-btn {
+            transform: rotate(180deg);
+            top: 8px;
+            right: 6px;
+        }
+
+        .brand-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            overflow: hidden;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.12);
+            border: 2px solid var(--gold-light);
+            padding: 4px;
+            transition: width 0.3s ease, height 0.3s ease;
+        }
+        .brand-logo-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        .brand-text .brand-name {
+            font-size: 20px;
+            font-weight: 800;
+            display: block;
+            line-height: 1.2;
+            color: #ffffff;
+            letter-spacing: 0.5px;
+            transition: font-size 0.3s ease;
+        }
+        .brand-text .brand-name span {
+            color: var(--gold-light);
+        }
+        .brand-text .brand-sub {
+            font-size: 11px;
+            opacity: 0.8;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        /* --- SIDEBAR NAVIGATION --- */
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 12px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        .sidebar-nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .sidebar-nav li {
+            margin-bottom: 2px;
+        }
+        .sidebar-nav li a {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 16px;
+            border-radius: 10px;
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 14px;
+            transition: 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .sidebar-nav li a i {
+            width: 22px;
+            text-align: center;
+            font-size: 17px;
+            color: rgba(255, 255, 255, 0.75);
+            flex-shrink: 0;
+            transition: color 0.2s;
+        }
+        .sidebar-nav li a:hover {
+            background: rgba(255, 255, 255, 0.14);
+            color: #ffffff;
+        }
+        .sidebar-nav li a:hover i {
+            color: var(--gold-light);
+        }
+        .sidebar-nav li.active a {
+            background: rgba(212, 168, 69, 0.25);
+            color: var(--gold-light);
+        }
+        .sidebar-nav li.active a i {
+            color: var(--gold-light);
+        }
+
+        /* --- SIDEBAR FOOTER (Logout) --- */
+        .sidebar-footer {
+            padding: 16px 20px 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            transition: padding 0.3s ease;
+        }
+        .logout-btn {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: inherit;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .logout-btn i {
+            color: rgba(255, 255, 255, 0.7);
+            flex-shrink: 0;
+        }
+        .logout-btn:hover {
+            background: rgba(231, 76, 60, 0.25);
+            border-color: var(--danger);
+            color: #ff6b6b;
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 999;
+        }
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        /* ============================================================
+           MAIN CONTENT
+           ============================================================ */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: margin-left 0.3s ease;
+        }
+        .sidebar.collapsed~.main-content {
+            margin-left: var(--sidebar-collapsed-width);
+        }
+
+        /* ----- HEADER ----- */
+        .top-header {
+            background: var(--bg-card);
+            padding: 16px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 999;
+            box-shadow: var(--shadow);
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .menu-toggle {
+            background: none;
+            border: none;
+            font-size: 22px;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: none;
+            transition: color 0.3s;
+        }
+        .page-title h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+            transition: color 0.3s;
+        }
+        .breadcrumb {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-left: 8px;
+            transition: color 0.3s;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .lang-switcher {
+            display: flex;
+            gap: 4px;
+        }
+        .lang-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 4px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: 0.2s;
+        }
+        .lang-btn:hover {
+            background: var(--border-color);
+        }
+        .lang-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        .notif-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            position: relative;
+            transition: color 0.3s;
+        }
+        .notif-btn:hover {
+            color: var(--text-primary);
+        }
+        .badge {
+            position: absolute;
+            top: -4px;
+            right: -6px;
+            background: var(--danger);
+            color: #fff;
+            font-size: 10px;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-profile img {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--primary);
+            background: #f5f7f6;
+        }
+        .user-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+            transition: color 0.3s;
+        }
+
+        /* ----- DASHBOARD CONTENT ----- */
+        .dashboard-content {
+            padding: 24px 30px 30px;
+            flex: 1;
+        }
+
+        /* Welcome Section */
+        .welcome-section {
+            background: linear-gradient(135deg, #0f4f28 0%, #1a6e3a 50%, #2e8b4a 100%);
+            border-radius: var(--radius);
+            padding: 28px 32px;
+            color: #fff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 28px;
+            box-shadow: 0 8px 32px rgba(26, 110, 58, 0.25);
+            position: relative;
+            overflow: hidden;
+        }
+        .welcome-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 400px;
+            height: 400px;
+            background: rgba(212, 168, 69, 0.08);
+            border-radius: 50%;
+        }
+        .welcome-section::after {
+            content: '';
+            position: absolute;
+            bottom: -40%;
+            left: -10%;
+            width: 300px;
+            height: 300px;
+            background: rgba(212, 168, 69, 0.05);
+            border-radius: 50%;
+        }
+        .welcome-text {
+            position: relative;
+            z-index: 1;
+        }
+        .welcome-text .greeting {
+            font-size: 13px;
+            font-weight: 400;
+            opacity: 0.8;
+            display: block;
+            margin-bottom: 2px;
+        }
+        .welcome-text h2 {
+            font-size: 26px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .welcome-text p {
+            opacity: 0.8;
+            font-size: 15px;
+            font-weight: 400;
+        }
+        .date-time {
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.12);
+            padding: 8px 18px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ----- YEAR SELECTOR ----- */
+        .year-selector-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--bg-card);
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .year-selector-wrapper label {
+            font-weight: 600;
+            font-size: 12px;
+            color: var(--text-primary);
+            transition: color 0.3s;
+        }
+        .year-selector-wrapper select {
+            padding: 4px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 100px;
+        }
+        .year-selector-wrapper select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        .year-status {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-left: auto;
+            transition: color 0.3s;
+        }
+        .year-status .closed {
+            color: var(--danger);
+            font-weight: 600;
+        }
+        .year-status .open {
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        /* ----- QUICK ACTIONS ----- */
+        .quick-actions {
+            margin-bottom: 28px;
+        }
+        .quick-actions h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            transition: color 0.3s;
+        }
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+        }
+        .action-card {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .action-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-hover);
+            border-color: var(--primary);
+        }
+        .action-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .action-icon.green {
+            background: #2d7a3d;
+        }
+        .action-icon.blue {
+            background: #2196f3;
+        }
+        .action-icon.orange {
+            background: #ff9800;
+        }
+        .action-icon.red {
+            background: #e74c3c;
+        }
+        .action-icon.purple {
+            background: #9c27b0;
+        }
+        .action-icon.teal {
+            background: #00897b;
+        }
+        .action-info .action-title {
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text-primary);
+            display: block;
+            transition: color 0.3s;
+        }
+        .action-info .action-desc {
+            font-size: 11px;
+            color: var(--text-secondary);
+            transition: color 0.3s;
+        }
+
+        /* ----- STATS GRID (9 cards) ----- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+        .stat-card {
+            border-radius: var(--radius-sm);
+            padding: 16px 18px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: none;
+            min-height: 90px;
+        }
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+        .stat-card .stat-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .stat-card .stat-info {
+            flex: 1;
+        }
+        .stat-card .stat-label {
+            font-size: 12px;
+            font-weight: 400;
+            opacity: 0.9;
+            display: block;
+            margin-bottom: 1px;
+        }
+        .stat-card .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            display: block;
+            letter-spacing: 0.3px;
+        }
+        .stat-card .stat-change {
+            font-size: 11px;
+            font-weight: 500;
+            display: block;
+            margin-top: 2px;
+            opacity: 0.85;
+        }
+        .stat-card .stat-change .positive {
+            color: #a5d6a7;
+        }
+        .stat-card .stat-change .negative {
+            color: #ef9a9a;
+        }
+        .stat-card .stat-change .neutral {
+            color: #e0e0e0;
+        }
+
+        .stat-card.customers {
+            background: linear-gradient(135deg, #1a6e3a, #2e8b4a);
+        }
+        .stat-card.balance {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+        .stat-card.savings {
+            background: linear-gradient(135deg, #1a5e2a, #2d7a3d);
+        }
+        .stat-card.loans {
+            background: linear-gradient(135deg, #0d47a1, #1976d2);
+        }
+        .stat-card.repayments {
+            background: linear-gradient(135deg, #00695c, #00897b);
+        }
+        .stat-card.profit {
+            background: linear-gradient(135deg, #e65100, #f57c00);
+        }
+        .stat-card.totalprofit {
+            background: linear-gradient(135deg, #6a1b9a, #9c27b0);
+        }
+        .stat-card.totalbalanceall {
+            background: linear-gradient(135deg, #bf360c, #e64a19);
+        }
+        .stat-card.totalcapital {
+            background: linear-gradient(135deg, #00695c, #00897b);
+        }
+
+        /* ----- CHARTS ----- */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 28px;
+        }
+        .chart-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 16px 18px 14px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow);
+            transition: all 0.3s;
+        }
+        .chart-card:hover {
+            box-shadow: var(--shadow-hover);
+        }
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .chart-header h4 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+            transition: color 0.3s;
+        }
+        .chart-header h4 i {
+            color: var(--primary);
+            margin-right: 6px;
+        }
+        .chart-sub {
+            font-size: 11px;
+            color: var(--text-secondary);
+            transition: color 0.3s;
+        }
+        .chart-container {
+            height: 180px;
+            position: relative;
+        }
+
+        /* ----- RECENT ACTIVITY ----- */
+        .recent-activity {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 16px 18px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow);
+            transition: all 0.3s;
+        }
+        .recent-activity:hover {
+            box-shadow: var(--shadow-hover);
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .section-header h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0;
+            color: var(--text-primary);
+            transition: color 0.3s;
+        }
+        .section-header h3 i {
+            color: var(--primary);
+            margin-right: 6px;
+        }
+        .view-all {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .view-all:hover {
+            text-decoration: underline;
+        }
+        .activity-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .activity-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border-color);
+            transition: border-color 0.3s;
+        }
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+        .activity-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 15px;
+            flex-shrink: 0;
+        }
+        .activity-icon.green {
+            background: #2d7a3d;
+        }
+        .activity-icon.blue {
+            background: #2196f3;
+        }
+        .activity-icon.orange {
+            background: #ff9800;
+        }
+        .activity-icon.red {
+            background: #e74c3c;
+        }
+        .activity-icon.purple {
+            background: #9c27b0;
+        }
+        .activity-icon.gray {
+            background: #6c7d70;
+        }
+        .activity-icon.teal {
+            background: #00897b;
+        }
+        .activity-detail {
+            flex: 1;
+        }
+        .activity-text {
+            font-size: 13px;
+            color: var(--text-primary);
+            transition: color 0.3s;
+        }
+        .activity-text strong {
+            color: var(--primary);
+        }
+        .activity-time {
+            font-size: 11px;
+            color: var(--text-secondary);
+            display: block;
+            margin-top: 1px;
+            transition: color 0.3s;
+        }
+
+        /* ----- NOTIFICATIONS ----- */
+        .notifications-panel {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 16px 18px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow);
+            transition: all 0.3s;
+            margin-top: 28px;
+        }
+        .notifications-panel:hover {
+            box-shadow: var(--shadow-hover);
+        }
+        .notification-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .notification-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            border-radius: var(--radius-sm);
+            background: var(--bg-primary);
+            transition: background 0.3s;
+        }
+        .notification-item:hover {
+            background: var(--border-color);
+        }
+        .notification-item .notif-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+        .notification-item .notif-icon.green {
+            background: var(--success);
+        }
+        .notification-item .notif-icon.blue {
+            background: var(--info);
+        }
+        .notification-item .notif-icon.orange {
+            background: var(--warning);
+        }
+        .notification-item .notif-icon.gold {
+            background: var(--gold);
+        }
+        .notification-item .notif-icon.purple {
+            background: #9c27b0;
+        }
+        .notification-item .notif-content {
+            flex: 1;
+        }
+        .notification-item .notif-text {
+            font-size: 13px;
+            color: var(--text-primary);
+            transition: color 0.3s;
+        }
+        .notification-item .notif-text strong {
+            color: var(--primary);
+        }
+        .notification-item .notif-time {
+            font-size: 11px;
+            color: var(--text-secondary);
+            display: block;
+            transition: color 0.3s;
+        }
+
+        /* ============================================================
+           LOGOUT CONFIRMATION MODAL (Beautiful design)
+           ============================================================ */
+        .logout-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(6px);
+            z-index: 99999;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+        .logout-modal-overlay.active {
+            display: flex;
+        }
+        .logout-modal {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            max-width: 420px;
+            width: 100%;
+            padding: 32px 28px 24px;
+            box-shadow: var(--shadow-modal);
+            animation: slideUp 0.3s ease;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px) scale(0.95);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+        }
+        .logout-modal .modal-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: rgba(231, 76, 60, 0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 32px;
+            color: var(--danger);
+        }
+        .logout-modal h3 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            transition: color 0.3s;
+        }
+        .logout-modal p {
+            font-size: 15px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            line-height: 1.6;
+            transition: color 0.3s;
+        }
+        .logout-modal .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+        .logout-modal .modal-actions .btn {
+            padding: 10px 28px;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            min-width: 100px;
+        }
+        .logout-modal .modal-actions .btn-cancel {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
+        .logout-modal .modal-actions .btn-cancel:hover {
+            background: #d0d7d2;
+            transform: translateY(-2px);
+        }
+        .logout-modal .modal-actions .btn-logout {
+            background: var(--danger);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .logout-modal .modal-actions .btn-logout:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(231, 76, 60, 0.3);
+        }
+        .logout-modal .modal-actions .btn-logout i {
+            font-size: 16px;
+        }
+
+        /* ----- TOAST ----- */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 14px 24px;
+            border-radius: var(--radius);
+            color: #fff;
+            font-weight: 500;
+            font-size: 14px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            animation: slideIn 0.3s ease;
+            min-width: 280px;
+            max-width: 400px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .toast i {
+            font-size: 18px;
+        }
+        .toast.success {
+            background: var(--success);
+        }
+        .toast.error {
+            background: var(--danger);
+        }
+        .toast.warning {
+            background: var(--warning);
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .toast.fade-out {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .app-footer {
+            background: var(--bg-card);
+            border-top: 1px solid var(--border-color);
+            padding: 16px 30px;
+            text-align: center;
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: auto;
+            transition: all 0.3s;
+        }
+
+        /* ----- RESPONSIVE ----- */
+        @media (max-width: 992px) {
+            .charts-row {
+                grid-template-columns: 1fr;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 280px;
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .sidebar.collapsed {
+                width: 280px;
+            }
+            .sidebar.collapsed .brand-text,
+            .sidebar.collapsed .sidebar-nav li a span,
+            .sidebar.collapsed .logout-btn span,
+            .sidebar.collapsed .sidebar-brand .brand-sub {
+                display: inline;
+            }
+            .sidebar.collapsed .brand-icon {
+                width: 72px;
+                height: 72px;
+            }
+            .sidebar.collapsed .sidebar-nav li a {
+                justify-content: flex-start;
+                padding: 10px 16px;
+            }
+            .sidebar.collapsed .sidebar-nav li a i {
+                font-size: 17px;
+                width: 22px;
+            }
+            .sidebar.collapsed .logout-btn {
+                justify-content: flex-start;
+                padding: 10px;
+            }
+            .sidebar.collapsed .logout-btn i {
+                font-size: 17px;
+            }
+            .sidebar.collapsed .sidebar-toggle-btn {
+                transform: none;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+            .sidebar.collapsed~.main-content {
+                margin-left: 0;
+            }
+
+            .menu-toggle {
+                display: block;
+            }
+            .top-header {
+                padding: 12px 16px;
+            }
+            .dashboard-content {
+                padding: 16px;
+            }
+            .welcome-section {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+                padding: 20px;
+            }
+            .welcome-text h2 {
+                font-size: 22px;
+            }
+            .date-time {
+                align-self: flex-start;
+                font-size: 13px;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .action-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .user-name {
+                display: none;
+            }
+            .toast-container {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+            }
+            .toast {
+                min-width: unset;
+                width: 100%;
+            }
+            .year-selector-wrapper {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 6px;
+            }
+            .year-status {
+                margin-left: 0;
+            }
+            .sidebar-brand {
+                padding: 16px 16px 12px;
+            }
+            .brand-icon {
+                width: 60px;
+                height: 60px;
+            }
+            .logout-modal .modal-actions {
+                flex-direction: column;
+            }
+            .logout-modal .modal-actions .btn {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .action-grid {
+                grid-template-columns: 1fr;
+            }
+            .stat-card {
+                padding: 12px 14px;
+                min-height: 76px;
+            }
+            .stat-card .stat-value {
+                font-size: 18px;
+            }
+            .welcome-text h2 {
+                font-size: 20px;
+            }
+            .chart-container {
+                height: 150px;
+            }
+            .brand-icon {
+                width: 50px;
+                height: 50px;
+            }
+            .brand-text .brand-name {
+                font-size: 16px;
+            }
+            .sidebar-nav li a {
+                font-size: 13px;
+                padding: 8px 14px;
+            }
+            .top-header {
+                padding: 10px 12px;
+            }
+            .page-title h1 {
+                font-size: 17px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <button class="sidebar-toggle-btn" id="sidebarToggleBtn" title="Toggle Sidebar">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <div class="brand-icon">
+                <img src="../images/sacco-logo.png" alt="SACCO Logo" class="brand-logo-img" />
+            </div>
+            <div class="brand-text">
+                <span class="brand-name">GERESU DHUKI <span>SACCO</span></span>
+                <span class="brand-sub" data-i18n="brandSub">SACCO Banking</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <ul>
+                <li class="active"><a href="dashboard.html"><i class="fas fa-th-large"></i> <span data-i18n="navDashboard">Dashboard</span></a></li>
+                <li><a href="customers.html"><i class="fas fa-users"></i> <span data-i18n="navCustomers">Customers</span></a></li>
+                <li><a href="savings.html"><i class="fas fa-piggy-bank"></i> <span data-i18n="navSavings">Savings</span></a></li>
+                <li><a href="deposits.html"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="navDeposits">Deposits</span></a></li>
+                <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="navLoans">Loans</span></a></li>
+                <li><a href="repayments.html"><i class="fas fa-undo-alt"></i> <span data-i18n="navRepayments">Repayments</span></a></li>
+                <li><a href="withdrawals.html"><i class="fas fa-money-bill-wave"></i> <span data-i18n="navWithdrawals">Withdrawals</span></a></li>
+                <li><a href="dividends.html"><i class="fas fa-gift"></i> <span data-i18n="navDividends">Dividends</span></a></li>
+                <li><a href="reports.html"><i class="fas fa-chart-bar"></i> <span data-i18n="navReports">Reports</span></a></li>
+                <!-- ===== AUDIT TRAIL LINK ===== -->
+                <li id="auditNavItem" style="display:none;">
+                    <a href="audit.html"><i class="fas fa-clipboard-list"></i> <span data-i18n="navAudit">Audit Trail</span></a>
+                </li>
+                <!-- ===== END AUDIT TRAIL ===== -->
+                <li id="usersNavItem" style="display:none;"><a href="users.html"><i class="fas fa-user-cog"></i> <span data-i18n="navUsers">Users</span></a></li>
+                <li><a href="settings.html"><i class="fas fa-cog"></i> <span data-i18n="navSettings">Settings</span></a></li>
+            </ul>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> <span data-i18n="logout">Logout</span></button>
+        </div>
+    </aside>
+
+    <main class="main-content">
+
+        <header class="top-header">
+            <div class="header-left">
+                <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+                <div class="page-title">
+                    <h1 data-i18n="pageTitle">Dashboard</h1>
+                    <span class="breadcrumb" data-i18n="breadcrumb">Home / Dashboard</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="lang-switcher">
+                    <button class="lang-btn active" data-lang="en">EN</button>
+                    <button class="lang-btn" data-lang="am">አማ</button>
+                    <button class="lang-btn" data-lang="om">OM</button>
+                </div>
+                <div class="notifications">
+                    <button class="notif-btn"><i class="fas fa-bell"></i><span class="badge">3</span></button>
+                </div>
+                <div class="user-profile">
+                    <img id="userAvatar" src="../assets/images/avatar.png" alt="User" onerror="this.src='https://ui-avatars.com/api/?name=Admin&background=2d7a3d&color=fff'" />
+                    <span class="user-name" id="userDisplayName">Admin</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="dashboard-content">
+
+            <!-- Welcome Section -->
+            <div class="welcome-section">
+                <div class="welcome-text">
+                    <span class="greeting" id="greetingText">Good morning,</span>
+                    <h2 id="welcomeName">Admin User</h2>
+                    <p data-i18n="welcomeSub">Here's what's happening with your SACCO today.</p>
+                </div>
+                <div class="date-time">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span id="currentDateTime"></span>
+                </div>
+            </div>
+
+            <!-- Year Selector -->
+            <div class="year-selector-wrapper">
+                <label for="yearSelect"><i class="fas fa-calendar"></i> <span data-i18n="selectYear">Select Year:</span></label>
+                <select id="yearSelect">
+                    <option value="">Loading...</option>
+                </select>
+                <span class="year-status" id="yearStatus">
+                    <span data-i18n="status">Status:</span>
+                    <span id="yearStatusText" class="open" data-i18n="open">Open</span>
+                </span>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <h3 data-i18n="quickActions">Quick Actions</h3>
+                <div class="action-grid">
+                    <div class="action-card" onclick="location.href='customers.html'">
+                        <div class="action-icon green"><i class="fas fa-user-plus"></i></div>
+                        <div class="action-info">
+                            <span class="action-title" data-i18n="actionAddMember">Add Customer</span>
+                            <span class="action-desc" data-i18n="actionAddMemberDesc">Register new customer</span>
+                        </div>
+                    </div>
+                    <div class="action-card" onclick="location.href='savings.html'">
+                        <div class="action-icon blue"><i class="fas fa-coins"></i></div>
+                        <div class="action-info">
+                            <span class="action-title" data-i18n="actionSavings">Savings</span>
+                            <span class="action-desc" data-i18n="actionSavingsDesc">Record customer savings</span>
+                        </div>
+                    </div>
+                    <div class="action-card" onclick="location.href='deposits.html'">
+                        <div class="action-icon teal"><i class="fas fa-hand-holding-usd"></i></div>
+                        <div class="action-info">
+                            <span class="action-title" data-i18n="actionDeposits">Deposits</span>
+                            <span class="action-desc" data-i18n="actionDepositsDesc">Registration fees & income</span>
+                        </div>
+                    </div>
+                    <div class="action-card" onclick="location.href='loans.html'">
+                        <div class="action-icon orange"><i class="fas fa-file-invoice"></i></div>
+                        <div class="action-info">
+                            <span class="action-title" data-i18n="actionLoans">Loans</span>
+                            <span class="action-desc" data-i18n="actionLoansDesc">Create new loan</span>
+                        </div>
+                    </div>
+                    <div class="action-card" onclick="location.href='repayments.html'">
+                        <div class="action-icon purple"><i class="fas fa-undo-alt"></i></div>
+                        <div class="action-info">
+                            <span class="action-title" data-i18n="actionRepayments">Repayments</span>
+                            <span class="action-desc" data-i18n="actionRepaymentsDesc">Record loan repayments</span>
+                        </div>
+                    </div>
+                    <div class="action-card" onclick="location.href='withdrawals.html'">
+                        <div class="action-icon red"><i class="fas fa-hand-holding-heart"></i></div>
+                        <div class="action-info">
+                            <span class="action-title" data-i18n="actionWithdrawals">Withdrawals</span>
+                            <span class="action-desc" data-i18n="actionWithdrawalsDesc">Process withdrawals</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Grid (9 cards) -->
+            <div class="performance-overview">
+                <h3 data-i18n="performanceOverview" style="font-size:16px; font-weight:600; color:var(--text-primary); margin-bottom:12px; transition:color 0.3s;">Performance Overview</h3>
+                <div class="stats-grid" id="statsGrid">
+                    <div class="stat-card customers">
+                        <div class="stat-icon"><i class="fas fa-users"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label" data-i18n="statTotalCustomers">Total Customers</span>
+                            <span class="stat-value" id="totalCustomersValue">0</span>
+                            <span class="stat-change" id="customerChange"></span>
+                        </div>
+                    </div>
+                    <div class="stat-card balance">
+                        <div class="stat-icon"><i class="fas fa-wallet"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label" data-i18n="statBalance">Total Balance (ETB)</span>
+                            <span class="stat-value" id="balanceValue">0</span>
+                            <span class="stat-change" id="balanceChange"></span>
+                        </div>
+                    </div>
+                    <div class="stat-card savings">
+                        <div class="stat-icon"><i class="fas fa-piggy-bank"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label" data-i18n="statSavings">Savings (ETB)</span>
+                            <span class="stat-value" id="savingsValue">0</span>
+                            <span class="stat-change" id="savingsChange"></span>
+                        </div>
+                    </div>
+                    <div class="stat-card loans">
+                        <div class="stat-icon"><i class="fas fa-hand-holding-usd"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label" data-i18n="statLoans">Loans (ETB)</span>
+                            <span class="stat-value" id="loansValue">0</span>
+                            <span class="stat-change" id="loansChange"></span>
+                        </div>
+                    </div>
+                    <div class="stat-card repayments">
+                        <div class="stat-icon"><i class="fas fa-undo-alt"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label" data-i18n="statRepayments">Repayments (ETB)</span>
+                            <span class="stat-value" id="repaymentsValue">0</span>
+                            <span class="stat-change" id="repaymentsChange"></span>
+                        </div>
+                    </div>
+                    <div class="stat-card profit">
+                        <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label" data-i18n="statProfit">Profit (ETB)</span>
+                            <span class="stat-value" id="profitValue">0</span>
+                            <span class="stat-change" id="profitChange"></span>
+                        </div>
+                    </div>
+                    <div class="stat-card totalprofit">
+                        <div class="stat-icon"><i class="fas fa-chart-pie"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label" data-i18n="statTotalProfit">Total Profit All Years (ETB)</span>
+                            <span class="stat-value" id="totalProfitValue">0</span>
+                            <span class="stat-change" id="totalProfitChange"></span>
+                        </div>
+                    </div>
+                    <div class="stat-card totalbalanceall">
+                        <div class="stat-icon"><i class="fas fa-database"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label" data-i18n="statTotalBalanceAll">Total Balance All Years (ETB)</span>
+                            <span class="stat-value" id="totalBalanceAllValue">0</span>
+                            <span class="stat-change" id="totalBalanceAllChange"></span>
+                        </div>
+                    </div>
+                    <div class="stat-card totalcapital">
+                        <div class="stat-icon"><i class="fas fa-crown"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label" data-i18n="statTotalCapital">Total Capital All Years (ETB)</span>
+                            <span class="stat-value" id="totalCapitalValue">0</span>
+                            <span class="stat-change" id="totalCapitalChange"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="charts-row">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h4><i class="fas fa-chart-bar"></i> <span data-i18n="chartLoansVsRepayments">Loans vs Repayments</span></h4>
+                        <span class="chart-sub" data-i18n="chartLoanSub">Loans Issued (ETB) · Repayments (ETB)</span>
+                    </div>
+                    <div class="chart-container"><canvas id="loansRepaymentsChart"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h4><i class="fas fa-chart-line"></i> <span data-i18n="chartMonthlyTrends">Monthly Trends</span></h4>
+                        <span class="chart-sub" data-i18n="chartMonthlySub">Savings & Loans by month</span>
+                    </div>
+                    <div class="chart-container"><canvas id="monthlyChart"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="recent-activity">
+                <div class="section-header">
+                    <h3><i class="fas fa-clock"></i> <span data-i18n="recentActivity">Recent Activity</span></h3>
+                    <a href="#" class="view-all" data-i18n="viewAll">View All <i class="fas fa-arrow-right"></i></a>
+                </div>
+                <div class="activity-list" id="activityList">
+                    <div class="activity-item">
+                        <div class="activity-icon gray"><i class="fas fa-spinner fa-spin"></i></div>
+                        <div class="activity-detail">
+                            <span class="activity-text" data-i18n="loading">Loading activities...</span>
+                            <span class="activity-time">Just now</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notifications -->
+            <div class="notifications-panel">
+                <div class="section-header">
+                    <h3><i class="fas fa-bell"></i> <span data-i18n="notifications">Notifications</span></h3>
+                    <span id="notifCount" class="badge" style="position:static; background:var(--danger); color:#fff; padding:2px 10px; border-radius:12px; font-size:11px;">0</span>
+                </div>
+                <div class="notification-list" id="notificationList">
+                    <div class="notification-item">
+                        <div class="notif-icon gray"><i class="fas fa-spinner fa-spin"></i></div>
+                        <div class="notif-content">
+                            <span class="notif-text">Loading notifications...</span>
+                            <span class="notif-time">—</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <footer class="app-footer">
+            <p>© 2026 GERESU DHUKI SACCO. All rights reserved. Designed by : Eng. Abdi.F Software</p>
+        </footer>
+    </main>
+
+    <!-- ============================================================
+       LOGOUT CONFIRMATION MODAL
+       ============================================================ -->
+    <div class="logout-modal-overlay" id="logoutModal">
+        <div class="logout-modal">
+            <div class="modal-icon">
+                <i class="fas fa-sign-out-alt"></i>
+            </div>
+            <h3>Logout Confirmation</h3>
+            <p>Are you sure you want to log out? You will need to sign in again to access your account.</p>
+            <div class="modal-actions">
+                <button class="btn btn-cancel" id="logoutCancel">Cancel</button>
+                <button class="btn btn-logout" id="logoutConfirm"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // FIREBASE CONFIG
+        // ============================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBeQv8YLNfFFaTEZ6pxXaAy_K8n3u8V5X4",
+            authDomain: "geresu-dhuki-sacco-75329.firebaseapp.com",
+            projectId: "geresu-dhuki-sacco-75329",
+            storageBucket: "geresu-dhuki-sacco-75329.firebasestorage.app",
+            messagingSenderId: "431325504753",
+            appId: "1:431325504753:web:f7289fb88d74b82eb0b550",
+            measurementId: "G-3SN99DFJXD"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+
+        // ============================================================
+        // MULTI-LANGUAGE
+        // ============================================================
+        const translations = {
+            en: {
+                brandSub: 'SACCO Banking',
+                navDashboard: 'Dashboard',
+                navCustomers: 'Customers',
+                navSavings: 'Savings',
+                navDeposits: 'Deposits',
+                navLoans: 'Loans',
+                navRepayments: 'Repayments',
+                navWithdrawals: 'Withdrawals',
+                navDividends: 'Dividends',
+                navReports: 'Reports',
+                navAudit: 'Audit Trail',
+                navUsers: 'Users',
+                navSettings: 'Settings',
+                logout: 'Logout',
+                pageTitle: 'Dashboard',
+                breadcrumb: 'Home / Dashboard',
+                rights: 'All rights reserved.',
+                welcomeSub: "Here's what's happening with your SACCO today.",
+                quickActions: 'Quick Actions',
+                actionAddMember: 'Add Customer',
+                actionAddMemberDesc: 'Register new customer',
+                actionSavings: 'Savings',
+                actionSavingsDesc: 'Record customer savings',
+                actionDeposits: 'Deposits',
+                actionDepositsDesc: 'Registration fees & income',
+                actionLoans: 'Loans',
+                actionLoansDesc: 'Create new loan',
+                actionWithdrawals: 'Withdrawals',
+                actionWithdrawalsDesc: 'Process withdrawals',
+                actionRepayments: 'Repayments',
+                actionRepaymentsDesc: 'Record loan repayments',
+                performanceOverview: 'Performance Overview',
+                statTotalCustomers: 'Total Customers',
+                statBalance: 'Total Balance (ETB)',
+                statSavings: 'Savings (ETB)',
+                statLoans: 'Loans (ETB)',
+                statRepayments: 'Repayments (ETB)',
+                statProfit: 'Profit (ETB)',
+                statTotalProfit: 'Total Profit All Years (ETB)',
+                statTotalBalanceAll: 'Total Balance All Years (ETB)',
+                statTotalCapital: 'Total Capital All Years (ETB)',
+                chartLoansVsRepayments: 'Loans vs Repayments',
+                chartLoanSub: 'Loans Issued (ETB) · Repayments (ETB)',
+                chartMonthlyTrends: 'Monthly Trends',
+                chartMonthlySub: 'Savings & Loans by month',
+                recentActivity: 'Recent Activity',
+                viewAll: 'View All',
+                loading: 'Loading activities...',
+                noActivity: 'No recent activity found.',
+                notifications: 'Notifications',
+                selectYear: 'Select Year:',
+                status: 'Status:',
+                open: 'Open',
+                closed: 'Closed',
+                yearClosed: 'This year is closed (dividends distributed). New year starts fresh.',
+                yearOpen: 'This year is currently open.',
+                sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.'
+            },
+            am: {
+                brandSub: 'ባንክ ስርዓት',
+                navDashboard: 'ዳሽቦርድ',
+                navCustomers: 'ደንበኞች',
+                navSavings: 'ቁጠባዎች',
+                navDeposits: 'ተቀማጭ',
+                navLoans: 'ብድር',
+                navRepayments: 'ክፍያዎች',
+                navWithdrawals: 'መውጫዎች',
+                navDividends: 'ክፍፍል',
+                navReports: 'ሪፖርቶች',
+                navAudit: 'የምዝግብ ታሪክ',
+                navUsers: 'ተጠቃሚዎች',
+                navSettings: 'ቅንብሮች',
+                logout: 'ውጣ',
+                pageTitle: 'ዳሽቦርድ',
+                breadcrumb: 'ዋና ገጽ / ዳሽቦርድ',
+                rights: 'መብቶች በሙሉ ተጠብቀዋል።',
+                welcomeSub: 'ዛሬ በሳኮዎ ውስጥ ምን እየተከናወነ እንዳለ ይመልከቱ።',
+                quickActions: 'ፈጣን እርምጃዎች',
+                actionAddMember: 'ደንበኛ ያክሉ',
+                actionAddMemberDesc: 'አዲስ ደንበኛ ይመዝገቡ',
+                actionSavings: 'ቁጠባ',
+                actionSavingsDesc: 'የደንበኛ ቁጠባ ይመዝግቡ',
+                actionDeposits: 'ተቀማጭ',
+                actionDepositsDesc: 'የምዝገባ ክፍያ እና ገቢ',
+                actionLoans: 'ብድር',
+                actionLoansDesc: 'አዲስ ብድር ይፍጠሩ',
+                actionWithdrawals: 'መውጫ',
+                actionWithdrawalsDesc: 'መውጫዎችን ያስኬዱ',
+                actionRepayments: 'ክፍያዎች',
+                actionRepaymentsDesc: 'የብድር ክፍያዎችን ይመዝግቡ',
+                performanceOverview: 'የአፈጻጸም አጠቃላይ እይታ',
+                statTotalCustomers: 'ጠቅላላ ደንበኞች',
+                statBalance: 'ጠቅላላ ሚዛን (ብር)',
+                statSavings: 'ቁጠባ (ብር)',
+                statLoans: 'ብድር (ብር)',
+                statRepayments: 'ክፍያዎች (ብር)',
+                statProfit: 'ትርፍ (ብር)',
+                statTotalProfit: 'ጠቅላላ ትርፍ ሁሉም ዓመታት (ብር)',
+                statTotalBalanceAll: 'ጠቅላላ ሚዛን ሁሉም ዓመታት (ብር)',
+                statTotalCapital: 'ጠቅላላ ካፒታል ሁሉም ዓመታት (ብር)',
+                chartLoansVsRepayments: 'ብድር እና ክፍያዎች',
+                chartLoanSub: 'የተሰጠ ብድር (ብር) · ክፍያዎች (ብር)',
+                chartMonthlyTrends: 'ወርሃዊ አዝማሚያዎች',
+                chartMonthlySub: 'በወር ቁጠባ እና ብድር',
+                recentActivity: 'የቅርብ ጊዜ እንቅስቃሴ',
+                viewAll: 'ሁሉንም ይመልከቱ',
+                loading: 'እንቅስቃሴዎችን በማስገባት ላይ...',
+                noActivity: 'ምንም የቅርብ ጊዜ እንቅስቃሴ የለም።',
+                notifications: 'ማሳወቂያዎች',
+                selectYear: 'ዓመት ይምረጡ:',
+                status: 'ሁኔታ:',
+                open: 'ክፍት',
+                closed: 'ተዘግቷል',
+                yearClosed: 'ይህ ዓመት ተዘግቷል (ክፍፍል ተከፋፍሏል)። አዲሱ ዓመት ከዜሮ ይጀምራል።',
+                yearOpen: 'ይህ ዓመት ክፍት ነው።',
+                sessionTimeout: 'የእርስዎ ክፍለ-ጊዜ በ{seconds} ሰከንዶች ውስጥ ያበቃል። በመዳፊት ወይም ቁልፍ ይንቀሳቀሱ ወይም ይጫኑ በመግቢያ ላይ ለመቆየት።'
+            },
+            om: {
+                brandSub: 'Sirna Baankii',
+                navDashboard: 'Gabatee',
+                navCustomers: 'Maamila',
+                navSavings: 'Kusaa',
+                navDeposits: 'Kaasaa',
+                navLoans: 'Liqii',
+                navRepayments: 'Kaffaltuu',
+                navWithdrawals: 'Baasii',
+                navDividends: 'Qooda',
+                navReports: 'Odeeffannoo',
+                navAudit: 'Seenaa Galmee',
+                navUsers: 'Fayyadamtoota',
+                navSettings: 'Qindeessaa',
+                logout: 'Baasi',
+                pageTitle: 'Gabatee',
+                breadcrumb: 'Mana / Gabatee',
+                rights: 'Mirgaan hundi eegama.',
+                welcomeSub: 'Har\'a SACCO keessan keessa waan ta\'e ilaalaa.',
+                quickActions: 'Gocha Dafaa',
+                actionAddMember: 'Maamila Dabali',
+                actionAddMemberDesc: 'Maamila haaraa galmeessi',
+                actionSavings: 'Kusaa',
+                actionSavingsDesc: 'Kusaa maamila galmeessi',
+                actionDeposits: 'Kaasaa',
+                actionDepositsDesc: 'Kaffaltii galmeessaa fi galii',
+                actionLoans: 'Liqii',
+                actionLoansDesc: 'Liqii haaraa uumi',
+                actionWithdrawals: 'Baasii',
+                actionWithdrawalsDesc: 'Baasiiwwan hojjedhi',
+                actionRepayments: 'Kaffaltuu',
+                actionRepaymentsDesc: 'Kaffaltuu liqii galmeessi',
+                performanceOverview: 'Aguuggama Hoji',
+                statTotalCustomers: 'Maamila Waliigalaa',
+                statBalance: 'Iddoo Guutuu (ETB)',
+                statSavings: 'Kusaa (ETB)',
+                statLoans: 'Liqii (ETB)',
+                statRepayments: 'Kaffaltuu (ETB)',
+                statProfit: 'Bu\'aa (ETB)',
+                statTotalProfit: 'Bu\'aa Guutuu Waggaa Hundaa (ETB)',
+                statTotalBalanceAll: 'Iddoo Guutuu Waggaa Hundaa (ETB)',
+                statTotalCapital: 'Kaapitaala Guutuu Waggaa Hundaa (ETB)',
+                chartLoansVsRepayments: 'Liqii fi Kaffaltuu',
+                chartLoanSub: 'Liqii Kenname (ETB) · Kaffaltuu (ETB)',
+                chartMonthlyTrends: 'Adeemsa Ji\'aa',
+                chartMonthlySub: 'Kusaa fi Liqii ji\'aan',
+                recentActivity: 'Gocha Dhiyoo',
+                viewAll: 'Hundaa Ilaali',
+                loading: 'Gochaalee fe\'aa...',
+                noActivity: 'Gocha dhiyoo hin argamne.',
+                notifications: 'Beeksisaa',
+                selectYear: 'Waggaa Filadhu:',
+                status: 'Haala:',
+                open: 'Banaa',
+                closed: 'Cufamaa',
+                yearClosed: 'Waggaan kun cufameera (qoodni qoodame). Waggaa haaraan zeerodhaa eegala.',
+                yearOpen: 'Waggaan kun banaa jira.',
+                sessionTimeout: 'Sessiin keessan {seconds} sekoondii keessatti xumurama. Siiqaa ykn cuqaasaa sochoosuu ykn cuqaasuu akka seenan turtanii.'
+            }
+        };
+
+        let currentLang = 'en';
+        let currentUserRole = 'viewer';
+        let currentUserDisplayName = 'Admin';
+        let currentUserEmail = '';
+        let selectedYear = new Date().getFullYear();
+        let availableYears = [];
+
+        function setLanguage(lang) {
+            if (!translations[lang]) return;
+            currentLang = lang;
+            const t = translations[lang];
+
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key] !== undefined) {
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                        if (el.type !== 'file') el.placeholder = t[key];
+                    } else if (el.tagName === 'SELECT') {
+                        el.querySelectorAll('option[data-i18n]').forEach(opt => {
+                            const optKey = opt.getAttribute('data-i18n');
+                            if (t[optKey]) opt.textContent = t[optKey];
+                        });
+                    } else {
+                        el.innerHTML = t[key];
+                    }
+                }
+            });
+
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.lang === lang);
+            });
+
+            try { localStorage.setItem('waciti-lang', lang); } catch (e) {}
+
+            updateYearStatus(selectedYear);
+        }
+
+        function initLanguage() {
+            const saved = localStorage.getItem('waciti-lang') || navigator.language.split('-')[0];
+            const valid = ['en', 'am', 'om'];
+            setLanguage(valid.includes(saved) ? saved : 'en');
+        }
+
+        function showToast(message, type = 'error') {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'toast-container';
+                document.body.appendChild(container);
+            }
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icon = document.createElement('i');
+            icon.className = type === 'error' ? 'fas fa-exclamation-circle' :
+                type === 'success' ? 'fas fa-check-circle' :
+                'fas fa-exclamation-triangle';
+            toast.appendChild(icon);
+            const text = document.createElement('span');
+            text.textContent = message;
+            toast.appendChild(text);
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('fade-out');
+                setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
+            }, 4500);
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+
+        // ============================================================
+        // COLLAPSIBLE SIDEBAR
+        // ============================================================
+        function toggleSidebarCollapse() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+            localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed') ? 'true' : 'false');
+        }
+
+        function loadSidebarState() {
+            const sidebar = document.getElementById('sidebar');
+            const isCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+            if (isCollapsed) {
+                sidebar.classList.add('collapsed');
+            } else {
+                sidebar.classList.remove('collapsed');
+            }
+        }
+
+        // ============================================================
+        // USER INFO
+        // ============================================================
+        function updateUserInfo() {
+            const roleMap = {
+                admin: 'ADMIN',
+                manager: 'MANAGER',
+                teller: 'TELLER',
+                accountant: 'ACCOUNTANT',
+                viewer: 'VIEWER'
+            };
+            const roleLabel = roleMap[currentUserRole] || 'VIEWER';
+            const displayName = currentUserDisplayName || 'User';
+            document.getElementById('userDisplayName').textContent = displayName + ' (' + roleLabel + ')';
+
+            const auditNav = document.getElementById('auditNavItem');
+            if (auditNav) {
+                auditNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
+            }
+
+            const usersNav = document.getElementById('usersNavItem');
+            if (usersNav) {
+                usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
+            }
+
+            document.getElementById('welcomeName').textContent = displayName;
+
+            const hour = new Date().getHours();
+            let greeting = 'Good morning';
+            if (hour >= 12 && hour < 17) greeting = 'Good afternoon';
+            else if (hour >= 17) greeting = 'Good evening';
+            document.getElementById('greetingText').textContent = greeting + ',';
+        }
+
+        // ============================================================
+        // DATE/TIME
+        // ============================================================
+        function updateDateTime() {
+            const now = new Date();
+            const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+            document.getElementById('currentDateTime').textContent = now.toLocaleDateString('en-US', options);
+        }
+
+        // ============================================================
+        // YEAR SELECTOR
+        // ============================================================
+        function toDate(value) {
+            if (!value) return null;
+            if (value.toDate) return value.toDate();
+            if (typeof value === 'string') return new Date(value);
+            return value;
+        }
+
+        async function updateYearStatus(year) {
+            try {
+                const startDate = new Date(year, 0, 1);
+                const endDate = new Date(year, 11, 31);
+                const snapshot = await db.collection('transactions')
+                    .where('type', '==', 'profit_withdrawal')
+                    .where('reason', '==', 'Dividend')
+                    .where('createdAt', '>=', startDate)
+                    .where('createdAt', '<=', endDate)
+                    .limit(1)
+                    .get();
+
+                const isClosed = !snapshot.empty;
+                const t = translations[currentLang] || translations.en;
+                const statusText = document.getElementById('yearStatusText');
+                if (isClosed) {
+                    statusText.textContent = t.closed || 'Closed';
+                    statusText.className = 'closed';
+                } else {
+                    statusText.textContent = t.open || 'Open';
+                    statusText.className = 'open';
+                }
+                return isClosed;
+            } catch (error) {
+                console.error('Error checking year status:', error);
+                return false;
+            }
+        }
+
+        async function loadAvailableYears() {
+            try {
+                const currentYear = new Date().getFullYear();
+                const yearsSet = new Set();
+                for (let i = 0; i <= 5; i++) {
+                    yearsSet.add(currentYear + i);
+                }
+                availableYears = Array.from(yearsSet).sort((a, b) => a - b);
+                const select = document.getElementById('yearSelect');
+                select.innerHTML = '';
+                availableYears.forEach(year => {
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = year;
+                    if (year === currentYear) option.selected = true;
+                    select.appendChild(option);
+                });
+                selectedYear = parseInt(select.value);
+                await updateYearStatus(selectedYear);
+                select.addEventListener('change', function() {
+                    selectedYear = parseInt(this.value);
+                    updateYearStatus(selectedYear);
+                    loadDashboardData();
+                });
+                return selectedYear;
+            } catch (error) {
+                console.error('Error loading available years:', error);
+                return new Date().getFullYear();
+            }
+        }
+
+        // ============================================================
+        // DASHBOARD DATA LOADING
+        // ============================================================
+        let savingsData = [];
+        let loansData = [];
+        let repaymentsData = [];
+        let profitIncomeData = [];
+        let profitWithdrawalData = [];
+        let withdrawalData = [];
+        let loansRepaymentsChart = null;
+        let monthlyChart = null;
+        let customersMap = {};
+
+        function isInYear(dateValue, year) {
+            const d = toDate(dateValue);
+            if (!d) return false;
+            return d.getFullYear() === year;
+        }
+
+        function getMonthlyTotal(data, field, year, month) {
+            return data
+                .filter(item => {
+                    const d = toDate(item.date || item.timestamp);
+                    if (!d) return false;
+                    return d.getMonth() === month && d.getFullYear() === year;
+                })
+                .reduce((sum, item) => sum + (Number(item[field]) || 0), 0);
+        }
+
+        function updateChange(elementId, percent) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            const rounded = percent.toFixed(1);
+            if (percent > 0) {
+                el.innerHTML = `<span class="positive">+${rounded}%</span>`;
+            } else if (percent < 0) {
+                el.innerHTML = `<span class="negative">${rounded}%</span>`;
+            } else {
+                el.innerHTML = `<span class="neutral">0%</span>`;
+            }
+        }
+
+        function updateCharts(months, loansData, repaymentsData, savingsData) {
+            const ctx1 = document.getElementById('loansRepaymentsChart').getContext('2d');
+            const ctx2 = document.getElementById('monthlyChart').getContext('2d');
+            if (loansRepaymentsChart) loansRepaymentsChart.destroy();
+            if (monthlyChart) monthlyChart.destroy();
+
+            loansRepaymentsChart = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: months,
+                    datasets: [
+                        { label: 'Loans Issued', data: loansData, backgroundColor: 'rgba(45,122,61,0.7)',
+                            borderColor: '#2d7a3d', borderWidth: 1 },
+                        { label: 'Repayments', data: repaymentsData, backgroundColor: 'rgba(0,137,123,0.7)',
+                            borderColor: '#00897b', borderWidth: 1 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } },
+                    scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+                    x: { grid: { display: false } } }
+                }
+            });
+
+            monthlyChart = new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: [
+                        { label: 'Savings', data: savingsData, borderColor: '#2d7a3d',
+                            backgroundColor: 'rgba(45,122,61,0.1)', fill: true, tension: 0.3,
+                            pointBackgroundColor: '#2d7a3d' },
+                        { label: 'Loans', data: loansData, borderColor: '#2196f3',
+                            backgroundColor: 'rgba(33,150,243,0.1)', fill: true, tension: 0.3,
+                            pointBackgroundColor: '#2196f3' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } },
+                    scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+                    x: { grid: { display: false } } }
+                }
+            });
+        }
+
+        function renderActivity(activities) {
+            const container = document.getElementById('activityList');
+            if (!container) return;
+            const t = translations[currentLang] || translations.en;
+            if (!activities || activities.length === 0) {
+                container.innerHTML = `
+                    <div class="activity-item">
+                        <div class="activity-icon gray"><i class="fas fa-info-circle"></i></div>
+                        <div class="activity-detail">
+                            <span class="activity-text">${t.noActivity}</span>
+                            <span class="activity-time">—</span>
+                        </div>
+                    </div>`;
+                return;
+            }
+            let html = '';
+            activities.forEach(a => {
+                const timeStr = timeAgo(a.date);
+                html += `
+                    <div class="activity-item">
+                        <div class="activity-icon ${a.color}"><i class="fas ${a.icon}"></i></div>
+                        <div class="activity-detail">
+                            <span class="activity-text">${a.text}</span>
+                            <span class="activity-time">${timeStr}</span>
+                        </div>
+                    </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderNotifications(notifications) {
+            const container = document.getElementById('notificationList');
+            const countBadge = document.getElementById('notifCount');
+            if (!container) return;
+
+            if (!notifications || notifications.length === 0) {
+                container.innerHTML = `
+                    <div class="notification-item">
+                        <div class="notif-icon gray"><i class="fas fa-info-circle"></i></div>
+                        <div class="notif-content">
+                            <span class="notif-text">No new notifications</span>
+                            <span class="notif-time">—</span>
+                        </div>
+                    </div>`;
+                countBadge.textContent = '0';
+                return;
+            }
+
+            let html = '';
+            notifications.forEach(n => {
+                html += `
+                    <div class="notification-item">
+                        <div class="notif-icon ${n.color}"><i class="fas ${n.icon}"></i></div>
+                        <div class="notif-content">
+                            <span class="notif-text">${n.text}</span>
+                            <span class="notif-time">${n.time}</span>
+                        </div>
+                    </div>`;
+            });
+            container.innerHTML = html;
+            countBadge.textContent = notifications.length;
+        }
+
+        function timeAgo(date) {
+            const d = toDate(date);
+            if (!d) return '';
+            const seconds = Math.floor((new Date() - d) / 1000);
+            const intervals = { year: 31536000, month: 2592000, week: 604800, day: 86400, hour: 3600, minute: 60 };
+            for (let [unit, value] of Object.entries(intervals)) {
+                const count = Math.floor(seconds / value);
+                if (count > 0) return count + ' ' + unit + (count > 1 ? 's' : '') + ' ago';
+            }
+            return 'just now';
+        }
+
+        async function loadDashboardData() {
+            try {
+                const year = selectedYear;
+                const t = translations[currentLang] || translations.en;
+
+                const customersSnap = await db.collection('customers').get();
+                const totalCustomers = customersSnap.size;
+                customersSnap.forEach(doc => {
+                    customersMap[doc.id] = doc.data().fullName || 'Unknown Customer';
+                });
+
+                const savingsSnap = await db.collection('transactions').where('type', '==', 'savings').get();
+                const loansSnap = await db.collection('transactions').where('type', '==', 'loan').get();
+                const repaymentsSnap = await db.collection('transactions').where('type', '==', 'repayment').get();
+                const profitIncomeSnap = await db.collection('transactions').where('type', '==', 'profit_income').get();
+                const profitWithdrawalSnap = await db.collection('transactions').where('type', '==', 'profit_withdrawal')
+                    .get();
+                const withdrawalSnap = await db.collection('transactions').where('type', '==', 'withdrawal').get();
+
+                const allSavings = savingsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                const allLoans = loansSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                const allRepayments = repaymentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                const allProfitIncome = profitIncomeSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                const allProfitWithdrawal = profitWithdrawalSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                const allWithdrawals = withdrawalSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                const totalSavingsAllYears = allSavings.reduce((s, item) => s + (Number(item.amount) || 0), 0);
+                const totalDividendsAllYears = allProfitWithdrawal
+                    .filter(w => w.reason === 'Dividend')
+                    .reduce((s, w) => s + (Number(w.amount) || 0), 0);
+                const totalWithdrawalsAllYears = allWithdrawals.reduce((s, w) => s + (Number(w.amount) || 0), 0);
+                const totalCapitalAllYears = Math.round((totalSavingsAllYears + totalDividendsAllYears - totalWithdrawalsAllYears) *
+                    100) / 100;
+
+                const yearsSet = new Set();
+                [...allSavings, ...allLoans, ...allRepayments, ...allProfitIncome, ...allProfitWithdrawal]
+                    .forEach(item => {
+                        const d = toDate(item.date || item.timestamp);
+                        if (d) yearsSet.add(d.getFullYear());
+                    });
+
+                let totalProfitAllYears = 0;
+                yearsSet.forEach(y => {
+                    const yearlyRepayments = allRepayments
+                        .filter(r => isInYear(r.date || r.timestamp, y))
+                        .reduce((s, r) => s + (Number(r.amount) || 0), 0);
+                    const yearlyLoans = allLoans
+                        .filter(l => l.status === 'active' || l.status === 'paid')
+                        .filter(l => isInYear(l.date || l.timestamp, y))
+                        .reduce((s, l) => s + (Number(l.amount) || 0), 0);
+                    const yearlyIncome = allProfitIncome
+                        .filter(p => isInYear(p.date || p.timestamp, y))
+                        .reduce((s, p) => s + (Number(p.amount) || 0), 0);
+                    const yearlyDividends = allProfitWithdrawal
+                        .filter(w => w.reason === 'Dividend' && isInYear(w.date || w.timestamp, y))
+                        .reduce((s, w) => s + (Number(w.amount) || 0), 0);
+                    const yearlyProfit = (yearlyRepayments - yearlyLoans) + yearlyIncome - yearlyDividends;
+                    totalProfitAllYears += yearlyProfit;
+                });
+                totalProfitAllYears = Math.round(totalProfitAllYears * 100) / 100;
+                const totalBalanceAllYears = Math.round((totalSavingsAllYears + totalProfitAllYears) * 100) / 100;
+
+                savingsData = allSavings.filter(s => isInYear(s.date || s.timestamp, year));
+                loansData = allLoans.filter(l => isInYear(l.date || l.timestamp, year));
+                repaymentsData = allRepayments.filter(r => isInYear(r.date || r.timestamp, year));
+                profitIncomeData = allProfitIncome.filter(p => isInYear(p.date || p.timestamp, year));
+                profitWithdrawalData = allProfitWithdrawal.filter(w => isInYear(w.date || w.timestamp, year));
+                withdrawalData = allWithdrawals.filter(w => isInYear(w.date || w.timestamp, year));
+
+                const totalSavings = savingsData.reduce((s, item) => s + (Number(item.amount) || 0), 0);
+                const totalLoans = loansData.filter(l => l.status === 'active' || l.status === 'paid')
+                    .reduce((s, l) => s + (Number(l.amount) || 0), 0);
+                const totalRepayments = repaymentsData.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+                const totalDeposits = profitIncomeData.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+                const totalDividends = profitWithdrawalData.filter(w => w.reason === 'Dividend')
+                    .reduce((s, w) => s + (Number(w.amount) || 0), 0);
+                const profit = Math.round(((totalRepayments - totalLoans) + totalDeposits - totalDividends) * 100) / 100;
+                const totalBalance = Math.round((totalSavings + profit) * 100) / 100;
+
+                document.getElementById('totalCustomersValue').textContent = totalCustomers.toLocaleString();
+                document.getElementById('balanceValue').textContent = totalBalance.toLocaleString();
+                document.getElementById('savingsValue').textContent = totalSavings.toLocaleString();
+                document.getElementById('loansValue').textContent = totalLoans.toLocaleString();
+                document.getElementById('repaymentsValue').textContent = totalRepayments.toLocaleString();
+                document.getElementById('profitValue').textContent = profit.toLocaleString();
+                document.getElementById('totalProfitValue').textContent = totalProfitAllYears.toLocaleString();
+                document.getElementById('totalBalanceAllValue').textContent = totalBalanceAllYears.toLocaleString();
+                document.getElementById('totalCapitalValue').textContent = totalCapitalAllYears.toLocaleString();
+
+                const currentMonth = new Date().getMonth();
+                const currentYear = year;
+                const prevYear = year - 1;
+
+                const curSavings = getMonthlyTotal(savingsData, 'amount', currentYear, currentMonth);
+                const prevSavings = getMonthlyTotal(
+                    savingsData.map(s => { return { ...s, date: s.date || s.timestamp }; }),
+                    'amount', prevYear, currentMonth
+                );
+                const savChange = prevSavings > 0 ? ((curSavings - prevSavings) / prevSavings * 100) : 0;
+                updateChange('savingsChange', savChange);
+
+                const curLoans = getMonthlyTotal(loansData, 'amount', currentYear, currentMonth);
+                const prevLoans = getMonthlyTotal(
+                    loansData.map(l => { return { ...l, date: l.date || l.timestamp }; }),
+                    'amount', prevYear, currentMonth
+                );
+                const loanChange = prevLoans > 0 ? ((curLoans - prevLoans) / prevLoans * 100) : 0;
+                updateChange('loansChange', loanChange);
+
+                const curRepayments = getMonthlyTotal(repaymentsData, 'amount', currentYear, currentMonth);
+                const prevRepayments = getMonthlyTotal(
+                    repaymentsData.map(r => { return { ...r, date: r.date || r.timestamp }; }),
+                    'amount', prevYear, currentMonth
+                );
+                const repChange = prevRepayments > 0 ? ((curRepayments - prevRepayments) / prevRepayments * 100) : 0;
+                updateChange('repaymentsChange', repChange);
+
+                const curDeposits = getMonthlyTotal(profitIncomeData, 'amount', currentYear, currentMonth);
+                const prevDeposits = getMonthlyTotal(
+                    profitIncomeData.map(p => { return { ...p, date: p.date || p.timestamp }; }),
+                    'amount', prevYear, currentMonth
+                );
+                const curProfit = (curRepayments - curLoans) + curDeposits;
+                const prevProfit = (prevRepayments - prevLoans) + prevDeposits;
+                const profitChange = prevProfit !== 0 ? ((curProfit - prevProfit) / prevProfit * 100) : 0;
+                updateChange('profitChange', profitChange);
+
+                const curBalance = curSavings + curProfit;
+                const prevBalance = prevSavings + prevProfit;
+                const balanceChange = prevBalance !== 0 ? ((curBalance - prevBalance) / prevBalance * 100) : 0;
+                updateChange('balanceChange', balanceChange);
+
+                updateChange('customerChange', 0);
+
+                document.getElementById('totalProfitChange').innerHTML = `<span class="neutral">—</span>`;
+                document.getElementById('totalBalanceAllChange').innerHTML = `<span class="neutral">—</span>`;
+                document.getElementById('totalCapitalChange').innerHTML = `<span class="neutral">—</span>`;
+
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const loansMonthly = months.map((_, i) => getMonthlyTotal(loansData.filter(l => l.status === 'active' || l
+                    .status === 'paid'), 'amount', year, i));
+                const repaymentsMonthly = months.map((_, i) => getMonthlyTotal(repaymentsData, 'amount', year, i));
+                const savingsMonthly = months.map((_, i) => getMonthlyTotal(savingsData, 'amount', year, i));
+                updateCharts(months, loansMonthly, repaymentsMonthly, savingsMonthly);
+
+                const activities = [];
+                savingsData.slice(0, 3).forEach(s => {
+                    const customerName = customersMap[s.customerId] || 'Unknown Customer';
+                    activities.push({
+                        text: `${customerName} made a savings deposit of <strong>ETB ${Number(s.amount).toLocaleString()}</strong>`,
+                        icon: 'fa-coins',
+                        color: 'blue',
+                        date: s.date || s.timestamp
+                    });
+                });
+                loansData.filter(l => l.status === 'active' || l.status === 'paid').slice(0, 3).forEach(l => {
+                    const customerName = customersMap[l.customerId] || 'Unknown Customer';
+                    activities.push({
+                        text: `${customerName} received a loan of <strong>ETB ${Number(l.amount).toLocaleString()}</strong>`,
+                        icon: 'fa-file-invoice',
+                        color: 'orange',
+                        date: l.date || l.timestamp
+                    });
+                });
+                repaymentsData.slice(0, 3).forEach(r => {
+                    const customerName = customersMap[r.customerId] || 'Unknown Customer';
+                    activities.push({
+                        text: `${customerName} made a loan repayment of <strong>ETB ${Number(r.amount).toLocaleString()}</strong>`,
+                        icon: 'fa-undo-alt',
+                        color: 'teal',
+                        date: r.date || r.timestamp
+                    });
+                });
+                profitIncomeData.slice(0, 2).forEach(p => {
+                    const type = p.incomeType || 'Deposit';
+                    activities.push({
+                        text: `Income (${type}) of <strong>ETB ${Number(p.amount).toLocaleString()}</strong>`,
+                        icon: 'fa-arrow-down',
+                        color: 'green',
+                        date: p.date || p.timestamp
+                    });
+                });
+                profitWithdrawalData.filter(w => w.reason === 'Dividend').slice(0, 2).forEach(w => {
+                    const customerName = customersMap[w.customerId] || 'System';
+                    activities.push({
+                        text: `Dividend of <strong>ETB ${Number(w.amount).toLocaleString()}</strong> distributed to ${customerName}`,
+                        icon: 'fa-gift',
+                        color: 'purple',
+                        date: w.date || w.timestamp
+                    });
+                });
+                activities.sort((a, b) => {
+                    const da = toDate(a.date);
+                    const db = toDate(b.date);
+                    if (!da && !db) return 0;
+                    if (!da) return 1;
+                    if (!db) return -1;
+                    return db - da;
+                });
+                renderActivity(activities.slice(0, 10));
+
+                const notifications = activities.slice(0, 4).map(a => {
+                    const colorMap = {
+                        'blue': 'blue',
+                        'orange': 'orange',
+                        'teal': 'green',
+                        'green': 'green',
+                        'purple': 'purple'
+                    };
+                    return {
+                        text: a.text.replace(/<[^>]*>/g, ''),
+                        icon: a.icon,
+                        color: colorMap[a.color] || 'gold',
+                        time: timeAgo(a.date)
+                    };
+                });
+                renderNotifications(notifications);
+
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                showToast('Failed to load dashboard data: ' + error.message, 'error');
+                document.getElementById('totalCustomersValue').textContent = '0';
+                document.getElementById('balanceValue').textContent = '0';
+                document.getElementById('savingsValue').textContent = '0';
+                document.getElementById('loansValue').textContent = '0';
+                document.getElementById('repaymentsValue').textContent = '0';
+                document.getElementById('profitValue').textContent = '0';
+                document.getElementById('totalProfitValue').textContent = '0';
+                document.getElementById('totalBalanceAllValue').textContent = '0';
+                document.getElementById('totalCapitalValue').textContent = '0';
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                updateCharts(months, Array(12).fill(0), Array(12).fill(0), Array(12).fill(0));
+                renderActivity([]);
+                renderNotifications([]);
+            }
+        }
+
+        // ============================================================
+        // LOGOUT MODAL
+        // ============================================================
+        function showLogoutModal() {
+            document.getElementById('logoutModal').classList.add('active');
+        }
+
+        function hideLogoutModal() {
+            document.getElementById('logoutModal').classList.remove('active');
+        }
+
+        async function performLogout() {
+            try {
+                await auth.signOut();
+                window.location.href = '../index.html';
+            } catch (error) {
+                showToast('Error logging out: ' + error.message, 'error');
+                hideLogoutModal();
+            }
+        }
+
+        // ============================================================
+        // SESSION TIMEOUT
+        // ============================================================
+        (function() {
+            const SESSION_TIMEOUT = 5 * 60 * 1000;
+            const WARNING_TIMEOUT = SESSION_TIMEOUT - 30 * 1000;
+
+            let timer = null;
+            let warningTimer = null;
+            let warningToast = null;
+            let countdownInterval = null;
+
+            function resetTimer() {
+                clearTimeout(timer);
+                clearTimeout(warningTimer);
+                clearInterval(countdownInterval);
+                if (warningToast) {
+                    warningToast.remove();
+                    warningToast = null;
+                }
+                warningTimer = setTimeout(showWarning, WARNING_TIMEOUT);
+                timer = setTimeout(forceLogout, SESSION_TIMEOUT);
+            }
+
+            function showWarning() {
+                const t = translations[currentLang] || translations.en;
+                const message = t.sessionTimeout || 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
+
+                let seconds = 30;
+                warningToast = document.createElement('div');
+                warningToast.style.cssText = `
+                    position: fixed;
+                    bottom: 30px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: #f39c12;
+                    color: #fff;
+                    padding: 16px 24px;
+                    border-radius: 12px;
+                    font-size: 15px;
+                    font-weight: 500;
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+                    z-index: 99999;
+                    max-width: 500px;
+                    text-align: center;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    animation: slideUp 0.3s ease;
+                `;
+                warningToast.innerHTML = `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
+
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes slideUp {
+                        from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+                        to { transform: translateX(-50%) translateY(0); opacity: 1; }
+                    }
+                `;
+                document.head.appendChild(style);
+                document.body.appendChild(warningToast);
+
+                countdownInterval = setInterval(() => {
+                    seconds--;
+                    const textEl = document.getElementById('sessionWarningText');
+                    if (textEl) {
+                        textEl.textContent = message.replace('{seconds}', seconds);
+                    }
+                    if (seconds <= 0) {
+                        clearInterval(countdownInterval);
+                    }
+                }, 1000);
+            }
+
+            function forceLogout() {
+                clearInterval(countdownInterval);
+                if (warningToast) {
+                    warningToast.remove();
+                    warningToast = null;
+                }
+                if (auth) {
+                    auth.signOut().then(() => {
+                        window.location.href = '../index.html';
+                    }).catch(() => {
+                        window.location.href = '../index.html';
+                    });
+                } else {
+                    window.location.href = '../index.html';
+                }
+            }
+
+            const events = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
+
+            function handleActivity() {
+                resetTimer();
+            }
+            events.forEach(evt => {
+                document.addEventListener(evt, handleActivity);
+            });
+            resetTimer();
+
+            window.addEventListener('beforeunload', function() {
+                clearTimeout(timer);
+                clearTimeout(warningTimer);
+                clearInterval(countdownInterval);
+                if (warningToast) {
+                    warningToast.remove();
+                }
+                events.forEach(evt => {
+                    document.removeEventListener(evt, handleActivity);
+                });
+            });
+        })();
+
+        // ============================================================
+        // PAGE INIT
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', async function() {
+            auth.onAuthStateChanged(async (user) => {
+                if (!user) {
+                    window.location.href = '../index.html';
+                    return;
+                }
+
+                try {
+                    const doc = await db.collection('users').doc(user.uid).get();
+                    if (doc.exists) {
+                        const data = doc.data();
+                        currentUserRole = data.role || 'viewer';
+                        currentUserDisplayName = data.displayName || data.name || user.displayName || user.email?.split(
+                            '@')[0] || 'User';
+                    } else {
+                        currentUserRole = 'viewer';
+                        currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'User';
+                    }
+                } catch (err) {
+                    console.error('Error fetching role:', err);
+                    currentUserRole = 'viewer';
+                    currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'User';
+                }
+
+                const auditNav = document.getElementById('auditNavItem');
+                if (auditNav) {
+                    auditNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
+                }
+
+                const usersNav = document.getElementById('usersNavItem');
+                if (usersNav) {
+                    usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
+                }
+
+                loadSidebarState();
+                updateUserInfo();
+                initLanguage();
+
+                document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
+                document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
+                document.getElementById('sidebarToggleBtn').addEventListener('click', toggleSidebarCollapse);
+
+                document.querySelectorAll('.lang-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        setLanguage(this.dataset.lang);
+                        updateUserInfo();
+                        updateYearStatus(selectedYear);
+                    });
+                });
+
+                // ---- Logout ----
+                document.getElementById('logoutBtn').addEventListener('click', showLogoutModal);
+                document.getElementById('logoutCancel').addEventListener('click', hideLogoutModal);
+                document.getElementById('logoutConfirm').addEventListener('click', performLogout);
+                document.getElementById('logoutModal').addEventListener('click', function(e) {
+                    if (e.target === this) hideLogoutModal();
+                });
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') hideLogoutModal();
+                });
+
+                updateDateTime();
+                setInterval(updateDateTime, 60000);
+                await loadAvailableYears();
+                await loadDashboardData();
+            });
+        });
+    </script>
+</body>
+</html>
