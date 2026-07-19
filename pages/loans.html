@@ -1,0 +1,3400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Loans – GERESU DHUKI SACCO</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js">
+    </script>
+
+    <style>
+        /* ============================================================
+           ROOT VARIABLES (Matches Dashboard)
+           ============================================================ */
+        :root {
+            --primary: #1a6e3a;
+            --primary-dark: #0f4f28;
+            --primary-light: #2e8b4a;
+            --gold: #d4a845;
+            --gold-light: #f0d68a;
+            --gold-dark: #b8922f;
+            --bg-primary: #f5f7f6;
+            --bg-card: #ffffff;
+            --bg-sidebar: #1a6e3a;
+            --text-primary: #1a2e1f;
+            --text-secondary: #6c7d70;
+            --text-muted: #8a9e92;
+            --border-color: #e8ede9;
+            --shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+            --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.1);
+            --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.3);
+            --radius: 16px;
+            --radius-sm: 10px;
+            --success: #2d7a3d;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #2196f3;
+            --input-bg: #ffffff;
+            --input-border: #d0d7d2;
+            --input-focus: rgba(45, 122, 61, 0.1);
+            --transition: 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+            --sidebar-width: 260px;
+            --sidebar-collapsed-width: 72px;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1a2e;
+            --bg-card: #16213e;
+            --bg-sidebar: #0f4f28;
+            --text-primary: #e8f0ea;
+            --text-secondary: #a0aec0;
+            --text-muted: #6b7d82;
+            --border-color: #2d3748;
+            --shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+            --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.4);
+            --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.5);
+            --input-bg: #2d3748;
+            --input-border: #4a5568;
+            --input-focus: rgba(45, 122, 61, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* ============================================================
+           SIDEBAR – Bright green with HIGH CONTRAST text (Matches Dashboard)
+           ============================================================ */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-sidebar);
+            color: #e8f0ea;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s ease, transform 0.3s ease;
+            box-shadow: 2px 0 16px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+        }
+        .sidebar.collapsed {
+            width: var(--sidebar-collapsed-width);
+        }
+        .sidebar.collapsed .brand-text,
+        .sidebar.collapsed .sidebar-nav li a span,
+        .sidebar.collapsed .logout-btn span,
+        .sidebar.collapsed .sidebar-brand .brand-sub {
+            display: none;
+        }
+        .sidebar.collapsed .sidebar-brand {
+            padding: 16px 8px;
+        }
+        .sidebar.collapsed .brand-icon {
+            width: 48px;
+            height: 48px;
+        }
+        .sidebar.collapsed .sidebar-nav li a {
+            justify-content: center;
+            padding: 12px 0;
+        }
+        .sidebar.collapsed .sidebar-nav li a i {
+            font-size: 20px;
+            width: auto;
+        }
+        .sidebar.collapsed .logout-btn {
+            justify-content: center;
+            padding: 10px 0;
+        }
+        .sidebar.collapsed .logout-btn i {
+            font-size: 20px;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--gold-light);
+            border-radius: 4px;
+        }
+
+        /* --- SIDEBAR BRAND --- */
+        .sidebar-brand {
+            padding: 20px 20px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+            text-align: center;
+            transition: padding 0.3s ease;
+            position: relative;
+        }
+        .sidebar-toggle-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s, transform 0.3s ease;
+        }
+        .sidebar-toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        .sidebar.collapsed .sidebar-toggle-btn {
+            transform: rotate(180deg);
+            top: 8px;
+            right: 6px;
+        }
+
+        .brand-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            overflow: hidden;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.12);
+            border: 2px solid var(--gold-light);
+            padding: 4px;
+            transition: width 0.3s ease, height 0.3s ease;
+        }
+        .brand-logo-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        .brand-text .brand-name {
+            font-size: 20px;
+            font-weight: 800;
+            display: block;
+            line-height: 1.2;
+            color: #ffffff;
+            letter-spacing: 0.5px;
+            transition: font-size 0.3s ease;
+        }
+        .brand-text .brand-name span {
+            color: var(--gold-light);
+        }
+        .brand-text .brand-sub {
+            font-size: 11px;
+            opacity: 0.8;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        /* --- SIDEBAR NAVIGATION — HIGH CONTRAST --- */
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 12px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        .sidebar-nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .sidebar-nav li {
+            margin-bottom: 2px;
+        }
+        .sidebar-nav li a {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 16px;
+            border-radius: 10px;
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 14px;
+            transition: 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .sidebar-nav li a i {
+            width: 22px;
+            text-align: center;
+            font-size: 17px;
+            color: rgba(255, 255, 255, 0.75);
+            flex-shrink: 0;
+            transition: color 0.2s;
+        }
+        .sidebar-nav li a:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: #ffffff;
+        }
+        .sidebar-nav li a:hover i {
+            color: var(--gold-light);
+        }
+        .sidebar-nav li.active a {
+            background: rgba(212, 168, 69, 0.25);
+            color: var(--gold-light);
+        }
+        .sidebar-nav li.active a i {
+            color: var(--gold-light);
+        }
+
+        /* --- SIDEBAR FOOTER (Logout) --- */
+        .sidebar-footer {
+            padding: 16px 20px 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            transition: padding 0.3s ease;
+        }
+        .logout-btn {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: inherit;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .logout-btn i {
+            color: rgba(255, 255, 255, 0.7);
+            flex-shrink: 0;
+        }
+        .logout-btn:hover {
+            background: rgba(231, 76, 60, 0.25);
+            border-color: var(--danger);
+            color: #ff6b6b;
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 999;
+        }
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        /* ============================================================
+           MAIN CONTENT
+           ============================================================ */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: margin-left 0.3s ease;
+        }
+        .sidebar.collapsed~.main-content {
+            margin-left: var(--sidebar-collapsed-width);
+        }
+
+        /* ----- HEADER ----- */
+        .top-header {
+            background: var(--bg-card);
+            padding: 16px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 999;
+            box-shadow: var(--shadow);
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .menu-toggle {
+            background: none;
+            border: none;
+            font-size: 22px;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: none;
+            transition: color 0.3s;
+        }
+        .page-title h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+            transition: color 0.3s;
+        }
+        .breadcrumb {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-left: 8px;
+            transition: color 0.3s;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .lang-switcher {
+            display: flex;
+            gap: 4px;
+        }
+        .lang-btn {
+            background: transparent;
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: 0.2s;
+        }
+        .lang-btn:hover {
+            background: var(--border-color);
+        }
+        .lang-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-profile img {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--primary);
+            background: #f5f7f6;
+        }
+        .user-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+            transition: color 0.3s;
+        }
+
+        /* ----- LOANS CONTENT ----- */
+        .dashboard-content {
+            padding: 24px 30px 30px;
+            flex: 1;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .page-header-left h2 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            transition: color 0.3s;
+        }
+        .page-header-left p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            transition: color 0.3s;
+        }
+
+        .btn-primary {
+            background: #2d7a3d;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-primary:hover {
+            background: #1f5e2c;
+            transform: scale(1.02);
+        }
+        .btn-primary:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-secondary {
+            background: var(--border-color);
+            color: var(--text-primary);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-secondary:hover {
+            background: var(--input-border);
+        }
+        .btn-danger {
+            background: var(--danger);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        /* ----- FORM SECTION (compact) ----- */
+        .form-section {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            padding: 20px 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+            transition: all 0.3s;
+        }
+        .form-section h3 {
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 14px;
+            color: var(--text-primary);
+        }
+
+        .form-group {
+            position: relative;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .form-row.two {
+            grid-template-columns: 1fr 1fr;
+        }
+        .form-group label {
+            font-weight: 500;
+            font-size: 13px;
+            color: var(--text-primary);
+            display: block;
+            margin-bottom: 2px;
+            transition: var(--transition);
+        }
+        .form-group label .required {
+            color: var(--danger);
+            margin-left: 2px;
+        }
+        .form-group input,
+        .form-group select {
+            padding: 7px 10px;
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: inherit;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            transition: all 0.2s;
+            width: 100%;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--input-focus);
+        }
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 6px;
+        }
+
+        /* ----- GUARANTEES ----- */
+        .guarantee-section {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            background: var(--bg-primary);
+            transition: all 0.3s;
+        }
+        .guarantee-item {
+            background: var(--bg-card);
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+        .guarantee-item .guarantee-info {
+            flex: 1;
+        }
+        .guarantee-item .guarantee-info strong {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .guarantee-item .guarantee-info .type-badge {
+            background: var(--border-color);
+            padding: 1px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            display: inline-block;
+            margin-left: 6px;
+        }
+        .guarantee-item .remove-guarantee {
+            color: var(--danger);
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-size: 16px;
+            padding: 2px 6px;
+        }
+        .guarantee-item .remove-guarantee:hover {
+            color: #c0392b;
+        }
+        .add-guarantee-btn {
+            background: none;
+            border: 1px dashed var(--primary);
+            border-radius: 6px;
+            color: var(--primary);
+            padding: 4px 10px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.2s;
+            width: auto;
+            display: inline-block;
+            margin-top: 4px;
+        }
+        .add-guarantee-btn:hover {
+            background: var(--primary-light);
+            border-color: #1f5e2c;
+        }
+        .add-guarantee-btn i {
+            margin-right: 4px;
+        }
+        .guarantee-form-row {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 10px;
+            align-items: end;
+            margin-bottom: 6px;
+        }
+        .guarantee-form-row .form-group {
+            margin-bottom: 0;
+        }
+        .guarantee-form-row .form-group label {
+            font-size: 12px;
+            margin-bottom: 1px;
+        }
+        .guarantee-form-row .form-group input,
+        .guarantee-form-row .form-group select {
+            padding: 5px 8px;
+            font-size: 12px;
+        }
+
+        /* ----- SEARCH & TABLE ----- */
+        #customerSuggestions {
+            position: absolute;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 10;
+            width: 100%;
+            box-shadow: var(--shadow-md);
+            top: 100%;
+            left: 0;
+        }
+        #customerSuggestions div {
+            padding: 10px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        #customerSuggestions div:hover {
+            background: var(--bg-primary);
+        }
+        #customerSuggestions div:last-child {
+            border-bottom: none;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .search-wrapper {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+        .search-wrapper i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+        }
+        .search-wrapper input {
+            width: 100%;
+            padding: 12px 16px 12px 44px;
+            border: 1px solid var(--input-border);
+            border-radius: 12px;
+            font-size: 14px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+        .search-wrapper input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--input-focus);
+        }
+        .filter-wrapper select {
+            padding: 12px 16px;
+            border: 1px solid var(--input-border);
+            border-radius: 12px;
+            font-size: 14px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            cursor: pointer;
+            min-width: 140px;
+            transition: all 0.2s;
+        }
+        .filter-wrapper select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--input-focus);
+        }
+
+        .table-container {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: all 0.3s;
+        }
+        .table-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+        .table-wrapper {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        thead {
+            background: var(--bg-primary);
+        }
+        thead th {
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--border-color);
+            white-space: nowrap;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.3s;
+        }
+        tbody td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+            vertical-align: middle;
+            transition: all 0.3s;
+        }
+        tbody tr:hover {
+            background: var(--bg-primary);
+        }
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .status-badge.active {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-badge.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status-badge.rejected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status-badge.paid {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .guarantee-count {
+            font-weight: 600;
+            color: var(--primary);
+            cursor: default;
+        }
+        .guarantee-item-list {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* ===== ACTION BUTTONS ===== */
+        .action-btn {
+            border: none;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin: 0 3px;
+            position: relative;
+            overflow: hidden;
+        }
+        .action-btn i {
+            font-size: 14px;
+            transition: transform 0.3s ease;
+        }
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+        .action-btn:hover i {
+            transform: scale(1.2);
+        }
+        .action-btn:active {
+            transform: scale(0.95);
+        }
+
+        .action-btn.approve-btn {
+            background: linear-gradient(135deg, #2d7a3d, #43a047);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(45, 122, 61, 0.3);
+        }
+        .action-btn.approve-btn:hover {
+            background: linear-gradient(135deg, #1f5e2c, #2e7d32);
+            box-shadow: 0 6px 24px rgba(45, 122, 61, 0.4);
+        }
+
+        .action-btn.reject-btn {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+        }
+        .action-btn.reject-btn:hover {
+            background: linear-gradient(135deg, #c0392b, #99281b);
+            box-shadow: 0 6px 24px rgba(231, 76, 60, 0.4);
+        }
+
+        .action-btn.view-btn {
+            background: linear-gradient(135deg, #2196f3, #1976d2);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+        }
+        .action-btn.view-btn:hover {
+            background: linear-gradient(135deg, #1976d2, #0d47a1);
+            box-shadow: 0 6px 24px rgba(33, 150, 243, 0.4);
+        }
+
+        .action-btn.edit-btn {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+        }
+        .action-btn.edit-btn:hover {
+            background: linear-gradient(135deg, #f57c00, #e65100);
+            box-shadow: 0 6px 24px rgba(255, 152, 0, 0.4);
+        }
+
+        .action-btn.delete-btn {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+        }
+        .action-btn.delete-btn:hover {
+            background: linear-gradient(135deg, #c0392b, #99281b);
+            box-shadow: 0 6px 24px rgba(231, 76, 60, 0.4);
+        }
+
+        .penalty-badge {
+            background: var(--danger);
+            color: #fff;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            margin-left: 4px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .overdue-warning {
+            background: #fff3cd;
+            color: #856404;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+            margin-left: 4px;
+        }
+
+        /* ----- PAGINATION ----- */
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 12px;
+            transition: all 0.3s;
+        }
+        .pagination-info {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        .pagination-info strong {
+            color: var(--text-primary);
+        }
+        .pagination-buttons {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .pagination-btn {
+            padding: 6px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-card);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            transition: all 0.2s;
+            min-width: 36px;
+            text-align: center;
+        }
+        .pagination-btn:hover:not(:disabled) {
+            background: var(--border-color);
+            border-color: var(--primary);
+        }
+        .pagination-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ----- TOAST ----- */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 14px 24px;
+            border-radius: 12px;
+            color: #fff;
+            font-weight: 500;
+            font-size: 14px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            animation: slideIn 0.3s ease;
+            min-width: 280px;
+            max-width: 400px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .toast i {
+            font-size: 18px;
+        }
+        .toast.success {
+            background: var(--success);
+        }
+        .toast.error {
+            background: var(--danger);
+        }
+        .toast.warning {
+            background: var(--warning);
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .toast.fade-out {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .app-footer {
+            background: var(--bg-card);
+            border-top: 1px solid var(--border-color);
+            padding: 16px 30px;
+            text-align: center;
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: auto;
+            transition: all 0.3s;
+        }
+
+        /* ===== EDIT MODAL ===== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10001;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: 16px;
+            max-width: 700px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 24px;
+            box-shadow: var(--shadow-modal);
+            transition: background 0.3s;
+        }
+        .modal-content .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+        .modal-content .modal-header h3 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .modal-content .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            line-height: 1;
+        }
+        .modal-content .modal-close:hover {
+            color: var(--danger);
+        }
+
+        /* ----- RESPONSIVE ----- */
+        @media (max-width: 992px) {
+            .form-row {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 280px;
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .sidebar.collapsed {
+                width: 280px;
+            }
+            .sidebar.collapsed .brand-text,
+            .sidebar.collapsed .sidebar-nav li a span,
+            .sidebar.collapsed .logout-btn span,
+            .sidebar.collapsed .sidebar-brand .brand-sub {
+                display: inline;
+            }
+            .sidebar.collapsed .brand-icon {
+                width: 72px;
+                height: 72px;
+            }
+            .sidebar.collapsed .sidebar-nav li a {
+                justify-content: flex-start;
+                padding: 10px 16px;
+            }
+            .sidebar.collapsed .sidebar-nav li a i {
+                font-size: 17px;
+                width: 22px;
+            }
+            .sidebar.collapsed .logout-btn {
+                justify-content: flex-start;
+                padding: 10px;
+            }
+            .sidebar.collapsed .logout-btn i {
+                font-size: 17px;
+            }
+            .sidebar.collapsed .sidebar-toggle-btn {
+                transform: none;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+            .sidebar.collapsed~.main-content {
+                margin-left: 0;
+            }
+
+            .menu-toggle {
+                display: block;
+            }
+            .top-header {
+                padding: 12px 16px;
+            }
+            .dashboard-content {
+                padding: 16px;
+            }
+            .form-row,
+            .form-row.two {
+                grid-template-columns: 1fr;
+            }
+            .guarantee-form-row {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+            .page-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .search-bar {
+                flex-direction: column;
+            }
+            .pagination-container {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .pagination-buttons {
+                justify-content: center;
+            }
+            .toast-container {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+            }
+            .toast {
+                min-width: unset;
+                width: 100%;
+            }
+            .user-name {
+                display: none;
+            }
+            .modal-content {
+                margin: 10px;
+                padding: 16px;
+            }
+            .sidebar-brand {
+                padding: 16px 16px 12px;
+            }
+            .brand-icon {
+                width: 60px;
+                height: 60px;
+            }
+            .brand-text .brand-name {
+                font-size: 16px;
+            }
+        }
+        @media (max-width: 480px) {
+            .pagination-btn {
+                padding: 4px 10px;
+                font-size: 12px;
+                min-width: 30px;
+            }
+            .pagination-info {
+                font-size: 12px;
+                text-align: center;
+            }
+            table {
+                font-size: 12px;
+            }
+            thead th,
+            tbody td {
+                padding: 8px 10px;
+            }
+            .action-btn {
+                padding: 4px 6px;
+                font-size: 11px;
+            }
+            .action-btn i {
+                font-size: 12px;
+            }
+            .form-section {
+                padding: 12px 16px;
+            }
+            .form-row {
+                gap: 8px;
+                margin-bottom: 8px;
+            }
+            .form-group input,
+            .form-group select {
+                font-size: 12px;
+                padding: 6px 8px;
+            }
+            .brand-icon {
+                width: 50px;
+                height: 50px;
+            }
+            .brand-text .brand-name {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <button class="sidebar-toggle-btn" id="sidebarToggleBtn" title="Toggle Sidebar">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <div class="brand-icon">
+                <img src="../images/sacco-logo.png" alt="SACCO Logo" class="brand-logo-img" />
+            </div>
+            <div class="brand-text">
+                <span class="brand-name">GERESU DHUKI <span>SACCO</span></span>
+                <span class="brand-sub" data-i18n="brandSub">SACCO Banking</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <ul>
+                <li><a href="dashboard.html"><i class="fas fa-th-large"></i> <span data-i18n="navDashboard">Dashboard</span></a></li>
+                <li><a href="customers.html"><i class="fas fa-users"></i> <span data-i18n="navCustomers">Customers</span></a></li>
+                <li><a href="savings.html"><i class="fas fa-piggy-bank"></i> <span data-i18n="navSavings">Savings</span></a></li>
+                <li><a href="deposits.html"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="navDeposits">Deposits</span></a></li>
+                <li class="active"><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="navLoans">Loans</span></a></li>
+                <li><a href="repayments.html"><i class="fas fa-undo-alt"></i> <span data-i18n="navRepayments">Repayments</span></a></li>
+                <li><a href="withdrawals.html"><i class="fas fa-money-bill-wave"></i> <span data-i18n="navWithdrawals">Withdrawals</span></a></li>
+                <li><a href="dividends.html"><i class="fas fa-gift"></i> <span data-i18n="navDividends">Dividends</span></a></li>
+                <li><a href="reports.html"><i class="fas fa-chart-bar"></i> <span data-i18n="navReports">Reports</span></a></li>
+                <!-- ===== AUDIT TRAIL LINK ===== -->
+                <li id="auditNavItem" style="display:none;">
+                    <a href="audit.html"><i class="fas fa-clipboard-list"></i> <span data-i18n="navAudit">Audit Trail</span></a>
+                </li>
+                <!-- ===== END AUDIT TRAIL ===== -->
+                <li id="usersNavItem" style="display:none;"><a href="users.html"><i class="fas fa-user-cog"></i> <span data-i18n="navUsers">Users</span></a></li>
+                <li><a href="settings.html"><i class="fas fa-cog"></i> <span data-i18n="navSettings">Settings</span></a></li>
+            </ul>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> <span data-i18n="logout">Logout</span></button>
+        </div>
+    </aside>
+
+    <main class="main-content">
+
+        <header class="top-header">
+            <div class="header-left">
+                <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+                <div class="page-title">
+                    <h1 data-i18n="pageTitle">Loans</h1>
+                    <span class="breadcrumb" data-i18n="breadcrumb">Home / Loans</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="lang-switcher">
+                    <button class="lang-btn active" data-lang="en">EN</button>
+                    <button class="lang-btn" data-lang="am">አማ</button>
+                    <button class="lang-btn" data-lang="om">OM</button>
+                </div>
+                <div class="user-profile">
+                    <img id="userAvatar" src="../assets/images/avatar.png" alt="User" onerror="this.src='https://ui-avatars.com/api/?name=Admin&background=2d7a3d&color=fff'" />
+                    <span class="user-name" id="userDisplayName">Admin</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="dashboard-content">
+
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h2 data-i18n="loansTitle">Loan Management</h2>
+                    <p data-i18n="loansSub">Apply, approve, and manage customer loans</p>
+                </div>
+                <button class="btn-primary" id="addLoanBtn">
+                    <i class="fas fa-plus"></i> <span data-i18n="applyLoan">Apply Loan</span>
+                </button>
+            </div>
+
+            <!-- Apply Loan Form -->
+            <div class="form-section" id="loanFormSection" style="display:none;">
+                <h3 id="formTitle" data-i18n="applyLoan">Apply New Loan</h3>
+                <form id="loansForm">
+                    <input type="hidden" id="editLoanId" />
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label data-i18n="customer">Customer <span class="required">*</span></label>
+                            <input type="text" id="customerSearch" placeholder="Search customer by name..." autocomplete="off" required />
+                            <input type="hidden" id="customerId" />
+                            <div id="customerSuggestions"></div>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="amount">Amount (ETB) <span class="required">*</span></label>
+                            <input type="number" id="amountInput" required placeholder="0.00" step="0.01" min="0.01" />
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="date">Date <span class="required">*</span></label>
+                            <input type="date" id="dateInput" required />
+                        </div>
+                    </div>
+                    <div class="form-row two">
+                        <div class="form-group">
+                            <label data-i18n="interestRate">Interest Rate (%)</label>
+                            <input type="number" id="interestRate" placeholder="0" step="0.1" min="0" />
+                            <small class="hint" id="interestRateHint">Default: 10%</small>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="repaymentPeriod">Repayment Period (months)</label>
+                            <input type="number" id="repaymentPeriod" placeholder="12" min="1" value="12" />
+                        </div>
+                    </div>
+                    <div class="form-row two">
+                        <div class="form-group">
+                            <label data-i18n="loanType">Loan Type</label>
+                            <select id="loanType">
+                                <option value="simple" data-i18n="simpleInterest">Simple Interest</option>
+                                <option value="compound" data-i18n="compoundInterest">Compound Interest</option>
+                                <option value="fixed" data-i18n="fixedRate">Fixed Rate</option>
+                                <option value="reducing" data-i18n="reducingBalance">Reducing Balance</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="status">Status</label>
+                            <select id="statusInput">
+                                <option value="pending" data-i18n="pending">Pending</option>
+                                <option value="active" data-i18n="active">Active</option>
+                                <option value="paid" data-i18n="paid">Paid</option>
+                                <option value="rejected" data-i18n="rejected">Rejected</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row two">
+                        <div class="form-group">
+                            <label data-i18n="note">Note (optional)</label>
+                            <input type="text" id="noteInput" placeholder="Optional note..." />
+                        </div>
+                    </div>
+
+                    <!-- Guarantees -->
+                    <div class="form-row" style="grid-template-columns:1fr;">
+                        <div class="form-group">
+                            <label data-i18n="guarantees">Guarantees <span class="required">*</span></label>
+                            <div id="guaranteesContainer"></div>
+                            <button type="button" class="add-guarantee-btn" id="addGuaranteeBtn">
+                                <i class="fas fa-plus-circle"></i> Add Guarantee
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="reset" class="btn-secondary" id="resetFormBtn"><span data-i18n="clear">Clear</span></button>
+                        <button type="submit" class="btn-primary" id="saveBtn">
+                            <i class="fas fa-save"></i> <span data-i18n="applyLoanBtn">Apply Loan</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Loans List -->
+            <div class="page-header" style="margin-bottom:16px;">
+                <div class="page-header-left">
+                    <h3 style="font-size:18px; font-weight:600;" data-i18n="loansList">Loans Transactions</h3>
+                </div>
+            </div>
+
+            <!-- Search & Year Filter -->
+            <div class="search-bar">
+                <div class="search-wrapper">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" data-i18n="searchPlaceholder" placeholder="Search by customer name..." />
+                </div>
+                <div class="filter-wrapper">
+                    <select id="yearFilter">
+                        <option value="all" data-i18n="allYears">All Years</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="table-header">
+                    <span data-i18n="totalLoans">Total Approved Loans: </span>
+                    <strong id="totalCount">0</strong>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th data-i18n="customer">Customer</th>
+                                <th data-i18n="amount">Amount</th>
+                                <th data-i18n="interestRate">Interest %</th>
+                                <th data-i18n="loanType">Type</th>
+                                <th data-i18n="period">Period</th>
+                                <th data-i18n="monthlyPayment">Monthly</th>
+                                <th data-i18n="totalPayable">Total Payable</th>
+                                <th data-i18n="remaining">Remaining</th>
+                                <th data-i18n="guarantees">Guarantees</th>
+                                <th data-i18n="nextDue">Next Due</th>
+                                <th data-i18n="status">Status</th>
+                                <th data-i18n="approvedBy">Approved By</th>
+                                <th data-i18n="date">Date</th>
+                                <th data-i18n="actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="loansBody">
+                            <tr>
+                                <td colspan="15" style="text-align:center; padding:40px; color:var(--text-secondary);" data-i18n="noLoans">No loans found.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        <span data-i18n="showing">Showing</span> <strong id="pageStart">0</strong> - <strong id="pageEnd">0</strong>
+                        <span data-i18n="of">of</span> <strong id="totalLoansCount">0</strong>
+                    </div>
+                    <div class="pagination-buttons">
+                        <button class="pagination-btn" id="prevPage" disabled><i class="fas fa-chevron-left"></i></button>
+                        <div id="pageNumbers"></div>
+                        <button class="pagination-btn" id="nextPage"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <footer class="app-footer">
+            <p>© 2026 GERESU DHUKI SACCO. All rights reserved. Designed by : Eng. Abdi.F Software</p>
+        </footer>
+    </main>
+
+    <!-- ===== EDIT LOAN MODAL ===== -->
+    <div class="modal-overlay" id="editLoanModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Loan</h3>
+                <button class="modal-close" id="closeEditModal">&times;</button>
+            </div>
+            <form id="editLoanForm">
+                <input type="hidden" id="editLoanId" />
+                <div class="form-row two">
+                    <div class="form-group">
+                        <label data-i18n="customer">Customer</label>
+                        <input type="text" id="editCustomerSearch" placeholder="Search customer..." autocomplete="off" required />
+                        <input type="hidden" id="editCustomerId" />
+                        <div id="editCustomerSuggestions"></div>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="amount">Amount (ETB) <span class="required">*</span></label>
+                        <input type="number" id="editAmount" required step="0.01" min="0.01" />
+                    </div>
+                </div>
+                <div class="form-row two">
+                    <div class="form-group">
+                        <label data-i18n="date">Date <span class="required">*</span></label>
+                        <input type="date" id="editDate" required />
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="interestRate">Interest Rate (%)</label>
+                        <input type="number" id="editInterestRate" step="0.1" min="0" />
+                    </div>
+                </div>
+                <div class="form-row two">
+                    <div class="form-group">
+                        <label data-i18n="repaymentPeriod">Repayment Period (months)</label>
+                        <input type="number" id="editRepaymentPeriod" min="1" />
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="loanType">Loan Type</label>
+                        <select id="editLoanType">
+                            <option value="simple">Simple Interest</option>
+                            <option value="compound">Compound Interest</option>
+                            <option value="fixed">Fixed Rate</option>
+                            <option value="reducing">Reducing Balance</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row two">
+                    <div class="form-group">
+                        <label data-i18n="status">Status</label>
+                        <select id="editStatus">
+                            <option value="pending">Pending</option>
+                            <option value="active">Active</option>
+                            <option value="paid">Paid</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="note">Note (optional)</label>
+                        <input type="text" id="editNote" />
+                    </div>
+                </div>
+                <div class="form-row" style="grid-template-columns:1fr;">
+                    <div class="form-group">
+                        <label>Guarantees (edit manually)</label>
+                        <textarea id="editGuarantees" rows="2" placeholder="e.g., Person: John Doe, Value: 50000, Contact: 0912345678" style="width:100%; padding:8px; border-radius:8px; border:1px solid var(--input-border); background:var(--input-bg); color:var(--text-primary);"></textarea>
+                        <span style="font-size:12px; color:var(--text-secondary);">Enter as comma-separated: Type: Name, Value: amount, Contact: phone/email (optional fields can be omitted)</span>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancelEditBtn">Cancel</button>
+                    <button type="submit" class="btn-primary" id="updateLoanBtn">Update Loan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // FIREBASE CONFIG
+        // ============================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBeQv8YLNfFFaTEZ6pxXaAy_K8n3u8V5X4",
+            authDomain: "geresu-dhuki-sacco-75329.firebaseapp.com",
+            projectId: "geresu-dhuki-sacco-75329",
+            storageBucket: "geresu-dhuki-sacco-75329.firebasestorage.app",
+            messagingSenderId: "431325504753",
+            appId: "1:431325504753:web:f7289fb88d74b82eb0b550",
+            measurementId: "G-3SN99DFJXD"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+
+        // ============================================================
+        // MULTI-LANGUAGE (Matches Dashboard)
+        // ============================================================
+        const translations = {
+            en: {
+                brandSub: 'SACCO Banking',
+                navDashboard: 'Dashboard',
+                navCustomers: 'Customers',
+                navSavings: 'Savings',
+                navDeposits: 'Deposits',
+                navLoans: 'Loans',
+                navRepayments: 'Repayments',
+                navWithdrawals: 'Withdrawals',
+                navDividends: 'Dividends',
+                navReports: 'Reports',
+                navAudit: 'Audit Trail',
+                navUsers: 'Users',
+                navSettings: 'Settings',
+                logout: 'Logout',
+                pageTitle: 'Loans',
+                breadcrumb: 'Home / Loans',
+                rights: 'All rights reserved.',
+                loansTitle: 'Loan Management',
+                loansSub: 'Apply, approve, and manage customer loans',
+                applyLoan: 'Apply New Loan',
+                customer: 'Customer',
+                amount: 'Amount',
+                interestRate: 'Interest Rate (%)',
+                repaymentPeriod: 'Period (mos)',
+                loanType: 'Loan Type',
+                simpleInterest: 'Simple Interest',
+                compoundInterest: 'Compound Interest',
+                fixedRate: 'Fixed Rate',
+                reducingBalance: 'Reducing Balance',
+                period: 'Period',
+                monthlyPayment: 'Monthly Payment',
+                totalPayable: 'Total Payable',
+                remaining: 'Remaining',
+                nextDue: 'Next Due',
+                overdue: 'Overdue',
+                penalty: 'Penalty',
+                daysOverdue: 'Days Overdue',
+                noPenalty: 'On Track',
+                note: 'Note (optional)',
+                status: 'Status',
+                pending: 'Pending',
+                active: 'Active',
+                paid: 'Paid',
+                rejected: 'Rejected',
+                clear: 'Clear',
+                applyLoanBtn: 'Apply Loan',
+                loansList: 'Loans Transactions',
+                totalLoans: 'Total Approved Loans: ',
+                noLoans: 'No loans found.',
+                showing: 'Showing',
+                of: 'of',
+                prev: 'Previous',
+                next: 'Next',
+                searchPlaceholder: 'Search by customer name...',
+                by: 'By',
+                approvedBy: 'Approved By',
+                loanApplied: 'Loan applied successfully!',
+                loanApproved: 'Loan approved successfully!',
+                loanRejected: 'Loan rejected!',
+                loanError: 'Error applying loan: ',
+                loadError: 'Error loading data: ',
+                selectCustomer: 'Select Customer',
+                noCustomers: 'No customers found',
+                actions: 'Actions',
+                approve: 'Approve',
+                reject: 'Reject',
+                view: 'View',
+                edit: 'Edit',
+                delete: 'Delete',
+                guarantees: 'Guarantees',
+                date: 'Date',
+                editLoan: 'Edit Loan',
+                save: 'Save',
+                cancel: 'Cancel',
+                maxLoanExceeded: 'Loan amount exceeds 3× of customer\'s total savings.',
+                maxLoanHint: 'Maximum loan is 3× customer\'s total savings',
+                hasActiveOrPendingLoan: 'This customer already has an active or pending loan. Please settle the existing loan before applying for a new one.',
+                addGuaranteeFirst: 'Please add at least one guarantee before applying for a loan.',
+                unauthorized: 'You are not authorized to perform this action.',
+                allYears: 'All Years',
+                selectYear: 'Select Year'
+            },
+            am: {
+                brandSub: 'ባንክ ስርዓት',
+                navDashboard: 'ዳሽቦርድ',
+                navCustomers: 'ደንበኞች',
+                navSavings: 'ቁጠባዎች',
+                navDeposits: 'ተቀማጭ',
+                navLoans: 'ብድር',
+                navRepayments: 'ክፍያዎች',
+                navWithdrawals: 'መውጫዎች',
+                navDividends: 'ክፍፍል',
+                navReports: 'ሪፖርቶች',
+                navAudit: 'የምዝግብ ታሪክ',
+                navUsers: 'ተጠቃሚዎች',
+                navSettings: 'ቅንብሮች',
+                logout: 'ውጣ',
+                pageTitle: 'ብድር',
+                breadcrumb: 'ዋና ገጽ / ብድር',
+                rights: 'መብቶች በሙሉ ተጠብቀዋል።',
+                loansTitle: 'የብድር አስተዳደር',
+                loansSub: 'የደንበኞችን ብድር ይመዝግቡ እና ያስተዳድሩ',
+                applyLoan: 'አዲስ ብድር ይፍጠሩ',
+                customer: 'ደንበኛ',
+                amount: 'መጠን',
+                interestRate: 'የወለድ መጠን (%)',
+                repaymentPeriod: 'የክፍያ ጊዜ (ወራት)',
+                loanType: 'የብድር አይነት',
+                simpleInterest: 'ቀላል ወለድ',
+                compoundInterest: 'ውሁድ ወለድ',
+                fixedRate: 'ቋሚ ወለድ',
+                reducingBalance: 'እየቀነሰ ሚዛን',
+                period: 'ጊዜ',
+                monthlyPayment: 'ወርሃዊ ክፍያ',
+                totalPayable: 'ጠቅላላ የሚከፈል',
+                remaining: 'ቀሪ',
+                nextDue: 'ቀጣይ ጊዜ',
+                overdue: 'ጊዜ አልፏል',
+                penalty: 'ቅጣት',
+                daysOverdue: 'የዘገየ ቀናት',
+                noPenalty: 'በጊዜ ላይ',
+                note: 'ማስታወሻ (አማራጭ)',
+                status: 'ሁኔታ',
+                pending: 'በመጠበቅ ላይ',
+                active: 'ንቁ',
+                paid: 'ተከፍሏል',
+                rejected: 'ውድቅ ተደርጓል',
+                clear: 'አጽዳ',
+                applyLoanBtn: 'ብድር ተጠይቅ',
+                loansList: 'የብድር ግብይቶች',
+                totalLoans: 'ጠቅላላ የጸደቀ ብድር: ',
+                noLoans: 'ምንም ብድር አልተገኘም።',
+                showing: 'እያሳየ',
+                of: 'ከ',
+                prev: 'ቀዳሚ',
+                next: 'ቀጣይ',
+                searchPlaceholder: 'በደንበኛ ስም ይፈልጉ...',
+                by: 'የመዘገበው',
+                approvedBy: 'ያጸደቀው',
+                loanApplied: 'ብድሩ በተሳካ ሁኔታ ተፈጠረ!',
+                loanApproved: 'ብድሩ በተሳካ ሁኔታ ጸድቋል!',
+                loanRejected: 'ብድሩ ውድቅ ተደርጓል!',
+                loanError: 'ብድር በማመልከት ላይ ስህተት: ',
+                loadError: 'ውሂብ በማስገባት ላይ ስህተት: ',
+                selectCustomer: 'ደንበኛ ይምረጡ',
+                noCustomers: 'ምንም ደንበኞች አልተገኙም',
+                actions: 'ተግባራት',
+                approve: 'አጽድቅ',
+                reject: 'ውድቅ አድርግ',
+                view: 'ይመልከቱ',
+                edit: 'አስተካክል',
+                delete: 'ሰርዝ',
+                guarantees: 'ዋስትናዎች',
+                date: 'ቀን',
+                editLoan: 'ብድር ያስተካክሉ',
+                save: 'አስቀምጥ',
+                cancel: 'ሰርዝ',
+                maxLoanExceeded: 'የብድር መጠን ከደንበኛው ጠቅላላ ቁጠባ 3 እጥፍ ይበልጣል።',
+                maxLoanHint: 'ከፍተኛ ብድር ከደንበኛው ጠቅላላ ቁጠባ 3 እጥፍ ነው',
+                hasActiveOrPendingLoan: 'ይህ ደንበኛ ቀድሞ ንቁ ወይም በመጠበቅ ላይ ያለ ብድር አለው። አዲስ ብድር ከመጠየቅዎ በፊት ያለውን ብድር ያጽዱ።',
+                addGuaranteeFirst: 'ብድር ከመጠየቅዎ በፊት እባክዎ ቢያንስ አንድ ዋስትና ያክሉ።',
+                unauthorized: 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም።',
+                allYears: 'ሁሉም ዓመታት',
+                selectYear: 'ዓመት ይምረጡ'
+            },
+            om: {
+                brandSub: 'Sirna Baankii',
+                navDashboard: 'Gabatee',
+                navCustomers: 'Maamila',
+                navSavings: 'Kusaa',
+                navDeposits: 'Kaasaa',
+                navLoans: 'Liqii',
+                navRepayments: 'Kaffaltuu',
+                navWithdrawals: 'Baasii',
+                navDividends: 'Qooda',
+                navReports: 'Odeeffannoo',
+                navAudit: 'Seenaa Galmee',
+                navUsers: 'Fayyadamtoota',
+                navSettings: 'Qindeessaa',
+                logout: 'Baasi',
+                pageTitle: 'Liqii',
+                breadcrumb: 'Mana / Liqii',
+                rights: 'Mirgi hundi eegama.',
+                loansTitle: 'Bulchiinsa Liqii',
+                loansSub: 'Liqii maamila uumi, mirkaneessiifi bulchi',
+                applyLoan: 'Liqii Haaraa Uumi',
+                customer: 'Maamila',
+                amount: 'Qaba',
+                interestRate: 'Haala Dhalaa (%)',
+                repaymentPeriod: 'Yeroo Kaffaltii (ji\'oota)',
+                loanType: 'Gosa Liqii',
+                simpleInterest: 'Dhala Salphaa',
+                compoundInterest: 'Dhala Walitti Makamaa',
+                fixedRate: 'Dhala Dhaabbataa',
+                reducingBalance: 'Haala Gadduu',
+                period: 'Yeroo',
+                monthlyPayment: 'Kaffaltii Jiʼaa',
+                totalPayable: 'Waliigalaa Kaffalamuu Qabu',
+                remaining: 'Haafa',
+                nextDue: 'Yeroo Itti Aanu',
+                overdue: 'Yeroo Darbee',
+                penalty: 'Adaba',
+                daysOverdue: 'Guyyoota Darban',
+                noPenalty: 'Yeroo irra',
+                note: 'Hubachi (Filannoo)',
+                status: 'Haala',
+                pending: 'Eegamaa',
+                active: 'Hojiirra',
+                paid: 'Kaffalame',
+                rejected: 'Garfame',
+                clear: 'Haqi',
+                applyLoanBtn: 'Liqii Gatii',
+                loansList: 'Daldala Liqii',
+                totalLoans: 'Liqii Mirkanaa\'e Waliigalaa: ',
+                noLoans: 'Liqii hin argamne.',
+                showing: 'Agarsii',
+                of: 'keessaa',
+                prev: 'Dursee',
+                next: 'Itti aansee',
+                searchPlaceholder: 'Maqaa maamila-tiin barbaadi...',
+                by: 'Galmeesse',
+                approvedBy: 'Mirkaneesse',
+                loanApplied: 'Liqiin sirriitti uumame!',
+                loanApproved: 'Liqiin sirriitti mirkanaa\'e!',
+                loanRejected: 'Liqiin garfame!',
+                loanError: 'Liqii uumuuf dogoggora: ',
+                loadError: 'Datuu galmeessuuf dogoggora: ',
+                selectCustomer: 'Maamila filadhu',
+                noCustomers: 'Maamilonni hin argamne',
+                actions: 'Gochaa',
+                approve: 'Mirkaneessi',
+                reject: 'Garfii',
+                view: 'Ilaali',
+                edit: 'Jijjiiri',
+                delete: 'Haqi',
+                guarantees: 'Mirkaneessa',
+                date: 'Guyyaa',
+                editLoan: 'Liqii Jijjiiri',
+                save: 'Kuusi',
+                cancel: 'Haqi',
+                maxLoanExceeded: 'Qabni liqii 3× kuusaa maamila caala.',
+                maxLoanHint: 'Liqii olaanaa 3× kuusaa maamila',
+                hasActiveOrPendingLoan: 'Maamilichi kun duraan liqii hojii irra jira ykn eegamaa qaba. Liqii haaraa itti fayyadamuu dura kan duraa haqi.',
+                addGuaranteeFirst: 'Maaloo liqii itti fayyadamuu dura mirkaneessa tokko ykn isaa ol idaahi.',
+                unauthorized: 'Gochaa kana raawwachuuf hayyamamtee hin jirtu.',
+                allYears: 'Waggaa Hunda',
+                selectYear: 'Waggaa Filadhu'
+            }
+        };
+
+        let currentLang = 'en';
+        let currentUserRole = 'viewer';
+        let currentUserDisplayName = 'Admin';
+
+        function setLanguage(lang) {
+            if (!translations[lang]) return;
+            currentLang = lang;
+            const t = translations[lang];
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key] !== undefined) {
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+                        if (el.type !== 'file') el.placeholder = t[key];
+                    } else {
+                        el.innerHTML = t[key];
+                    }
+                }
+            });
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.lang === lang);
+            });
+            try { localStorage.setItem('waciti-lang', lang); } catch (e) {}
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) searchInput.placeholder = t.searchPlaceholder || 'Search by customer name...';
+            updatePaginationInfo();
+            renderPageButtons();
+        }
+
+        function initLanguage() {
+            const saved = localStorage.getItem('waciti-lang') || navigator.language.split('-')[0];
+            const valid = ['en', 'am', 'om'];
+            setLanguage(valid.includes(saved) ? saved : 'en');
+        }
+
+        // ============================================================
+        // TOAST, SIDEBAR, ROLE HELPERS
+        // ============================================================
+        function showToast(message, type = 'success') {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'toast-container';
+                document.body.appendChild(container);
+            }
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icon = document.createElement('i');
+            if (type === 'success') icon.className = 'fas fa-check-circle';
+            else if (type === 'error') icon.className = 'fas fa-exclamation-circle';
+            else icon.className = 'fas fa-exclamation-triangle';
+            toast.appendChild(icon);
+            const text = document.createElement('span');
+            text.textContent = message;
+            toast.appendChild(text);
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('fade-out');
+                setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
+            }, 4500);
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+
+        function toggleSidebarCollapse() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+            localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed') ? 'true' : 'false');
+        }
+
+        function loadSidebarState() {
+            const sidebar = document.getElementById('sidebar');
+            const isCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+            if (isCollapsed) {
+                sidebar.classList.add('collapsed');
+            } else {
+                sidebar.classList.remove('collapsed');
+            }
+        }
+
+        // ===== ROLE-BASED ACCESS =====
+        function canApply() {
+            return ['admin', 'manager', 'teller'].includes(currentUserRole);
+        }
+
+        function canApproveReject() {
+            return ['admin', 'manager'].includes(currentUserRole);
+        }
+
+        function canEdit() {
+            return currentUserRole === 'admin';
+        }
+
+        function canDelete() {
+            return currentUserRole === 'admin';
+        }
+
+        function updateUserInfo() {
+            const roleMap = { admin: 'ADMIN', manager: 'MANAGER', teller: 'TELLER', accountant: 'ACCOUNTANT',
+                viewer: 'VIEWER' };
+            const roleLabel = roleMap[currentUserRole] || 'VIEWER';
+            const displayName = currentUserDisplayName || 'User';
+            document.getElementById('userDisplayName').textContent = displayName + ' (' + roleLabel + ')';
+
+            const auditNav = document.getElementById('auditNavItem');
+            if (auditNav) {
+                auditNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
+            }
+
+            const usersNav = document.getElementById('usersNavItem');
+            if (usersNav) {
+                usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
+            }
+        }
+
+        // ============================================================
+        // AUDIT LOGGING
+        // ============================================================
+        async function logAudit(action, collection, documentId, changes = {}, details = '') {
+            try {
+                const user = auth.currentUser;
+                const userEmail = user?.email || 'system';
+                const userName = user?.displayName || user?.email || 'System';
+                const userDisplayName = user?.displayName || 'System';
+
+                await db.collection('audit').add({
+                    action: action,
+                    collection: collection,
+                    documentId: documentId,
+                    changes: changes,
+                    details: details || `${action} ${collection} document ${documentId}`,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    userEmail: userEmail,
+                    userName: userName,
+                    userDisplayName: userDisplayName
+                });
+            } catch (error) {
+                console.error('Error writing to audit log:', error);
+            }
+        }
+
+        // ============================================================
+        // INTEREST CALCULATIONS
+        // ============================================================
+        function calculateInterest(principal, rate, months, type) {
+            const r = rate / 100;
+            const monthlyRate = r / 12;
+            const n = months;
+            switch (type) {
+                case 'simple':
+                    return principal * r * (n / 12);
+                case 'compound':
+                    return principal * (Math.pow(1 + monthlyRate, n) - 1);
+                case 'fixed':
+                    return principal * r * (n / 12);
+                case 'reducing':
+                    if (monthlyRate === 0) return 0;
+                    const emi = principal * monthlyRate * Math.pow(1 + monthlyRate, n) / (Math.pow(1 + monthlyRate, n) - 1);
+                    return (emi * n) - principal;
+                default:
+                    return principal * r * (n / 12);
+            }
+        }
+
+        function calculateTotalPayable(principal, rate, months, type) {
+            return principal + calculateInterest(principal, rate, months, type);
+        }
+
+        function calculateMonthlyPayment(principal, rate, months, type) {
+            const r = rate / 100;
+            const monthlyRate = r / 12;
+            const n = months;
+            if (type === 'reducing') {
+                if (monthlyRate === 0) return principal / n;
+                const emi = principal * monthlyRate * Math.pow(1 + monthlyRate, n) / (Math.pow(1 + monthlyRate, n) - 1);
+                return emi;
+            } else {
+                const total = calculateTotalPayable(principal, rate, months, type);
+                return total / n;
+            }
+        }
+
+        // ---- Get customer's total savings ----
+        async function getCustomerSavings(customerId) {
+            try {
+                const snapshot = await db.collection('transactions')
+                    .where('customerId', '==', customerId)
+                    .where('type', '==', 'savings')
+                    .get();
+                let total = 0;
+                snapshot.forEach(doc => {
+                    total += Number(doc.data().amount) || 0;
+                });
+                return Math.round(total * 100) / 100;
+            } catch (error) {
+                console.error('Error getting customer savings:', error);
+                return 0;
+            }
+        }
+
+        // ---- Check if customer has an ACTIVE or PENDING loan ----
+        async function customerHasActiveOrPendingLoan(customerId) {
+            try {
+                const snapshot = await db.collection('transactions')
+                    .where('customerId', '==', customerId)
+                    .where('type', '==', 'loan')
+                    .where('status', 'in', ['active', 'pending'])
+                    .get();
+                return !snapshot.empty;
+            } catch (error) {
+                console.error('Error checking active/pending loans:', error);
+                return false;
+            }
+        }
+
+        // ---- Load customers ----
+        let customersList = [];
+        async function loadCustomersForSelect() {
+            try {
+                const snapshot = await db.collection('customers').get();
+                customersList = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    customersList.push({
+                        id: doc.id,
+                        fullName: data.fullName,
+                        customerId: data.customerId
+                    });
+                });
+                return true;
+            } catch (error) {
+                showToast(translations[currentLang].loadError + error.message, 'error');
+                return false;
+            }
+        }
+
+        // ---- Setup customer search for main form ----
+        let mainSearchSetup = false;
+        function setupCustomerSearch() {
+            if (mainSearchSetup) return;
+            mainSearchSetup = true;
+            const searchInput = document.getElementById('customerSearch');
+            const hiddenId = document.getElementById('customerId');
+            const suggestions = document.getElementById('customerSuggestions');
+
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                if (!query) {
+                    suggestions.style.display = 'none';
+                    hiddenId.value = '';
+                    return;
+                }
+                const filtered = customersList.filter(c =>
+                    c.fullName.toLowerCase().includes(query) ||
+                    (c.customerId && c.customerId.toLowerCase().includes(query))
+                );
+                if (filtered.length === 0) {
+                    suggestions.style.display = 'none';
+                    return;
+                }
+                let html = '';
+                filtered.forEach(c => {
+                    html += `<div onclick="selectCustomer('${c.id}', '${c.fullName} (${c.customerId||''})')">
+                                ${c.fullName} <span style="color:var(--text-secondary); font-size:12px;">${c.customerId||''}</span>
+                            </div>`;
+                });
+                suggestions.innerHTML = html;
+                suggestions.style.display = 'block';
+            });
+
+            searchInput.addEventListener('blur', function() {
+                setTimeout(() => { suggestions.style.display = 'none'; }, 200);
+            });
+        }
+
+        async function selectCustomer(id, displayName) {
+            document.getElementById('customerSearch').value = displayName;
+            document.getElementById('customerId').value = id;
+            document.getElementById('customerSuggestions').style.display = 'none';
+
+            const savings = await getCustomerSavings(id);
+            const maxLoan = Math.round(savings * 3 * 100) / 100;
+            const maxAllowed = Math.min(maxLoan, maxLoanAmountSetting || Infinity);
+            document.getElementById('amountInput').max = maxAllowed;
+            document.getElementById('amountInput').placeholder = `Max: ${maxAllowed.toFixed(2)}`;
+            document.getElementById('amountInput').focus();
+        }
+
+        // ---- Setup edit customer search ----
+        let editSearchSetup = false;
+        function setupEditCustomerSearch() {
+            if (editSearchSetup) return;
+            editSearchSetup = true;
+            const searchInput = document.getElementById('editCustomerSearch');
+            const suggestions = document.getElementById('editCustomerSuggestions');
+
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                if (!query) { suggestions.style.display = 'none'; return; }
+                const filtered = customersList.filter(c =>
+                    c.fullName.toLowerCase().includes(query) ||
+                    (c.customerId && c.customerId.toLowerCase().includes(query))
+                );
+                if (filtered.length === 0) { suggestions.style.display = 'none'; return; }
+                let html = '';
+                filtered.forEach(c => {
+                    html += `<div onclick="selectEditCustomer('${c.id}', '${c.fullName} (${c.customerId||''})')" style="padding:8px 12px; cursor:pointer; border-bottom:1px solid var(--border-color);">
+                                ${c.fullName} <span style="color:var(--text-secondary); font-size:12px;">${c.customerId||''}</span>
+                            </div>`;
+                });
+                suggestions.innerHTML = html;
+                suggestions.style.display = 'block';
+            });
+            searchInput.addEventListener('blur', function() {
+                setTimeout(() => { suggestions.style.display = 'none'; }, 200);
+            });
+        }
+
+        function selectEditCustomer(id, displayName) {
+            document.getElementById('editCustomerSearch').value = displayName;
+            document.getElementById('editCustomerId').value = id;
+            document.getElementById('editCustomerSuggestions').style.display = 'none';
+        }
+
+        // ---- Guarantees ----
+        let guarantees = [];
+
+        function renderGuarantees() {
+            const container = document.getElementById('guaranteesContainer');
+            if (!container) return;
+
+            if (guarantees.length === 0) {
+                container.innerHTML = `<p style="color:var(--text-secondary); font-size:14px; padding:8px 0;">No guarantees added yet.</p>`;
+                return;
+            }
+
+            let html = '';
+            guarantees.forEach((g, index) => {
+                const typeLabel = g.type || 'Other';
+                html += `
+                        <div class="guarantee-item">
+                            <div class="guarantee-info">
+                                <strong>${g.name || 'Unnamed'}</strong>
+                                <span class="type-badge">${typeLabel}</span>
+                                ${g.value ? ` · Value: ETB ${Number(g.value).toLocaleString()}` : ''}
+                                ${g.contact ? ` · Contact: ${g.contact}` : ''}
+                                ${g.description ? ` · ${g.description}` : ''}
+                            </div>
+                            <button class="remove-guarantee" data-index="${index}" title="Remove guarantee">
+                                <i class="fas fa-times-circle"></i>
+                            </button>
+                        </div>
+                    `;
+            });
+            container.innerHTML = html;
+
+            document.querySelectorAll('.remove-guarantee').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const idx = parseInt(this.dataset.index);
+                    guarantees.splice(idx, 1);
+                    renderGuarantees();
+                });
+            });
+        }
+
+        function setupAddGuarantee() {
+            const btn = document.getElementById('addGuaranteeBtn');
+            if (!btn) return;
+
+            btn.addEventListener('click', function() {
+                const container = document.getElementById('guaranteesContainer');
+                const formDiv = document.createElement('div');
+                formDiv.className = 'guarantee-section';
+                formDiv.innerHTML = `
+                        <div class="guarantee-form-row">
+                            <div class="form-group">
+                                <label>Type</label>
+                                <select id="guaranteeType">
+                                    <option value="Person">Person</option>
+                                    <option value="House">House</option>
+                                    <option value="Vehicle">Vehicle</option>
+                                    <option value="Land">Land</option>
+                                    <option value="Equipment">Equipment</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Name / Description <span class="required">*</span></label>
+                                <input type="text" id="guaranteeName" placeholder="e.g., John Doe or House location" />
+                            </div>
+                            <div class="form-group">
+                                <label>Value (ETB) <span class="required">*</span></label>
+                                <input type="number" id="guaranteeValue" placeholder="e.g., 50000" step="0.01" min="0.01" />
+                            </div>
+                        </div>
+                        <div class="guarantee-form-row">
+                            <div class="form-group">
+                                <label>Contact (Phone/Email) <span class="required">*</span></label>
+                                <input type="text" id="guaranteeContact" placeholder="e.g., 0912345678" />
+                            </div>
+                            <div class="form-group">
+                                <label>Additional details <span style="color:var(--text-secondary); font-size:11px;">(optional)</span></label>
+                                <input type="text" id="guaranteeDescription" placeholder="Optional details" />
+                            </div>
+                            <div style="display:flex; gap:8px; align-items:center; justify-content:flex-end;">
+                                <button type="button" class="btn-secondary" id="cancelGuaranteeBtn" style="padding:6px 12px; font-size:13px;">Cancel</button>
+                                <button type="button" class="btn-primary" id="saveGuaranteeBtn" style="padding:6px 12px; font-size:13px;">Add</button>
+                            </div>
+                        </div>
+                    `;
+                container.appendChild(formDiv);
+
+                formDiv.querySelector('#guaranteeName').focus();
+
+                formDiv.querySelector('#cancelGuaranteeBtn').addEventListener('click', function() {
+                    formDiv.remove();
+                });
+
+                formDiv.querySelector('#saveGuaranteeBtn').addEventListener('click', function() {
+                    const type = formDiv.querySelector('#guaranteeType').value;
+                    const name = formDiv.querySelector('#guaranteeName').value.trim();
+                    const value = parseFloat(formDiv.querySelector('#guaranteeValue').value);
+                    const contact = formDiv.querySelector('#guaranteeContact').value.trim();
+                    const description = formDiv.querySelector('#guaranteeDescription').value.trim();
+
+                    if (!name) {
+                        showToast('Please provide a name or description.', 'warning');
+                        return;
+                    }
+                    if (!value || value <= 0) {
+                        showToast('Please enter a valid value (must be greater than 0).', 'warning');
+                        return;
+                    }
+                    if (!contact) {
+                        showToast('Please enter a contact phone or email.', 'warning');
+                        return;
+                    }
+
+                    guarantees.push({
+                        type: type,
+                        name: name,
+                        value: value,
+                        contact: contact,
+                        description: description
+                    });
+
+                    formDiv.remove();
+                    renderGuarantees();
+                });
+
+                formDiv.querySelectorAll('input, select').forEach(el => {
+                    el.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter') {
+                            formDiv.querySelector('#saveGuaranteeBtn').click();
+                        }
+                    });
+                });
+            });
+        }
+
+        // ============================================================
+        // LOAD SETTINGS FROM FIRESTORE
+        // ============================================================
+        let defaultInterestRate = 10;
+        let maxLoanAmountSetting = 50000;
+        let penaltyRate = 5;
+        let gracePeriod = 7;
+
+        async function loadSettings() {
+            try {
+                const doc = await db.collection('settings').doc('system').get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    defaultInterestRate = data.defaultInterestRate || 10;
+                    maxLoanAmountSetting = data.maxLoanAmount || 50000;
+                    penaltyRate = data.penaltyRate || 5;
+                    gracePeriod = data.gracePeriod || 7;
+                }
+                // Apply to form
+                const interestInput = document.getElementById('interestRate');
+                if (interestInput) {
+                    interestInput.value = defaultInterestRate;
+                    const hint = document.getElementById('interestRateHint');
+                    if (hint) hint.textContent = `Default: ${defaultInterestRate}%`;
+                }
+                // Max loan hint can be shown when customer selected
+            } catch (error) {
+                console.error('Error loading settings:', error);
+            }
+        }
+
+        // ============================================================
+        // LOANS MODULE
+        // ============================================================
+        let allLoans = [];
+        let currentPage = 1;
+        const pageSize = 10;
+        let filteredLoans = [];
+        let searchQuery = '';
+        let filterYear = 'all';
+
+        // ---- Populate Year Filter ----
+        function populateYearFilter() {
+            const yearFilter = document.getElementById('yearFilter');
+            const years = new Set();
+            allLoans.forEach(loan => {
+                const date = loan.date ? (loan.date.toDate ? loan.date.toDate() : new Date(loan.date)) : null;
+                if (date && !isNaN(date.getFullYear())) {
+                    years.add(date.getFullYear());
+                }
+            });
+            const currentVal = yearFilter.value;
+            yearFilter.innerHTML = '';
+            const allOpt = document.createElement('option');
+            allOpt.value = 'all';
+            allOpt.setAttribute('data-i18n', 'allYears');
+            allOpt.textContent = translations[currentLang].allYears || 'All Years';
+            yearFilter.appendChild(allOpt);
+            const sortedYears = Array.from(years).sort((a, b) => b - a);
+            sortedYears.forEach(y => {
+                const opt = document.createElement('option');
+                opt.value = y;
+                opt.textContent = y;
+                yearFilter.appendChild(opt);
+            });
+            if (sortedYears.includes(Number(currentVal)) && currentVal !== 'all') {
+                yearFilter.value = currentVal;
+            } else {
+                yearFilter.value = 'all';
+            }
+            filterYear = yearFilter.value;
+        }
+
+        // ---- Load loans ----
+        async function loadLoans() {
+            try {
+                const snapshot = await db.collection('transactions')
+                    .where('type', '==', 'loan')
+                    .get();
+                allLoans = [];
+                snapshot.forEach(doc => {
+                    allLoans.push({ id: doc.id, ...doc.data() });
+                });
+                allLoans.sort((a, b) => {
+                    const da = a.date && a.date.toDate ? a.date.toDate() : new Date(a.date);
+                    const db = b.date && b.date.toDate ? b.date.toDate() : new Date(b.date);
+                    return db - da;
+                });
+                populateYearFilter();
+                applySearch();
+                updateTotalCount();
+            } catch (error) {
+                showToast(translations[currentLang].loadError + error.message, 'error');
+            }
+        }
+
+        // ---- Get loan repayments ----
+        async function getLoanRepayments(loanId) {
+            try {
+                const snapshot = await db.collection('transactions')
+                    .where('loanId', '==', loanId)
+                    .where('type', '==', 'repayment')
+                    .get();
+                let totalRepaid = 0;
+                let repayments = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    repayments.push({ id: doc.id, ...data });
+                    totalRepaid += Number(data.amount) || 0;
+                });
+                return { total: totalRepaid, list: repayments };
+            } catch (error) {
+                console.error('Error getting repayments:', error);
+                return { total: 0, list: [] };
+            }
+        }
+
+        // ---- Get due date info ----
+        function getDueDateInfo(loan, repayments) {
+            const loanDate = loan.date && loan.date.toDate ? loan.date.toDate() : new Date(loan.date);
+            const period = Number(loan.repaymentPeriod) || 0;
+            if (!loanDate || period === 0) return { nextDue: null, daysOverdue: 0 };
+
+            const sortedRepayments = [...repayments].sort((a, b) => {
+                const da = a.date && a.date.toDate ? a.date.toDate() : new Date(a.date);
+                const db = b.date && b.date.toDate ? b.date.toDate() : new Date(b.date);
+                return da - db;
+            });
+
+            let lastRepaymentDate = loanDate;
+            if (sortedRepayments.length > 0) {
+                const last = sortedRepayments[sortedRepayments.length - 1];
+                lastRepaymentDate = last.date && last.date.toDate ? last.date.toDate() : new Date(last.date);
+            }
+
+            const nextDue = new Date(lastRepaymentDate);
+            nextDue.setMonth(nextDue.getMonth() + 1);
+
+            const now = new Date();
+            let daysOverdue = 0;
+            if (now > nextDue) {
+                daysOverdue = Math.floor((now - nextDue) / (1000 * 60 * 60 * 24));
+            }
+            return { nextDue, daysOverdue };
+        }
+
+        // ---- Calculate penalty ----
+        function calculatePenalty(loan, repayments, monthlyPayment) {
+            const { daysOverdue } = getDueDateInfo(loan, repayments);
+            if (daysOverdue <= 0) return 0;
+
+            const amount = Number(loan.amount) || 0;
+            const totalRepaid = repayments.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+            const remaining = Math.max(0, amount - totalRepaid);
+            const monthsOverdue = daysOverdue / 30;
+            const penaltyRateSetting = penaltyRate / 100; // from settings
+            return remaining * penaltyRateSetting * monthsOverdue;
+        }
+
+        // ---- Apply search + year filter ----
+        function applySearch() {
+            searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
+            filterYear = document.getElementById('yearFilter').value;
+
+            let filtered = [...allLoans];
+
+            if (searchQuery) {
+                filtered = filtered.filter(loan => {
+                    const customer = customersList.find(c => c.id === loan.customerId);
+                    return customer && customer.fullName.toLowerCase().includes(searchQuery);
+                });
+            }
+
+            if (filterYear !== 'all') {
+                const yearNum = Number(filterYear);
+                filtered = filtered.filter(loan => {
+                    const date = loan.date ? (loan.date.toDate ? loan.date.toDate() : new Date(loan.date)) : null;
+                    return date && date.getFullYear() === yearNum;
+                });
+            }
+
+            filteredLoans = filtered;
+            currentPage = 1;
+            paginateLoans();
+        }
+
+        function paginateLoans() {
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageItems = filteredLoans.slice(start, end);
+            renderTable(pageItems);
+            updatePaginationInfo();
+            renderPageButtons();
+        }
+
+        // ---- Update total count ----
+        function updateTotalCount() {
+            const approvedLoans = allLoans.filter(loan => loan.status === 'active' || loan.status === 'paid');
+            const total = approvedLoans.reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
+            document.getElementById('totalCount').textContent = total.toLocaleString();
+        }
+
+        // ---- Helper: get display name ----
+        function getDisplayName(user) {
+            if (!user) return 'Admin';
+            if (currentUserDisplayName) return currentUserDisplayName;
+            const name = user.displayName || user.email || 'Admin';
+            if (name.includes('@')) return name.split('@')[0];
+            return name;
+        }
+
+        // ---- Render Table ----
+        function renderTable(items) {
+            const tbody = document.getElementById('loansBody');
+            const t = translations[currentLang];
+
+            if (!items || items.length === 0) {
+                tbody.innerHTML =
+                    `<tr><td colspan="15" style="text-align:center; padding:40px; color:var(--text-secondary);">${t.noLoans}</td></tr>`;
+                return;
+            }
+
+            let html = '';
+            let itemIndex = 0;
+            const loanPromises = [];
+
+            items.forEach((loan) => {
+                const i = itemIndex++;
+                const customer = customersList.find(c => c.id === loan.customerId);
+                const customerName = customer ? customer.fullName : 'Unknown';
+                const amount = Number(loan.amount) || 0;
+                const interest = Number(loan.interestRate) || 0;
+                const period = Number(loan.repaymentPeriod) || 0;
+                const loanType = loan.loanType || 'simple';
+                const dateStr = loan.date ? (loan.date.toDate ? loan.date.toDate().toLocaleDateString() : new Date(loan
+                    .date).toLocaleDateString()) : '—';
+                const statusClass = loan.status || 'pending';
+                const statusLabel = loan.status === 'active' ? t.active :
+                    loan.status === 'pending' ? t.pending :
+                    loan.status === 'paid' ? t.paid :
+                    loan.status === 'rejected' ? t.rejected : t.pending;
+
+                const approvedByName = loan.approvedBy || '—';
+
+                const totalPayable = loan.totalPayable ? Number(loan.totalPayable) : calculateTotalPayable(amount, interest,
+                    period, loanType);
+                const monthlyPayment = calculateMonthlyPayment(amount, interest, period, loanType);
+
+                const typeLabels = {
+                    simple: t.simpleInterest || 'Simple',
+                    compound: t.compoundInterest || 'Compound',
+                    fixed: t.fixedRate || 'Fixed',
+                    reducing: t.reducingBalance || 'Reducing'
+                };
+                const typeLabel = typeLabels[loanType] || loanType;
+
+                const guaranteesList = loan.guarantees || [];
+                let guaranteeHtml = '';
+                if (guaranteesList.length > 0) {
+                    const names = guaranteesList.slice(0, 2).map(g => g.name).join(', ');
+                    guaranteeHtml = `<span class="guarantee-count">${guaranteesList.length} item(s)</span>`;
+                    guaranteeHtml +=
+                        `<br><span class="guarantee-item-list">${names}${guaranteesList.length > 2 ? ', ...' : ''}</span>`;
+                } else {
+                    guaranteeHtml = '<span style="color:var(--text-secondary); font-size:12px;">None</span>';
+                }
+
+                // ---- Action Buttons with Role Checks ----
+                let actionsHtml = `
+                        <button class="action-btn view-btn" onclick="viewLoan('${loan.id}')" title="${t.view}">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    `;
+
+                if (canEdit()) {
+                    actionsHtml += `
+                            <button class="action-btn edit-btn" onclick="openEditModal('${loan.id}')" title="${t.edit}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        `;
+                }
+
+                if (canDelete()) {
+                    actionsHtml += `
+                            <button class="action-btn delete-btn" onclick="deleteLoan('${loan.id}')" title="${t.delete}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        `;
+                }
+
+                if (loan.status === 'pending' && canApproveReject()) {
+                    const approveRejectHtml = `
+                            <button class="action-btn approve-btn" onclick="approveLoan('${loan.id}')" title="${t.approve}">
+                                <i class="fas fa-check-circle"></i> ${t.approve}
+                            </button>
+                            <button class="action-btn reject-btn" onclick="rejectLoan('${loan.id}')" title="${t.reject}">
+                                <i class="fas fa-times-circle"></i> ${t.reject}
+                            </button>
+                        `;
+                    actionsHtml = approveRejectHtml + actionsHtml;
+                }
+
+                const remainingId = `remaining-${loan.id}`;
+                const monthlyId = `monthly-${loan.id}`;
+                const nextDueId = `nextdue-${loan.id}`;
+
+                loanPromises.push({
+                    loan,
+                    repayPromise: getLoanRepayments(loan.id),
+                    monthlyPayment,
+                    totalPayable,
+                    remainingId,
+                    monthlyId,
+                    nextDueId
+                });
+
+                html += `<tr>
+                        <td>${(currentPage-1)*pageSize + i + 1}</td>
+                        <td>${customerName}</td>
+                        <td>${amount.toLocaleString()}</td>
+                        <td>${interest}%</td>
+                        <td><span style="font-size:12px; background:var(--border-color); padding:2px 8px; border-radius:12px;">${typeLabel}</span></td>
+                        <td>${period} mos</td>
+                        <td id="${monthlyId}">...</td>
+                        <td>${totalPayable.toLocaleString()}</td>
+                        <td id="${remainingId}">...</td>
+                        <td>${guaranteeHtml}</td>
+                        <td id="${nextDueId}">...</td>
+                        <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+                        <td>${approvedByName}</td>
+                        <td>${dateStr}</td>
+                        <td>${actionsHtml}</td>
+                    </tr>`;
+            });
+            tbody.innerHTML = html;
+
+            // ---- Async updates (remaining, monthly, next due) ----
+            loanPromises.forEach(async ({ loan, repayPromise, monthlyPayment, totalPayable, remainingId, monthlyId,
+                    nextDueId }) => {
+                const { total: totalRepaid, list: repayments } = await repayPromise;
+                let remaining = Math.max(0, totalPayable - totalRepaid);
+                remaining = Math.round(remaining * 100) / 100;
+                if (Math.abs(remaining) < 0.005) remaining = 0;
+                document.getElementById(remainingId).textContent = remaining.toLocaleString();
+                document.getElementById(monthlyId).textContent = monthlyPayment.toFixed(2);
+
+                // Auto-update status to paid if remaining = 0
+                if (remaining === 0 && loan.status === 'active') {
+                    try {
+                        await db.collection('transactions').doc(loan.id).update({
+                            status: 'paid',
+                            paidAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        loan.status = 'paid';
+                        setTimeout(() => { loadLoans(); }, 500);
+                        showToast(`Loan ${loan.id} automatically marked as PAID.`, 'success');
+                    } catch (err) {
+                        console.warn('Could not auto‑update status:', err);
+                    }
+                }
+
+                const { nextDue, daysOverdue } = getDueDateInfo(loan, repayments);
+                const cellNextDue = document.getElementById(nextDueId);
+                if (nextDue) {
+                    const dueStr = nextDue.toLocaleDateString();
+                    let penaltyHtml = '';
+                    if (daysOverdue > 0 && loan.status !== 'paid' && loan.status !== 'rejected') {
+                        const penalty = calculatePenalty(loan, repayments, monthlyPayment);
+                        penaltyHtml = ` <span class="penalty-badge">+${penalty.toFixed(2)} penalty</span>`;
+                        cellNextDue.innerHTML =
+                            `${dueStr} <span class="overdue-warning">${daysOverdue}d overdue</span> ${penaltyHtml}`;
+                    } else {
+                        cellNextDue.textContent = dueStr;
+                        if (daysOverdue > 0) {
+                            cellNextDue.innerHTML =
+                                `${dueStr} <span class="overdue-warning">${daysOverdue}d overdue</span>`;
+                        }
+                    }
+                } else {
+                    cellNextDue.textContent = '—';
+                }
+            });
+        }
+
+        function updatePaginationInfo() {
+            const total = filteredLoans.length;
+            const start = (currentPage - 1) * pageSize + 1;
+            const end = Math.min(currentPage * pageSize, total);
+            document.getElementById('pageStart').textContent = total > 0 ? start : 0;
+            document.getElementById('pageEnd').textContent = total > 0 ? end : 0;
+            document.getElementById('totalLoansCount').textContent = total;
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = currentPage >= Math.ceil(total / pageSize) || total === 0;
+        }
+
+        function renderPageButtons() {
+            const container = document.getElementById('pageNumbers');
+            const totalPages = Math.ceil(filteredLoans.length / pageSize);
+            if (totalPages <= 1) { container.innerHTML = ''; return; }
+            let html = '';
+            const maxVisible = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+            if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
+            if (startPage > 1) {
+                html += `<button class="pagination-btn" onclick="goToPage(1)">1</button>`;
+                if (startPage > 2) html += `<button class="pagination-btn" disabled>...</button>`;
+            }
+            for (let i = startPage; i <= endPage; i++) {
+                html +=
+                    `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) html += `<button class="pagination-btn" disabled>...</button>`;
+                html += `<button class="pagination-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function goToPage(page) {
+            const totalPages = Math.ceil(filteredLoans.length / pageSize);
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            paginateLoans();
+            document.querySelector('.table-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // ---- View Loan ----
+        function viewLoan(loanId) {
+            const loan = allLoans.find(l => l.id === loanId);
+            if (!loan) return;
+            const customer = customersList.find(c => c.id === loan.customerId);
+            const customerName = customer ? customer.fullName : 'Unknown';
+            const amount = Number(loan.amount) || 0;
+            const interest = Number(loan.interestRate) || 0;
+            const period = Number(loan.repaymentPeriod) || 0;
+            const loanType = loan.loanType || 'simple';
+            const totalPayable = loan.totalPayable ? Number(loan.totalPayable) : calculateTotalPayable(amount, interest,
+                period, loanType);
+            const monthlyPayment = calculateMonthlyPayment(amount, interest, period, loanType);
+            const typeLabels = { simple: 'Simple', compound: 'Compound', fixed: 'Fixed', reducing: 'Reducing' };
+            let guaranteeText = '';
+            const gList = loan.guarantees || [];
+            if (gList.length > 0) {
+                guaranteeText = '\n📋 Guarantees: ' + gList.map(g => `${g.name} (${g.type})`).join(', ');
+            }
+            showToast(
+                `📋 ${customerName}\n💰 Amount: ETB ${amount.toLocaleString()}\n📊 Type: ${typeLabels[loanType] || loanType}\n📈 Rate: ${interest}%\n📅 Period: ${period} months\n💵 Monthly: ETB ${monthlyPayment.toFixed(2)}\n💵 Total Payable: ETB ${totalPayable.toLocaleString()}\n📌 Status: ${loan.status}${guaranteeText}`,
+                'warning'
+            );
+        }
+
+        // ---- Approve Loan ----
+        async function approveLoan(loanId) {
+            if (!canApproveReject()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+            if (!confirm('Approve this loan?')) return;
+            try {
+                const user = auth.currentUser;
+                const adminName = getDisplayName(user);
+
+                const loanDoc = await db.collection('transactions').doc(loanId).get();
+                const oldData = loanDoc.exists ? loanDoc.data() : {};
+                const oldStatus = oldData.status || 'pending';
+
+                await db.collection('transactions').doc(loanId).update({
+                    status: 'active',
+                    approvedBy: adminName,
+                    approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                await logAudit('approved', 'transactions', loanId, {
+                    status: { old: oldStatus, new: 'active' },
+                    approvedBy: { old: oldData.approvedBy || null, new: adminName },
+                    approvedAt: { old: oldData.approvedAt || null, new: new Date().toISOString() }
+                }, `Loan ${loanId} approved by ${adminName}`);
+
+                showToast(translations[currentLang].loanApproved, 'success');
+                await loadLoans();
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        // ---- Reject Loan ----
+        async function rejectLoan(loanId) {
+            if (!canApproveReject()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+            if (!confirm('Reject this loan?')) return;
+            try {
+                const user = auth.currentUser;
+                const adminName = getDisplayName(user);
+
+                const loanDoc = await db.collection('transactions').doc(loanId).get();
+                const oldData = loanDoc.exists ? loanDoc.data() : {};
+                const oldStatus = oldData.status || 'pending';
+
+                await db.collection('transactions').doc(loanId).update({
+                    status: 'rejected',
+                    approvedBy: adminName,
+                    approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                await logAudit('rejected', 'transactions', loanId, {
+                    status: { old: oldStatus, new: 'rejected' },
+                    approvedBy: { old: oldData.approvedBy || null, new: adminName },
+                    approvedAt: { old: oldData.approvedAt || null, new: new Date().toISOString() }
+                }, `Loan ${loanId} rejected by ${adminName}`);
+
+                showToast(translations[currentLang].loanRejected, 'success');
+                await loadLoans();
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        // ---- Delete Loan ----
+        async function deleteLoan(loanId) {
+            if (!canDelete()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+            if (!confirm('Are you sure you want to delete this loan? This action cannot be undone.')) return;
+            try {
+                const docRef = db.collection('transactions').doc(loanId);
+                const doc = await docRef.get();
+                const data = doc.exists ? doc.data() : {};
+
+                await docRef.delete();
+
+                await logAudit('deleted', 'transactions', loanId, { deletedData: { old: null, new: data } },
+                    `Loan deleted for ${customersList.find(c => c.id === data.customerId)?.fullName || 'Unknown'} (${data.amount || 0} ETB)`);
+
+                showToast('Loan deleted successfully.', 'success');
+                await loadLoans();
+            } catch (error) {
+                showToast('Error deleting loan: ' + error.message, 'error');
+            }
+        }
+
+        // ---- Edit Loan: Open Modal ----
+        function openEditModal(loanId) {
+            if (!canEdit()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+            const loan = allLoans.find(l => l.id === loanId);
+            if (!loan) return;
+
+            document.getElementById('editLoanId').value = loan.id;
+            document.getElementById('editAmount').value = loan.amount || '';
+            document.getElementById('editDate').value = loan.date ? (loan.date.toDate ? loan.date.toDate().toISOString().split(
+                'T')[0] : new Date(loan.date).toISOString().split('T')[0]) : '';
+            document.getElementById('editInterestRate').value = loan.interestRate || 0;
+            document.getElementById('editRepaymentPeriod').value = loan.repaymentPeriod || 12;
+            document.getElementById('editLoanType').value = loan.loanType || 'simple';
+            document.getElementById('editStatus').value = loan.status || 'pending';
+            document.getElementById('editNote').value = loan.note || '';
+
+            const customer = customersList.find(c => c.id === loan.customerId);
+            if (customer) {
+                document.getElementById('editCustomerSearch').value = customer.fullName + ' (' + (customer.customerId || '') + ')';
+                document.getElementById('editCustomerId').value = customer.id;
+            } else {
+                document.getElementById('editCustomerSearch').value = '';
+                document.getElementById('editCustomerId').value = '';
+            }
+
+            const gList = loan.guarantees || [];
+            const gText = gList.map(g => `${g.type}: ${g.name}`).join(', ');
+            document.getElementById('editGuarantees').value = gText;
+
+            document.getElementById('editLoanModal').classList.add('active');
+            document.getElementById('editLoanModal').style.display = 'flex';
+        }
+
+        // ---- Close Edit Modal ----
+        function closeEditModal() {
+            document.getElementById('editLoanModal').classList.remove('active');
+            document.getElementById('editLoanModal').style.display = 'none';
+        }
+
+        // ---- Update Loan ----
+        async function updateLoan(e) {
+            e.preventDefault();
+            if (!canEdit()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+            const loanId = document.getElementById('editLoanId').value;
+            const customerId = document.getElementById('editCustomerId').value;
+            const amount = parseFloat(document.getElementById('editAmount').value);
+            const date = document.getElementById('editDate').value;
+            const interestRate = parseFloat(document.getElementById('editInterestRate').value) || 0;
+            const repaymentPeriod = parseInt(document.getElementById('editRepaymentPeriod').value) || 12;
+            const loanType = document.getElementById('editLoanType').value;
+            const status = document.getElementById('editStatus').value;
+            const note = document.getElementById('editNote').value.trim();
+
+            const gText = document.getElementById('editGuarantees').value.trim();
+            let guaranteesArray = [];
+            if (gText) {
+                const parts = gText.split(',').map(s => s.trim());
+                parts.forEach(part => {
+                    const match = part.match(/^([^:]+):\s*(.+)/);
+                    if (match) {
+                        guaranteesArray.push({ type: match[1].trim(), name: match[2].trim() });
+                    } else {
+                        guaranteesArray.push({ type: 'Other', name: part });
+                    }
+                });
+            }
+
+            if (!customerId || !amount || !date) {
+                showToast('Please fill in all required fields.', 'warning');
+                return;
+            }
+
+            // ---- 3× SAVINGS RULE ----
+            const savings = await getCustomerSavings(customerId);
+            const maxLoan = Math.round(savings * 3 * 100) / 100;
+            const maxAllowed = Math.min(maxLoan, maxLoanAmountSetting);
+            if (amount > maxAllowed && maxAllowed > 0) {
+                const t = translations[currentLang];
+                showToast(t.maxLoanExceeded + ' (Max: ' + maxAllowed.toFixed(2) + ' ETB)', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('updateLoanBtn');
+            const original = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+
+            try {
+                const loanDoc = await db.collection('transactions').doc(loanId).get();
+                const oldData = loanDoc.exists ? loanDoc.data() : {};
+
+                const totalPayable = calculateTotalPayable(amount, interestRate, repaymentPeriod, loanType);
+                const updateData = {
+                    customerId: customerId,
+                    amount: amount,
+                    date: new Date(date),
+                    note: note,
+                    status: status,
+                    interestRate: interestRate,
+                    repaymentPeriod: repaymentPeriod,
+                    loanType: loanType,
+                    totalPayable: totalPayable,
+                    guarantees: guaranteesArray,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                const currentLoan = allLoans.find(l => l.id === loanId);
+                if (status === 'active' && !currentLoan?.approvedBy) {
+                    const user = auth.currentUser;
+                    const adminName = getDisplayName(user);
+                    updateData.approvedBy = adminName;
+                    updateData.approvedAt = firebase.firestore.FieldValue.serverTimestamp();
+                }
+
+                await db.collection('transactions').doc(loanId).update(updateData);
+
+                const changes = {};
+                const fieldsToCompare = ['customerId', 'amount', 'date', 'note', 'status', 'interestRate', 'repaymentPeriod',
+                    'loanType', 'totalPayable', 'guarantees'
+                ];
+                fieldsToCompare.forEach(field => {
+                    const oldVal = oldData[field] !== undefined ? oldData[field] : null;
+                    const newVal = updateData[field] !== undefined ? updateData[field] : null;
+                    if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+                        changes[field] = { old: oldVal, new: newVal };
+                    }
+                });
+
+                const customer = customersList.find(c => c.id === customerId);
+                await logAudit('updated', 'transactions', loanId, changes,
+                    `Loan updated for ${customer ? customer.fullName : 'Unknown'} (${amount} ETB)`);
+
+                showToast('Loan updated successfully.', 'success');
+                closeEditModal();
+                await loadLoans();
+            } catch (error) {
+                showToast('Error updating loan: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = original;
+            }
+        }
+
+        // ---- Apply Loan ----
+        async function applyLoan(e) {
+            e.preventDefault();
+            if (!canApply()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+            const customerId = document.getElementById('customerId').value;
+            const amount = parseFloat(document.getElementById('amountInput').value);
+            const date = document.getElementById('dateInput').value;
+            const note = document.getElementById('noteInput').value.trim();
+            const status = document.getElementById('statusInput').value;
+            let interestRate = parseFloat(document.getElementById('interestRate').value) || defaultInterestRate;
+            const repaymentPeriod = parseInt(document.getElementById('repaymentPeriod').value) || 12;
+            const loanType = document.getElementById('loanType').value;
+
+            if (!customerId) {
+                showToast('Please select a customer.', 'warning');
+                return;
+            }
+            if (!amount || amount <= 0) {
+                showToast('Please enter a valid amount.', 'warning');
+                return;
+            }
+            if (!date) {
+                showToast('Please select a date.', 'warning');
+                return;
+            }
+
+            const hasActiveOrPending = await customerHasActiveOrPendingLoan(customerId);
+            if (hasActiveOrPending) {
+                const t = translations[currentLang];
+                showToast(t.hasActiveOrPendingLoan, 'warning');
+                return;
+            }
+
+            // ---- 3× SAVINGS RULE ----
+            const savings = await getCustomerSavings(customerId);
+            const maxLoan = Math.round(savings * 3 * 100) / 100;
+            const maxAllowed = Math.min(maxLoan, maxLoanAmountSetting);
+            if (amount > maxAllowed && maxAllowed > 0) {
+                const t = translations[currentLang];
+                showToast(t.maxLoanExceeded + ' (Max: ' + maxAllowed.toFixed(2) + ' ETB)', 'warning');
+                return;
+            }
+
+            if (guarantees.length === 0) {
+                const t = translations[currentLang];
+                showToast(t.addGuaranteeFirst, 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('saveBtn');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying...';
+
+            try {
+                const user = auth.currentUser;
+                const createdByName = getDisplayName(user);
+
+                const totalPayable = calculateTotalPayable(amount, interestRate, repaymentPeriod, loanType);
+
+                const docRef = db.collection('transactions').doc();
+
+                const docData = {
+                    customerId: customerId,
+                    type: 'loan',
+                    amount: amount,
+                    date: new Date(date),
+                    note: note,
+                    status: status,
+                    interestRate: interestRate,
+                    repaymentPeriod: repaymentPeriod,
+                    loanType: loanType,
+                    totalPayable: totalPayable,
+                    loanId: docRef.id,
+                    createdByName: createdByName,
+                    createdBy: createdByName,
+                    createdByEmail: user ? user.email : 'admin@geresu.com',
+                    approvedBy: null,
+                    approvedAt: null,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    guarantees: guarantees
+                };
+
+                await docRef.set(docData);
+
+                const customer = customersList.find(c => c.id === customerId);
+                await logAudit('created', 'transactions', docRef.id, {
+                    customerId: { old: null, new: customerId },
+                    customerName: { old: null, new: customer ? customer.fullName : 'Unknown' },
+                    amount: { old: null, new: amount },
+                    interestRate: { old: null, new: interestRate },
+                    repaymentPeriod: { old: null, new: repaymentPeriod },
+                    loanType: { old: null, new: loanType },
+                    totalPayable: { old: null, new: totalPayable },
+                    status: { old: null, new: status },
+                    note: { old: null, new: note },
+                    guarantees: { old: null, new: guarantees }
+                }, `Loan applied for ${customer ? customer.fullName : 'Unknown'} (${amount} ETB)`);
+
+                showToast(translations[currentLang].loanApplied, 'success');
+                document.getElementById('loansForm').reset();
+                document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+                document.getElementById('customerId').value = '';
+                document.getElementById('customerSearch').value = '';
+                document.getElementById('interestRate').value = defaultInterestRate;
+                document.getElementById('repaymentPeriod').value = 12;
+                document.getElementById('loanType').value = 'simple';
+                guarantees = [];
+                renderGuarantees();
+                document.getElementById('loanFormSection').style.display = 'none';
+                document.getElementById('addLoanBtn').style.display = canApply() ? 'inline-flex' : 'none';
+                await loadLoans();
+            } catch (error) {
+                showToast(translations[currentLang].loanError + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
+        // ---- Show/Hide Loan Form ----
+        function toggleLoanForm() {
+            if (!canApply()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+            const formSection = document.getElementById('loanFormSection');
+            const addBtn = document.getElementById('addLoanBtn');
+            const t = translations[currentLang];
+
+            if (formSection.style.display === 'none') {
+                formSection.style.display = 'block';
+                addBtn.style.display = 'none';
+                document.getElementById('loansForm').reset();
+                document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+                document.getElementById('customerId').value = '';
+                document.getElementById('customerSearch').value = '';
+                document.getElementById('editLoanId').value = '';
+                document.getElementById('interestRate').value = defaultInterestRate;
+                document.getElementById('repaymentPeriod').value = 12;
+                document.getElementById('loanType').value = 'simple';
+                document.getElementById('formTitle').textContent = t.applyLoan;
+                document.getElementById('saveBtn').innerHTML = `<i class="fas fa-save"></i> ${t.applyLoanBtn}`;
+                guarantees = [];
+                renderGuarantees();
+                formSection.scrollIntoView({ behavior: 'smooth' });
+            } else {
+                formSection.style.display = 'none';
+                addBtn.style.display = canApply() ? 'inline-flex' : 'none';
+            }
+        }
+
+        // ============================================================
+        // PAGE INIT
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', async function() {
+            auth.onAuthStateChanged(async (user) => {
+                if (!user) {
+                    window.location.href = '../login.html';
+                    return;
+                }
+
+                try {
+                    const userDoc = await db.collection('users').doc(user.uid).get();
+                    if (userDoc.exists) {
+                        const data = userDoc.data();
+                        const role = data.role || 'viewer';
+                        if (['admin', 'manager', 'teller', 'accountant', 'viewer'].includes(role)) {
+                            currentUserRole = role;
+                        } else {
+                            currentUserRole = 'viewer';
+                        }
+                        currentUserDisplayName = data.displayName || data.name || user.displayName || user.email?.split(
+                            '@')[0] || 'Admin';
+                    } else {
+                        currentUserRole = 'viewer';
+                        currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'Admin';
+                    }
+                } catch (error) {
+                    console.error('Error fetching user role:', error);
+                    currentUserRole = 'viewer';
+                    currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'Admin';
+                }
+
+                updateUserInfo();
+
+                const addBtn = document.getElementById('addLoanBtn');
+                if (!canApply()) {
+                    addBtn.style.display = 'none';
+                } else {
+                    addBtn.style.display = 'inline-flex';
+                }
+
+                initLanguage();
+                loadSidebarState();
+
+                document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
+                document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
+                document.getElementById('sidebarToggleBtn').addEventListener('click', toggleSidebarCollapse);
+
+                document.querySelectorAll('.lang-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        setLanguage(this.dataset.lang);
+                        const currentItems = filteredLoans.slice((currentPage - 1) * pageSize, currentPage *
+                            pageSize);
+                        renderTable(currentItems);
+                        updatePaginationInfo();
+                        renderPageButtons();
+                        const searchInput = document.getElementById('searchInput');
+                        const t = translations[currentLang];
+                        searchInput.placeholder = t.searchPlaceholder || 'Search by customer name...';
+                    });
+                });
+
+                document.getElementById('logoutBtn').addEventListener('click', async function() {
+                    if (confirm('Are you sure you want to log out?')) {
+                        await auth.signOut();
+                        window.location.href = '../login.html';
+                    }
+                });
+
+                await loadSettings();
+                await loadCustomersForSelect();
+                setupCustomerSearch();
+                setupEditCustomerSearch();
+
+                document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+
+                renderGuarantees();
+                setupAddGuarantee();
+
+                document.getElementById('addLoanBtn').addEventListener('click', toggleLoanForm);
+                document.getElementById('resetFormBtn').addEventListener('click', function() {
+                    document.getElementById('loansForm').reset();
+                    document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+                    document.getElementById('customerId').value = '';
+                    document.getElementById('customerSearch').value = '';
+                    document.getElementById('interestRate').value = defaultInterestRate;
+                    document.getElementById('repaymentPeriod').value = 12;
+                    document.getElementById('loanType').value = 'simple';
+                    guarantees = [];
+                    renderGuarantees();
+                    document.getElementById('loanFormSection').style.display = 'none';
+                    document.getElementById('addLoanBtn').style.display = canApply() ? 'inline-flex' : 'none';
+                });
+
+                await loadLoans();
+
+                document.getElementById('searchInput').addEventListener('input', function() {
+                    applySearch();
+                });
+
+                document.getElementById('yearFilter').addEventListener('change', function() {
+                    applySearch();
+                });
+
+                document.getElementById('loansForm').addEventListener('submit', applyLoan);
+
+                document.getElementById('prevPage').addEventListener('click', function() {
+                    if (currentPage > 1) goToPage(currentPage - 1);
+                });
+                document.getElementById('nextPage').addEventListener('click', function() {
+                    const totalPages = Math.ceil(filteredLoans.length / pageSize);
+                    if (currentPage < totalPages) goToPage(currentPage + 1);
+                });
+
+                document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
+                document.getElementById('cancelEditBtn').addEventListener('click', closeEditModal);
+                document.getElementById('editLoanModal').addEventListener('click', function(e) {
+                    if (e.target === this) closeEditModal();
+                });
+                document.getElementById('editLoanForm').addEventListener('submit', updateLoan);
+
+                const searchInput = document.getElementById('searchInput');
+                const t = translations[currentLang];
+                searchInput.placeholder = t.searchPlaceholder || 'Search by customer name...';
+            });
+        });
+
+        // Expose functions for onclick
+        window.approveLoan = approveLoan;
+        window.rejectLoan = rejectLoan;
+        window.viewLoan = viewLoan;
+        window.deleteLoan = deleteLoan;
+        window.openEditModal = openEditModal;
+        window.closeEditModal = closeEditModal;
+        window.goToPage = goToPage;
+        window.toggleSidebar = toggleSidebar;
+        window.selectCustomer = selectCustomer;
+        window.selectEditCustomer = selectEditCustomer;
+        window.toggleLoanForm = toggleLoanForm;
+    </script>
+    <script>
+        // ============================================================
+        // SESSION TIMEOUT (5 minutes inactivity)
+        // ============================================================
+        (function() {
+            const SESSION_TIMEOUT = 5 * 60 * 1000;
+            const WARNING_TIMEOUT = SESSION_TIMEOUT - 30 * 1000;
+
+            let timer = null;
+            let warningTimer = null;
+            let warningToast = null;
+            let countdownInterval = null;
+
+            function resetTimer() {
+                clearTimeout(timer);
+                clearTimeout(warningTimer);
+                clearInterval(countdownInterval);
+                if (warningToast) {
+                    warningToast.remove();
+                    warningToast = null;
+                }
+                warningTimer = setTimeout(showWarning, WARNING_TIMEOUT);
+                timer = setTimeout(forceLogout, SESSION_TIMEOUT);
+            }
+
+            function showWarning() {
+                const t = translations && translations[currentLang] ? translations[currentLang] : { sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.' };
+                const message = t.sessionTimeout || 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
+
+                let seconds = 30;
+                warningToast = document.createElement('div');
+                warningToast.style.cssText = `
+                    position: fixed;
+                    bottom: 30px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: #f39c12;
+                    color: #fff;
+                    padding: 16px 24px;
+                    border-radius: 12px;
+                    font-size: 15px;
+                    font-weight: 500;
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+                    z-index: 99999;
+                    max-width: 500px;
+                    text-align: center;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    animation: slideUp 0.3s ease;
+                `;
+                warningToast.innerHTML = `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
+
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes slideUp {
+                        from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+                        to { transform: translateX(-50%) translateY(0); opacity: 1; }
+                    }
+                `;
+                document.head.appendChild(style);
+                document.body.appendChild(warningToast);
+
+                countdownInterval = setInterval(() => {
+                    seconds--;
+                    const textEl = document.getElementById('sessionWarningText');
+                    if (textEl) {
+                        textEl.textContent = message.replace('{seconds}', seconds);
+                    }
+                    if (seconds <= 0) {
+                        clearInterval(countdownInterval);
+                    }
+                }, 1000);
+            }
+
+            function forceLogout() {
+                clearInterval(countdownInterval);
+                if (warningToast) {
+                    warningToast.remove();
+                    warningToast = null;
+                }
+                if (typeof auth !== 'undefined' && auth) {
+                    auth.signOut().then(() => {
+                        window.location.href = '../login.html';
+                    }).catch(() => {
+                        window.location.href = '../login.html';
+                    });
+                } else {
+                    window.location.href = '../login.html';
+                }
+            }
+
+            const events = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
+
+            function handleActivity() {
+                resetTimer();
+            }
+            events.forEach(evt => {
+                document.addEventListener(evt, handleActivity);
+            });
+            resetTimer();
+
+            window.addEventListener('beforeunload', function() {
+                clearTimeout(timer);
+                clearTimeout(warningTimer);
+                clearInterval(countdownInterval);
+                if (warningToast) {
+                    warningToast.remove();
+                }
+                events.forEach(evt => {
+                    document.removeEventListener(evt, handleActivity);
+                });
+            });
+        })();
+    </script>
+</body>
+</html>
