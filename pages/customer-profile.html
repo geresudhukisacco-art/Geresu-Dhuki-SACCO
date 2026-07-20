@@ -1963,10 +1963,9 @@
         let currentPage = 1;
         const pageSize = 10;
         let customerId = null;
-        let customersMap = {};
 
         // ============================================================
-        // LOAD PROFILE DATA
+        // LOAD PROFILE DATA (FIXED: fetch both customerId and memberId)
         // ============================================================
         async function loadProfile(customerId) {
             const loadingState = document.getElementById('loadingState');
@@ -1982,13 +1981,22 @@
 
                 const customer = { id: customerDoc.id, ...customerDoc.data() };
 
-                // Load ALL transactions for this customer
-                const transactionsSnap = await db.collection('transactions')
-                    .where('customerId', '==', customerId)
-                    .get();
+                // ---- FIX: Fetch transactions using BOTH customerId AND memberId ----
+                const [snap1, snap2] = await Promise.all([
+                    db.collection('transactions').where('customerId', '==', customerId).get(),
+                    db.collection('transactions').where('memberId', '==', customerId).get()
+                ]);
 
-                allTransactions = [];
-                transactionsSnap.forEach(doc => allTransactions.push({ id: doc.id, ...doc.data() }));
+                const allDocs = [];
+                snap1.forEach(doc => allDocs.push({ id: doc.id, ...doc.data() }));
+                snap2.forEach(doc => {
+                    // Avoid duplicates (same doc could be in both queries)
+                    if (!allDocs.some(d => d.id === doc.id)) {
+                        allDocs.push({ id: doc.id, ...doc.data() });
+                    }
+                });
+
+                allTransactions = allDocs;
 
                 // Sort by date descending (newest first)
                 allTransactions.sort((a, b) => {
