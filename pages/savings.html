@@ -2196,10 +2196,14 @@
             }
         }
 
+        // ============================================================
+        // FIXED applySearch() – cumulative balances from full history
+        // ============================================================
         function applySearch() {
             searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
             filterYear = document.getElementById('yearFilter').value;
 
+            // 1. Filter by search and year
             let filtered = [...allSavings];
 
             if (searchQuery) {
@@ -2218,37 +2222,50 @@
                 });
             }
 
-            filteredSavings = filtered;
+            // 2. Compute running balances using ALL transactions (full history) for each member that appears in filtered
+            const memberIds = [...new Set(filtered.map(tx => tx.memberId))];
+            const balanceMap = {};
 
-            const grouped = {};
-            filteredSavings.forEach(tx => {
-                const mid = tx.memberId;
-                if (!grouped[mid]) grouped[mid] = [];
-                grouped[mid].push(tx);
-            });
-
-            Object.keys(grouped).forEach(mid => {
-                const txs = grouped[mid];
-                txs.sort((a, b) => {
+            memberIds.forEach(mid => {
+                // Get all transactions for this member (no year filter)
+                const allTx = allSavings.filter(tx => tx.memberId === mid);
+                // Sort by date ascending
+                allTx.sort((a, b) => {
                     const da = a.date && a.date.toDate ? a.date.toDate() : new Date(a.date);
                     const db = b.date && b.date.toDate ? b.date.toDate() : new Date(b.date);
                     return da - db;
                 });
                 let balance = 0;
-                txs.forEach(tx => {
+                allTx.forEach(tx => {
                     const amount = Number(tx.amount) || 0;
-                    tx.prevBalance = balance;
-                    balance += amount;
-                    tx.runningBalance = balance;
+                    balanceMap[tx.id] = {
+                        prev: balance,
+                        running: balance + amount
+                    };
+                    balance = balanceMap[tx.id].running;
                 });
             });
 
-            filteredSavings.sort((a, b) => {
+            // 3. Attach prevBalance and runningBalance to filtered transactions
+            filtered.forEach(tx => {
+                if (balanceMap[tx.id]) {
+                    tx.prevBalance = balanceMap[tx.id].prev;
+                    tx.runningBalance = balanceMap[tx.id].running;
+                } else {
+                    // Should not happen for filtered transactions, but fallback
+                    tx.prevBalance = 0;
+                    tx.runningBalance = Number(tx.amount) || 0;
+                }
+            });
+
+            // 4. Sort filtered by date descending (most recent first) for display
+            filtered.sort((a, b) => {
                 const da = a.date && a.date.toDate ? a.date.toDate() : new Date(a.date);
                 const db = b.date && b.date.toDate ? b.date.toDate() : new Date(b.date);
                 return db - da;
             });
 
+            filteredSavings = filtered;
             currentPage = 1;
             paginateSavings();
         }
