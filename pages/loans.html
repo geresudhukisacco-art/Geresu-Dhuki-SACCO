@@ -1654,8 +1654,9 @@
                 editLoan: 'Edit Loan',
                 save: 'Save',
                 cancel: 'Cancel',
-                maxLoanExceeded: 'Loan amount exceeds 3× of customer\'s total savings.',
-                maxLoanHint: 'Maximum loan is 3× customer\'s total savings',
+                maxLoanExceeded: 'Loan amount exceeds customer\'s total loan limit (savings × {multiplier}) or global cap.',
+                maxLoanHint: 'Maximum loan is {multiplier}× customer\'s total savings, capped by global setting.',
+                totalLoanLimitReached: 'Total loans (active + pending) already reached limit. Cannot apply for more.',
                 hasActiveOrPendingLoan: 'This customer already has an active or pending loan. Please settle the existing loan before applying for a new one.',
                 addGuaranteeFirst: 'Please add at least one guarantee before applying for a loan.',
                 unauthorized: 'You are not authorized to perform this action.',
@@ -1737,8 +1738,9 @@
                 editLoan: 'ብድር ያስተካክሉ',
                 save: 'አስቀምጥ',
                 cancel: 'ሰርዝ',
-                maxLoanExceeded: 'የብድር መጠን ከደንበኛው ጠቅላላ ቁጠባ 3 እጥፍ ይበልጣል።',
-                maxLoanHint: 'ከፍተኛ ብድር ከደንበኛው ጠቅላላ ቁጠባ 3 እጥፍ ነው',
+                maxLoanExceeded: 'የብድር መጠን ከደንበኛው አጠቃላይ የብድር ገደብ ይበልጣል (ቁጠባ × {multiplier}) ወይም አለምአቀፍ ገደብ።',
+                maxLoanHint: 'ከፍተኛ ብድር {multiplier}× የደንበኛ ጠቅላላ ቁጠባ ነው፣ በአለምአቀፍ ቅንጅት የተገደበ።',
+                totalLoanLimitReached: 'አጠቃላይ ብድር (ንቁ + በመጠበቅ ላይ) ገደቡን አግኝቷል። ተጨማሪ ማመልከት አይቻልም።',
                 hasActiveOrPendingLoan: 'ይህ ደንበኛ ቀድሞ ንቁ ወይም በመጠበቅ ላይ ያለ ብድር አለው። አዲስ ብድር ከመጠየቅዎ በፊት ያለውን ብድር ያጽዱ።',
                 addGuaranteeFirst: 'ብድር ከመጠየቅዎ በፊት እባክዎ ቢያንስ አንድ ዋስትና ያክሉ።',
                 unauthorized: 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም።',
@@ -1820,8 +1822,9 @@
                 editLoan: 'Liqii Jijjiiri',
                 save: 'Kuusi',
                 cancel: 'Haqi',
-                maxLoanExceeded: 'Qabni liqii 3× kuusaa maamila caala.',
-                maxLoanHint: 'Liqii olaanaa 3× kuusaa maamila',
+                maxLoanExceeded: 'Qabni liqii daangaa liqii maamila (kuusaa × {multiplier}) ykn daangaa addunyaa caala.',
+                maxLoanHint: 'Liqii olaanaa {multiplier}× kuusaa maamila, daangaa addunyaan daangeffame.',
+                totalLoanLimitReached: 'Liqii waliigalaa (hojii irra + eegamaa) daangaa ga\'eera. Dabaluu hin dandeenye.',
                 hasActiveOrPendingLoan: 'Maamilichi kun duraan liqii hojii irra jira ykn eegamaa qaba. Liqii haaraa itti fayyadamuu dura kan duraa haqi.',
                 addGuaranteeFirst: 'Maaloo liqii itti fayyadamuu dura mirkaneessa tokko ykn isaa ol idaahi.',
                 unauthorized: 'Gochaa kana raawwachuuf hayyamamtee hin jirtu.',
@@ -2015,17 +2018,26 @@
             }
         }
 
-        // ---- Get customer's total savings ----
+        // ============================================================
+        // FIXED: Get customer's total savings (checks both customerId AND memberId)
+        // ============================================================
         async function getCustomerSavings(customerId) {
             try {
-                const snapshot = await db.collection('transactions')
-                    .where('customerId', '==', customerId)
-                    .where('type', '==', 'savings')
-                    .get();
+                const [snap1, snap2] = await Promise.all([
+                    db.collection('transactions')
+                        .where('customerId', '==', customerId)
+                        .where('type', '==', 'savings')
+                        .get(),
+                    db.collection('transactions')
+                        .where('memberId', '==', customerId)
+                        .where('type', '==', 'savings')
+                        .get()
+                ]);
+
                 let total = 0;
-                snapshot.forEach(doc => {
-                    total += Number(doc.data().amount) || 0;
-                });
+                snap1.forEach(doc => total += Number(doc.data().amount) || 0);
+                snap2.forEach(doc => total += Number(doc.data().amount) || 0);
+
                 return Math.round(total * 100) / 100;
             } catch (error) {
                 console.error('Error getting customer savings:', error);
@@ -2033,15 +2045,51 @@
             }
         }
 
+        // ============================================================
+        // FIXED: Get total exposure (active + pending loans) – checks both customerId and memberId
+        // ============================================================
+        async function getCustomerTotalLoanExposure(customerId) {
+            try {
+                const [snap1, snap2] = await Promise.all([
+                    db.collection('transactions')
+                        .where('customerId', '==', customerId)
+                        .where('type', '==', 'loan')
+                        .where('status', 'in', ['active', 'pending'])
+                        .get(),
+                    db.collection('transactions')
+                        .where('memberId', '==', customerId)
+                        .where('type', '==', 'loan')
+                        .where('status', 'in', ['active', 'pending'])
+                        .get()
+                ]);
+
+                let total = 0;
+                snap1.forEach(doc => total += Number(doc.data().amount) || 0);
+                snap2.forEach(doc => total += Number(doc.data().amount) || 0);
+
+                return Math.round(total * 100) / 100;
+            } catch (error) {
+                console.error('Error getting total loan exposure:', error);
+                return 0;
+            }
+        }
+
         // ---- Check if customer has an ACTIVE or PENDING loan ----
         async function customerHasActiveOrPendingLoan(customerId) {
             try {
-                const snapshot = await db.collection('transactions')
-                    .where('customerId', '==', customerId)
-                    .where('type', '==', 'loan')
-                    .where('status', 'in', ['active', 'pending'])
-                    .get();
-                return !snapshot.empty;
+                const [snap1, snap2] = await Promise.all([
+                    db.collection('transactions')
+                        .where('customerId', '==', customerId)
+                        .where('type', '==', 'loan')
+                        .where('status', 'in', ['active', 'pending'])
+                        .get(),
+                    db.collection('transactions')
+                        .where('memberId', '==', customerId)
+                        .where('type', '==', 'loan')
+                        .where('status', 'in', ['active', 'pending'])
+                        .get()
+                ]);
+                return !snap1.empty || !snap2.empty;
             } catch (error) {
                 console.error('Error checking active/pending loans:', error);
                 return false;
@@ -2071,6 +2119,7 @@
 
         // ---- Setup customer search for main form ----
         let mainSearchSetup = false;
+
         function setupCustomerSearch() {
             if (mainSearchSetup) return;
             mainSearchSetup = true;
@@ -2108,21 +2157,36 @@
             });
         }
 
+        // ---- NEW: selectCustomer with correct savings & exposure ----
         async function selectCustomer(id, displayName) {
             document.getElementById('customerSearch').value = displayName;
             document.getElementById('customerId').value = id;
             document.getElementById('customerSuggestions').style.display = 'none';
 
+            // 1. Get customer savings (now works with both customerId and memberId)
             const savings = await getCustomerSavings(id);
-            const maxLoan = Math.round(savings * 3 * 100) / 100;
-            const maxAllowed = Math.min(maxLoan, maxLoanAmountSetting || Infinity);
-            document.getElementById('amountInput').max = maxAllowed;
-            document.getElementById('amountInput').placeholder = `Max: ${maxAllowed.toFixed(2)}`;
-            document.getElementById('amountInput').focus();
+            // 2. Get existing loans (active + pending)
+            const existingExposure = await getCustomerTotalLoanExposure(id);
+            // 3. Calculate max by savings: savings * multiplier (default 3)
+            const maxBySavings = Math.round(savings * maxLoanMultiplier * 100) / 100;
+            // 4. Global hard cap from settings
+            const globalCap = maxLoanAmountSetting || Infinity;
+            // 5. The absolute max they can have is the lower of the two
+            const absoluteMax = Math.min(maxBySavings, globalCap);
+            // 6. The available amount is the absolute max minus what they already owe
+            const available = Math.max(0, Math.round((absoluteMax - existingExposure) * 100) / 100);
+
+            // Set the max attribute for the input field
+            document.getElementById('amountInput').max = available;
+            document.getElementById('amountInput').placeholder = `Max: ${available.toFixed(2)}`;
+
+            // Show info toast
+            showToast(`💰 Savings: ${savings.toFixed(2)} | Existing loans: ${existingExposure.toFixed(2)} | Available: ${available.toFixed(2)}`, 'warning');
         }
 
         // ---- Setup edit customer search ----
         let editSearchSetup = false;
+
         function setupEditCustomerSearch() {
             if (editSearchSetup) return;
             editSearchSetup = true;
@@ -2298,6 +2362,7 @@
         // ============================================================
         let defaultInterestRate = 10;
         let maxLoanAmountSetting = 50000;
+        let maxLoanMultiplier = 3;
         let penaltyRate = 5;
         let gracePeriod = 7;
 
@@ -2308,6 +2373,7 @@
                     const data = doc.data();
                     defaultInterestRate = data.defaultInterestRate || 10;
                     maxLoanAmountSetting = data.maxLoanAmount || 50000;
+                    maxLoanMultiplier = data.maxLoanMultiplier || 3;
                     penaltyRate = data.penaltyRate || 5;
                     gracePeriod = data.gracePeriod || 7;
                 }
@@ -2318,7 +2384,6 @@
                     const hint = document.getElementById('interestRateHint');
                     if (hint) hint.textContent = `Default: ${defaultInterestRate}%`;
                 }
-                // Max loan hint can be shown when customer selected
             } catch (error) {
                 console.error('Error loading settings:', error);
             }
@@ -2410,26 +2475,20 @@
             }
         }
 
-        // ---- Get due date info ----
+        // ============================================================
+        // FIXED: Get due date info (based on loan start + payment count)
+        // ============================================================
         function getDueDateInfo(loan, repayments) {
             const loanDate = loan.date && loan.date.toDate ? loan.date.toDate() : new Date(loan.date);
             const period = Number(loan.repaymentPeriod) || 0;
             if (!loanDate || period === 0) return { nextDue: null, daysOverdue: 0 };
 
-            const sortedRepayments = [...repayments].sort((a, b) => {
-                const da = a.date && a.date.toDate ? a.date.toDate() : new Date(a.date);
-                const db = b.date && b.date.toDate ? b.date.toDate() : new Date(b.date);
-                return da - db;
-            });
+            // Count how many payments have been made
+            const paymentCount = repayments.length;
 
-            let lastRepaymentDate = loanDate;
-            if (sortedRepayments.length > 0) {
-                const last = sortedRepayments[sortedRepayments.length - 1];
-                lastRepaymentDate = last.date && last.date.toDate ? last.date.toDate() : new Date(last.date);
-            }
-
-            const nextDue = new Date(lastRepaymentDate);
-            nextDue.setMonth(nextDue.getMonth() + 1);
+            // Next due is (paymentCount + 1) months from loan start
+            const nextDue = new Date(loanDate);
+            nextDue.setMonth(nextDue.getMonth() + paymentCount + 1);
 
             const now = new Date();
             let daysOverdue = 0;
@@ -2439,17 +2498,20 @@
             return { nextDue, daysOverdue };
         }
 
-        // ---- Calculate penalty ----
+        // ============================================================
+        // FIXED: Calculate penalty (on overdue monthly payments)
+        // ============================================================
         function calculatePenalty(loan, repayments, monthlyPayment) {
             const { daysOverdue } = getDueDateInfo(loan, repayments);
             if (daysOverdue <= 0) return 0;
 
-            const amount = Number(loan.amount) || 0;
-            const totalRepaid = repayments.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
-            const remaining = Math.max(0, amount - totalRepaid);
-            const monthsOverdue = daysOverdue / 30;
-            const penaltyRateSetting = penaltyRate / 100; // from settings
-            return remaining * penaltyRateSetting * monthsOverdue;
+            // Count how many payments are overdue
+            const overdueMonths = Math.floor(daysOverdue / 30);
+            if (overdueMonths <= 0) return 0;
+
+            // Penalty: monthlyPayment * penaltyRate% * overdueMonths
+            const penaltyRateSetting = penaltyRate / 100;
+            return Math.round((monthlyPayment * penaltyRateSetting * overdueMonths) * 100) / 100;
         }
 
         // ---- Apply search + year filter ----
@@ -2661,7 +2723,9 @@
                     let penaltyHtml = '';
                     if (daysOverdue > 0 && loan.status !== 'paid' && loan.status !== 'rejected') {
                         const penalty = calculatePenalty(loan, repayments, monthlyPayment);
-                        penaltyHtml = ` <span class="penalty-badge">+${penalty.toFixed(2)} penalty</span>`;
+                        if (penalty > 0) {
+                            penaltyHtml = ` <span class="penalty-badge">+${penalty.toFixed(2)} penalty</span>`;
+                        }
                         cellNextDue.innerHTML =
                             `${dueStr} <span class="overdue-warning">${daysOverdue}d overdue</span> ${penaltyHtml}`;
                     } else {
@@ -2915,13 +2979,18 @@
                 return;
             }
 
-            // ---- 3× SAVINGS RULE ----
+            // ---- 3× SAVINGS RULE (with total exposure) ----
             const savings = await getCustomerSavings(customerId);
-            const maxLoan = Math.round(savings * 3 * 100) / 100;
-            const maxAllowed = Math.min(maxLoan, maxLoanAmountSetting);
+            const existingExposure = await getCustomerTotalLoanExposure(customerId);
+            const maxBySavings = Math.round(savings * maxLoanMultiplier * 100) / 100;
+            const absoluteMax = Math.min(maxBySavings, maxLoanAmountSetting);
+            const maxAllowed = Math.max(0, Math.round((absoluteMax - existingExposure) * 100) / 100);
+
             if (amount > maxAllowed && maxAllowed > 0) {
                 const t = translations[currentLang];
-                showToast(t.maxLoanExceeded + ' (Max: ' + maxAllowed.toFixed(2) + ' ETB)', 'warning');
+                const msg = t.maxLoanExceeded.replace('{multiplier}', maxLoanMultiplier) +
+                    ` (Available: ${maxAllowed.toFixed(2)} ETB)`;
+                showToast(msg, 'warning');
                 return;
             }
 
@@ -3015,6 +3084,7 @@
                 return;
             }
 
+            // ---- Check if customer has active or pending loan ----
             const hasActiveOrPending = await customerHasActiveOrPendingLoan(customerId);
             if (hasActiveOrPending) {
                 const t = translations[currentLang];
@@ -3022,13 +3092,18 @@
                 return;
             }
 
-            // ---- 3× SAVINGS RULE ----
+            // ---- 3× SAVINGS RULE (total exposure) ----
             const savings = await getCustomerSavings(customerId);
-            const maxLoan = Math.round(savings * 3 * 100) / 100;
-            const maxAllowed = Math.min(maxLoan, maxLoanAmountSetting);
+            const existingExposure = await getCustomerTotalLoanExposure(customerId);
+            const maxBySavings = Math.round(savings * maxLoanMultiplier * 100) / 100;
+            const absoluteMax = Math.min(maxBySavings, maxLoanAmountSetting);
+            const maxAllowed = Math.max(0, Math.round((absoluteMax - existingExposure) * 100) / 100);
+
             if (amount > maxAllowed && maxAllowed > 0) {
                 const t = translations[currentLang];
-                showToast(t.maxLoanExceeded + ' (Max: ' + maxAllowed.toFixed(2) + ' ETB)', 'warning');
+                const msg = t.maxLoanExceeded.replace('{multiplier}', maxLoanMultiplier) +
+                    ` (Available: ${maxAllowed.toFixed(2)} ETB)`;
+                showToast(msg, 'warning');
                 return;
             }
 
@@ -3313,34 +3388,34 @@
                 let seconds = 30;
                 warningToast = document.createElement('div');
                 warningToast.style.cssText = `
-                    position: fixed;
-                    bottom: 30px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    background: #f39c12;
-                    color: #fff;
-                    padding: 16px 24px;
-                    border-radius: 12px;
-                    font-size: 15px;
-                    font-weight: 500;
-                    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-                    z-index: 99999;
-                    max-width: 500px;
-                    text-align: center;
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    animation: slideUp 0.3s ease;
-                `;
+                        position: fixed;
+                        bottom: 30px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        background: #f39c12;
+                        color: #fff;
+                        padding: 16px 24px;
+                        border-radius: 12px;
+                        font-size: 15px;
+                        font-weight: 500;
+                        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+                        z-index: 99999;
+                        max-width: 500px;
+                        text-align: center;
+                        display: flex;
+                        align-items: center;
+                        gap: 12px;
+                        animation: slideUp 0.3s ease;
+                    `;
                 warningToast.innerHTML = `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
 
                 const style = document.createElement('style');
                 style.textContent = `
-                    @keyframes slideUp {
-                        from { transform: translateX(-50%) translateY(20px); opacity: 0; }
-                        to { transform: translateX(-50%) translateY(0); opacity: 1; }
-                    }
-                `;
+                        @keyframes slideUp {
+                            from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+                            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+                        }
+                    `;
                 document.head.appendChild(style);
                 document.body.appendChild(warningToast);
 
