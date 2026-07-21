@@ -529,25 +529,46 @@
             font-weight: 600;
             color: var(--text-primary);
         }
-        .profile-id-group .id-item .id-badge {
+
+        /* ============================================================
+           BEAUTIFUL COLORED BADGES for Customer ID & Account Number
+           ============================================================ */
+        .id-item .firebase-badge {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff !important;
+            padding: 4px 14px;
+            border-radius: 20px;
+            border: none;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            letter-spacing: 0.5px;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+        .id-item .firebase-badge:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+
+        .id-item .id-badge {
             font-family: 'Courier New', monospace;
             font-size: 14px;
-            background: var(--gold-light);
-            padding: 2px 12px;
-            border-radius: 20px;
-            color: #1a2e1f;
-            border: 1px solid var(--gold);
             font-weight: 700;
+            background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+            color: #1a2e1f !important;
+            padding: 4px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 215, 0, 0.4);
+            box-shadow: 0 4px 12px rgba(247, 151, 30, 0.3);
             letter-spacing: 0.5px;
+            display: inline-block;
+            transition: all 0.3s ease;
         }
-        .profile-id-group .id-item .firebase-badge {
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            background: var(--border-color);
-            padding: 2px 8px;
-            border-radius: 4px;
-            color: var(--text-secondary);
-            font-weight: 500;
+        .id-item .id-badge:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 6px 20px rgba(247, 151, 30, 0.4);
         }
 
         .profile-details-grid {
@@ -1835,9 +1856,6 @@
         let filterYear = 'all';
         let filteredTransactions = [];
 
-        // ---- Running balance cache for all transactions ----
-        let runningBalanceMap = {};
-
         function setLanguage(lang) {
             if (!translations[lang]) return;
             currentLang = lang;
@@ -2348,49 +2366,12 @@
         }
 
         // ============================================================
-        // TRANSACTIONS PAGINATION (filtered) - FIXED: correct running balance
+        // TRANSACTIONS PAGINATION (filtered)
         // ============================================================
         function paginateTransactions() {
             const start = (currentPage - 1) * pageSize;
             const end = start + pageSize;
             const pageItems = filteredTransactions.slice(start, end);
-
-            // ---- FIX: Calculate running balance for ALL transactions (not just filtered) ----
-            const allSorted = [...allTransactions].sort((a, b) => {
-                const da = toDate(a.date || a.timestamp);
-                const db = toDate(b.date || b.timestamp);
-                return da - db;
-            });
-
-            runningBalanceMap = {};
-            let balance = 0;
-            allSorted.forEach(tx => {
-                const amount = Number(tx.amount) || 0;
-                const type = tx.type || '';
-
-                // Determine if this transaction increases or decreases balance
-                const isCredit = (type === 'savings' || type === 'repayment' || type === 'transfer_in');
-                const isDebit = (type === 'loan' || type === 'withdrawal' || type === 'transfer_out');
-
-                // Store the balance BEFORE this transaction
-                runningBalanceMap[tx.id] = {
-                    prevBalance: balance,
-                    totalBalance: balance
-                };
-
-                // Update running balance for the next transaction
-                if (isCredit) {
-                    balance += amount;
-                } else if (isDebit) {
-                    balance -= amount;
-                } else {
-                    // For other types (like profit_income, profit_withdrawal), keep balance same
-                }
-
-                // Update total balance after transaction
-                runningBalanceMap[tx.id].totalBalance = balance;
-            });
-
             renderTransactionsTable(pageItems);
             updatePaginationInfo();
             renderPageButtons();
@@ -2405,24 +2386,57 @@
                 return;
             }
 
-            // Sort items by date ascending for proper balance display
+            // Sort by date ascending for running balance
             const sorted = [...items].sort((a, b) => {
                 const da = toDate(a.date || a.timestamp);
                 const db = toDate(b.date || b.timestamp);
                 return da - db;
             });
 
+            const allSorted = [...allTransactions].sort((a, b) => {
+                const da = toDate(a.date || a.timestamp);
+                const db = toDate(b.date || b.timestamp);
+                return da - db;
+            });
+
+            let runningBalance = 0;
+
+            const filteredIds = new Set(filteredTransactions.map(t => t.id));
+            const beforePageItems = [];
+            let count = 0;
+            for (const tx of allSorted) {
+                if (filteredIds.has(tx.id)) {
+                    if (count < (currentPage - 1) * pageSize) {
+                        beforePageItems.push(tx);
+                        count++;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            beforePageItems.forEach(tx => {
+                const amount = Number(tx.amount) || 0;
+                const type = tx.type || '';
+                if (type === 'savings' || type === 'repayment' || type === 'transfer_in') {
+                    runningBalance += amount;
+                } else if (type === 'loan' || type === 'withdrawal' || type === 'transfer_out') {
+                    runningBalance -= amount;
+                }
+            });
+
             let html = '';
             sorted.forEach(tx => {
                 const amount = Number(tx.amount) || 0;
+                const prevBalance = runningBalance;
                 const type = tx.type || '';
 
-                // Get the running balance from the map
-                const balanceInfo = runningBalanceMap[tx.id] || { prevBalance: 0, totalBalance: 0 };
-                const prevBalance = balanceInfo.prevBalance;
-                const totalBalance = balanceInfo.totalBalance;
+                if (type === 'savings' || type === 'repayment' || type === 'transfer_in') {
+                    runningBalance += amount;
+                } else if (type === 'loan' || type === 'withdrawal' || type === 'transfer_out') {
+                    runningBalance -= amount;
+                }
 
-                // ---- Determine status ----
                 let statusClass = 'pending';
                 let statusLabel = t.pending;
 
@@ -2451,17 +2465,8 @@
                             statusLabel = t.pending_loan || 'Pending';
                             break;
                     }
-                } else if (type === 'profit_withdrawal' && tx.reason === 'Dividend') {
-                    // ---- FIX: Dividends show as "Done" if status is 'distributed' or 'done' or 'completed' ----
-                    if (tx.status === 'distributed' || tx.status === 'done' || tx.status === 'completed') {
-                        statusClass = 'done';
-                        statusLabel = t.done;
-                    } else {
-                        statusClass = 'pending';
-                        statusLabel = t.pending;
-                    }
                 } else {
-                    if (tx.status === 'done' || tx.status === 'completed' || tx.status === 'distributed') {
+                    if (tx.status === 'done' || tx.status === 'completed') {
                         statusClass = 'done';
                         statusLabel = t.done;
                     } else {
@@ -2470,7 +2475,6 @@
                     }
                 }
 
-                // ---- Determine type label ----
                 let typeClass = type;
                 let typeLabel = type ? type.charAt(0).toUpperCase() + type.slice(1) : 'Savings';
                 if (type === 'profit_withdrawal' && tx.reason === 'Dividend') {
@@ -2510,7 +2514,7 @@
                     <td><span class="transaction-type ${typeClass}">${typeLabel}</span></td>
                     <td>${amount.toLocaleString()}</td>
                     <td>${prevBalance.toLocaleString()}</td>
-                    <td>${totalBalance.toLocaleString()}</td>
+                    <td>${runningBalance.toLocaleString()}</td>
                     <td><span class="status-badge-table ${statusClass}">${statusLabel}</span></td>
                     <td>${dateStr}</td>
                     <td>${byUser}</td>
