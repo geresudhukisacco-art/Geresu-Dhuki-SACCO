@@ -530,9 +530,7 @@
             color: var(--text-primary);
         }
 
-        /* ============================================================
-           BEAUTIFUL COLORED BADGES for Customer ID & Account Number
-           ============================================================ */
+        /* --- Customer ID: Purple Gradient --- */
         .id-item .firebase-badge {
             font-family: 'Courier New', monospace;
             font-size: 13px;
@@ -552,23 +550,25 @@
             box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
         }
 
+        /* --- Account Number: Blue Gradient --- */
         .id-item .id-badge {
             font-family: 'Courier New', monospace;
             font-size: 14px;
             font-weight: 700;
-            background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
-            color: #1a2e1f !important;
+            background: linear-gradient(135deg, #2196F3 0%, #0d47a1 100%);
+            color: #ffffff !important;
             padding: 4px 16px;
             border-radius: 20px;
-            border: 1px solid rgba(255, 215, 0, 0.4);
-            box-shadow: 0 4px 12px rgba(247, 151, 30, 0.3);
+            border: none;
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
             letter-spacing: 0.5px;
             display: inline-block;
             transition: all 0.3s ease;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
         .id-item .id-badge:hover {
             transform: translateY(-2px) scale(1.02);
-            box-shadow: 0 6px 20px rgba(247, 151, 30, 0.4);
+            box-shadow: 0 6px 20px rgba(33, 150, 243, 0.5);
         }
 
         .profile-details-grid {
@@ -1855,6 +1855,7 @@
         let searchQuery = '';
         let filterYear = 'all';
         let filteredTransactions = [];
+        let runningBalanceMap = {};
 
         function setLanguage(lang) {
             if (!translations[lang]) return;
@@ -2011,7 +2012,6 @@
                 const allDocs = [];
                 snap1.forEach(doc => allDocs.push({ id: doc.id, ...doc.data() }));
                 snap2.forEach(doc => {
-                    // Avoid duplicates (same doc could be in both queries)
                     if (!allDocs.some(d => d.id === doc.id)) {
                         allDocs.push({ id: doc.id, ...doc.data() });
                     }
@@ -2040,10 +2040,7 @@
                 loadingState.style.display = 'none';
                 profileData.style.display = 'block';
 
-                // Populate year filter after transactions are loaded
                 populateYearFilter();
-
-                // Apply filters and paginate
                 applyFilters();
 
             } catch (error) {
@@ -2133,7 +2130,6 @@
             filterYear = document.getElementById('yearFilter').value;
 
             filteredTransactions = allTransactions.filter(tx => {
-                // Search filter: check type, reason, details
                 let typeLabel = tx.type || '';
                 if (typeLabel === 'profit_withdrawal' && tx.reason === 'Dividend') typeLabel = 'Dividend';
                 else if (typeLabel === 'profit_income') typeLabel = 'Income';
@@ -2159,14 +2155,11 @@
                 const searchText = (typeLabel + ' ' + (tx.reason || '') + ' ' + (tx.note || '') + ' ' + (tx.details || '') +
                     ' ' + (tx.customerName || '')).toLowerCase();
                 const searchMatch = !searchQuery || searchText.includes(searchQuery);
-
-                // Year filter
                 const yearMatch = filterYear === 'all' || isInYear(tx.date || tx.timestamp, Number(filterYear));
 
                 return searchMatch && yearMatch;
             });
 
-            // Sort by date descending (newest first)
             filteredTransactions.sort((a, b) => {
                 const da = toDate(a.date || a.timestamp);
                 const db = toDate(b.date || b.timestamp);
@@ -2185,15 +2178,12 @@
 
             document.getElementById('profileName').textContent = customer.fullName || 'Unknown Customer';
 
-            // ---- Customer ID (CI + random 6-digit from Firestore) ----
             const customerIdVal = customer.customerId || customer.id || '—';
             document.getElementById('profileCustomerId').textContent = customerIdVal;
 
-            // ---- Account Number (13-digit) ----
             const accountNumber = customer.accountNumber || '—';
             document.getElementById('profileAccountNumber').textContent = accountNumber;
 
-            // ---- PHOTO ----
             const avatarImg = document.getElementById('profileAvatarImg');
             const avatarFallback = document.getElementById('profileAvatarFallback');
 
@@ -2212,7 +2202,6 @@
                 avatarFallback.textContent = (customer.fullName || 'U').charAt(0).toUpperCase();
             }
 
-            // ---- DETAILS ----
             document.getElementById('profileNid').textContent = customer.nid || '—';
             document.getElementById('profilePhone').textContent = customer.phone || '—';
             document.getElementById('profileGender').textContent = customer.gender || '—';
@@ -2264,7 +2253,6 @@
                 }
             });
 
-            // ---- REMAINING BALANCE CALCULATION ----
             let remainingActive = 0;
             activeLoans.forEach(loan => {
                 const loanId = loan.id;
@@ -2284,7 +2272,6 @@
                 remainingActive += rem;
             });
 
-            // Individual Capital = (Savings + Dividends + Transfers In) - (Withdrawals + Transfers Out)
             const individualCapital = Math.round((totalSavings + totalDividends + totalTransfersIn - totalWithdrawals - totalTransfersOut) *
                 100) / 100;
 
@@ -2366,12 +2353,55 @@
         }
 
         // ============================================================
-        // TRANSACTIONS PAGINATION (filtered)
+        // TRANSACTIONS PAGINATION — FIXED: Loans subtract from balance, Repayments add
         // ============================================================
         function paginateTransactions() {
             const start = (currentPage - 1) * pageSize;
             const end = start + pageSize;
             const pageItems = filteredTransactions.slice(start, end);
+
+            // ---- Build running balance from ALL transactions ----
+            const allSorted = [...allTransactions].sort((a, b) => {
+                const da = toDate(a.date || a.timestamp);
+                const db = toDate(b.date || b.timestamp);
+                return da - db;
+            });
+
+            runningBalanceMap = {};
+            let balance = 0;
+
+            allSorted.forEach(tx => {
+                const amount = Number(tx.amount) || 0;
+                const type = tx.type || '';
+                const reason = tx.reason || '';
+
+                // Credit (increase balance): savings, dividend, transfer_in, repayment
+                const isCredit = (type === 'savings') ||
+                    (type === 'profit_withdrawal' && reason === 'Dividend') ||
+                    (type === 'transfer_in') ||
+                    (type === 'repayment');
+
+                // Debit (decrease balance): withdrawal, leaving_withdrawal, transfer_out, loan
+                const isDebit = (type === 'withdrawal') ||
+                    (type === 'leaving_withdrawal') ||
+                    (type === 'transfer_out') ||
+                    (type === 'loan');
+
+                // Store balance before transaction
+                runningBalanceMap[tx.id] = {
+                    prevBalance: balance,
+                    totalBalance: balance
+                };
+
+                if (isCredit) {
+                    balance += amount;
+                } else if (isDebit) {
+                    balance -= amount;
+                }
+
+                runningBalanceMap[tx.id].totalBalance = balance;
+            });
+
             renderTransactionsTable(pageItems);
             updatePaginationInfo();
             renderPageButtons();
@@ -2386,57 +2416,22 @@
                 return;
             }
 
-            // Sort by date ascending for running balance
             const sorted = [...items].sort((a, b) => {
                 const da = toDate(a.date || a.timestamp);
                 const db = toDate(b.date || b.timestamp);
                 return da - db;
             });
 
-            const allSorted = [...allTransactions].sort((a, b) => {
-                const da = toDate(a.date || a.timestamp);
-                const db = toDate(b.date || b.timestamp);
-                return da - db;
-            });
-
-            let runningBalance = 0;
-
-            const filteredIds = new Set(filteredTransactions.map(t => t.id));
-            const beforePageItems = [];
-            let count = 0;
-            for (const tx of allSorted) {
-                if (filteredIds.has(tx.id)) {
-                    if (count < (currentPage - 1) * pageSize) {
-                        beforePageItems.push(tx);
-                        count++;
-                    } else {
-                        break;
-                    }
-                }
-            }
-
-            beforePageItems.forEach(tx => {
-                const amount = Number(tx.amount) || 0;
-                const type = tx.type || '';
-                if (type === 'savings' || type === 'repayment' || type === 'transfer_in') {
-                    runningBalance += amount;
-                } else if (type === 'loan' || type === 'withdrawal' || type === 'transfer_out') {
-                    runningBalance -= amount;
-                }
-            });
-
             let html = '';
             sorted.forEach(tx => {
                 const amount = Number(tx.amount) || 0;
-                const prevBalance = runningBalance;
                 const type = tx.type || '';
 
-                if (type === 'savings' || type === 'repayment' || type === 'transfer_in') {
-                    runningBalance += amount;
-                } else if (type === 'loan' || type === 'withdrawal' || type === 'transfer_out') {
-                    runningBalance -= amount;
-                }
+                const balanceInfo = runningBalanceMap[tx.id] || { prevBalance: 0, totalBalance: 0 };
+                const prevBalance = balanceInfo.prevBalance;
+                const totalBalance = balanceInfo.totalBalance;
 
+                // ---- Determine status (FIXED: dividends show as "Done") ----
                 let statusClass = 'pending';
                 let statusLabel = t.pending;
 
@@ -2465,8 +2460,16 @@
                             statusLabel = t.pending_loan || 'Pending';
                             break;
                     }
+                } else if (type === 'profit_withdrawal' && tx.reason === 'Dividend') {
+                    if (tx.status === 'distributed' || tx.status === 'done' || tx.status === 'completed') {
+                        statusClass = 'done';
+                        statusLabel = t.done;
+                    } else {
+                        statusClass = 'pending';
+                        statusLabel = t.pending;
+                    }
                 } else {
-                    if (tx.status === 'done' || tx.status === 'completed') {
+                    if (tx.status === 'done' || tx.status === 'completed' || tx.status === 'distributed') {
                         statusClass = 'done';
                         statusLabel = t.done;
                     } else {
@@ -2475,6 +2478,7 @@
                     }
                 }
 
+                // ---- Type label ----
                 let typeClass = type;
                 let typeLabel = type ? type.charAt(0).toUpperCase() + type.slice(1) : 'Savings';
                 if (type === 'profit_withdrawal' && tx.reason === 'Dividend') {
@@ -2514,7 +2518,7 @@
                     <td><span class="transaction-type ${typeClass}">${typeLabel}</span></td>
                     <td>${amount.toLocaleString()}</td>
                     <td>${prevBalance.toLocaleString()}</td>
-                    <td>${runningBalance.toLocaleString()}</td>
+                    <td>${totalBalance.toLocaleString()}</td>
                     <td><span class="status-badge-table ${statusClass}">${statusLabel}</span></td>
                     <td>${dateStr}</td>
                     <td>${byUser}</td>
