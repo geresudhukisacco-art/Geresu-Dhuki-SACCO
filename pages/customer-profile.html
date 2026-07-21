@@ -1835,6 +1835,9 @@
         let filterYear = 'all';
         let filteredTransactions = [];
 
+        // ---- Running balance cache for all transactions ----
+        let runningBalanceMap = {};
+
         function setLanguage(lang) {
             if (!translations[lang]) return;
             currentLang = lang;
@@ -1981,7 +1984,7 @@
 
                 const customer = { id: customerDoc.id, ...customerDoc.data() };
 
-                // ---- FIX: Fetch transactions using BOTH customerId AND memberId ----
+                // ---- Fetch transactions using BOTH customerId AND memberId ----
                 const [snap1, snap2] = await Promise.all([
                     db.collection('transactions').where('customerId', '==', customerId).get(),
                     db.collection('transactions').where('memberId', '==', customerId).get()
@@ -1998,7 +2001,7 @@
 
                 allTransactions = allDocs;
 
-                // Sort by date descending (newest first)
+                // Sort by date descending (newest first) for display
                 allTransactions.sort((a, b) => {
                     const da = toDate(a.date || a.timestamp);
                     const db = toDate(b.date || b.timestamp);
@@ -2345,12 +2348,49 @@
         }
 
         // ============================================================
-        // TRANSACTIONS PAGINATION (filtered)
+        // TRANSACTIONS PAGINATION (filtered) - FIXED: correct running balance
         // ============================================================
         function paginateTransactions() {
             const start = (currentPage - 1) * pageSize;
             const end = start + pageSize;
             const pageItems = filteredTransactions.slice(start, end);
+
+            // ---- FIX: Calculate running balance for ALL transactions (not just filtered) ----
+            const allSorted = [...allTransactions].sort((a, b) => {
+                const da = toDate(a.date || a.timestamp);
+                const db = toDate(b.date || b.timestamp);
+                return da - db;
+            });
+
+            runningBalanceMap = {};
+            let balance = 0;
+            allSorted.forEach(tx => {
+                const amount = Number(tx.amount) || 0;
+                const type = tx.type || '';
+
+                // Determine if this transaction increases or decreases balance
+                const isCredit = (type === 'savings' || type === 'repayment' || type === 'transfer_in');
+                const isDebit = (type === 'loan' || type === 'withdrawal' || type === 'transfer_out');
+
+                // Store the balance BEFORE this transaction
+                runningBalanceMap[tx.id] = {
+                    prevBalance: balance,
+                    totalBalance: balance
+                };
+
+                // Update running balance for the next transaction
+                if (isCredit) {
+                    balance += amount;
+                } else if (isDebit) {
+                    balance -= amount;
+                } else {
+                    // For other types (like profit_income, profit_withdrawal), keep balance same
+                }
+
+                // Update total balance after transaction
+                runningBalanceMap[tx.id].totalBalance = balance;
+            });
+
             renderTransactionsTable(pageItems);
             updatePaginationInfo();
             renderPageButtons();
@@ -2365,57 +2405,24 @@
                 return;
             }
 
-            // Sort by date ascending for running balance
+            // Sort items by date ascending for proper balance display
             const sorted = [...items].sort((a, b) => {
                 const da = toDate(a.date || a.timestamp);
                 const db = toDate(b.date || b.timestamp);
                 return da - db;
             });
 
-            const allSorted = [...allTransactions].sort((a, b) => {
-                const da = toDate(a.date || a.timestamp);
-                const db = toDate(b.date || b.timestamp);
-                return da - db;
-            });
-
-            let runningBalance = 0;
-
-            const filteredIds = new Set(filteredTransactions.map(t => t.id));
-            const beforePageItems = [];
-            let count = 0;
-            for (const tx of allSorted) {
-                if (filteredIds.has(tx.id)) {
-                    if (count < (currentPage - 1) * pageSize) {
-                        beforePageItems.push(tx);
-                        count++;
-                    } else {
-                        break;
-                    }
-                }
-            }
-
-            beforePageItems.forEach(tx => {
-                const amount = Number(tx.amount) || 0;
-                const type = tx.type || '';
-                if (type === 'savings' || type === 'repayment' || type === 'transfer_in') {
-                    runningBalance += amount;
-                } else if (type === 'loan' || type === 'withdrawal' || type === 'transfer_out') {
-                    runningBalance -= amount;
-                }
-            });
-
             let html = '';
             sorted.forEach(tx => {
                 const amount = Number(tx.amount) || 0;
-                const prevBalance = runningBalance;
                 const type = tx.type || '';
 
-                if (type === 'savings' || type === 'repayment' || type === 'transfer_in') {
-                    runningBalance += amount;
-                } else if (type === 'loan' || type === 'withdrawal' || type === 'transfer_out') {
-                    runningBalance -= amount;
-                }
+                // Get the running balance from the map
+                const balanceInfo = runningBalanceMap[tx.id] || { prevBalance: 0, totalBalance: 0 };
+                const prevBalance = balanceInfo.prevBalance;
+                const totalBalance = balanceInfo.totalBalance;
 
+                // ---- Determine status ----
                 let statusClass = 'pending';
                 let statusLabel = t.pending;
 
@@ -2444,8 +2451,17 @@
                             statusLabel = t.pending_loan || 'Pending';
                             break;
                     }
+                } else if (type === 'profit_withdrawal' && tx.reason === 'Dividend') {
+                    // ---- FIX: Dividends show as "Done" if status is 'distributed' or 'done' or 'completed' ----
+                    if (tx.status === 'distributed' || tx.status === 'done' || tx.status === 'completed') {
+                        statusClass = 'done';
+                        statusLabel = t.done;
+                    } else {
+                        statusClass = 'pending';
+                        statusLabel = t.pending;
+                    }
                 } else {
-                    if (tx.status === 'done' || tx.status === 'completed') {
+                    if (tx.status === 'done' || tx.status === 'completed' || tx.status === 'distributed') {
                         statusClass = 'done';
                         statusLabel = t.done;
                     } else {
@@ -2454,6 +2470,7 @@
                     }
                 }
 
+                // ---- Determine type label ----
                 let typeClass = type;
                 let typeLabel = type ? type.charAt(0).toUpperCase() + type.slice(1) : 'Savings';
                 if (type === 'profit_withdrawal' && tx.reason === 'Dividend') {
@@ -2493,7 +2510,7 @@
                     <td><span class="transaction-type ${typeClass}">${typeLabel}</span></td>
                     <td>${amount.toLocaleString()}</td>
                     <td>${prevBalance.toLocaleString()}</td>
-                    <td>${runningBalance.toLocaleString()}</td>
+                    <td>${totalBalance.toLocaleString()}</td>
                     <td><span class="status-badge-table ${statusClass}">${statusLabel}</span></td>
                     <td>${dateStr}</td>
                     <td>${byUser}</td>
