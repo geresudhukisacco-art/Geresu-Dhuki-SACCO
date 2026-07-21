@@ -1379,7 +1379,7 @@
                 <div class="capital-balance-card" id="individualCard">
                     <div>
                         <div class="balance-label" data-i18n="individualCapital">Individual Capital</div>
-                        <div class="balance-details" id="capitalBreakdown">Savings: 0 ETB + Dividends: 0 ETB + Transfers In: 0 ETB - Withdrawals: 0 ETB - Transfers Out: 0 ETB</div>
+                        <div class="balance-details" id="capitalBreakdown">Savings: 0.00 ETB + Dividends: 0.00 ETB + Transfers In: 0.00 ETB - Withdrawals: 0.00 ETB - Transfers Out: 0.00 ETB</div>
                     </div>
                     <div>
                         <div class="balance-amount">
@@ -1393,8 +1393,8 @@
                 <!-- SACCO Profit Card (hidden by default, shown for Service tab) -->
                 <div class="sacco-profit-card" id="saccoProfitCard" style="display:none;">
                     <div>
-                        <div class="balance-label" data-i18n="saccoProfit">SACCO Total Profit</div>
-                        <div class="balance-details" id="saccoProfitDetails">Available for services</div>
+                        <div class="balance-label" data-i18n="saccoProfit">SACCO Total Profit (All Years)</div>
+                        <div class="balance-details" id="saccoProfitDetails">Income - Service Withdrawals</div>
                     </div>
                     <div>
                         <div class="balance-amount">
@@ -1696,7 +1696,7 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // MULTI-LANGUAGE (Oromo: Savings → 'Kusaa', Deposits → 'Kaasaa')
+        // MULTI-LANGUAGE
         // ============================================================
         const translations = {
             en: {
@@ -1774,7 +1774,7 @@
                 deleteSuccess: 'Transaction deleted.',
                 loadError: 'Error loading data: ',
                 amountInWords: 'Amount in words',
-                saccoProfit: 'SACCO Total Profit',
+                saccoProfit: 'SACCO Total Profit (All Years)',
                 description: 'Description',
                 serviceWithdrawn: 'Service withdrawal recorded!',
                 insufficientProfit: 'Insufficient SACCO profit for this service.',
@@ -1861,7 +1861,7 @@
                 deleteSuccess: 'ግብይት ተሰርዟል።',
                 loadError: 'ውሂብ በማስገባት ላይ ስህተት: ',
                 amountInWords: 'በቃላት መጠን',
-                saccoProfit: 'የሳኮ ጠቅላላ ትርፍ',
+                saccoProfit: 'የሳኮ ጠቅላላ ትርፍ (ሁሉም ዓመታት)',
                 description: 'መግለጫ',
                 serviceWithdrawn: 'የአገልግሎት መውጫ ተመዝግቧል!',
                 insufficientProfit: 'ለዚህ አገልግሎት በቂ ትርፍ የለም።',
@@ -1948,7 +1948,7 @@
                 deleteSuccess: 'Dura dabarsi haqame.',
                 loadError: 'Datuu galmeessuuf dogoggora: ',
                 amountInWords: 'Qaba jechootaan',
-                saccoProfit: 'Bu’aa Waliigalaa SACCO',
+                saccoProfit: 'Bu’aa Waliigalaa SACCO (Waggaa Hunda)',
                 description: 'Ibsa',
                 serviceWithdrawn: 'Baasiin tajaajilaa galmeefame!',
                 insufficientProfit: 'Bu’aan SACCO tajaajila kanaaf hin ga’u.',
@@ -2212,14 +2212,26 @@
         }
 
         // ============================================================
-        // INDIVIDUAL CAPITAL FUNCTIONS
-        // Capital = (Savings + Dividends + Transfer_In) - (Withdrawals + Transfer_Out)
+        // INDIVIDUAL CAPITAL FUNCTIONS - queries both customerId and memberId
         // ============================================================
         async function getIndividualCapital(customerId) {
             try {
-                const snapshot = await db.collection('transactions')
-                    .where('customerId', '==', customerId)
-                    .get();
+                const [snap1, snap2] = await Promise.all([
+                    db.collection('transactions')
+                        .where('customerId', '==', customerId)
+                        .get(),
+                    db.collection('transactions')
+                        .where('memberId', '==', customerId)
+                        .get()
+                ]);
+
+                const docs = [];
+                snap1.forEach(doc => docs.push({ id: doc.id, ...doc.data() }));
+                snap2.forEach(doc => {
+                    if (!docs.some(d => d.id === doc.id)) {
+                        docs.push({ id: doc.id, ...doc.data() });
+                    }
+                });
 
                 let totalSavings = 0,
                     totalDividends = 0,
@@ -2227,12 +2239,10 @@
                     totalWithdrawals = 0,
                     totalTransfersOut = 0;
 
-                snapshot.forEach(doc => {
-                    const data = doc.data();
+                docs.forEach(data => {
                     const amt = Number(data.amount) || 0;
                     const type = data.type || data.transactionType || '';
 
-                    // POSITIVE (add to capital)
                     if (type === 'savings' || type === 'savings_deposit') {
                         totalSavings += amt;
                     } else if (type === 'profit_withdrawal' || type === 'dividend' || data.reason === 'Dividend') {
@@ -2240,8 +2250,6 @@
                     } else if (type === 'transfer_in') {
                         totalTransfersIn += amt;
                     }
-
-                    // NEGATIVE (deduct from capital)
                     if (type === 'withdrawal' || type === 'individual_withdrawal') {
                         totalWithdrawals += amt;
                     } else if (type === 'transfer_out') {
@@ -2251,7 +2259,6 @@
                     }
                 });
 
-                // Capital = (Savings + Dividends + Transfer_In) - (Withdrawals + Transfer_Out)
                 const capital = Math.round((totalSavings + totalDividends + totalTransfersIn - totalWithdrawals - totalTransfersOut) *
                     100) / 100;
 
@@ -2331,29 +2338,53 @@
         }
 
         // ============================================================
-        // SACCO PROFIT FUNCTIONS
+        // SACCO PROFIT FUNCTIONS - FIXED: calculates from ALL transactions
         // ============================================================
         async function getSaccoProfit() {
             try {
-                const doc = await db.collection('sacco').doc('profit').get();
-                if (doc.exists) {
-                    const data = doc.data();
-                    return {
-                        totalProfit: data.totalProfit || 0,
-                        totalServices: data.totalServices || 0,
-                        serviceHistory: data.serviceHistory || []
-                    };
-                } else {
+                // Fetch all profit_income (from deposits)
+                const incomeSnap = await db.collection('transactions')
+                    .where('type', '==', 'profit_income')
+                    .get();
+
+                // Fetch all service_withdrawal (from this page)
+                const serviceSnap = await db.collection('transactions')
+                    .where('type', '==', 'service_withdrawal')
+                    .get();
+
+                let totalIncome = 0;
+                incomeSnap.forEach(doc => {
+                    totalIncome += Number(doc.data().amount) || 0;
+                });
+
+                let totalServices = 0;
+                let totalServiceWithdrawals = 0;
+                serviceSnap.forEach(doc => {
+                    totalServiceWithdrawals += Number(doc.data().amount) || 0;
+                    totalServices++;
+                });
+
+                const totalProfit = Math.round((totalIncome - totalServiceWithdrawals) * 100) / 100;
+
+                // Update the sacco/profit document with the calculated total
+                try {
                     await db.collection('sacco').doc('profit').set({
-                        totalProfit: 0,
-                        totalServices: 0,
+                        totalProfit: totalProfit,
+                        totalServices: totalServices,
                         serviceHistory: [],
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    return { totalProfit: 0, totalServices: 0, serviceHistory: [] };
+                    }, { merge: true });
+                } catch (e) {
+                    console.warn('Could not update sacco/profit document:', e);
                 }
+
+                return {
+                    totalProfit: totalProfit,
+                    totalServices: totalServices,
+                    serviceHistory: []
+                };
             } catch (e) {
-                console.error('Error getting SACCO profit:', e);
+                console.error('Error calculating SACCO profit:', e);
                 return { totalProfit: 0, totalServices: 0, serviceHistory: [] };
             }
         }
@@ -2377,10 +2408,18 @@
 
         async function deductSaccoProfit(amount, serviceType, description) {
             try {
+                // First, recalculate the current total profit from all transactions
+                const profitData = await getSaccoProfit();
+                const currentProfit = profitData.totalProfit;
+
+                if (amount > currentProfit) {
+                    throw new Error('Insufficient SACCO profit');
+                }
+
                 const docRef = db.collection('sacco').doc('profit');
                 const doc = await docRef.get();
                 const currentData = doc.exists ? doc.data() : { totalProfit: 0, totalServices: 0, serviceHistory: [] };
-                const newProfit = Math.round((currentData.totalProfit - amount) * 100) / 100;
+                const newProfit = Math.round((currentProfit - amount) * 100) / 100;
                 const newServices = (currentData.totalServices || 0) + 1;
 
                 await docRef.update({
@@ -2426,7 +2465,6 @@
                         const fromCustomer = customersList.find(c => c.id === data.fromCustomerId);
                         details = `From: ${fromCustomer ? fromCustomer.fullName : (data.fromCustomerName || 'Unknown')}`;
                     } else if (displayType === 'savings' || displayType === 'profit_withdrawal') {
-                        // Skip these in the main list - they're shown elsewhere
                         return;
                     }
                     allTransactions.push({
@@ -2590,10 +2628,6 @@
             document.querySelector('.table-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
-        // ============================================================
-        // TRANSACTION CRUD
-        // ============================================================
-
         function viewTransaction(id) {
             const tr = allTransactions.find(t => t.id === id);
             if (!tr) return;
@@ -2607,7 +2641,6 @@
             );
         }
 
-        // ===== DELETE =====
         async function deleteTransaction(id) {
             if (!canDeleteTransaction()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
             if (!confirm(translations[currentLang].deleteConfirmation)) return;
@@ -2627,7 +2660,6 @@
             } catch (e) { showToast('Error: ' + e.message, 'error'); }
         }
 
-        // ===== PRINT SLIP =====
         async function printSlip(id) {
             const tr = allTransactions.find(t => t.id === id);
             if (!tr) return;
@@ -2691,7 +2723,6 @@
         // FORM HANDLERS
         // ============================================================
 
-        // Individual Withdrawal
         document.getElementById('individualForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             if (!canAddTransaction()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
@@ -2752,7 +2783,6 @@
                 btn.innerHTML = '<i class="fas fa-save"></i> Withdraw'; }
         });
 
-        // Service Withdrawal
         document.getElementById('serviceForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             if (!canAddTransaction()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
@@ -2818,7 +2848,6 @@
                 btn.innerHTML = '<i class="fas fa-save"></i> Withdraw Service'; }
         });
 
-        // Leaving Withdrawal
         document.getElementById('leavingForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             if (!canAddTransaction()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
@@ -2876,7 +2905,6 @@
                 btn.innerHTML = '<i class="fas fa-user-slash"></i> Process Leaving'; }
         });
 
-        // Transfer Form - creates transfer_out and transfer_in
         document.getElementById('transferForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             if (!canAddTransaction()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
@@ -2905,7 +2933,6 @@
                 const fromCustomer = customersList.find(c => c.id === fromId);
                 const toCustomer = customersList.find(c => c.id === toId);
 
-                // 1. transfer_out (debit from source)
                 const outData = {
                     customerId: fromId,
                     customerName: fromCustomer ? fromCustomer.fullName : 'Unknown',
@@ -2924,7 +2951,6 @@
                 };
                 const outRef = await db.collection('transactions').add(outData);
 
-                // 2. transfer_in (credit to destination)
                 const inData = {
                     customerId: toId,
                     customerName: toCustomer ? toCustomer.fullName : 'Unknown',
@@ -2943,7 +2969,6 @@
                 };
                 const inRef = await db.collection('transactions').add(inData);
 
-                // Audit for transfer_out
                 const outAuditChanges = {
                     customerId: { old: null, new: fromId },
                     customerName: { old: null, new: fromCustomer ? fromCustomer.fullName : 'Unknown' },
@@ -2959,7 +2984,6 @@
                 await logAudit('created', 'transactions', outRef.id, outAuditChanges,
                     `Transfer out: ${fromCustomer ? fromCustomer.fullName : 'Unknown'} -> ${toCustomer ? toCustomer.fullName : 'Unknown'}`);
 
-                // Audit for transfer_in
                 const inAuditChanges = {
                     customerId: { old: null, new: toId },
                     customerName: { old: null, new: toCustomer ? toCustomer.fullName : 'Unknown' },
