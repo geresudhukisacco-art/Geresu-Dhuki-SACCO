@@ -1583,7 +1583,6 @@
         let currentLang = 'en';
         let currentUserRole = 'viewer';
         let currentUserDisplayName = 'Admin';
-        let currentUserEmail = '';
         let selectedYear = new Date().getFullYear();
         let availableYears = [];
         let allDividends = [];
@@ -1818,7 +1817,7 @@
         }
 
         // ============================================================
-        // CALCULATE YEARLY PROFIT & DIVIDEND DATA
+        // CALCULATE YEARLY PROFIT & DIVIDEND DATA - FIXED: queries both customerId and memberId for savings
         // ============================================================
         async function calculateYearData(year) {
             const startDate = new Date(year, 0, 1);
@@ -1837,15 +1836,15 @@
             const repayments = [];
             repaymentsSnap.forEach(doc => {
                 const data = doc.data();
-                const d = toDate(data.createdAt);
-                if (d >= startDate && d <= endDate) repayments.push(data);
+                const d = toDate(data.createdAt || data.date);
+                if (d && d >= startDate && d <= endDate) repayments.push(data);
             });
 
             const loans = [];
             loansSnap.forEach(doc => {
                 const data = doc.data();
-                const d = toDate(data.createdAt);
-                if (d >= startDate && d <= endDate && (data.status === 'active' || data.status === 'paid')) {
+                const d = toDate(data.createdAt || data.date);
+                if (d && d >= startDate && d <= endDate && (data.status === 'active' || data.status === 'paid')) {
                     loans.push(data);
                 }
             });
@@ -1853,15 +1852,15 @@
             const income = [];
             incomeSnap.forEach(doc => {
                 const data = doc.data();
-                const d = toDate(data.createdAt);
-                if (d >= startDate && d <= endDate) income.push(data);
+                const d = toDate(data.createdAt || data.date);
+                if (d && d >= startDate && d <= endDate) income.push(data);
             });
 
             const dividends = [];
             dividendsSnap.forEach(doc => {
                 const data = doc.data();
-                const d = toDate(data.createdAt);
-                if (d >= startDate && d <= endDate) dividends.push({ id: doc.id, ...data });
+                const d = toDate(data.createdAt || data.date);
+                if (d && d >= startDate && d <= endDate) dividends.push({ id: doc.id, ...data });
             });
 
             const totalRepayments = repayments.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
@@ -1871,21 +1870,29 @@
 
             const profit = Math.round((totalRepayments - totalLoans + totalIncome - totalDividends) * 100) / 100;
 
+            // ---- FIXED: Get savings using both customerId and memberId ----
             const savingsSnap = await db.collection('transactions').where('type', '==', 'savings').get();
             const customerSavings = {};
             let totalSavingsAll = 0;
+
             savingsSnap.forEach(doc => {
                 const data = doc.data();
-                const d = toDate(data.createdAt);
-                if (d >= startDate && d <= endDate) {
-                    const customerId = data.customerId;
-                    const amount = Number(data.amount) || 0;
-                    if (!customerSavings[customerId]) customerSavings[customerId] = 0;
-                    customerSavings[customerId] += amount;
-                    totalSavingsAll += amount;
+                const d = toDate(data.createdAt || data.date);
+                if (d && d.getFullYear() === year) {
+                    // Try customerId first, fallback to memberId
+                    let customerId = data.customerId || data.memberId;
+                    // If still no ID, try using the document ID (some older records might use this)
+                    if (!customerId && data.id) customerId = data.id;
+                    if (customerId) {
+                        const amount = Number(data.amount) || 0;
+                        if (!customerSavings[customerId]) customerSavings[customerId] = 0;
+                        customerSavings[customerId] += amount;
+                        totalSavingsAll += amount;
+                    }
                 }
             });
 
+            // ---- Get active customers ----
             const customersSnapshot = await db.collection('customers').where('status', '==', 'active').get();
             const activeCustomers = [];
             customersSnapshot.forEach(doc => {
@@ -1893,6 +1900,7 @@
                 activeCustomers.push({ id: doc.id, fullName: data.fullName });
             });
 
+            // ---- Build preview data ----
             const previewData = [];
             activeCustomers.forEach(customer => {
                 const savings = customerSavings[customer.id] || 0;
