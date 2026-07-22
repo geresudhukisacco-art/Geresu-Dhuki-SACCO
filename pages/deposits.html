@@ -1977,7 +1977,8 @@
                 approvedBy: 'Approved By',
                 recordNotFound: 'Record not found.',
                 approvedSuccess: 'Deposit approved successfully!',
-                approvalError: 'Error approving deposit: '
+                approvalError: 'Error approving deposit: ',
+                viewDetails: 'View Details'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -2056,7 +2057,8 @@
                 approvedBy: 'የጸደቀው',
                 recordNotFound: 'መዝገብ አልተገኘም።',
                 approvedSuccess: 'ተቀማጭ በተሳካ ሁኔታ ጸድቋል!',
-                approvalError: 'ተቀማጭ በማጽደቅ ላይ ስህተት: '
+                approvalError: 'ተቀማጭ በማጽደቅ ላይ ስህተት: ',
+                viewDetails: 'ዝርዝሮችን ይመልከቱ'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -2135,7 +2137,8 @@
                 approvedBy: 'Mirkaneesse',
                 recordNotFound: 'Galmee hin argamne.',
                 approvedSuccess: 'Kaasaan sirriitti mirkanaafame!',
-                approvalError: 'Kaasaa mirkaneessuuf dogoggora: '
+                approvalError: 'Kaasaa mirkaneessuuf dogoggora: ',
+                viewDetails: 'Gadifageenya Ilaali'
             }
         };
 
@@ -2242,6 +2245,11 @@
         }
 
         function canApproveDeposit() {
+            return ['admin', 'manager'].includes(currentUserRole);
+        }
+
+        function canPrintDeposit() {
+            // Only admin and manager can print
             return ['admin', 'manager'].includes(currentUserRole);
         }
 
@@ -2763,6 +2771,7 @@
 
             const isAdmin = currentUserRole === 'admin';
             const isManager = currentUserRole === 'manager';
+            const isViewer = currentUserRole === 'viewer';
 
             let html = '';
             items.forEach((d, i) => {
@@ -2786,38 +2795,30 @@
                     'mobile': t.mobileMoney || 'Mobile' };
                 const methodLabel = methodMap[d.paymentMethod] || d.paymentMethod || 'Cash';
 
-                let actionsHtml = `
-                    <button class="action-btn view-btn" onclick="viewDeposit('${d.id}')" title="${t.view}">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                    <button class="action-btn print-btn" onclick="printDepositSlip('${d.id}')" title="${t.printSlip}">
-                        <i class="fas fa-print"></i>
-                    </button>
-                `;
+                // Build actions based on role
+                let actionsHtml = '';
 
-                // Approve button for admin/manager on pending
+                // View button – blue gradient (visible to all)
+                actionsHtml += `<button class="action-btn view-btn" onclick="viewDeposit('${d.id}')" title="${t.viewDetails || t.view}"><i class="fas fa-eye"></i></button>`;
+
+                // Print – ONLY for admin/manager (NOT for viewers)
+                if (canPrintDeposit()) {
+                    actionsHtml += `<button class="action-btn print-btn" onclick="printDepositSlip('${d.id}')" title="${t.printSlip}"><i class="fas fa-print"></i></button>`;
+                }
+
+                // Approve – ONLY for admin/manager on pending deposits
                 if (canApproveDeposit() && d.status === 'pending') {
-                    actionsHtml += `
-                        <button class="action-btn approve-btn" onclick="approveDeposit('${d.id}')" title="${t.approve}">
-                            <i class="fas fa-check-circle"></i>
-                        </button>
-                    `;
+                    actionsHtml += `<button class="action-btn approve-btn" onclick="approveDeposit('${d.id}')" title="${t.approve}"><i class="fas fa-check-circle"></i></button>`;
                 }
 
+                // Edit – ONLY for admin/manager
                 if (canEditDeposit()) {
-                    actionsHtml += `
-                        <button class="action-btn edit-btn" onclick="editDeposit('${d.id}')" title="${t.edit || 'Edit'}">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                    `;
+                    actionsHtml += `<button class="action-btn edit-btn" onclick="editDeposit('${d.id}')" title="${t.edit || 'Edit'}"><i class="fas fa-edit"></i></button>`;
                 }
 
+                // Delete – ONLY for admin
                 if (canDeleteDeposit()) {
-                    actionsHtml += `
-                        <button class="action-btn delete-btn" onclick="deleteDeposit('${d.id}')" title="${t.delete}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    `;
+                    actionsHtml += `<button class="action-btn delete-btn" onclick="deleteDeposit('${d.id}')" title="${t.delete}"><i class="fas fa-trash"></i></button>`;
                 }
 
                 html += `<tr>
@@ -3348,9 +3349,14 @@
         }
 
         // ============================================================
-        // PRINT SLIP
+        // PRINT SLIP (Admin/Manager only)
         // ============================================================
         async function printDepositSlip(docId) {
+            if (!canPrintDeposit()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+
             const deposit = allDeposits.find(d => d.id === docId);
             if (!deposit) { showToast('Deposit not found.', 'error'); return; }
 
