@@ -402,6 +402,25 @@
             color: #fff;
             border-color: var(--primary);
         }
+        /* ---- TEST CONNECTION BUTTON ---- */
+        .test-conn-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 4px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .test-conn-btn:hover {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
         .user-profile {
             display: flex;
             align-items: center;
@@ -1309,6 +1328,10 @@
                     <button class="lang-btn" data-lang="am">አማ</button>
                     <button class="lang-btn" data-lang="om">OM</button>
                 </div>
+                <!-- ===== TEST CONNECTION BUTTON ===== -->
+                <button class="test-conn-btn" id="testConnectionBtn" data-i18n="testConnection">
+                    <i class="fas fa-plug"></i> <span>Test Connection</span>
+                </button>
                 <div class="user-profile">
                     <img id="userAvatar" src="../assets/images/avatar.png" alt="User" onerror="this.src='https://ui-avatars.com/api/?name=Admin&background=2d7a3d&color=fff'" />
                     <span class="user-name" id="userDisplayName">Admin</span>
@@ -1576,7 +1599,7 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // MULTI-LANGUAGE (Matches Dashboard)
+        // MULTI-LANGUAGE (Matches Dashboard) – with testConnection keys
         // ============================================================
         const translations = {
             en: {
@@ -1661,7 +1684,11 @@
                 addGuaranteeFirst: 'Please add at least one guarantee before applying for a loan.',
                 unauthorized: 'You are not authorized to perform this action.',
                 allYears: 'All Years',
-                selectYear: 'Select Year'
+                selectYear: 'Select Year',
+                // TEST CONNECTION KEYS
+                testConnection: 'Test Connection',
+                connectionSuccess: '✅ Connection successful!',
+                connectionFailed: '❌ Connection failed: '
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1745,7 +1772,10 @@
                 addGuaranteeFirst: 'ብድር ከመጠየቅዎ በፊት እባክዎ ቢያንስ አንድ ዋስትና ያክሉ።',
                 unauthorized: 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም።',
                 allYears: 'ሁሉም ዓመታት',
-                selectYear: 'ዓመት ይምረጡ'
+                selectYear: 'ዓመት ይምረጡ',
+                testConnection: 'ግንኙነት ሞክር',
+                connectionSuccess: '✅ ግንኙነቱ ተሳክቷል!',
+                connectionFailed: '❌ ግንኙነቱ አልተሳካም: '
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1829,7 +1859,10 @@
                 addGuaranteeFirst: 'Maaloo liqii itti fayyadamuu dura mirkaneessa tokko ykn isaa ol idaahi.',
                 unauthorized: 'Gochaa kana raawwachuuf hayyamamtee hin jirtu.',
                 allYears: 'Waggaa Hunda',
-                selectYear: 'Waggaa Filadhu'
+                selectYear: 'Waggaa Filadhu',
+                testConnection: 'Qunnamtii Mirkaneessi',
+                connectionSuccess: '✅ Qunnamtii milkaa\'e!',
+                connectionFailed: '❌ Qunnamtii hin milkaanne: '
             }
         };
 
@@ -1859,6 +1892,12 @@
             if (searchInput) searchInput.placeholder = t.searchPlaceholder || 'Search by customer name...';
             updatePaginationInfo();
             renderPageButtons();
+            // Update test connection button text
+            const testBtn = document.getElementById('testConnectionBtn');
+            if (testBtn) {
+                const span = testBtn.querySelector('span');
+                if (span) span.textContent = t.testConnection || 'Test Connection';
+            }
         }
 
         function initLanguage() {
@@ -1894,6 +1933,26 @@
                 setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
             }, 4500);
         }
+
+        // ============================================================
+        // TEST CONNECTION (NEW)
+        // ============================================================
+        async function testConnection() {
+            try {
+                const testRef = db.collection('customers').limit(1);
+                await testRef.get();
+                const t = translations[currentLang];
+                showToast(t.connectionSuccess || '✅ Connection successful!', 'success');
+                return true;
+            } catch (error) {
+                console.error('Connection test failed:', error);
+                const t = translations[currentLang];
+                showToast((t.connectionFailed || '❌ Connection failed: ') + error.message, 'error');
+                return false;
+            }
+        }
+
+        document.getElementById('testConnectionBtn')?.addEventListener('click', testConnection);
 
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('open');
@@ -3285,6 +3344,9 @@
                     }
                 });
 
+                // Expose testConnection globally
+                window.testConnection = testConnection;
+
                 await loadSettings();
                 await loadCustomersForSelect();
                 setupCustomerSearch();
@@ -3355,6 +3417,7 @@
         window.selectCustomer = selectCustomer;
         window.selectEditCustomer = selectEditCustomer;
         window.toggleLoanForm = toggleLoanForm;
+        window.testConnection = testConnection;
     </script>
     <script>
         // ============================================================
