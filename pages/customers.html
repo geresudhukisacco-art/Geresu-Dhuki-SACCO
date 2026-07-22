@@ -30,7 +30,9 @@
             --gold-dark: #b8922f;
             --bg-primary: #f5f7f6;
             --bg-card: #ffffff;
-            --bg-sidebar: #1a6e3a;
+            /* Sidebar: GREEN GRADIENT matching the brand */
+            --bg-sidebar-start: #1a6e3a;
+            --bg-sidebar-end: #0f4f28;
             --text-primary: #1a2e1f;
             --text-secondary: #6c7d70;
             --text-muted: #8a9e92;
@@ -56,7 +58,8 @@
         [data-theme="dark"] {
             --bg-primary: #1a1a2e;
             --bg-card: #16213e;
-            --bg-sidebar: #0f4f28;
+            --bg-sidebar-start: #0f4f28;
+            --bg-sidebar-end: #0a3d1e;
             --text-primary: #e8f0ea;
             --text-secondary: #a0aec0;
             --text-muted: #6b7d82;
@@ -85,11 +88,127 @@
         }
 
         /* ============================================================
-           SIDEBAR
+           GLOBAL ERROR BANNER
+           ============================================================ */
+        #globalErrorBanner {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 99999;
+            background: #721c24;
+            color: #fff;
+            padding: 14px 24px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            font-size: 15px;
+            font-weight: 500;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        #globalErrorBanner.show {
+            display: flex;
+        }
+        #globalErrorBanner .error-icon {
+            font-size: 24px;
+        }
+        #globalErrorBanner .error-message {
+            flex: 1;
+            min-width: 200px;
+        }
+        #globalErrorBanner .retry-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            color: #fff;
+            padding: 6px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+        #globalErrorBanner .retry-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Loading overlay */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .loading-overlay.active {
+            display: flex;
+        }
+        .loading-overlay .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .loading-overlay p {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* Error box */
+        .error-box {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 16px 0;
+            display: none;
+            align-items: center;
+            gap: 12px;
+        }
+        .error-box.show {
+            display: flex;
+        }
+        .error-box i {
+            font-size: 24px;
+        }
+        .error-box .error-text {
+            flex: 1;
+        }
+        .error-box .retry-btn {
+            background: #721c24;
+            color: #fff;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .error-box .retry-btn:hover {
+            background: #5a151b;
+        }
+
+        /* ============================================================
+           SIDEBAR – GREEN GRADIENT matching brand
            ============================================================ */
         .sidebar {
             width: var(--sidebar-width);
-            background: var(--bg-sidebar);
+            background: linear-gradient(135deg, var(--bg-sidebar-start) 0%, var(--bg-sidebar-end) 100%);
             color: #e8f0ea;
             height: 100vh;
             position: fixed;
@@ -634,7 +753,7 @@
             color: #ffffff;
         }
 
-        /* --- Account Number: Blue Gradient (changed from gold) --- */
+        /* --- Account Number: Blue Gradient --- */
         .account-number-badge {
             font-family: 'Courier New', monospace;
             font-size: 13px;
@@ -1219,6 +1338,19 @@
 </head>
 <body>
 
+    <!-- GLOBAL ERROR BANNER -->
+    <div id="globalErrorBanner">
+        <span class="error-icon"><i class="fas fa-exclamation-circle"></i></span>
+        <span class="error-message" id="globalErrorMessage">Something went wrong.</span>
+        <button class="retry-btn" id="globalRetryBtn"><i class="fas fa-sync-alt"></i> Retry</button>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p>Loading customers data...</p>
+    </div>
+
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <aside class="sidebar" id="sidebar">
@@ -1287,7 +1419,10 @@
                     <h2 data-i18n="customersTitle">Customers Management</h2>
                     <p data-i18n="customersSub">View and manage all SACCO customers</p>
                 </div>
-                <div class="page-header-right">
+                <div class="page-header-right" style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+                    <button class="btn-secondary" id="testConnectionBtn" style="padding:6px 14px; font-size:12px;">
+                        <i class="fas fa-plug"></i> Test Connection
+                    </button>
                     <button class="btn-primary" id="addCustomerBtn"><i class="fas fa-user-plus"></i> <span data-i18n="addCustomer">Add Customer</span></button>
                 </div>
             </div>
@@ -1721,6 +1856,24 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
+        // GLOBAL ERROR HANDLING
+        // ============================================================
+        function showGlobalError(message) {
+            const banner = document.getElementById('globalErrorBanner');
+            document.getElementById('globalErrorMessage').textContent = message;
+            banner.classList.add('show');
+        }
+
+        function hideGlobalError() {
+            document.getElementById('globalErrorBanner').classList.remove('show');
+        }
+
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('Unhandled rejection:', event.reason);
+            showGlobalError('Unhandled error: ' + (event.reason?.message || event.reason || 'Unknown error'));
+        });
+
+        // ============================================================
         // MULTI-LANGUAGE
         // ============================================================
         const translations = {
@@ -1801,7 +1954,9 @@
                 allYears: 'All Years',
                 viewProfile: 'View Profile',
                 unauthorized: 'You are not authorized to perform this action.',
-                selectYear: 'Select Year'
+                selectYear: 'Select Year',
+                connectionSuccess: '✅ Connection successful!',
+                connectionFailed: '❌ Connection failed: '
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1880,7 +2035,9 @@
                 allYears: 'ሁሉም ዓመታት',
                 viewProfile: 'መገለጫ ይመልከቱ',
                 unauthorized: 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም።',
-                selectYear: 'ዓመት ይምረጡ'
+                selectYear: 'ዓመት ይምረጡ',
+                connectionSuccess: '✅ ግንኙነቱ ተሳክቷል!',
+                connectionFailed: '❌ ግንኙነቱ አልተሳካም: '
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1959,7 +2116,9 @@
                 allYears: 'Waggaa Hunda',
                 viewProfile: 'Bifaa ilaali',
                 unauthorized: 'Gochaa kana raawwachuuf hayyamamtee hin jirtu.',
-                selectYear: 'Waggaa Filadhu'
+                selectYear: 'Waggaa Filadhu',
+                connectionSuccess: '✅ Qunnamtii milkaa\'e!',
+                connectionFailed: '❌ Qunnamtii hin milkaanne: '
             }
         };
 
@@ -2079,6 +2238,26 @@
         }
 
         // ============================================================
+        // TEST CONNECTION
+        // ============================================================
+        async function testConnection() {
+            try {
+                const testRef = db.collection('customers').limit(1);
+                await testRef.get();
+                showToast(translations[currentLang].connectionSuccess || '✅ Connection successful!', 'success');
+                hideGlobalError();
+                return true;
+            } catch (error) {
+                console.error('Connection test failed:', error);
+                showGlobalError('Firebase connection failed: ' + error.message);
+                showToast((translations[currentLang].connectionFailed || '❌ Connection failed: ') + error.message, 'error');
+                return false;
+            }
+        }
+
+        document.getElementById('testConnectionBtn')?.addEventListener('click', testConnection);
+
+        // ============================================================
         // AUDIT LOGGING
         // ============================================================
         async function logAudit(action, collection, documentId, changes = {}, details = '') {
@@ -2106,8 +2285,6 @@
 
         // ============================================================
         // GENERATE UNIQUE CUSTOMER ID
-        // 10 digits without CI prefix OR 12 with CI prefix
-        // e.g. CI0123456789 = 10 digits with CI prefix
         // ============================================================
         async function generateCustomerId(includePrefix = true) {
             let attempts = 0;
@@ -2116,10 +2293,8 @@
 
             while (exists && attempts < 20) {
                 attempts++;
-                // Generate 10-digit number with leading zeros
                 const randomNum = Math.floor(Math.random() * 10000000000);
                 const tenDigits = randomNum.toString().padStart(10, '0');
-                // Either with CI prefix or without
                 newId = includePrefix ? `CI${tenDigits}` : tenDigits;
 
                 const existing = customersList.find(c => c.customerId === newId);
@@ -2132,7 +2307,6 @@
             }
 
             if (exists) {
-                // Fallback: use timestamp + random
                 const timestamp = Date.now().toString().slice(-6);
                 const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
                 const fallback = timestamp + random;
@@ -2245,7 +2419,6 @@
                 const fullNameAm = [data.firstNameAm, data.middleNameAm, data.lastNameAm]
                     .filter(Boolean).join(' ').trim();
 
-                // Generate 10-digit customer ID with CI prefix (12 chars total)
                 const customerId = await generateCustomerId(true);
                 const accountNumber = await generateAccountNumber();
 
@@ -2397,6 +2570,8 @@
         let filterYear = 'all';
 
         async function loadCustomers() {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.add('active');
             const tbody = document.getElementById('customersBody');
             const t = translations[currentLang];
             try {
@@ -2444,19 +2619,32 @@
                     document.getElementById('totalCount').textContent = '0';
                     const pagEl = document.getElementById('paginationContainer');
                     if (pagEl) pagEl.style.display = 'none';
+                    overlay.classList.remove('active');
                     return;
                 }
                 const pagEl = document.getElementById('paginationContainer');
                 if (pagEl) pagEl.style.display = 'flex';
                 applyFilters();
+                hideGlobalError();
             } catch (error) {
                 console.error('Load customers error:', error);
                 tbody.innerHTML =
                     `<tr><td colspan="11" style="text-align:center; padding:40px; color:var(--danger);">${t.errorLoading} ${error.message}</td></tr>`;
                 const pagEl = document.getElementById('paginationContainer');
                 if (pagEl) pagEl.style.display = 'none';
+                showGlobalError('Customers load error: ' + error.message);
+                showToast(t.errorLoading + error.message, 'error');
+            } finally {
+                overlay.classList.remove('active');
             }
         }
+
+        // ---- Global Retry ----
+        document.getElementById('globalRetryBtn')?.addEventListener('click', function() {
+            hideGlobalError();
+            loadCustomers();
+            testConnection();
+        });
 
         function applyFilters() {
             let filtered = [...allCustomers];
@@ -2525,7 +2713,6 @@
                         `<div class="customer-photo-container"><div class="fallback">${(c.fullName || 'U').charAt(0).toUpperCase()}</div></div>`;
                 }
 
-                // --- Customer ID: Purple gradient with white text ---
                 let customerIdDisplay = c.customerId || 'N/A';
                 if (customerIdDisplay !== 'N/A' && !customerIdDisplay.startsWith('CI')) {
                     customerIdDisplay = `CI${customerIdDisplay}`;
@@ -2538,38 +2725,37 @@
                 }
                 const customerIdHtml = `<span class="customer-id-badge"><span class="ci-prefix">${prefixPart}</span><span class="ci-digits">${digitsPart}</span></span>`;
 
-                // --- Account Number: Blue gradient with white text ---
                 const accountNumberDisplay = c.accountNumber || 'N/A';
                 const accountHtml = `<span class="account-number-badge">${accountNumberDisplay}</span>`;
 
                 let actionsHtml = `
-                    <button class="action-btn view-btn" onclick="viewCustomer('${c.id}')" title="${t.viewProfile}"><i class="fas fa-eye"></i></button>
-                `;
+                        <button class="action-btn view-btn" onclick="viewCustomer('${c.id}')" title="${t.viewProfile}"><i class="fas fa-eye"></i></button>
+                    `;
 
                 if (canEditCustomer()) {
                     actionsHtml += `
-                        <button class="action-btn edit-btn" onclick="editCustomer('${c.id}')" title="${t.edit}"><i class="fas fa-edit"></i></button>
-                    `;
+                            <button class="action-btn edit-btn" onclick="editCustomer('${c.id}')" title="${t.edit}"><i class="fas fa-edit"></i></button>
+                        `;
                 }
                 if (canDeleteCustomer()) {
                     actionsHtml += `
-                        <button class="action-btn delete-btn" onclick="deleteCustomerPrompt('${c.id}')" title="${t.deleteCustomer}"><i class="fas fa-trash"></i></button>
-                    `;
+                            <button class="action-btn delete-btn" onclick="deleteCustomerPrompt('${c.id}')" title="${t.deleteCustomer}"><i class="fas fa-trash"></i></button>
+                        `;
                 }
 
                 html += `<tr>
-                    <td>${(currentPage - 1) * pageSize + i + 1}</td>
-                    <td>${photoHtml}</td>
-                    <td>${customerIdHtml}</td>
-                    <td>${accountHtml}</td>
-                    <td><strong>${c.fullName || 'Unknown'}</strong></td>
-                    <td>${c.fullNameAm || '—'}</td>
-                    <td>${c.nid || '—'}</td>
-                    <td>${c.phone || '—'}</td>
-                    <td>${c.nationality || '—'}</td>
-                    <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
-                    <td>${actionsHtml}</td>
-                </tr>`;
+                        <td>${(currentPage - 1) * pageSize + i + 1}</td>
+                        <td>${photoHtml}</td>
+                        <td>${customerIdHtml}</td>
+                        <td>${accountHtml}</td>
+                        <td><strong>${c.fullName || 'Unknown'}</strong></td>
+                        <td>${c.fullNameAm || '—'}</td>
+                        <td>${c.nid || '—'}</td>
+                        <td>${c.phone || '—'}</td>
+                        <td>${c.nationality || '—'}</td>
+                        <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+                        <td>${actionsHtml}</td>
+                    </tr>`;
             });
             tbody.innerHTML = html;
         }
@@ -2944,6 +3130,7 @@
         window.deleteCustomerPrompt = deleteCustomerPrompt;
         window.goToPage = goToPage;
         window.toggleSidebar = toggleSidebar;
+        window.testConnection = testConnection;
     </script>
     <script>
         // ============================================================
@@ -2977,34 +3164,34 @@
                 let seconds = 30;
                 warningToast = document.createElement('div');
                 warningToast.style.cssText = `
-                        position: fixed;
-                        bottom: 30px;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        background: #f39c12;
-                        color: #fff;
-                        padding: 16px 24px;
-                        border-radius: 12px;
-                        font-size: 15px;
-                        font-weight: 500;
-                        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-                        z-index: 99999;
-                        max-width: 500px;
-                        text-align: center;
-                        display: flex;
-                        align-items: center;
-                        gap: 12px;
-                        animation: slideUp 0.3s ease;
-                    `;
+                            position: fixed;
+                            bottom: 30px;
+                            left: 50%;
+                            transform: translateX(-50%);
+                            background: #f39c12;
+                            color: #fff;
+                            padding: 16px 24px;
+                            border-radius: 12px;
+                            font-size: 15px;
+                            font-weight: 500;
+                            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+                            z-index: 99999;
+                            max-width: 500px;
+                            text-align: center;
+                            display: flex;
+                            align-items: center;
+                            gap: 12px;
+                            animation: slideUp 0.3s ease;
+                        `;
                 warningToast.innerHTML = `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
 
                 const style = document.createElement('style');
                 style.textContent = `
-                        @keyframes slideUp {
-                            from { transform: translateX(-50%) translateY(20px); opacity: 0; }
-                            to { transform: translateX(-50%) translateY(0); opacity: 1; }
-                        }
-                    `;
+                            @keyframes slideUp {
+                                from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+                                to { transform: translateX(-50%) translateY(0); opacity: 1; }
+                            }
+                        `;
                 document.head.appendChild(style);
                 document.body.appendChild(warningToast);
 
