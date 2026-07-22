@@ -83,7 +83,7 @@
         }
 
         /* ============================================================
-           LOADING OVERLAY (Added)
+           LOADING OVERLAY
            ============================================================ */
         .loading-overlay {
             display: none;
@@ -686,9 +686,6 @@
         .form-row.two {
             grid-template-columns: 1fr 1fr;
         }
-        .form-row.three {
-            grid-template-columns: 1fr 1fr 1fr;
-        }
         .form-group label {
             font-weight: 500;
             font-size: 14px;
@@ -854,21 +851,9 @@
             font-weight: 600;
             display: inline-block;
         }
-        .status-badge.completed {
-            background: #d4edda;
-            color: #155724;
-        }
         .status-badge.pending {
             background: #fff3cd;
             color: #856404;
-        }
-        .status-badge.failed {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        .status-badge.printed {
-            background: #cce5ff;
-            color: #004085;
         }
         .status-badge.approved {
             background: #d4edda;
@@ -877,6 +862,10 @@
         .status-badge.rejected {
             background: #f8d7da;
             color: #721c24;
+        }
+        .status-badge.printed {
+            background: #cce5ff;
+            color: #004085;
         }
 
         .action-btn {
@@ -1275,12 +1264,8 @@
             }
         }
 
-        /* ----- RESPONSIVE ----- */
         @media (max-width: 992px) {
             .form-row {
-                grid-template-columns: 1fr 1fr;
-            }
-            .form-row.three {
                 grid-template-columns: 1fr 1fr;
             }
             .loan-info-display .info-grid {
@@ -1345,8 +1330,7 @@
                 padding: 16px;
             }
             .form-row,
-            .form-row.two,
-            .form-row.three {
+            .form-row.two {
                 grid-template-columns: 1fr;
             }
             .loan-info-display .info-grid {
@@ -1518,7 +1502,7 @@
                 </div>
             </div>
 
-            <!-- Record Repayment Form -->
+            <!-- Record Repayment Form (no status field) -->
             <div class="form-section" id="repaymentFormSection">
                 <h3 data-i18n="recordRepayment">Record Repayment</h3>
                 <form id="repaymentForm" novalidate>
@@ -1583,22 +1567,14 @@
                         </div>
                     </div>
 
-                    <!-- Payment Method & Status -->
-                    <div class="form-row three">
+                    <!-- Payment Method only (no status field) -->
+                    <div class="form-row two">
                         <div class="form-group">
                             <label data-i18n="paymentMethod">Payment Method <span class="required">*</span></label>
                             <select id="paymentMethod" required>
                                 <!-- Cash option added dynamically based on role -->
                                 <option value="bank" data-i18n="bankTransfer">Bank Transfer</option>
                                 <option value="mobile" data-i18n="mobileMoney">Mobile Money</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label data-i18n="status">Payment Status</label>
-                            <select id="statusInput">
-                                <option value="pending" data-i18n="pending">Pending</option>
-                                <option value="approved" data-i18n="approved">Approved</option>
-                                <option value="rejected" data-i18n="rejected">Rejected</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -1753,7 +1729,8 @@
                             <option value="mobile">Mobile Money</option>
                         </select>
                     </div>
-                    <div class="form-group">
+                    <!-- Status field – visible only to Admin -->
+                    <div class="form-group" id="editStatusGroup" style="display:none;">
                         <label data-i18n="status">Status</label>
                         <select id="editStatus">
                             <option value="pending">Pending</option>
@@ -1894,17 +1871,16 @@
                 duplicateTT: 'This customer already has a Savings, Deposit, or Repayment record with this TT number and Transfer Date. Please check.',
                 allYears: 'All Years',
                 selectYear: 'Select Year',
-                // Test connection keys
                 testConnection: 'Test Connection',
                 connectionSuccess: '✅ Connection successful!',
                 connectionFailed: '❌ Connection failed: ',
                 approve: 'Approve',
                 reject: 'Reject',
                 edit: 'Edit',
-                approvalSuccess: 'Repayment approved successfully.',
-                rejectionSuccess: 'Repayment rejected.',
+                approvalSuccess: 'Repayment approved successfully. Loan balance updated.',
+                rejectionSuccess: 'Repayment rejected. No changes to loan balance.',
                 updateSuccess: 'Repayment updated successfully.',
-                cannotEditApproved: 'Cannot edit an approved repayment.'
+                cannotEditApproved: 'Cannot edit an approved or rejected repayment.'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1989,10 +1965,10 @@
                 approve: 'አጽድቅ',
                 reject: 'ውድቅ አድርግ',
                 edit: 'አስተካክል',
-                approvalSuccess: 'ክፍያ በተሳካ ሁኔታ ጸድቋል።',
-                rejectionSuccess: 'ክፍያ ውድቅ ተደርጓል።',
+                approvalSuccess: 'ክፍያ በተሳካ ሁኔታ ጸድቋል። የብድር ሚዛን ተሻሽሏል።',
+                rejectionSuccess: 'ክፍያ ውድቅ ተደርጓል። የብድር ሚዛን አልተለወጠም።',
                 updateSuccess: 'ክፍያ በተሳካ ሁኔታ ተሻሽሏል።',
-                cannotEditApproved: 'የጸደቀ ክፍያ ማስተካከል አይቻልም።'
+                cannotEditApproved: 'የጸደቀ ወይም ውድቅ የተደረገ ክፍያ ማስተካከል አይቻልም።'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -2077,16 +2053,17 @@
                 approve: 'Mirkaneessi',
                 reject: 'Garfii',
                 edit: 'Jijjiiri',
-                approvalSuccess: 'Kaffaltiin sirriitti mirkanaa\'e.',
-                rejectionSuccess: 'Kaffaltiin garfame.',
+                approvalSuccess: 'Kaffaltiin sirriitti mirkanaa\'e. Haalli liqii fooyyeffame.',
+                rejectionSuccess: 'Kaffaltiin garfame. Haalli liqii hin jijjiiramne.',
                 updateSuccess: 'Kaffaltiin sirriitti fooyyeffame.',
-                cannotEditApproved: 'Kaffaltii mirkanaa\'e jijjiiruu hin danda\'u.'
+                cannotEditApproved: 'Kaffaltii mirkanaa\'e ykn garfame jijjiiruu hin danda\'u.'
             }
         };
 
         let currentLang = 'en';
         let currentUserRole = 'viewer';
         let currentUserDisplayName = 'Admin';
+        let isAdmin = false;
 
         function setLanguage(lang) {
             if (!translations[lang]) return;
@@ -2118,6 +2095,8 @@
             }
             // Rebuild payment method options (cash visibility based on role)
             buildPaymentMethodOptions();
+            // Show/hide status field in edit modal based on role
+            toggleEditStatusField();
         }
 
         function initLanguage() {
@@ -2213,6 +2192,8 @@
             const displayName = currentUserDisplayName || 'User';
             document.getElementById('userDisplayName').textContent = displayName + ' (' + roleLabel + ')';
 
+            isAdmin = currentUserRole === 'admin';
+
             const auditNav = document.getElementById('auditNavItem');
             if (auditNav) {
                 auditNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
@@ -2225,6 +2206,8 @@
 
             // Build payment method options based on role
             buildPaymentMethodOptions();
+            // Show/hide status field in edit modal
+            toggleEditStatusField();
         }
 
         // ---- Build payment method options ----
@@ -2259,6 +2242,14 @@
                 select.value = 'bank'; // default
             }
             toggleConditionalFields();
+        }
+
+        // ---- Show/hide status field in edit modal ----
+        function toggleEditStatusField() {
+            const statusGroup = document.getElementById('editStatusGroup');
+            if (statusGroup) {
+                statusGroup.style.display = (currentUserRole === 'admin') ? 'block' : 'none';
+            }
         }
 
         // ============================================================
@@ -2299,11 +2290,11 @@
         }
 
         function canEdit() {
-            return ['admin', 'manager'].includes(currentUserRole);
+            return currentUserRole === 'admin';
         }
 
         function canDelete() {
-            return ['admin'].includes(currentUserRole);
+            return currentUserRole === 'admin';
         }
 
         // ============================================================
@@ -2483,7 +2474,7 @@
             }
         }
 
-        // ---- Get loan repayments total (only approved/completed/printed) ----
+        // ---- Get loan repayments total (only approved/printed) ----
         async function getLoanRepaymentsTotal(loanId) {
             try {
                 const snapshot = await db.collection('transactions')
@@ -2494,8 +2485,7 @@
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     const status = data.status || 'pending';
-                    // Only count if approved, completed, or printed
-                    if (['approved', 'completed', 'printed'].includes(status)) {
+                    if (['approved', 'printed'].includes(status)) {
                         total += Number(data.amount) || 0;
                     }
                 });
@@ -2503,6 +2493,39 @@
             } catch (error) {
                 console.error('Error getting repayments:', error);
                 return 0;
+            }
+        }
+
+        // ---- Get loan document ----
+        async function getLoanDoc(loanId) {
+            const doc = await db.collection('transactions').doc(loanId).get();
+            return doc.exists ? doc.data() : null;
+        }
+
+        // ---- Update loan balance after approval ----
+        async function updateLoanBalance(loanId) {
+            try {
+                const loanData = await getLoanDoc(loanId);
+                if (!loanData) return false;
+
+                const totalPayable = Number(loanData.totalPayable || loanData.amount || 0);
+                const totalPaid = await getLoanRepaymentsTotal(loanId);
+                const remaining = Math.max(0, Math.round((totalPayable - totalPaid) * 100) / 100);
+
+                const updateData = {
+                    remaining: remaining
+                };
+
+                if (remaining === 0 && loanData.status !== 'paid') {
+                    updateData.status = 'paid';
+                    updateData.paidAt = firebase.firestore.FieldValue.serverTimestamp();
+                }
+
+                await db.collection('transactions').doc(loanId).update(updateData);
+                return true;
+            } catch (error) {
+                console.error('Error updating loan balance:', error);
+                return false;
             }
         }
 
@@ -2561,20 +2584,18 @@
             const loanInfo = document.getElementById('loanInfoDisplay');
             document.getElementById('loanMemberName').textContent = loan.customerName || 'Unknown';
             document.getElementById('loanAmount').textContent = Number(loan.amount).toLocaleString();
-            document.getElementById('loanTotalPayable').textContent = Number(loan.totalPayable || loan.amount).toLocaleString();
+            const totalPayable = Number(loan.totalPayable || loan.amount);
+            document.getElementById('loanTotalPayable').textContent = totalPayable.toLocaleString();
             document.getElementById('loanStatus').textContent = loan.status || 'N/A';
             document.getElementById('loanStatus').style.color = loan.status === 'active' ? 'var(--primary)' : 'var(--warning)';
 
-            // Get approved repayments only
             const totalPaid = await getLoanRepaymentsTotal(id);
-            const totalPayable = Number(loan.totalPayable || loan.amount);
             const remaining = Math.max(0, Math.round((totalPayable - totalPaid) * 100) / 100);
             document.getElementById('loanTotalPaid').textContent = totalPaid.toLocaleString();
             const remainingEl = document.getElementById('loanRemaining');
             remainingEl.textContent = remaining.toLocaleString();
             remainingEl.className = `value remaining ${remaining <= 0 ? 'warning' : ''}`;
 
-            // ---- Monthly installment ----
             const principal = Number(loan.amount) || 0;
             const interestRate = Number(loan.interestRate) || 0;
             const period = Number(loan.repaymentPeriod) || 0;
@@ -2582,14 +2603,11 @@
             const monthlyPayment = calculateMonthlyPayment(principal, interestRate, period, loanType);
             document.getElementById('monthlyPaymentValue').textContent = monthlyPayment.toFixed(2);
 
-            // ---- Min repayment ----
             const minRepayment = Math.min(monthlyPayment, remaining);
             document.getElementById('minAmountDisplay').textContent = minRepayment.toFixed(2);
             document.getElementById('minAmountHint').style.display = 'block';
 
-            // ---- Min repayment status ----
             const statusEl = document.getElementById('minRepaymentStatus');
-            const t = translations[currentLang];
             if (remaining === 0) {
                 statusEl.textContent = 'Fully paid';
                 statusEl.className = 'value';
@@ -2724,7 +2742,6 @@
 
             let filtered = [...allRepayments];
 
-            // Text search
             if (searchQuery) {
                 filtered = filtered.filter(r =>
                     r.customerName.toLowerCase().includes(searchQuery) ||
@@ -2732,7 +2749,6 @@
                 );
             }
 
-            // Year filter
             if (filterYear !== 'all') {
                 const yearNum = Number(filterYear);
                 filtered = filtered.filter(r => {
@@ -2771,7 +2787,7 @@
                 if (r.printed === true) {
                     statusClass = 'printed';
                     statusLabel = t.printed || 'Printed';
-                } else if (r.status === 'approved' || r.status === 'completed') {
+                } else if (r.status === 'approved') {
                     statusClass = 'approved';
                     statusLabel = t.approved;
                 } else if (r.status === 'rejected') {
@@ -2801,7 +2817,7 @@
                     </button>
                 `;
 
-                // Approve/Reject - only for manager/admin, and only if pending
+                // Approve/Reject – only admin/manager, only if pending
                 if (canApproveReject() && r.status === 'pending') {
                     actionsHtml += `
                         <button class="action-btn approve-btn" onclick="approveRepayment('${r.id}')" title="${t.approve}">
@@ -2813,7 +2829,7 @@
                     `;
                 }
 
-                // Edit - only for manager/admin, and only if pending
+                // Edit – only admin, only if pending
                 if (canEdit() && r.status === 'pending') {
                     actionsHtml += `
                         <button class="action-btn edit-btn" onclick="openEditModal('${r.id}')" title="${t.edit}">
@@ -2822,8 +2838,8 @@
                     `;
                 }
 
-                // Delete - only for admin
-                if (canDelete()) {
+                // Delete – only admin, only if pending
+                if (canDelete() && r.status === 'pending') {
                     actionsHtml += `
                         <button class="action-btn delete-btn" onclick="deleteRepayment('${r.id}')" title="${t.delete}">
                             <i class="fas fa-trash"></i>
@@ -2906,7 +2922,7 @@
             if (repayment.printed) {
                 statusLabel = t.printed;
                 statusClass = 'printed';
-            } else if (repayment.status === 'approved' || repayment.status === 'completed') {
+            } else if (repayment.status === 'approved') {
                 statusLabel = t.approved;
                 statusClass = 'approved';
             } else if (repayment.status === 'rejected') {
@@ -2953,7 +2969,7 @@
             document.getElementById('viewRepaymentModal').style.display = 'none';
         }
 
-        // ---- Approve Repayment ----
+        // ---- Approve Repayment (updates loan balance) ----
         async function approveRepayment(id) {
             if (!canApproveReject()) {
                 showToast(translations[currentLang].unauthorized, 'error');
@@ -2968,15 +2984,27 @@
                     showToast('This repayment is already processed.', 'warning');
                     return;
                 }
+
+                const loanId = data.loanId;
+
+                // Update repayment status
                 await docRef.update({
                     status: 'approved',
                     approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
                     approvedBy: getDisplayName(auth.currentUser)
                 });
+
+                // Update loan balance
+                const loanUpdated = await updateLoanBalance(loanId);
+                if (!loanUpdated) {
+                    showToast('Repayment approved but loan balance could not be updated. Please check manually.', 'warning');
+                }
+
                 await logAudit('approved', 'transactions', id, { previousStatus: { old: 'pending', new: 'approved' } },
                     'Repayment approved');
+
                 showToast(translations[currentLang].approvalSuccess, 'success');
-                // Reload data
+
                 await loadRepayments();
                 await loadActiveLoans();
                 if (selectedLoanId) {
@@ -2991,7 +3019,7 @@
             }
         }
 
-        // ---- Reject Repayment ----
+        // ---- Reject Repayment (does NOT update loan balance) ----
         async function rejectRepayment(id) {
             if (!canApproveReject()) {
                 showToast(translations[currentLang].unauthorized, 'error');
@@ -3006,14 +3034,18 @@
                     showToast('This repayment is already processed.', 'warning');
                     return;
                 }
+
                 await docRef.update({
                     status: 'rejected',
                     rejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
                     rejectedBy: getDisplayName(auth.currentUser)
                 });
+
                 await logAudit('rejected', 'transactions', id, { previousStatus: { old: 'pending', new: 'rejected' } },
                     'Repayment rejected');
+
                 showToast(translations[currentLang].rejectionSuccess, 'success');
+
                 await loadRepayments();
                 await loadActiveLoans();
                 if (selectedLoanId) {
@@ -3105,7 +3137,6 @@
             if (!amount || amount <= 0) { showToast('Please enter a valid amount.', 'warning'); return; }
             if (!date) { showToast('Please select a date.', 'warning'); return; }
 
-            // Validate conditional fields
             if (paymentMethod !== 'cash') {
                 if (!ttNumber) { showToast('Please enter the TT number.', 'warning'); return; }
                 if (!transferDate) { showToast('Please select the transfer date.', 'warning'); return; }
@@ -3123,7 +3154,7 @@
                 if (!doc.exists) { showToast('Repayment not found.', 'error'); return; }
                 const oldData = doc.data();
                 if (oldData.status !== 'pending') {
-                    showToast('Cannot edit an approved repayment.', 'warning');
+                    showToast('Cannot edit an approved or rejected repayment.', 'warning');
                     return;
                 }
                 const updateData = {
@@ -3142,6 +3173,12 @@
                     updateData.transferDate = null;
                 }
                 await docRef.update(updateData);
+
+                // If status changed to approved, update loan balance
+                if (status === 'approved' && oldData.status !== 'approved') {
+                    await updateLoanBalance(oldData.loanId);
+                }
+
                 await logAudit('updated', 'transactions', id, { changed: updateData }, 'Repayment updated');
                 showToast(translations[currentLang].updateSuccess, 'success');
                 closeEditModal();
@@ -3162,10 +3199,16 @@
             }
         }
 
-        // ---- Delete Repayment (Admin only) ----
+        // ---- Delete Repayment (Admin only, and only if pending) ----
         async function deleteRepayment(id) {
             if (!canDelete()) {
                 showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+            const repayment = allRepayments.find(r => r.id === id);
+            if (!repayment) { showToast('Repayment not found.', 'error'); return; }
+            if (repayment.status !== 'pending') {
+                showToast('Cannot delete an approved or rejected repayment.', 'warning');
                 return;
             }
             if (!confirm(translations[currentLang].deleteConfirmation)) return;
@@ -3190,7 +3233,7 @@
             }
         }
 
-        // ---- Record Repayment ----
+        // ---- Record Repayment (always pending) ----
         async function recordRepayment(e) {
             e.preventDefault();
             if (!canAddRepayment()) {
@@ -3202,7 +3245,6 @@
             let amount = parseFloat(document.getElementById('amountInput').value);
             const date = document.getElementById('dateInput').value;
             const note = document.getElementById('noteInput').value.trim();
-            const status = document.getElementById('statusInput').value;
             const paymentMethod = document.getElementById('paymentMethod').value;
             const ttNumber = document.getElementById('ttNumber').value.trim();
             const transferDate = document.getElementById('transferDate').value;
@@ -3254,7 +3296,6 @@
             amount = Math.round(amount * 100) / 100;
 
             const totalPayable = Number(loan?.totalPayable || loan?.amount || 0);
-            // Only approved repayments count toward total paid
             const totalPaid = await getLoanRepaymentsTotal(loanId);
             const remaining = Math.max(0, Math.round((totalPayable - totalPaid) * 100) / 100);
 
@@ -3303,6 +3344,7 @@
                 const user = auth.currentUser;
                 const createdByName = getDisplayName(user);
 
+                // All repayments are created as "pending"
                 const docData = {
                     loanId: loanId,
                     customerId: customerId,
@@ -3310,7 +3352,7 @@
                     amount: amount,
                     date: new Date(date),
                     note: note,
-                    status: status,
+                    status: 'pending',
                     paymentMethod: paymentMethod,
                     ttNumber: (paymentMethod === 'cash' ? '' : ttNumber),
                     bankName: (paymentMethod === 'cash' ? '' : bankName),
@@ -3333,13 +3375,11 @@
                     amount: { old: null, new: amount },
                     date: { old: null, new: date },
                     note: { old: null, new: note },
-                    status: { old: null, new: status },
-                    paymentMethod: { old: null, new: paymentMethod }
+                    status: { old: null, new: 'pending' }
                 }, 'Repayment recorded');
 
                 showToast(translations[currentLang].paymentRecorded, 'success');
 
-                // Refresh data
                 await loadRepayments();
                 await loadActiveLoans();
                 if (loan) {
@@ -3431,6 +3471,10 @@
             const methodMap = { 'cash': t.cash || 'Cash', 'bank': t.bankTransfer || 'Bank Transfer',
                 'mobile': t.mobileMoney || 'Mobile Money' };
             const methodLabel = methodMap[repayment.paymentMethod] || repayment.paymentMethod || 'Cash';
+            let statusLabel = t.pending;
+            if (repayment.printed) statusLabel = t.printed;
+            else if (repayment.status === 'approved') statusLabel = t.approved;
+            else if (repayment.status === 'rejected') statusLabel = t.rejected;
 
             let extraRows = '';
             if (repayment.paymentMethod !== 'cash') {
@@ -3452,7 +3496,7 @@
                     ${extraRows}
                     <div class="slip-row"><span class="label">Amount (ETB)</span><span class="value">${amount.toLocaleString()}</span></div>
                     <div class="slip-row"><span class="label">${t.amountInWords}</span><span class="value amount-words">${amountWords}</span></div>
-                    <div class="slip-row"><span class="label">Status</span><span class="value">${t.printed}</span></div>
+                    <div class="slip-row"><span class="label">Status</span><span class="value">${statusLabel}</span></div>
                     <div class="slip-row"><span class="label">Date</span><span class="value">${dateStr}</span></div>
                     <div class="slip-row"><span class="label">Note</span><span class="value">${note}</span></div>
                     <div class="slip-row"><span class="label">Recorded By</span><span class="value">${displayName}</span></div>
@@ -3540,7 +3584,6 @@
                 document.getElementById('paymentMethod').addEventListener('change', toggleConditionalFields);
                 toggleConditionalFields();
 
-                // Load repayments after customers and loans are ready
                 await loadRepayments();
 
                 document.getElementById('searchInput').addEventListener('input', function() {
