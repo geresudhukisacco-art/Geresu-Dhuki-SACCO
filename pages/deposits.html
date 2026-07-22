@@ -83,6 +83,122 @@
         }
 
         /* ============================================================
+           GLOBAL ERROR BANNER
+           ============================================================ */
+        #globalErrorBanner {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 99999;
+            background: #721c24;
+            color: #fff;
+            padding: 14px 24px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            font-size: 15px;
+            font-weight: 500;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        #globalErrorBanner.show {
+            display: flex;
+        }
+        #globalErrorBanner .error-icon {
+            font-size: 24px;
+        }
+        #globalErrorBanner .error-message {
+            flex: 1;
+            min-width: 200px;
+        }
+        #globalErrorBanner .retry-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            color: #fff;
+            padding: 6px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+        #globalErrorBanner .retry-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Loading overlay */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .loading-overlay.active {
+            display: flex;
+        }
+        .loading-overlay .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .loading-overlay p {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* Error box */
+        .error-box {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 16px 0;
+            display: none;
+            align-items: center;
+            gap: 12px;
+        }
+        .error-box.show {
+            display: flex;
+        }
+        .error-box i {
+            font-size: 24px;
+        }
+        .error-box .error-text {
+            flex: 1;
+        }
+        .error-box .retry-btn {
+            background: #721c24;
+            color: #fff;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .error-box .retry-btn:hover {
+            background: #5a151b;
+        }
+
+        /* ============================================================
            SIDEBAR – Bright green with HIGH CONTRAST text (Matches Dashboard)
            ============================================================ */
         .sidebar {
@@ -815,6 +931,10 @@
             background: #cce5ff;
             color: #004085;
         }
+        .status-badge.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
 
         /* ===== ACTION BUTTONS ===== */
         .action-btn {
@@ -885,6 +1005,16 @@
         .action-btn.edit-btn:hover {
             background: linear-gradient(135deg, #f57c00, #e65100);
             box-shadow: 0 6px 24px rgba(255, 152, 0, 0.4);
+        }
+
+        .action-btn.approve-btn {
+            background: linear-gradient(135deg, #2d7a3d, #1a5e2a);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(45, 122, 61, 0.3);
+        }
+        .action-btn.approve-btn:hover {
+            background: linear-gradient(135deg, #1a5e2a, #0f4f28);
+            box-shadow: 0 6px 24px rgba(45, 122, 61, 0.4);
         }
 
         /* ----- PAGINATION ----- */
@@ -1122,7 +1252,7 @@
         }
 
         /* ============================================================
-           EDIT DEPOSIT MODAL (with customer field added)
+           VIEW DEPOSIT MODAL (matches Savings design)
            ============================================================ */
         .modal-overlay {
             display: none;
@@ -1174,6 +1304,32 @@
         }
         .modal-content .modal-close:hover {
             color: var(--danger);
+        }
+        .view-detail-row {
+            display: flex;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+        }
+        .view-detail-row .label {
+            font-weight: 600;
+            width: 140px;
+            flex-shrink: 0;
+            color: var(--text-secondary);
+        }
+        .view-detail-row .value {
+            flex: 1;
+            color: var(--text-primary);
+        }
+        .view-detail-row .value .status-badge {
+            display: inline-block;
+        }
+
+        /* ============================================================
+           EDIT DEPOSIT MODAL (with customer field added)
+           ============================================================ */
+        #editDepositModal .modal-content {
+            max-width: 700px;
         }
 
         /* ----- RESPONSIVE ----- */
@@ -1287,6 +1443,13 @@
             .brand-text .brand-name {
                 font-size: 16px;
             }
+            .view-detail-row {
+                flex-wrap: wrap;
+            }
+            .view-detail-row .label {
+                width: 100%;
+                margin-bottom: 2px;
+            }
         }
         @media (max-width: 480px) {
             .pagination-btn {
@@ -1338,6 +1501,19 @@
     </style>
 </head>
 <body>
+
+    <!-- GLOBAL ERROR BANNER -->
+    <div id="globalErrorBanner">
+        <span class="error-icon"><i class="fas fa-exclamation-circle"></i></span>
+        <span class="error-message" id="globalErrorMessage">Something went wrong.</span>
+        <button class="retry-btn" id="globalRetryBtn"><i class="fas fa-sync-alt"></i> Retry</button>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p>Loading deposits data...</p>
+    </div>
 
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
@@ -1409,6 +1585,11 @@
                     <h2 data-i18n="depositsTitle">Deposits Management</h2>
                     <p data-i18n="depositsSub">Record income from registration fees, interest, penalties, and other deposits</p>
                 </div>
+                <div class="page-header-right">
+                    <button class="btn-secondary" id="testConnectionBtn" style="margin-left:12px; padding:6px 14px; font-size:12px;">
+                        <i class="fas fa-plug"></i> Test Connection
+                    </button>
+                </div>
             </div>
 
             <!-- Deposit Balance Card -->
@@ -1420,6 +1601,13 @@
                     <span class="currency">ETB</span>
                     <span id="depositBalanceDisplay">0.00</span>
                 </div>
+            </div>
+
+            <!-- Error Box for customer loading -->
+            <div class="error-box" id="customerErrorBox">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span class="error-text" id="customerErrorText">Failed to load customers.</span>
+                <button class="retry-btn" id="retryCustomersBtn"><i class="fas fa-sync-alt"></i> Retry</button>
             </div>
 
             <!-- Record Deposit Form – role-based visibility -->
@@ -1509,6 +1697,13 @@
                 </div>
             </div>
 
+            <!-- Error Box for deposits loading -->
+            <div class="error-box" id="depositsErrorBox">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span class="error-text" id="depositsErrorText">Failed to load deposits data.</span>
+                <button class="retry-btn" id="retryDepositsBtn"><i class="fas fa-sync-alt"></i> Retry</button>
+            </div>
+
             <!-- SEARCH & YEAR FILTER -->
             <div class="search-bar">
                 <div class="search-wrapper">
@@ -1570,6 +1765,17 @@
 
     <!-- ===== PRINT SLIP CONTAINER ===== -->
     <div id="slipContainer" class="slip-container"></div>
+
+    <!-- ===== VIEW DEPOSIT MODAL (matches Savings design) ===== -->
+    <div class="modal-overlay" id="viewDepositModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Deposit Transaction Details</h3>
+                <button class="modal-close" id="closeViewModal">&times;</button>
+            </div>
+            <div id="viewDepositContent"></div>
+        </div>
+    </div>
 
     <!-- ===== EDIT DEPOSIT MODAL (with customer field added) ===== -->
     <div class="modal-overlay" id="editDepositModal">
@@ -1672,7 +1878,26 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // MULTI-LANGUAGE (Oromo: Savings → 'Kusaa', Deposits → 'Kaasaa')
+        // GLOBAL ERROR HANDLING
+        // ============================================================
+        function showGlobalError(message) {
+            const banner = document.getElementById('globalErrorBanner');
+            document.getElementById('globalErrorMessage').textContent = message;
+            banner.classList.add('show');
+        }
+
+        function hideGlobalError() {
+            document.getElementById('globalErrorBanner').classList.remove('show');
+        }
+
+        // Catch unhandled promise rejections
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('Unhandled rejection:', event.reason);
+            showGlobalError('Unhandled error: ' + (event.reason?.message || event.reason || 'Unknown error'));
+        });
+
+        // ============================================================
+        // MULTI-LANGUAGE
         // ============================================================
         const translations = {
             en: {
@@ -1733,6 +1958,7 @@
                 status: 'Status',
                 completed: 'Completed',
                 printed: 'Printed',
+                pending: 'Pending',
                 printRecorded: 'Print recorded successfully.',
                 unauthorized: 'You are not authorized to perform this action.',
                 amountInWords: 'Amount in words',
@@ -1744,7 +1970,14 @@
                 cancel: 'Cancel',
                 depositUpdated: 'Deposit updated successfully!',
                 customer: 'Customer',
-                reloadCustomers: 'Reload Customers'
+                reloadCustomers: 'Reload Customers',
+                sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.',
+                approve: 'Approve',
+                approved: 'Approved',
+                approvedBy: 'Approved By',
+                recordNotFound: 'Record not found.',
+                approvedSuccess: 'Deposit approved successfully!',
+                approvalError: 'Error approving deposit: '
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1804,6 +2037,7 @@
                 status: 'ሁኔታ',
                 completed: 'ተጠናቋል',
                 printed: 'ታትሟል',
+                pending: 'በመጠበቅ ላይ',
                 printRecorded: 'ህትመት በተሳካ ሁኔታ ተመዝግቧል።',
                 unauthorized: 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም።',
                 amountInWords: 'በቃላት መጠን',
@@ -1815,7 +2049,14 @@
                 cancel: 'ሰርዝ',
                 depositUpdated: 'ተቀማጭ በተሳካ ሁኔታ ተሻሽሏል!',
                 customer: 'ደንበኛ',
-                reloadCustomers: 'ደንበኞች እንደገና ጫን'
+                reloadCustomers: 'ደንበኞች እንደገና ጫን',
+                sessionTimeout: 'የእርስዎ ክፍለ ጊዜ በ{seconds} ሰከንዶች ውስጥ ያበቃል። በመዳፊት ያንቀሳቅሱ ወይም ቁልፍ ይጫኑ ለመቆየት።',
+                approve: 'ጸድቅ',
+                approved: 'ጸድቋል',
+                approvedBy: 'የጸደቀው',
+                recordNotFound: 'መዝገብ አልተገኘም።',
+                approvedSuccess: 'ተቀማጭ በተሳካ ሁኔታ ጸድቋል!',
+                approvalError: 'ተቀማጭ በማጽደቅ ላይ ስህተት: '
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1875,6 +2116,7 @@
                 status: 'Haala',
                 completed: 'Xumurame',
                 printed: 'Maxxanfame',
+                pending: 'Eegamaa',
                 printRecorded: 'Maxxansi sirriitti galmeefame.',
                 unauthorized: 'Gochaa kana raawwachuuf hayyamamtee hin jirtu.',
                 amountInWords: 'Qaba jechootaan',
@@ -1886,7 +2128,14 @@
                 cancel: 'Haqi',
                 depositUpdated: 'Kaasaan sirriitti fooyyeffame!',
                 customer: 'Maamila',
-                reloadCustomers: 'Maamila deebi\'i fe\'i'
+                reloadCustomers: 'Maamila deebi\'i fe\'i',
+                sessionTimeout: 'Yeroo keessan {seconds} sekondii keessatti xumura. Maallaqa ykn bantuu tuquun hafu.',
+                approve: 'Mirkaneessi',
+                approved: 'Mirkanaafame',
+                approvedBy: 'Mirkaneesse',
+                recordNotFound: 'Galmee hin argamne.',
+                approvedSuccess: 'Kaasaan sirriitti mirkanaafame!',
+                approvalError: 'Kaasaa mirkaneessuuf dogoggora: '
             }
         };
 
@@ -1992,12 +2241,20 @@
             return ['admin'].includes(currentUserRole);
         }
 
+        function canApproveDeposit() {
+            return ['admin', 'manager'].includes(currentUserRole);
+        }
+
+        // ---- updateUserInfo defined early ----
         function updateUserInfo() {
             const roleMap = { admin: 'ADMIN', manager: 'MANAGER', teller: 'TELLER', accountant: 'ACCOUNTANT',
                 viewer: 'VIEWER' };
             const roleLabel = roleMap[currentUserRole] || 'VIEWER';
             const displayName = currentUserDisplayName || 'User';
-            document.getElementById('userDisplayName').textContent = displayName + ' (' + roleLabel + ')';
+            const nameEl = document.getElementById('userDisplayName');
+            if (nameEl) {
+                nameEl.textContent = displayName + ' (' + roleLabel + ')';
+            }
 
             const auditNav = document.getElementById('auditNavItem');
             if (auditNav) {
@@ -2086,6 +2343,11 @@
         // CUSTOMER SEARCH
         // ============================================================
         async function loadCustomersForSelect() {
+            const errorBox = document.getElementById('customerErrorBox');
+            const errorText = document.getElementById('customerErrorText');
+            errorBox.classList.remove('show');
+            hideGlobalError();
+
             try {
                 const snapshot = await db.collection('customers').get();
                 customersList = [];
@@ -2093,13 +2355,22 @@
                     const data = doc.data();
                     customersList.push({
                         id: doc.id,
-                        fullName: data.fullName,
-                        customerId: data.customerId,
+                        fullName: data.fullName || data.name || 'Unknown',
+                        customerId: data.customerId || data.memberId || '',
                     });
                 });
+                console.log(`✅ Loaded ${customersList.length} customers`);
+                if (customersList.length === 0) {
+                    errorText.textContent = 'No customers found in the database. Please add customers first.';
+                    errorBox.classList.add('show');
+                }
                 return true;
             } catch (error) {
-                showToast(translations[currentLang].loadError + error.message, 'error');
+                console.error('❌ Error loading customers:', error);
+                errorText.textContent = 'Failed to load customers: ' + error.message;
+                errorBox.classList.add('show');
+                showGlobalError('Customer load error: ' + error.message);
+                showToast('Failed to load customers: ' + error.message, 'error');
                 return false;
             }
         }
@@ -2366,6 +2637,12 @@
 
         // ---- Load deposits ----
         async function loadDeposits() {
+            const overlay = document.getElementById('loadingOverlay');
+            const errorBox = document.getElementById('depositsErrorBox');
+            const errorText = document.getElementById('depositsErrorText');
+            errorBox.classList.remove('show');
+            overlay.classList.add('active');
+
             try {
                 const snapshot = await db.collection('transactions')
                     .where('type', '==', 'profit_income')
@@ -2386,10 +2663,51 @@
                 populateYearFilter();
                 applySearch();
                 updateTotalCount();
+                hideGlobalError();
+                console.log(`✅ Loaded ${allDeposits.length} deposits`);
             } catch (error) {
-                showToast(translations[currentLang].loadError + error.message, 'error');
+                console.error('❌ Error loading deposits:', error);
+                errorText.textContent = 'Failed to load deposits: ' + error.message;
+                errorBox.classList.add('show');
+                showGlobalError('Deposits load error: ' + error.message);
+                showToast('Failed to load deposits: ' + error.message, 'error');
+                document.getElementById('depositsBody').innerHTML =
+                    `<tr><td colspan="10" style="text-align:center; padding:40px; color:var(--danger);">❌ Error loading deposits: ${error.message}</td></tr>`;
+            } finally {
+                overlay.classList.remove('active');
             }
         }
+
+        // ---- Retry deposits ----
+        document.getElementById('retryDepositsBtn')?.addEventListener('click', function() {
+            loadDeposits();
+        });
+
+        // ---- Global Retry ----
+        document.getElementById('globalRetryBtn')?.addEventListener('click', function() {
+            hideGlobalError();
+            loadCustomersForSelect();
+            loadDeposits();
+            getTotalDeposits();
+        });
+
+        // ---- Test connection ----
+        async function testConnection() {
+            try {
+                const testRef = db.collection('customers').limit(1);
+                await testRef.get();
+                showToast('✅ Connection successful!', 'success');
+                hideGlobalError();
+                return true;
+            } catch (error) {
+                console.error('Connection test failed:', error);
+                showGlobalError('Firebase connection failed: ' + error.message);
+                showToast('❌ Connection failed: ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        document.getElementById('testConnectionBtn')?.addEventListener('click', testConnection);
 
         // ---- Apply search + year filter ----
         function applySearch() {
@@ -2443,6 +2761,9 @@
                 return;
             }
 
+            const isAdmin = currentUserRole === 'admin';
+            const isManager = currentUserRole === 'manager';
+
             let html = '';
             items.forEach((d, i) => {
                 const customer = customersList.find(c => c.id === d.customerId);
@@ -2456,8 +2777,10 @@
                     incomeType === 'Penalty' ? 'penalty' : 'other';
                 const note = d.note || d.description || '—';
                 const status = d.status || 'completed';
-                const statusLabel = status === 'printed' ? t.printed : t.completed;
-                const statusClass = status === 'printed' ? 'printed' : 'completed';
+                let statusLabel = status === 'printed' ? t.printed :
+                    status === 'pending' ? t.pending : t.completed;
+                const statusClass = status === 'printed' ? 'printed' :
+                    status === 'pending' ? 'pending' : 'completed';
 
                 const methodMap = { 'cash': t.cash || 'Cash', 'bank': t.bankTransfer || 'Bank',
                     'mobile': t.mobileMoney || 'Mobile' };
@@ -2471,6 +2794,15 @@
                         <i class="fas fa-print"></i>
                     </button>
                 `;
+
+                // Approve button for admin/manager on pending
+                if (canApproveDeposit() && d.status === 'pending') {
+                    actionsHtml += `
+                        <button class="action-btn approve-btn" onclick="approveDeposit('${d.id}')" title="${t.approve}">
+                            <i class="fas fa-check-circle"></i>
+                        </button>
+                    `;
+                }
 
                 if (canEditDeposit()) {
                     actionsHtml += `
@@ -2498,7 +2830,7 @@
                     <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
                     <td>${dateStr}</td>
                     <td>${displayName}</td>
-                    <td>${actionsHtml}</td>
+                    <td style="white-space:nowrap;">${actionsHtml}</td>
                 </tr>`;
             });
             tbody.innerHTML = html;
@@ -2552,28 +2884,121 @@
             document.getElementById('totalCount').textContent = total.toLocaleString();
         }
 
-        // ---- View Deposit ----
+        // ============================================================
+        // VIEW DEPOSIT - Full modal with Savings-style design
+        // ============================================================
         function viewDeposit(id) {
             const d = allDeposits.find(item => item.id === id);
-            if (!d) return;
-            const t = translations[currentLang];
-            const dateStr = d.date ? (d.date.toDate ? d.date.toDate().toLocaleDateString() : new Date(d.date)
-                .toLocaleDateString()) : '—';
-            const byUser = d.createdByName || d.createdBy || d.createdByEmail || 'Admin';
-            const displayName = byUser.includes('@') ? byUser.split('@')[0] : byUser;
-            const note = d.note || d.description || '—';
-            const methodMap = { 'cash': t.cash || 'Cash', 'bank': t.bankTransfer || 'Bank',
-                'mobile': t.mobileMoney || 'Mobile' };
-            const methodLabel = methodMap[d.paymentMethod] || d.paymentMethod || 'Cash';
-            let extra = '';
-            if (d.paymentMethod !== 'cash') {
-                extra =
-                    `\n📋 TT Number: ${d.ttNumber || '—'}\n📅 Transfer Date: ${d.transferDate ? (d.transferDate.toDate ? d.transferDate.toDate().toLocaleDateString() : new Date(d.transferDate).toLocaleDateString()) : '—'}\n🏦 Bank: ${d.bankName || '—'}`;
+            if (!d) {
+                showToast(translations[currentLang].recordNotFound || 'Record not found.', 'error');
+                return;
             }
-            showToast(
-                `📋 ${t.incomeType}: ${d.incomeType || 'Other'}\n💰 ${t.amount}: ETB ${Number(d.amount).toLocaleString()}\n💳 ${t.paymentMethod}: ${methodLabel}${extra}\n📝 ${t.description}: ${note}\n📅 ${t.date}: ${dateStr}\n👤 ${t.by}: ${displayName}`,
-                'warning'
-            );
+
+            const t = translations[currentLang];
+            const member = customersList.find(c => c.id === d.customerId);
+            const customerName = member ? member.fullName : (d.customerName || 'Unknown');
+            const customerIdDisplay = member ? member.customerId : (d.customerIdCustom || d.customerId || '—');
+
+            const amount = Number(d.amount) || 0;
+            const dateStr = d.date ? (d.date.toDate ? d.date.toDate().toLocaleString() : new Date(d.date).toLocaleString()) :
+            '—';
+            const statusLabel = d.status === 'printed' ? t.printed :
+                d.status === 'pending' ? t.pending : t.completed;
+            const statusClass = d.status === 'printed' ? 'printed' :
+                d.status === 'pending' ? 'pending' : 'completed';
+            const note = d.note || d.description || '—';
+            const recordedBy = d.createdByName || d.createdBy || d.createdByEmail || 'Admin';
+            const recordedDisplay = recordedBy.includes('@') ? recordedBy.split('@')[0] : recordedBy;
+
+            // Approved By
+            const approvedBy = d.approvedBy || d.approvedByName || '—';
+            const approvedDisplay = approvedBy.includes('@') ? approvedBy.split('@')[0] : approvedBy;
+
+            const methodMap = { 'cash': t.cash || 'Cash', 'bank': t.bankTransfer || 'Bank Transfer',
+                'mobile': t.mobileMoney || 'Mobile Money' };
+            const methodLabel = methodMap[d.paymentMethod] || d.paymentMethod || 'Cash';
+
+            // Extra conditional rows for non-cash
+            let extraRows = '';
+            if (d.paymentMethod !== 'cash') {
+                extraRows += `
+                    <div class="view-detail-row"><span class="label">TT Number</span><span class="value">${d.ttNumber || '—'}</span></div>
+                    <div class="view-detail-row"><span class="label">Transfer Date</span><span class="value">${d.transferDate ? (d.transferDate.toDate ? d.transferDate.toDate().toLocaleDateString() : new Date(d.transferDate).toLocaleDateString()) : '—'}</span></div>
+                    <div class="view-detail-row"><span class="label">Bank / Provider</span><span class="value">${d.bankName || '—'}</span></div>
+                `;
+            }
+
+            const content = document.getElementById('viewDepositContent');
+            content.innerHTML = `
+                <div class="view-detail-row"><span class="label">Transaction ID</span><span class="value">${d.id}</span></div>
+                <div class="view-detail-row"><span class="label">Customer</span><span class="value">${customerName}</span></div>
+                <div class="view-detail-row"><span class="label">Customer ID</span><span class="value">${customerIdDisplay}</span></div>
+                <div class="view-detail-row"><span class="label">Income Type</span><span class="value">${d.incomeType || 'Other Deposit'}</span></div>
+                <div class="view-detail-row"><span class="label">Amount</span><span class="value">ETB ${amount.toLocaleString()}</span></div>
+                <div class="view-detail-row"><span class="label">Payment Method</span><span class="value">${methodLabel}</span></div>
+                ${extraRows}
+                <div class="view-detail-row"><span class="label">Status</span><span class="value"><span class="status-badge ${statusClass}">${statusLabel}</span></span></div>
+                <div class="view-detail-row"><span class="label">Description</span><span class="value">${note}</span></div>
+                <div class="view-detail-row"><span class="label">Date</span><span class="value">${dateStr}</span></div>
+                <div class="view-detail-row"><span class="label">Recorded By</span><span class="value">${recordedDisplay}</span></div>
+                <div class="view-detail-row"><span class="label">Approved By</span><span class="value">${approvedDisplay}</span></div>
+            `;
+
+            document.getElementById('viewDepositModal').classList.add('active');
+            document.getElementById('viewDepositModal').style.display = 'flex';
+        }
+
+        // ---- Close View Modal ----
+        function closeViewModal() {
+            document.getElementById('viewDepositModal').classList.remove('active');
+            document.getElementById('viewDepositModal').style.display = 'none';
+        }
+
+        // ============================================================
+        // APPROVE DEPOSIT (Admin/Manager only)
+        // ============================================================
+        async function approveDeposit(id) {
+            if (!canApproveDeposit()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+
+            const t = translations[currentLang];
+            if (!confirm('Approve this pending deposit? This will mark it as approved.')) return;
+
+            try {
+                const docRef = db.collection('transactions').doc(id);
+                const doc = await docRef.get();
+                const data = doc.exists ? doc.data() : {};
+
+                if (data.status !== 'pending') {
+                    showToast('This deposit is already approved.', 'warning');
+                    return;
+                }
+
+                const user = auth.currentUser;
+                const approvedByName = user?.displayName || user?.email || 'Admin';
+                const approvedDisplay = approvedByName.includes('@') ? approvedByName.split('@')[0] : approvedByName;
+
+                await docRef.update({
+                    status: 'completed',
+                    approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    approvedBy: approvedByName,
+                    approvedByName: approvedDisplay
+                });
+
+                await logAudit('approved', 'transactions', id, {
+                    previousStatus: { old: null, new: 'pending' },
+                    newStatus: { old: null, new: 'completed' },
+                    approvedBy: { old: null, new: approvedDisplay }
+                }, `Deposit approved: ${data.incomeType || 'Unknown'} - ${data.amount || 0} ETB`);
+
+                showToast(t.approvedSuccess, 'success');
+                await loadDeposits();
+                await getTotalDeposits();
+            } catch (error) {
+                showToast(t.approvalError + error.message, 'error');
+            }
         }
 
         // ---- Edit Deposit ----
@@ -2591,7 +3016,8 @@
 
             const customer = customersList.find(c => c.id === d.customerId);
             if (customer) {
-                document.getElementById('editCustomerSearch').value = customer.fullName + ' (' + (customer.customerId || '') + ')';
+                document.getElementById('editCustomerSearch').value = customer.fullName + ' (' + (customer.customerId || '') +
+                ')';
                 document.getElementById('editCustomerId').value = customer.id;
             } else {
                 document.getElementById('editCustomerSearch').value = '';
@@ -2849,6 +3275,7 @@
                 const customer = customersList.find(c => c.id === customerId);
                 const customerIdCustom = customer ? customer.customerId : '';
 
+                // Default status is 'pending' - needs approval
                 const docData = {
                     type: 'profit_income',
                     transactionType: 'income',
@@ -2860,7 +3287,7 @@
                     date: new Date(date),
                     note: description,
                     description: description,
-                    status: 'completed',
+                    status: 'pending',
                     paymentMethod: paymentMethod,
                     ttNumber: (paymentMethod === 'cash' ? '' : ttNumber),
                     bankName: (paymentMethod === 'cash' ? '' : bankName),
@@ -2886,7 +3313,8 @@
                     description: { old: null, new: description },
                     ttNumber: { old: null, new: ttNumber || '' },
                     bankName: { old: null, new: bankName || '' },
-                    transferDate: { old: null, new: transferDate || '' }
+                    transferDate: { old: null, new: transferDate || '' },
+                    status: { old: null, new: 'pending' }
                 }, `Deposit created: ${incomeType} - ${amount} ETB for customer ${customer ? customer.fullName : 'Unknown'}`);
 
                 showToast(translations[currentLang].depositRecorded, 'success');
@@ -3029,6 +3457,7 @@
                         currentUserRole = 'viewer';
                         currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'User';
                     }
+                    console.log(`👤 User role: ${currentUserRole}, display: ${currentUserDisplayName}`);
                 } catch (err) {
                     console.error('Error fetching user role:', err);
                     currentUserRole = 'viewer';
@@ -3106,6 +3535,12 @@
 
                 document.getElementById('depositForm').addEventListener('submit', recordDeposit);
 
+                // Close view modal
+                document.getElementById('closeViewModal').addEventListener('click', closeViewModal);
+                document.getElementById('viewDepositModal').addEventListener('click', function(e) {
+                    if (e.target === this) closeViewModal();
+                });
+
                 document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
                 document.getElementById('cancelEditBtn').addEventListener('click', closeEditModal);
                 document.getElementById('editDepositModal').addEventListener('click', function(e) {
@@ -3138,6 +3573,7 @@
                 const t = translations[currentLang];
                 searchInput.placeholder = t.searchPlaceholder || 'Search by description or type...';
 
+                // Expose functions globally
                 window.editDeposit = editDeposit;
                 window.deleteDeposit = deleteDeposit;
                 window.viewDeposit = viewDeposit;
@@ -3147,8 +3583,11 @@
                 window.toggleConditionalFields = toggleConditionalFields;
                 window.toggleEditConditionalFields = toggleEditConditionalFields;
                 window.closeEditModal = closeEditModal;
+                window.closeViewModal = closeViewModal;
                 window.selectMainCustomer = selectMainCustomer;
                 window.selectEditCustomer = selectEditCustomer;
+                window.testConnection = testConnection;
+                window.approveDeposit = approveDeposit;
             });
         });
     </script>
