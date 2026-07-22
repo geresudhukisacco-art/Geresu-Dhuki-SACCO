@@ -392,6 +392,25 @@
             color: #fff;
             border-color: var(--primary);
         }
+        /* ---- TEST CONNECTION BUTTON ---- */
+        .test-conn-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 4px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .test-conn-btn:hover {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
         .notif-btn {
             background: none;
             border: none;
@@ -1257,7 +1276,10 @@
                     <button class="lang-btn" data-lang="am">አማ</button>
                     <button class="lang-btn" data-lang="om">OM</button>
                 </div>
-           
+                <!-- TEST CONNECTION BUTTON -->
+                <button class="test-conn-btn" id="testConnectionBtn" data-i18n="testConnection">
+                    <i class="fas fa-plug"></i> <span>Test Connection</span>
+                </button>
                 <div class="user-profile">
                     <img id="userAvatar" src="../assets/images/avatar.png" alt="User" onerror="this.src='https://ui-avatars.com/api/?name=Admin&background=2d7a3d&color=fff'" />
                     <span class="user-name" id="userDisplayName">Admin</span>
@@ -1557,7 +1579,10 @@
                 closed: 'Closed',
                 yearClosed: 'This year is closed (dividends distributed). New year starts fresh.',
                 yearOpen: 'This year is currently open.',
-                sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.'
+                sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.',
+                testConnection: 'Test Connection',
+                connectionSuccess: '✅ Connection successful!',
+                connectionFailed: '❌ Connection failed: '
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1612,7 +1637,10 @@
                 closed: 'ተዘግቷል',
                 yearClosed: 'ይህ ዓመት ተዘግቷል (ክፍፍል ተከፋፍሏል)። አዲሱ ዓመት ከዜሮ ይጀምራል።',
                 yearOpen: 'ይህ ዓመት ክፍት ነው።',
-                sessionTimeout: 'የእርስዎ ክፍለ-ጊዜ በ{seconds} ሰከንዶች ውስጥ ያበቃል። በመዳፊት ወይም ቁልፍ ይንቀሳቀሱ ወይም ይጫኑ በመግቢያ ላይ ለመቆየት።'
+                sessionTimeout: 'የእርስዎ ክፍለ-ጊዜ በ{seconds} ሰከንዶች ውስጥ ያበቃል። በመዳፊት ወይም ቁልፍ ይንቀሳቀሱ ወይም ይጫኑ በመግቢያ ላይ ለመቆየት።',
+                testConnection: 'ግንኙነት ሞክር',
+                connectionSuccess: '✅ ግንኙነቱ ተሳክቷል!',
+                connectionFailed: '❌ ግንኙነቱ አልተሳካም: '
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1667,7 +1695,10 @@
                 closed: 'Cufamaa',
                 yearClosed: 'Waggaan kun cufameera (qoodni qoodame). Waggaa haaraan zeerodhaa eegala.',
                 yearOpen: 'Waggaan kun banaa jira.',
-                sessionTimeout: 'Sessiin keessan {seconds} sekoondii keessatti xumurama. Siiqaa ykn cuqaasaa sochoosuu ykn cuqaasuu akka seenan turtanii.'
+                sessionTimeout: 'Sessiin keessan {seconds} sekoondii keessatti xumurama. Siiqaa ykn cuqaasaa sochoosuu ykn cuqaasuu akka seenan turtanii.',
+                testConnection: 'Qunnamtii Mirkaneessi',
+                connectionSuccess: '✅ Qunnamtii milkaa\'e!',
+                connectionFailed: '❌ Qunnamtii hin milkaanne: '
             }
         };
 
@@ -1703,6 +1734,12 @@
             });
 
             try { localStorage.setItem('waciti-lang', lang); } catch (e) {}
+            // Also update the test connection button text (since it has a span inside)
+            const testBtn = document.getElementById('testConnectionBtn');
+            if (testBtn) {
+                const span = testBtn.querySelector('span');
+                if (span) span.textContent = t.testConnection || 'Test Connection';
+            }
             updateYearStatus(selectedYear);
         }
 
@@ -1736,6 +1773,26 @@
                 setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
             }, 4500);
         }
+
+        // ============================================================
+        // TEST CONNECTION
+        // ============================================================
+        async function testConnection() {
+            try {
+                const testRef = db.collection('customers').limit(1);
+                await testRef.get();
+                const t = translations[currentLang];
+                showToast(t.connectionSuccess || '✅ Connection successful!', 'success');
+                return true;
+            } catch (error) {
+                console.error('Connection test failed:', error);
+                const t = translations[currentLang];
+                showToast((t.connectionFailed || '❌ Connection failed: ') + error.message, 'error');
+                return false;
+            }
+        }
+
+        document.getElementById('testConnectionBtn')?.addEventListener('click', testConnection);
 
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('open');
@@ -1983,14 +2040,10 @@
             return 'just now';
         }
 
-        // ---- Helper to get customer name from any ID ----
         function getCustomerName(customerId) {
             if (!customerId) return 'Unknown Customer';
-            // Try direct map (doc.id or customerId field)
             if (customersMap[customerId]) return customersMap[customerId];
-            // If not found, try to search by customerId field in the map (we already added both)
-            // But we already added both in the map, so if still not found, return the ID as fallback
-            return `Customer (${customerId})`; // fallback showing ID
+            return `Customer (${customerId})`;
         }
 
         async function loadDashboardData() {
@@ -1998,22 +2051,18 @@
                 const year = selectedYear;
                 const t = translations[currentLang] || translations.en;
 
-                // ---- 1. Load all customers and build a robust map ----
                 const customersSnap = await db.collection('customers').get();
                 const totalCustomers = customersSnap.size;
                 customersMap = {};
                 customersSnap.forEach(doc => {
                     const data = doc.data();
                     const name = data.fullName || 'Unknown Customer';
-                    // Map by document ID
                     customersMap[doc.id] = name;
-                    // Also map by customerId field if it exists
                     if (data.customerId) {
                         customersMap[data.customerId] = name;
                     }
                 });
 
-                // ---- 2. Load transactions ----
                 const savingsSnap = await db.collection('transactions').where('type', '==', 'savings').get();
                 const loansSnap = await db.collection('transactions').where('type', '==', 'loan').get();
                 const repaymentsSnap = await db.collection('transactions').where('type', '==', 'repayment').get();
@@ -2029,7 +2078,6 @@
                 const allProfitWithdrawal = profitWithdrawalSnap.docs.map(d => ({ id: d.id, ...d.data() }));
                 const allWithdrawals = withdrawalSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-                // ---- 3. Calculations (same as before) ----
                 const totalSavingsAllYears = allSavings.reduce((s, item) => s + (Number(item.amount) || 0), 0);
                 const totalDividendsAllYears = allProfitWithdrawal
                     .filter(w => w.reason === 'Dividend')
@@ -2066,7 +2114,6 @@
                 totalProfitAllYears = Math.round(totalProfitAllYears * 100) / 100;
                 const totalBalanceAllYears = Math.round((totalSavingsAllYears + totalProfitAllYears) * 100) / 100;
 
-                // ---- 4. Filter by selected year ----
                 savingsData = allSavings.filter(s => isInYear(s.date || s.timestamp, year));
                 loansData = allLoans.filter(l => isInYear(l.date || l.timestamp, year));
                 repaymentsData = allRepayments.filter(r => isInYear(r.date || r.timestamp, year));
@@ -2084,7 +2131,6 @@
                 const profit = Math.round(((totalRepayments - totalLoans) + totalDeposits - totalDividends) * 100) / 100;
                 const totalBalance = Math.round((totalSavings + profit) * 100) / 100;
 
-                // Update stats
                 document.getElementById('totalCustomersValue').textContent = totalCustomers.toLocaleString();
                 document.getElementById('balanceValue').textContent = totalBalance.toLocaleString();
                 document.getElementById('savingsValue').textContent = totalSavings.toLocaleString();
@@ -2095,7 +2141,6 @@
                 document.getElementById('totalBalanceAllValue').textContent = totalBalanceAllYears.toLocaleString();
                 document.getElementById('totalCapitalValue').textContent = totalCapitalAllYears.toLocaleString();
 
-                // Changes
                 const currentMonth = new Date().getMonth();
                 const currentYear = year;
                 const prevYear = year - 1;
@@ -2144,7 +2189,6 @@
                 document.getElementById('totalBalanceAllChange').innerHTML = `<span class="neutral">—</span>`;
                 document.getElementById('totalCapitalChange').innerHTML = `<span class="neutral">—</span>`;
 
-                // Charts
                 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 const loansMonthly = months.map((_, i) => getMonthlyTotal(loansData.filter(l => l.status === 'active' || l
                     .status === 'paid'), 'amount', year, i));
@@ -2152,10 +2196,8 @@
                 const savingsMonthly = months.map((_, i) => getMonthlyTotal(savingsData, 'amount', year, i));
                 updateCharts(months, loansMonthly, repaymentsMonthly, savingsMonthly);
 
-                // ---- 5. Build activities for NOTIFICATIONS (only, since Recent Activity removed) ----
                 const activities = [];
 
-                // Savings
                 savingsData.slice(0, 5).forEach(s => {
                     const customerName = getCustomerName(s.customerId);
                     activities.push({
@@ -2166,7 +2208,6 @@
                     });
                 });
 
-                // Loans
                 loansData.filter(l => l.status === 'active' || l.status === 'paid').slice(0, 5).forEach(l => {
                     const customerName = getCustomerName(l.customerId);
                     activities.push({
@@ -2177,7 +2218,6 @@
                     });
                 });
 
-                // Repayments
                 repaymentsData.slice(0, 5).forEach(r => {
                     const customerName = getCustomerName(r.customerId);
                     activities.push({
@@ -2188,7 +2228,6 @@
                     });
                 });
 
-                // Income
                 profitIncomeData.slice(0, 3).forEach(p => {
                     const type = p.incomeType || 'Deposit';
                     activities.push({
@@ -2199,7 +2238,6 @@
                     });
                 });
 
-                // Dividends
                 profitWithdrawalData.filter(w => w.reason === 'Dividend').slice(0, 3).forEach(w => {
                     const customerName = getCustomerName(w.customerId);
                     activities.push({
@@ -2210,7 +2248,6 @@
                     });
                 });
 
-                // Sort by date descending
                 activities.sort((a, b) => {
                     const da = toDate(a.date);
                     const db = toDate(b.date);
@@ -2220,7 +2257,6 @@
                     return db - da;
                 });
 
-                // ---- 6. Render notifications (up to 4 most recent) ----
                 const notifications = activities.slice(0, 4).map(a => {
                     const colorMap = {
                         'blue': 'blue',
@@ -2241,7 +2277,6 @@
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
                 showToast('Failed to load dashboard data: ' + error.message, 'error');
-                // Reset stats to 0
                 document.getElementById('totalCustomersValue').textContent = '0';
                 document.getElementById('balanceValue').textContent = '0';
                 document.getElementById('savingsValue').textContent = '0';
@@ -2402,6 +2437,9 @@
                 document.addEventListener('keydown', function(e) {
                     if (e.key === 'Escape') hideLogoutModal();
                 });
+
+                // Also expose testConnection globally for debugging
+                window.testConnection = testConnection;
 
                 updateDateTime();
                 setInterval(updateDateTime, 60000);
