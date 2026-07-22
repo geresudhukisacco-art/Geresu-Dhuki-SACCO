@@ -83,6 +83,44 @@
         }
 
         /* ============================================================
+           LOADING OVERLAY
+           ============================================================ */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .loading-overlay.active {
+            display: flex;
+        }
+        .loading-overlay .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .loading-overlay p {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* ============================================================
            SIDEBAR – Bright green with HIGH CONTRAST text (Matches Dashboard)
            ============================================================ */
         .sidebar {
@@ -1195,6 +1233,12 @@
 </head>
 <body>
 
+    <!-- LOADING OVERLAY -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p data-i18n="loadingData">Loading data...</p>
+    </div>
+
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <aside class="sidebar" id="sidebar">
@@ -1436,7 +1480,7 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // MULTI-LANGUAGE (UPDATED with testConnection)
+        // MULTI-LANGUAGE (UPDATED with testConnection + loadingData)
         // ============================================================
         const translations = {
             en: {
@@ -1512,7 +1556,8 @@
                 deleteError: 'Error deleting dividend: ',
                 testConnection: 'Test Connection',
                 connectionSuccess: '✅ Connection successful!',
-                connectionFailed: '❌ Connection failed: '
+                connectionFailed: '❌ Connection failed: ',
+                loadingData: 'Loading data...'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1587,7 +1632,8 @@
                 deleteError: 'ክፍፍል በመሰረዝ ላይ ስህተት: ',
                 testConnection: 'ግንኙነት ሞክር',
                 connectionSuccess: '✅ ግንኙነቱ ተሳክቷል!',
-                connectionFailed: '❌ ግንኙነቱ አልተሳካም: '
+                connectionFailed: '❌ ግንኙነቱ አልተሳካም: ',
+                loadingData: 'ውሂብ በማስገባት ላይ...'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1662,7 +1708,8 @@
                 deleteError: 'Qooda haquuf dogoggora: ',
                 testConnection: 'Qunnamtii Mirkaneessi',
                 connectionSuccess: '✅ Qunnamtii milkaa\'e!',
-                connectionFailed: '❌ Qunnamtii hin milkaanne: '
+                connectionFailed: '❌ Qunnamtii hin milkaanne: ',
+                loadingData: 'Datuu galmeessuuf...'
             }
         };
 
@@ -1714,6 +1761,9 @@
                 const span = testBtn.querySelector('span');
                 if (span) span.textContent = t.testConnection || 'Test Connection';
             }
+            // Update loading overlay text
+            const loadingText = document.querySelector('#loadingOverlay p');
+            if (loadingText) loadingText.textContent = t.loadingData || 'Loading data...';
             updatePaginationInfo();
             renderPageButtons();
         }
@@ -1777,7 +1827,7 @@
         }
 
         // ============================================================
-        // TEST CONNECTION (NEW)
+        // TEST CONNECTION
         // ============================================================
         async function testConnection() {
             try {
@@ -2496,23 +2546,29 @@
         }
 
         // ============================================================
-        // LOAD YEAR DATA
+        // LOAD YEAR DATA (with loading overlay)
         // ============================================================
         async function loadYearData(year) {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.add('active');
             try {
                 yearData = await calculateYearData(year);
                 currentPage = 1;
                 updateUI(yearData);
+                overlay.classList.remove('active');
             } catch (error) {
                 console.error('Error loading year data:', error);
                 showToast('Error loading year data: ' + error.message, 'error');
+                overlay.classList.remove('active');
             }
         }
 
         // ============================================================
-        // LOAD AVAILABLE YEARS
+        // LOAD AVAILABLE YEARS (with loading overlay)
         // ============================================================
         async function loadAvailableYears() {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.add('active');
             try {
                 const currentYear = new Date().getFullYear();
                 const yearsSet = new Set();
@@ -2550,6 +2606,7 @@
                     loadYearData(selectedYear);
                 });
 
+                overlay.classList.remove('active');
                 return selectedYear;
 
             } catch (error) {
@@ -2566,6 +2623,7 @@
                         select.appendChild(option);
                     }
                 }
+                overlay.classList.remove('active');
                 return currentYear;
             }
         }
@@ -2601,6 +2659,9 @@
 
                 updateUserInfo();
 
+                // Expose testConnection globally
+                window.testConnection = testConnection;
+
                 initLanguage();
                 loadSidebarState();
 
@@ -2620,9 +2681,6 @@
                         window.location.href = '../login.html';
                     }
                 });
-
-                // Expose testConnection globally
-                window.testConnection = testConnection;
 
                 await loadCustomersForSelect();
 
