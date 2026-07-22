@@ -442,6 +442,42 @@
             text-decoration: underline;
         }
 
+        .top-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .top-actions .left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .top-actions .right {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-secondary {
+            background: #e8ede9;
+            color: #1a2e1f;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-secondary:hover {
+            background: #d0d7d2;
+        }
+
         .loading-spinner {
             text-align: center;
             padding: 60px 20px;
@@ -1341,6 +1377,10 @@
             .filter-wrapper select {
                 width: 100%;
             }
+            .top-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
         }
         @media (max-width: 480px) {
             .financial-summary {
@@ -1401,7 +1441,7 @@
         <nav class="sidebar-nav">
             <ul>
                 <li><a href="dashboard.html"><i class="fas fa-th-large"></i> <span data-i18n="navDashboard">Dashboard</span></a></li>
-                <li><a href="customers.html"><i class="fas fa-users"></i> <span data-i18n="navCustomers">Customers</span></a></li>
+                <li class="active"><a href="customers.html"><i class="fas fa-users"></i> <span data-i18n="navCustomers">Customers</span></a></li>
                 <li><a href="savings.html"><i class="fas fa-piggy-bank"></i> <span data-i18n="navSavings">Savings</span></a></li>
                 <li><a href="deposits.html"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="navDeposits">Deposits</span></a></li>
                 <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="navLoans">Loans</span></a></li>
@@ -1448,7 +1488,17 @@
 
         <section class="dashboard-content" id="profileContent">
 
-            <a href="customers.html" class="back-link"><i class="fas fa-arrow-left"></i> <span data-i18n="backToCustomers">Back to Customers</span></a>
+            <div class="top-actions">
+                <div class="left">
+                    <a href="customers.html" class="back-link"><i class="fas fa-arrow-left"></i> <span data-i18n="backToCustomers">Back to Customers</span></a>
+                </div>
+                <div class="right">
+                    <!-- Test Connection Button -->
+                    <button class="btn-secondary" id="testConnectionBtn" style="padding:6px 14px; font-size:12px;">
+                        <i class="fas fa-plug"></i> <span data-i18n="testConnection">Test Connection</span>
+                    </button>
+                </div>
+            </div>
 
             <div id="loadingState" class="loading-spinner">
                 <i class="fas fa-spinner fa-spin"></i>
@@ -1641,7 +1691,7 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // MULTI-LANGUAGE
+        // MULTI-LANGUAGE (including connection strings)
         // ============================================================
         const translations = {
             en: {
@@ -1709,7 +1759,10 @@
                 paid: 'Paid',
                 pending_loan: 'Pending',
                 allYears: 'All Years',
-                searchPlaceholder: 'Search by type, details...'
+                searchPlaceholder: 'Search by type, details...',
+                testConnection: 'Test Connection',
+                connectionSuccess: '✅ Connection successful!',
+                connectionFailed: '❌ Connection failed: '
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1776,7 +1829,10 @@
                 paid: 'ተከፍሏል',
                 pending_loan: 'በመጠበቅ ላይ',
                 allYears: 'ሁሉም ዓመታት',
-                searchPlaceholder: 'በአይነት፣ በዝርዝር ይፈልጉ...'
+                searchPlaceholder: 'በአይነት፣ በዝርዝር ይፈልጉ...',
+                testConnection: 'ግንኙነት ሞክር',
+                connectionSuccess: '✅ ግንኙነቱ ተሳክቷል!',
+                connectionFailed: '❌ ግንኙነቱ አልተሳካም: '
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1843,7 +1899,10 @@
                 paid: 'Kaffale',
                 pending_loan: 'Eegamaa',
                 allYears: 'Waggaa Hunda',
-                searchPlaceholder: 'Gosa, ibsa-tiin barbaadi...'
+                searchPlaceholder: 'Gosa, ibsa-tiin barbaadi...',
+                testConnection: 'Qunnamtii Mirkaneessi',
+                connectionSuccess: '✅ Qunnamtii milkaa\'e!',
+                connectionFailed: '❌ Qunnamtii hin milkaanne: '
             }
         };
 
@@ -1911,6 +1970,26 @@
                 setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
             }, 4500);
         }
+
+        // ============================================================
+        // TEST CONNECTION (added)
+        // ============================================================
+        async function testConnection() {
+            try {
+                const testRef = db.collection('customers').limit(1);
+                await testRef.get();
+                const t = translations[currentLang];
+                showToast(t.connectionSuccess || '✅ Connection successful!', 'success');
+                return true;
+            } catch (error) {
+                console.error('Connection test failed:', error);
+                const t = translations[currentLang];
+                showToast((t.connectionFailed || '❌ Connection failed: ') + error.message, 'error');
+                return false;
+            }
+        }
+
+        document.getElementById('testConnectionBtn')?.addEventListener('click', testConnection);
 
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('open');
@@ -2673,6 +2752,7 @@
 
         window.goToPage = goToPage;
         window.toggleSidebar = toggleSidebar;
+        window.testConnection = testConnection; // expose for debugging
     </script>
     <script>
         // ============================================================
