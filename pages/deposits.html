@@ -1571,6 +1571,10 @@
                     <button class="lang-btn" data-lang="am">አማ</button>
                     <button class="lang-btn" data-lang="om">OM</button>
                 </div>
+                <!-- TEST CONNECTION BUTTON -->
+                <button class="btn-secondary" id="testConnectionBtn" style="padding:4px 12px; font-size:12px; margin-right:8px;">
+                    <i class="fas fa-plug"></i> <span data-i18n="testConnection">Test Connection</span>
+                </button>
                 <div class="user-profile">
                     <img id="userAvatar" src="../assets/images/avatar.png" alt="User" onerror="this.src='https://ui-avatars.com/api/?name=Admin&background=2d7a3d&color=fff'" />
                     <span class="user-name" id="userDisplayName">Admin</span>
@@ -1586,9 +1590,7 @@
                     <p data-i18n="depositsSub">Record income from registration fees, interest, penalties, and other deposits</p>
                 </div>
                 <div class="page-header-right">
-                    <button class="btn-secondary" id="testConnectionBtn" style="margin-left:12px; padding:6px 14px; font-size:12px;">
-                        <i class="fas fa-plug"></i> Test Connection
-                    </button>
+                    <!-- Test connection is now in header -->
                 </div>
             </div>
 
@@ -1610,7 +1612,7 @@
                 <button class="retry-btn" id="retryCustomersBtn"><i class="fas fa-sync-alt"></i> Retry</button>
             </div>
 
-            <!-- Record Deposit Form – role-based visibility -->
+            <!-- Record Deposit Form – visible to ALL (viewers can record pending deposits) -->
             <div class="form-section" id="depositFormSection">
                 <h3 data-i18n="recordDeposit">Record Deposit</h3>
                 <form id="depositForm">
@@ -1626,7 +1628,6 @@
                             <input type="hidden" id="customerId" />
                             <div id="customerSuggestions"></div>
                         </div>
-                        <!-- ========================================= -->
                         <div class="form-group">
                             <label data-i18n="incomeType">Income Type <span class="required">*</span></label>
                             <select id="incomeType" required>
@@ -1958,7 +1959,7 @@
                 status: 'Status',
                 completed: 'Completed',
                 printed: 'Printed',
-                pending: 'Pending',
+                pending: 'Pending (Awaiting Approval)',
                 printRecorded: 'Print recorded successfully.',
                 unauthorized: 'You are not authorized to perform this action.',
                 amountInWords: 'Amount in words',
@@ -1978,7 +1979,10 @@
                 recordNotFound: 'Record not found.',
                 approvedSuccess: 'Deposit approved successfully!',
                 approvalError: 'Error approving deposit: ',
-                viewDetails: 'View Details'
+                viewDetails: 'View Details',
+                testConnection: 'Test Connection',
+                connectionSuccess: '✅ Connection successful!',
+                connectionFailed: '❌ Connection failed: '
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -2038,7 +2042,7 @@
                 status: 'ሁኔታ',
                 completed: 'ተጠናቋል',
                 printed: 'ታትሟል',
-                pending: 'በመጠበቅ ላይ',
+                pending: 'በመጠበቅ ላይ (ማጽደቅ ያስፈልጋል)',
                 printRecorded: 'ህትመት በተሳካ ሁኔታ ተመዝግቧል።',
                 unauthorized: 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም።',
                 amountInWords: 'በቃላት መጠን',
@@ -2058,7 +2062,10 @@
                 recordNotFound: 'መዝገብ አልተገኘም።',
                 approvedSuccess: 'ተቀማጭ በተሳካ ሁኔታ ጸድቋል!',
                 approvalError: 'ተቀማጭ በማጽደቅ ላይ ስህተት: ',
-                viewDetails: 'ዝርዝሮችን ይመልከቱ'
+                viewDetails: 'ዝርዝሮችን ይመልከቱ',
+                testConnection: 'ግንኙነት ሞክር',
+                connectionSuccess: '✅ ግንኙነቱ ተሳክቷል!',
+                connectionFailed: '❌ ግንኙነቱ አልተሳካም: '
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -2118,7 +2125,7 @@
                 status: 'Haala',
                 completed: 'Xumurame',
                 printed: 'Maxxanfame',
-                pending: 'Eegamaa',
+                pending: 'Eegamaa (Mirkaneessuu barbaada)',
                 printRecorded: 'Maxxansi sirriitti galmeefame.',
                 unauthorized: 'Gochaa kana raawwachuuf hayyamamtee hin jirtu.',
                 amountInWords: 'Qaba jechootaan',
@@ -2138,7 +2145,10 @@
                 recordNotFound: 'Galmee hin argamne.',
                 approvedSuccess: 'Kaasaan sirriitti mirkanaafame!',
                 approvalError: 'Kaasaa mirkaneessuuf dogoggora: ',
-                viewDetails: 'Gadifageenya Ilaali'
+                viewDetails: 'Gadifageenya Ilaali',
+                testConnection: 'Qunnamtii Mirkaneessi',
+                connectionSuccess: '✅ Qunnamtii milkaa\'e!',
+                connectionFailed: '❌ Qunnamtii hin milkaanne: '
             }
         };
 
@@ -2174,6 +2184,12 @@
             if (searchInput) searchInput.placeholder = t.searchPlaceholder || 'Search by description or type...';
             updatePaginationInfo();
             renderPageButtons();
+            // Update test connection button text
+            const testBtn = document.getElementById('testConnectionBtn');
+            if (testBtn) {
+                const span = testBtn.querySelector('span');
+                if (span) span.textContent = t.testConnection || 'Test Connection';
+            }
         }
 
         function initLanguage() {
@@ -2232,8 +2248,9 @@
         }
 
         // ===== ROLE-BASED ACCESS =====
+        // VIEWERS can now record deposits (they go to pending status)
         function canAddDeposit() {
-            return ['admin', 'manager', 'teller'].includes(currentUserRole);
+            return ['admin', 'manager', 'teller', 'viewer'].includes(currentUserRole);
         }
 
         function canEditDeposit() {
@@ -2704,13 +2721,15 @@
             try {
                 const testRef = db.collection('customers').limit(1);
                 await testRef.get();
-                showToast('✅ Connection successful!', 'success');
+                const t = translations[currentLang];
+                showToast(t.connectionSuccess || '✅ Connection successful!', 'success');
                 hideGlobalError();
                 return true;
             } catch (error) {
                 console.error('Connection test failed:', error);
+                const t = translations[currentLang];
                 showGlobalError('Firebase connection failed: ' + error.message);
-                showToast('❌ Connection failed: ' + error.message, 'error');
+                showToast((t.connectionFailed || '❌ Connection failed: ') + error.message, 'error');
                 return false;
             }
         }
@@ -2785,11 +2804,13 @@
                 const typeClass = incomeType === 'Interest' ? 'interest' :
                     incomeType === 'Penalty' ? 'penalty' : 'other';
                 const note = d.note || d.description || '—';
-                const status = d.status || 'completed';
+                const status = d.status || 'pending';
                 let statusLabel = status === 'printed' ? t.printed :
-                    status === 'pending' ? t.pending : t.completed;
+                    status === 'completed' ? t.completed :
+                    status === 'approved' ? t.approved :
+                    t.pending;
                 const statusClass = status === 'printed' ? 'printed' :
-                    status === 'pending' ? 'pending' : 'completed';
+                    status === 'completed' || status === 'approved' ? 'completed' : 'pending';
 
                 const methodMap = { 'cash': t.cash || 'Cash', 'bank': t.bankTransfer || 'Bank',
                     'mobile': t.mobileMoney || 'Mobile' };
@@ -2798,7 +2819,7 @@
                 // Build actions based on role
                 let actionsHtml = '';
 
-                // View button – blue gradient (visible to all)
+                // View button – blue gradient (visible to ALL)
                 actionsHtml += `<button class="action-btn view-btn" onclick="viewDeposit('${d.id}')" title="${t.viewDetails || t.view}"><i class="fas fa-eye"></i></button>`;
 
                 // Print – ONLY for admin/manager (NOT for viewers)
@@ -2807,7 +2828,7 @@
                 }
 
                 // Approve – ONLY for admin/manager on pending deposits
-                if (canApproveDeposit() && d.status === 'pending') {
+                if (canApproveDeposit() && (d.status === 'pending' || d.status === 'Pending')) {
                     actionsHtml += `<button class="action-btn approve-btn" onclick="approveDeposit('${d.id}')" title="${t.approve}"><i class="fas fa-check-circle"></i></button>`;
                 }
 
@@ -2903,10 +2924,13 @@
             const amount = Number(d.amount) || 0;
             const dateStr = d.date ? (d.date.toDate ? d.date.toDate().toLocaleString() : new Date(d.date).toLocaleString()) :
             '—';
-            const statusLabel = d.status === 'printed' ? t.printed :
-                d.status === 'pending' ? t.pending : t.completed;
-            const statusClass = d.status === 'printed' ? 'printed' :
-                d.status === 'pending' ? 'pending' : 'completed';
+            const status = d.status || 'pending';
+            let statusLabel = status === 'printed' ? t.printed :
+                status === 'completed' ? t.completed :
+                status === 'approved' ? t.approved :
+                t.pending;
+            const statusClass = status === 'printed' ? 'printed' :
+                status === 'completed' || status === 'approved' ? 'completed' : 'pending';
             const note = d.note || d.description || '—';
             const recordedBy = d.createdByName || d.createdBy || d.createdByEmail || 'Admin';
             const recordedDisplay = recordedBy.includes('@') ? recordedBy.split('@')[0] : recordedBy;
@@ -2972,7 +2996,7 @@
                 const doc = await docRef.get();
                 const data = doc.exists ? doc.data() : {};
 
-                if (data.status !== 'pending') {
+                if (data.status !== 'pending' && data.status !== 'Pending') {
                     showToast('This deposit is already approved.', 'warning');
                     return;
                 }
@@ -2982,15 +3006,15 @@
                 const approvedDisplay = approvedByName.includes('@') ? approvedByName.split('@')[0] : approvedByName;
 
                 await docRef.update({
-                    status: 'completed',
+                    status: 'approved',
                     approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
                     approvedBy: approvedByName,
                     approvedByName: approvedDisplay
                 });
 
                 await logAudit('approved', 'transactions', id, {
-                    previousStatus: { old: null, new: 'pending' },
-                    newStatus: { old: null, new: 'completed' },
+                    previousStatus: { old: null, new: data.status || 'pending' },
+                    newStatus: { old: null, new: 'approved' },
                     approvedBy: { old: null, new: approvedDisplay }
                 }, `Deposit approved: ${data.incomeType || 'Unknown'} - ${data.amount || 0} ETB`);
 
@@ -3211,6 +3235,7 @@
         // ---- Record Deposit ----
         async function recordDeposit(e) {
             e.preventDefault();
+            // Viewers can now record deposits (they go to pending status)
             if (!canAddDeposit()) {
                 showToast(translations[currentLang].unauthorized, 'error');
                 return;
@@ -3276,7 +3301,8 @@
                 const customer = customersList.find(c => c.id === customerId);
                 const customerIdCustom = customer ? customer.customerId : '';
 
-                // Default status is 'pending' - needs approval
+                // All deposits are created with status 'pending' (awaiting approval)
+                // This applies to ALL users including admins, managers, tellers, and viewers
                 const docData = {
                     type: 'profit_income',
                     transactionType: 'income',
@@ -3288,7 +3314,7 @@
                     date: new Date(date),
                     note: description,
                     description: description,
-                    status: 'pending',
+                    status: 'pending', // Always pending until approval
                     paymentMethod: paymentMethod,
                     ttNumber: (paymentMethod === 'cash' ? '' : ttNumber),
                     bankName: (paymentMethod === 'cash' ? '' : bankName),
@@ -3316,9 +3342,9 @@
                     bankName: { old: null, new: bankName || '' },
                     transferDate: { old: null, new: transferDate || '' },
                     status: { old: null, new: 'pending' }
-                }, `Deposit created: ${incomeType} - ${amount} ETB for customer ${customer ? customer.fullName : 'Unknown'}`);
+                }, `Deposit created: ${incomeType} - ${amount} ETB for customer ${customer ? customer.fullName : 'Unknown'} (pending)`);
 
-                showToast(translations[currentLang].depositRecorded, 'success');
+                showToast(translations[currentLang].depositRecorded + ' (Pending Approval)', 'success');
                 document.getElementById('depositForm').reset();
                 document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
                 document.getElementById('incomeType').value = 'Registration Fee';
@@ -3412,6 +3438,10 @@
                 'mobile': t.mobileMoney || 'Mobile Money' };
             const methodLabel = methodMap[deposit.paymentMethod] || deposit.paymentMethod || 'Cash';
             const customerName = deposit.customerName || 'Unknown';
+            const statusLabel = deposit.status === 'printed' ? t.printed :
+                deposit.status === 'approved' ? t.approved :
+                deposit.status === 'completed' ? t.completed :
+                t.pending;
 
             let extraRows = '';
             if (deposit.paymentMethod !== 'cash') {
@@ -3434,7 +3464,7 @@
                     <div class="slip-row"><span class="label">Amount (ETB)</span><span class="value">${amount.toLocaleString()}</span></div>
                     <div class="slip-row"><span class="label">${t.amountInWords}</span><span class="value amount-words">${amountWords}</span></div>
                     <div class="slip-row"><span class="label">Description</span><span class="value">${note}</span></div>
-                    <div class="slip-row"><span class="label">Status</span><span class="value">${t.printed}</span></div>
+                    <div class="slip-row"><span class="label">Status</span><span class="value">${statusLabel}</span></div>
                     <div class="slip-row"><span class="label">Date</span><span class="value">${dateStr}</span></div>
                     <div class="slip-row"><span class="label">Recorded By</span><span class="value">${displayName}</span></div>
                 </div>
@@ -3482,12 +3512,9 @@
                     usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
                 }
 
+                // Form is visible to ALL (viewers can record pending deposits)
                 const formSection = document.getElementById('depositFormSection');
-                if (canAddDeposit()) {
-                    formSection.style.display = 'block';
-                } else {
-                    formSection.style.display = 'none';
-                }
+                formSection.style.display = 'block';
 
                 initLanguage();
                 loadSidebarState();
