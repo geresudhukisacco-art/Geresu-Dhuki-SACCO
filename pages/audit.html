@@ -448,6 +448,12 @@
             font-size: 14px;
             transition: color 0.3s;
         }
+        .page-header-right {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
 
         .btn-primary {
             background: var(--primary);
@@ -1171,9 +1177,15 @@
                     <h2 data-i18n="auditTitle">Audit Trail</h2>
                     <p data-i18n="auditSub">Track all changes made across the system</p>
                 </div>
-                <button class="btn-secondary" id="refreshBtn">
-                    <i class="fas fa-sync-alt"></i> <span data-i18n="refresh">Refresh</span>
-                </button>
+                <div class="page-header-right">
+                    <!-- Test Connection Button -->
+                    <button class="btn-secondary" id="testConnectionBtn" style="padding:6px 14px; font-size:12px;">
+                        <i class="fas fa-plug"></i> <span data-i18n="testConnection">Test Connection</span>
+                    </button>
+                    <button class="btn-secondary" id="refreshBtn">
+                        <i class="fas fa-sync-alt"></i> <span data-i18n="refresh">Refresh</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Stats Cards — all coloured -->
@@ -1358,7 +1370,7 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // MULTI-LANGUAGE
+        // MULTI-LANGUAGE (with connection strings)
         // ============================================================
         const translations = {
             en: {
@@ -1413,7 +1425,10 @@
                 unauthorized: 'You are not authorized to view this page.',
                 deleteConfirm: 'Are you sure you want to delete this audit record? This action cannot be undone.',
                 deleteSuccess: 'Audit record deleted successfully.',
-                deleteError: 'Error deleting audit record: '
+                deleteError: 'Error deleting audit record: ',
+                testConnection: 'Test Connection',
+                connectionSuccess: '✅ Connection successful!',
+                connectionFailed: '❌ Connection failed: '
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1467,7 +1482,10 @@
                 unauthorized: 'ይህን ገጽ ለማየት ፈቃድ የለዎትም።',
                 deleteConfirm: 'ይህን የምዝግብ መዝገብ መሰረዝ እርግጠኛ ነዎት? ይህ እርምጃ ሊቀለበስ አይችልም።',
                 deleteSuccess: 'የምዝግብ መዝገብ በተሳካ ሁኔታ ተሰርዟል።',
-                deleteError: 'የምዝግብ መዝገብ በመሰረዝ ላይ ስህተት: '
+                deleteError: 'የምዝግብ መዝገብ በመሰረዝ ላይ ስህተት: ',
+                testConnection: 'ግንኙነት ሞክር',
+                connectionSuccess: '✅ ግንኙነቱ ተሳክቷል!',
+                connectionFailed: '❌ ግንኙነቱ አልተሳካም: '
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1521,7 +1539,10 @@
                 unauthorized: 'Fuula kana ilaaluuf hayyamamtee hin jirtu.',
                 deleteConfirm: 'Galmee seenaa kana haquu mirkaneeffattee? Gochi kun deebifamuu hin danda\'u.',
                 deleteSuccess: 'Galmeen seenaa sirriitti haqame.',
-                deleteError: 'Galmee seenaa haquuf dogoggora: '
+                deleteError: 'Galmee seenaa haquuf dogoggora: ',
+                testConnection: 'Qunnamtii Mirkaneessi',
+                connectionSuccess: '✅ Qunnamtii milkaa\'e!',
+                connectionFailed: '❌ Qunnamtii hin milkaanne: '
             }
         };
 
@@ -1612,6 +1633,26 @@
         }
 
         // ============================================================
+        // TEST CONNECTION (added)
+        // ============================================================
+        async function testConnection() {
+            try {
+                const testRef = db.collection('audit').limit(1);
+                await testRef.get();
+                const t = translations[currentLang];
+                showToast(t.connectionSuccess || '✅ Connection successful!', 'success');
+                return true;
+            } catch (error) {
+                console.error('Connection test failed:', error);
+                const t = translations[currentLang];
+                showToast((t.connectionFailed || '❌ Connection failed: ') + error.message, 'error');
+                return false;
+            }
+        }
+
+        document.getElementById('testConnectionBtn')?.addEventListener('click', testConnection);
+
+        // ============================================================
         // USER INFO UPDATE
         // ============================================================
         function updateUserInfo() {
@@ -1623,7 +1664,7 @@
 
             const auditNav = document.getElementById('auditNavItem');
             if (auditNav) {
-                auditNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
+                auditNav.style.display = (currentUserRole === 'admin' || currentUserRole === 'manager') ? '' : 'none';
             }
 
             const usersNav = document.getElementById('usersNavItem');
@@ -2049,6 +2090,7 @@
                 window.showDetails = showDetails;
                 window.closeDetailsModal = closeDetailsModal;
                 window.deleteAuditEntry = deleteAuditEntry;
+                window.testConnection = testConnection;
             });
         });
     </script>
