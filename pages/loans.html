@@ -83,6 +83,44 @@
         }
 
         /* ============================================================
+           LOADING OVERLAY
+           ============================================================ */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .loading-overlay.active {
+            display: flex;
+        }
+        .loading-overlay .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .loading-overlay p {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        /* ============================================================
            SIDEBAR – Bright green with HIGH CONTRAST text (Matches Dashboard)
            ============================================================ */
         .sidebar {
@@ -584,6 +622,51 @@
             justify-content: flex-end;
             gap: 12px;
             margin-top: 6px;
+        }
+
+        /* ----- LOAN LIMIT INFO BOX ----- */
+        .loan-limit-info {
+            display: none;
+            background: var(--bg-primary);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin: 8px 0 12px;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s;
+        }
+        .loan-limit-info.show {
+            display: block;
+        }
+        .loan-limit-info .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px 20px;
+            font-size: 13px;
+        }
+        .loan-limit-info .info-grid .label {
+            color: var(--text-secondary);
+        }
+        .loan-limit-info .info-grid .value {
+            font-weight: 600;
+        }
+        .loan-limit-info .info-grid .value.green {
+            color: var(--success);
+        }
+        .loan-limit-info .info-grid .value.red {
+            color: var(--danger);
+        }
+        .loan-limit-info .info-grid .value.primary {
+            color: var(--primary);
+        }
+        .loan-limit-info .info-grid .available-row {
+            grid-column: span 2;
+            border-top: 1px solid var(--border-color);
+            padding-top: 4px;
+            margin-top: 2px;
+        }
+        .loan-limit-info .info-grid .available-row .available-amount {
+            font-size: 16px;
+            color: var(--primary);
         }
 
         /* ----- GUARANTEES ----- */
@@ -1112,10 +1195,37 @@
             color: var(--danger);
         }
 
+        /* ===== VIEW DETAIL ROWS (like Savings) ===== */
+        .view-detail-row {
+            display: flex;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+        }
+        .view-detail-row .label {
+            font-weight: 600;
+            width: 140px;
+            flex-shrink: 0;
+            color: var(--text-secondary);
+        }
+        .view-detail-row .value {
+            flex: 1;
+            color: var(--text-primary);
+        }
+        .view-detail-row .value .status-badge {
+            display: inline-block;
+        }
+
         /* ----- RESPONSIVE ----- */
         @media (max-width: 992px) {
             .form-row {
                 grid-template-columns: 1fr 1fr;
+            }
+            .loan-limit-info .info-grid {
+                grid-template-columns: 1fr;
+            }
+            .loan-limit-info .info-grid .available-row {
+                grid-column: span 1;
             }
         }
         @media (max-width: 768px) {
@@ -1223,6 +1333,19 @@
             .brand-text .brand-name {
                 font-size: 16px;
             }
+            .loan-limit-info .info-grid {
+                grid-template-columns: 1fr;
+            }
+            .loan-limit-info .info-grid .available-row {
+                grid-column: span 1;
+            }
+            .view-detail-row {
+                flex-wrap: wrap;
+            }
+            .view-detail-row .label {
+                width: 100%;
+                margin-bottom: 2px;
+            }
         }
         @media (max-width: 480px) {
             .pagination-btn {
@@ -1271,6 +1394,12 @@
     </style>
 </head>
 <body>
+
+    <!-- LOADING OVERLAY -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p>Loading loans data...</p>
+    </div>
 
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
@@ -1372,6 +1501,21 @@
                             <input type="date" id="dateInput" required />
                         </div>
                     </div>
+
+                    <!-- ===== LOAN LIMIT INFO BOX ===== -->
+                    <div class="loan-limit-info" id="loanLimitInfo">
+                        <div class="info-grid">
+                            <div><span class="label" data-i18n="savings">💰 Savings:</span> <span class="value" id="infoSavings">0.00</span> ETB</div>
+                            <div><span class="label" data-i18n="multiplier">📊 Multiplier:</span> <span class="value" id="infoMultiplier">3×</span></div>
+                            <div><span class="label" data-i18n="maxLoan">📈 Max Loan:</span> <span class="value" id="infoMaxLoan">0.00</span> ETB</div>
+                            <div><span class="label" data-i18n="existingLoans">📋 Existing Loans:</span> <span class="value red" id="infoExistingLoans">0.00</span> ETB</div>
+                            <div class="available-row">
+                                <span class="label" data-i18n="availableToBorrow">✅ Available to Borrow:</span>
+                                <span class="value primary available-amount" id="infoAvailable">0.00</span> ETB
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="form-row two">
                         <div class="form-group">
                             <label data-i18n="interestRate">Interest Rate (%)</label>
@@ -1579,6 +1723,17 @@
         </div>
     </div>
 
+    <!-- ===== VIEW LOAN MODAL (like Savings modal) ===== -->
+    <div class="modal-overlay" id="viewLoanModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Loan Transaction Details</h3>
+                <button class="modal-close" id="closeViewLoanModal">&times;</button>
+            </div>
+            <div id="viewLoanContent"></div>
+        </div>
+    </div>
+
     <script>
         // ============================================================
         // FIREBASE CONFIG
@@ -1599,7 +1754,7 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // MULTI-LANGUAGE (Matches Dashboard) – with testConnection keys
+        // MULTI-LANGUAGE (with testConnection keys + new limit info)
         // ============================================================
         const translations = {
             en: {
@@ -1685,10 +1840,14 @@
                 unauthorized: 'You are not authorized to perform this action.',
                 allYears: 'All Years',
                 selectYear: 'Select Year',
-                // TEST CONNECTION KEYS
                 testConnection: 'Test Connection',
                 connectionSuccess: '✅ Connection successful!',
-                connectionFailed: '❌ Connection failed: '
+                connectionFailed: '❌ Connection failed: ',
+                savings: 'Savings',
+                multiplier: 'Multiplier',
+                maxLoan: 'Max Loan',
+                existingLoans: 'Existing Loans',
+                availableToBorrow: 'Available to Borrow'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1775,7 +1934,12 @@
                 selectYear: 'ዓመት ይምረጡ',
                 testConnection: 'ግንኙነት ሞክር',
                 connectionSuccess: '✅ ግንኙነቱ ተሳክቷል!',
-                connectionFailed: '❌ ግንኙነቱ አልተሳካም: '
+                connectionFailed: '❌ ግንኙነቱ አልተሳካም: ',
+                savings: 'ቁጠባ',
+                multiplier: 'ብዜት',
+                maxLoan: 'ከፍተኛ ብድር',
+                existingLoans: 'ነባር ብድሮች',
+                availableToBorrow: 'ለመበደር የሚገኝ'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1862,7 +2026,12 @@
                 selectYear: 'Waggaa Filadhu',
                 testConnection: 'Qunnamtii Mirkaneessi',
                 connectionSuccess: '✅ Qunnamtii milkaa\'e!',
-                connectionFailed: '❌ Qunnamtii hin milkaanne: '
+                connectionFailed: '❌ Qunnamtii hin milkaanne: ',
+                savings: 'Kusaa',
+                multiplier: 'Baay\'isaa',
+                maxLoan: 'Liqii Olaanaa',
+                existingLoans: 'Liqii Jiru',
+                availableToBorrow: 'Liqii Argamu'
             }
         };
 
@@ -1935,7 +2104,7 @@
         }
 
         // ============================================================
-        // TEST CONNECTION (NEW)
+        // TEST CONNECTION
         // ============================================================
         async function testConnection() {
             try {
@@ -2216,17 +2385,17 @@
             });
         }
 
-        // ---- NEW: selectCustomer with correct savings & exposure ----
+        // ---- selectCustomer with savings & exposure + update info box ----
         async function selectCustomer(id, displayName) {
             document.getElementById('customerSearch').value = displayName;
             document.getElementById('customerId').value = id;
             document.getElementById('customerSuggestions').style.display = 'none';
 
-            // 1. Get customer savings (now works with both customerId and memberId)
+            // 1. Get customer savings
             const savings = await getCustomerSavings(id);
             // 2. Get existing loans (active + pending)
             const existingExposure = await getCustomerTotalLoanExposure(id);
-            // 3. Calculate max by savings: savings * multiplier (default 3)
+            // 3. Calculate max by savings
             const maxBySavings = Math.round(savings * maxLoanMultiplier * 100) / 100;
             // 4. Global hard cap from settings
             const globalCap = maxLoanAmountSetting || Infinity;
@@ -2236,10 +2405,20 @@
             const available = Math.max(0, Math.round((absoluteMax - existingExposure) * 100) / 100);
 
             // Set the max attribute for the input field
-            document.getElementById('amountInput').max = available;
-            document.getElementById('amountInput').placeholder = `Max: ${available.toFixed(2)}`;
+            const amountInput = document.getElementById('amountInput');
+            amountInput.max = available;
+            amountInput.placeholder = `Max: ${available.toFixed(2)}`;
 
-            // Show info toast
+            // ---- Update loan limit info box ----
+            const infoBox = document.getElementById('loanLimitInfo');
+            document.getElementById('infoSavings').textContent = savings.toFixed(2);
+            document.getElementById('infoMultiplier').textContent = maxLoanMultiplier + '×';
+            document.getElementById('infoMaxLoan').textContent = absoluteMax.toFixed(2);
+            document.getElementById('infoExistingLoans').textContent = existingExposure.toFixed(2);
+            document.getElementById('infoAvailable').textContent = available.toFixed(2);
+            infoBox.classList.add('show');
+
+            // Show toast with summary
             showToast(`💰 Savings: ${savings.toFixed(2)} | Existing loans: ${existingExposure.toFixed(2)} | Available: ${available.toFixed(2)}`, 'warning');
         }
 
@@ -2492,6 +2671,8 @@
 
         // ---- Load loans ----
         async function loadLoans() {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.add('active');
             try {
                 const snapshot = await db.collection('transactions')
                     .where('type', '==', 'loan')
@@ -2508,8 +2689,11 @@
                 populateYearFilter();
                 applySearch();
                 updateTotalCount();
+                overlay.classList.remove('active');
             } catch (error) {
+                console.error('Error loading loans:', error);
                 showToast(translations[currentLang].loadError + error.message, 'error');
+                overlay.classList.remove('active');
             }
         }
 
@@ -2623,6 +2807,88 @@
             const name = user.displayName || user.email || 'Admin';
             if (name.includes('@')) return name.split('@')[0];
             return name;
+        }
+
+        // ============================================================
+        // VIEW LOAN – new modal like Savings
+        // ============================================================
+        function viewLoan(loanId) {
+            const loan = allLoans.find(l => l.id === loanId);
+            if (!loan) {
+                showToast('Loan not found.', 'error');
+                return;
+            }
+
+            const customer = customersList.find(c => c.id === loan.customerId);
+            const customerName = customer ? customer.fullName : 'Unknown';
+            const customerIdDisplay = customer ? customer.customerId : '—';
+            const amount = Number(loan.amount) || 0;
+            const interest = Number(loan.interestRate) || 0;
+            const period = Number(loan.repaymentPeriod) || 0;
+            const loanType = loan.loanType || 'simple';
+            const totalPayable = loan.totalPayable ? Number(loan.totalPayable) : calculateTotalPayable(amount, interest,
+                period, loanType);
+            const monthlyPayment = calculateMonthlyPayment(amount, interest, period, loanType);
+            const dateStr = loan.date ? (loan.date.toDate ? loan.date.toDate().toLocaleString() : new Date(loan.date)
+                .toLocaleString()) : '—';
+            const statusLabel = loan.status === 'active' ? translations[currentLang].active :
+                loan.status === 'pending' ? translations[currentLang].pending :
+                loan.status === 'paid' ? translations[currentLang].paid :
+                loan.status === 'rejected' ? translations[currentLang].rejected : translations[currentLang].pending;
+            const statusClass = loan.status || 'pending';
+            const note = loan.note || '—';
+            const recordedBy = loan.createdByName || loan.createdBy || loan.createdByEmail || 'Admin';
+            const recordedDisplay = recordedBy.includes('@') ? recordedBy.split('@')[0] : recordedBy;
+            const approvedBy = loan.approvedBy || '—';
+            const approvedDisplay = approvedBy.includes('@') ? approvedBy.split('@')[0] : approvedBy;
+
+            const typeLabels = {
+                simple: translations[currentLang].simpleInterest || 'Simple',
+                compound: translations[currentLang].compoundInterest || 'Compound',
+                fixed: translations[currentLang].fixedRate || 'Fixed',
+                reducing: translations[currentLang].reducingBalance || 'Reducing'
+            };
+            const typeLabel = typeLabels[loanType] || loanType;
+
+            // Guarantees display
+            const gList = loan.guarantees || [];
+            let guaranteesHtml = '';
+            if (gList.length > 0) {
+                guaranteesHtml = gList.map(g =>
+                    `<div>${g.type}: ${g.name} ${g.value ? '· Value: ETB ' + Number(g.value).toLocaleString() : ''} ${g.contact ? '· Contact: ' + g.contact : ''}</div>`
+                ).join('');
+            } else {
+                guaranteesHtml = 'None';
+            }
+
+            // Build modal content
+            const content = document.getElementById('viewLoanContent');
+            content.innerHTML = `
+                <div class="view-detail-row"><span class="label">Transaction ID</span><span class="value">${loan.id}</span></div>
+                <div class="view-detail-row"><span class="label">Customer</span><span class="value">${customerName}</span></div>
+                <div class="view-detail-row"><span class="label">Customer ID</span><span class="value">${customerIdDisplay}</span></div>
+                <div class="view-detail-row"><span class="label">Amount</span><span class="value">ETB ${amount.toLocaleString()}</span></div>
+                <div class="view-detail-row"><span class="label">Interest Rate</span><span class="value">${interest}%</span></div>
+                <div class="view-detail-row"><span class="label">Loan Type</span><span class="value">${typeLabel}</span></div>
+                <div class="view-detail-row"><span class="label">Repayment Period</span><span class="value">${period} months</span></div>
+                <div class="view-detail-row"><span class="label">Monthly Payment</span><span class="value">ETB ${monthlyPayment.toFixed(2)}</span></div>
+                <div class="view-detail-row"><span class="label">Total Payable</span><span class="value">ETB ${totalPayable.toLocaleString()}</span></div>
+                <div class="view-detail-row"><span class="label">Guarantees</span><span class="value">${guaranteesHtml}</span></div>
+                <div class="view-detail-row"><span class="label">Status</span><span class="value"><span class="status-badge ${statusClass}">${statusLabel}</span></span></div>
+                <div class="view-detail-row"><span class="label">Date</span><span class="value">${dateStr}</span></div>
+                <div class="view-detail-row"><span class="label">Note</span><span class="value">${note}</span></div>
+                <div class="view-detail-row"><span class="label">Recorded By</span><span class="value">${recordedDisplay}</span></div>
+                <div class="view-detail-row"><span class="label">Approved By</span><span class="value">${approvedDisplay}</span></div>
+            `;
+
+            document.getElementById('viewLoanModal').classList.add('active');
+            document.getElementById('viewLoanModal').style.display = 'flex';
+        }
+
+        // Close view modal
+        function closeViewLoanModal() {
+            document.getElementById('viewLoanModal').classList.remove('active');
+            document.getElementById('viewLoanModal').style.display = 'none';
         }
 
         // ---- Render Table ----
@@ -2841,31 +3107,6 @@
             currentPage = page;
             paginateLoans();
             document.querySelector('.table-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-
-        // ---- View Loan ----
-        function viewLoan(loanId) {
-            const loan = allLoans.find(l => l.id === loanId);
-            if (!loan) return;
-            const customer = customersList.find(c => c.id === loan.customerId);
-            const customerName = customer ? customer.fullName : 'Unknown';
-            const amount = Number(loan.amount) || 0;
-            const interest = Number(loan.interestRate) || 0;
-            const period = Number(loan.repaymentPeriod) || 0;
-            const loanType = loan.loanType || 'simple';
-            const totalPayable = loan.totalPayable ? Number(loan.totalPayable) : calculateTotalPayable(amount, interest,
-                period, loanType);
-            const monthlyPayment = calculateMonthlyPayment(amount, interest, period, loanType);
-            const typeLabels = { simple: 'Simple', compound: 'Compound', fixed: 'Fixed', reducing: 'Reducing' };
-            let guaranteeText = '';
-            const gList = loan.guarantees || [];
-            if (gList.length > 0) {
-                guaranteeText = '\n📋 Guarantees: ' + gList.map(g => `${g.name} (${g.type})`).join(', ');
-            }
-            showToast(
-                `📋 ${customerName}\n💰 Amount: ETB ${amount.toLocaleString()}\n📊 Type: ${typeLabels[loanType] || loanType}\n📈 Rate: ${interest}%\n📅 Period: ${period} months\n💵 Monthly: ETB ${monthlyPayment.toFixed(2)}\n💵 Total Payable: ETB ${totalPayable.toLocaleString()}\n📌 Status: ${loan.status}${guaranteeText}`,
-                'warning'
-            );
         }
 
         // ---- Approve Loan ----
@@ -3268,6 +3509,8 @@
                 document.getElementById('saveBtn').innerHTML = `<i class="fas fa-save"></i> ${t.applyLoanBtn}`;
                 guarantees = [];
                 renderGuarantees();
+                // Hide the loan limit info box when form is cleared
+                document.getElementById('loanLimitInfo').classList.remove('show');
                 formSection.scrollIntoView({ behavior: 'smooth' });
             } else {
                 formSection.style.display = 'none';
@@ -3368,6 +3611,7 @@
                     document.getElementById('loanType').value = 'simple';
                     guarantees = [];
                     renderGuarantees();
+                    document.getElementById('loanLimitInfo').classList.remove('show');
                     document.getElementById('loanFormSection').style.display = 'none';
                     document.getElementById('addLoanBtn').style.display = canApply() ? 'inline-flex' : 'none';
                 });
@@ -3399,13 +3643,23 @@
                 });
                 document.getElementById('editLoanForm').addEventListener('submit', updateLoan);
 
+                // ===== View Loan Modal close =====
+                document.getElementById('closeViewLoanModal').addEventListener('click', closeViewLoanModal);
+                document.getElementById('viewLoanModal').addEventListener('click', function(e) {
+                    if (e.target === this) closeViewLoanModal();
+                });
+
                 const searchInput = document.getElementById('searchInput');
                 const t = translations[currentLang];
                 searchInput.placeholder = t.searchPlaceholder || 'Search by customer name...';
+
+                // Expose functions
+                window.viewLoan = viewLoan;
+                window.closeViewLoanModal = closeViewLoanModal;
             });
         });
 
-        // Expose functions for onclick
+        // Expose functions for onclick (already done but keep)
         window.approveLoan = approveLoan;
         window.rejectLoan = rejectLoan;
         window.viewLoan = viewLoan;
@@ -3418,6 +3672,7 @@
         window.selectEditCustomer = selectEditCustomer;
         window.toggleLoanForm = toggleLoanForm;
         window.testConnection = testConnection;
+        window.closeViewLoanModal = closeViewLoanModal;
     </script>
     <script>
         // ============================================================
