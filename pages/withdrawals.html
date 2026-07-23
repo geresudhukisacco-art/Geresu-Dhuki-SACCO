@@ -83,6 +83,47 @@
         }
 
         /* ============================================================
+           LOADING OVERLAY
+           ============================================================ */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .loading-overlay.active {
+            display: flex;
+        }
+        .loading-overlay .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .loading-overlay p {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        [data-theme="dark"] .loading-overlay {
+            background: rgba(0, 0, 0, 0.6);
+        }
+
+        /* ============================================================
            SIDEBAR – Bright green with HIGH CONTRAST text (Matches Dashboard)
            ============================================================ */
         .sidebar {
@@ -401,6 +442,26 @@
             background: var(--primary);
             color: #fff;
             border-color: var(--primary);
+        }
+        /* ---- TEST CONNECTION BUTTON ---- */
+        .test-conn-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 4px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-family: inherit;
+        }
+        .test-conn-btn:hover {
+            background: var(--border-color);
+            color: var(--text-primary);
         }
         .user-profile {
             display: flex;
@@ -1301,6 +1362,12 @@
 </head>
 <body>
 
+    <!-- LOADING OVERLAY -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p data-i18n="loadingData">Loading data...</p>
+    </div>
+
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <aside class="sidebar" id="sidebar">
@@ -1357,6 +1424,10 @@
                     <button class="lang-btn" data-lang="am">አማ</button>
                     <button class="lang-btn" data-lang="om">OM</button>
                 </div>
+                <!-- ===== TEST CONNECTION BUTTON ===== -->
+                <button class="test-conn-btn" id="testConnectionBtn" data-i18n="testConnection">
+                    <i class="fas fa-plug"></i> <span>Test Connection</span>
+                </button>
                 <div class="user-profile">
                     <img id="userAvatar" src="../assets/images/avatar.png" alt="User" onerror="this.src='https://ui-avatars.com/api/?name=Admin&background=2d7a3d&color=fff'" />
                     <span class="user-name" id="userDisplayName">Admin</span>
@@ -1696,7 +1767,7 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // MULTI-LANGUAGE
+        // MULTI-LANGUAGE (UPDATED: testConnection + loadingData)
         // ============================================================
         const translations = {
             en: {
@@ -1784,7 +1855,11 @@
                 dividends: 'Dividends',
                 transfersIn: 'Transfers In',
                 withdrawalsTotal: 'Withdrawals',
-                transfersOut: 'Transfers Out'
+                transfersOut: 'Transfers Out',
+                testConnection: 'Test Connection',
+                connectionSuccess: '✅ Connection successful!',
+                connectionFailed: '❌ Connection failed: ',
+                loadingData: 'Loading data...'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1871,7 +1946,11 @@
                 dividends: 'ክፍፍል',
                 transfersIn: 'ገቢ ዝውውሮች',
                 withdrawalsTotal: 'መውጫዎች',
-                transfersOut: 'ወጪ ዝውውሮች'
+                transfersOut: 'ወጪ ዝውውሮች',
+                testConnection: 'ግንኙነት ሞክር',
+                connectionSuccess: '✅ ግንኙነቱ ተሳክቷል!',
+                connectionFailed: '❌ ግንኙነቱ አልተሳካም: ',
+                loadingData: 'ውሂብ በማስገባት ላይ...'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1958,7 +2037,11 @@
                 dividends: 'Qooda',
                 transfersIn: 'Dabarsuu Galchuu',
                 withdrawalsTotal: 'Baasii',
-                transfersOut: 'Dabarsuu Baasuu'
+                transfersOut: 'Dabarsuu Baasuu',
+                testConnection: 'Qunnamtii Mirkaneessi',
+                connectionSuccess: '✅ Qunnamtii milkaa\'e!',
+                connectionFailed: '❌ Qunnamtii hin milkaanne: ',
+                loadingData: 'Datuu galmeessuuf...'
             }
         };
 
@@ -1992,6 +2075,15 @@
                 btn.classList.toggle('active', btn.dataset.lang === lang);
             });
             try { localStorage.setItem('waciti-lang', lang); } catch (e) {}
+            // Update test connection button text
+            const testBtn = document.getElementById('testConnectionBtn');
+            if (testBtn) {
+                const span = testBtn.querySelector('span');
+                if (span) span.textContent = t.testConnection || 'Test Connection';
+            }
+            // Update loading overlay text
+            const loadingText = document.querySelector('#loadingOverlay p');
+            if (loadingText) loadingText.textContent = t.loadingData || 'Loading data...';
             updatePaginationInfo();
             renderPageButtons();
         }
@@ -2053,6 +2145,26 @@
                 setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
             }, 4500);
         }
+
+        // ============================================================
+        // TEST CONNECTION
+        // ============================================================
+        async function testConnection() {
+            try {
+                const testRef = db.collection('customers').limit(1);
+                await testRef.get();
+                const t = translations[currentLang];
+                showToast(t.connectionSuccess || '✅ Connection successful!', 'success');
+                return true;
+            } catch (error) {
+                console.error('Connection test failed:', error);
+                const t = translations[currentLang];
+                showToast((t.connectionFailed || '❌ Connection failed: ') + error.message, 'error');
+                return false;
+            }
+        }
+
+        document.getElementById('testConnectionBtn')?.addEventListener('click', testConnection);
 
         // ============================================================
         // USER INFO + AUDIT + USERS NAV
@@ -2150,9 +2262,11 @@
         }
 
         // ============================================================
-        // LOAD CUSTOMERS
+        // LOAD CUSTOMERS (with loading overlay)
         // ============================================================
         async function loadCustomers() {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.add('active');
             try {
                 const snapshot = await db.collection('customers').get();
                 customersList = [];
@@ -2160,8 +2274,13 @@
                     const data = doc.data();
                     customersList.push({ id: doc.id, fullName: data.fullName, customerId: data.customerId });
                 });
+                overlay.classList.remove('active');
                 return true;
-            } catch (e) { showToast('Error loading customers', 'error'); return false; }
+            } catch (e) {
+                showToast('Error loading customers', 'error');
+                overlay.classList.remove('active');
+                return false;
+            }
         }
 
         // ============================================================
@@ -2442,9 +2561,11 @@
         }
 
         // ============================================================
-        // LOAD TRANSACTIONS
+        // LOAD TRANSACTIONS (with loading overlay)
         // ============================================================
         async function loadTransactions() {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.add('active');
             try {
                 const snapshot = await db.collection('transactions')
                     .where('type', 'in', ['withdrawal', 'service_withdrawal', 'leaving_withdrawal', 'transfer_out',
@@ -2482,8 +2603,10 @@
                 });
                 populateYearFilter();
                 applyFilters();
+                overlay.classList.remove('active');
             } catch (e) {
                 showToast(translations[currentLang].loadError + e.message, 'error');
+                overlay.classList.remove('active');
             }
         }
 
@@ -3076,6 +3199,9 @@
                 } catch (e) { currentUserRole = 'viewer';
                     currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'User'; }
 
+                // Expose testConnection globally
+                window.testConnection = testConnection;
+
                 updateUserInfo();
                 initLanguage();
                 loadSidebarState();
@@ -3201,7 +3327,7 @@
                 translations.am.sessionTimeout =
                     'የእርስዎ ክፍለ-ጊዜ በ{seconds} ሰከንዶች ውስጥ ያበቃል። በመዳፊት ወይም ቁልፍ ይንቀሳቀሱ ወይም ይጫኑ በመግቢያ ላይ ለመቆየት።';
                 translations.om.sessionTimeout =
-                    'Sessiin keessan {seconds} sekoondii keessatti xumurama. Siiqaa ykn cuqaasaa sochoosuu ykn cuqaasuu akka seenan turtanii.';
+                    'Sessiin keessan {seconds} sekoondii keessatti xumurama. Siiqaa ykn cuqaasaa sochoosuu ykn cuqaasaa akka seenan turtanii.';
             }
         })();
     </script>
