@@ -1475,10 +1475,10 @@
         <button class="retry-btn" id="globalRetryBtn"><i class="fas fa-sync-alt"></i> Retry</button>
     </div>
 
-    <!-- Loading Overlay -->
+    <!-- Loading Overlay – now uses data-i18n -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>
-        <p>Loading savings data...</p>
+        <p data-i18n="loadingData">Loading savings data...</p>
     </div>
 
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -1555,7 +1555,8 @@
                     <span id="minSavingsBadge" style="font-size:13px; color:var(--text-secondary); background:var(--bg-primary); padding:6px 16px; border-radius:20px;">
                         <i class="fas fa-info-circle"></i> Min: <strong id="minSavingsDisplay">ETB 0.00</strong>
                     </span>
-                    <button class="btn-secondary" id="testConnectionBtn" style="margin-left:12px; padding:6px 14px; font-size:12px;">
+                    <!-- Test Connection button now uses data-i18n -->
+                    <button class="btn-secondary" id="testConnectionBtn" style="margin-left:12px; padding:6px 14px; font-size:12px;" data-i18n="testConnection">
                         <i class="fas fa-plug"></i> Test Connection
                     </button>
                 </div>
@@ -1602,7 +1603,6 @@
                                 <option value="bank" data-i18n="bankDeposit">Bank Deposit</option>
                             </select>
                         </div>
-                        <!-- Status dropdown removed – default is 'pending' -->
                     </div>
 
                     <!-- Conditional Fields with optional Screenshot Upload -->
@@ -1943,7 +1943,12 @@
                 editPhotoUploaded: 'Photo updated successfully.',
                 approvedBy: 'Approved By',
                 recordNotFound: 'Record not found.',
-                viewDetails: 'Transaction Details'
+                viewDetails: 'Transaction Details',
+                // NEW KEYS ADDED:
+                loadingData: 'Loading savings data...',
+                testConnection: 'Test Connection',
+                connectionSuccess: '✅ Connection successful!',
+                connectionFailed: '❌ Connection failed: '
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -2026,7 +2031,12 @@
                 editPhotoUploaded: 'ፎቶ በተሳካ ሁኔታ ተሻሽሏል።',
                 approvedBy: 'የጸደቀው',
                 recordNotFound: 'መዝገብ አልተገኘም።',
-                viewDetails: 'የግብይት ዝርዝሮች'
+                viewDetails: 'የግብይት ዝርዝሮች',
+                // NEW KEYS ADDED:
+                loadingData: 'የቁጠባ ውሂብ እየተጫነ ነው...',
+                testConnection: 'ግንኙነት ይሞክሩ',
+                connectionSuccess: '✅ ግንኙነት ተሳክቷል!',
+                connectionFailed: '❌ ግንኙነት አልተሳካም: '
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -2109,7 +2119,12 @@
                 editPhotoUploaded: 'Foti sirriitti fooyyeffame.',
                 approvedBy: 'Mirkaneesse',
                 recordNotFound: 'Galmee hin argamne.',
-                viewDetails: 'Gadifageenya Daldalaa'
+                viewDetails: 'Gadifageenya Daldalaa',
+                // NEW KEYS ADDED:
+                loadingData: 'Datuu kussaa fe\'amaa jira...',
+                testConnection: 'Walqabsiisa Mirkaneessi',
+                connectionSuccess: '✅ Walqabsiisni milkaa\'e!',
+                connectionFailed: '❌ Walqabsiisni hin milkaane: '
             }
         };
 
@@ -2726,18 +2741,18 @@
             loadSavings();
         });
 
-        // ---- Test connection ----
+        // ---- Test connection - NOW USES TRANSLATIONS ----
         async function testConnection() {
             try {
                 const testRef = db.collection('customers').limit(1);
                 await testRef.get();
-                showToast('✅ Connection successful!', 'success');
+                showToast(translations[currentLang].connectionSuccess, 'success');
                 hideGlobalError();
                 return true;
             } catch (error) {
                 console.error('Connection test failed:', error);
                 showGlobalError('Firebase connection failed: ' + error.message);
-                showToast('❌ Connection failed: ' + error.message, 'error');
+                showToast(translations[currentLang].connectionFailed + error.message, 'error');
                 return false;
             }
         }
