@@ -83,6 +83,47 @@
         }
 
         /* ============================================================
+           LOADING OVERLAY
+           ============================================================ */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .loading-overlay.active {
+            display: flex;
+        }
+        .loading-overlay .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .loading-overlay p {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        [data-theme="dark"] .loading-overlay {
+            background: rgba(0, 0, 0, 0.6);
+        }
+
+        /* ============================================================
            SIDEBAR – Bright green with HIGH CONTRAST text (Matches Dashboard)
            ============================================================ */
         .sidebar {
@@ -408,6 +449,26 @@
         .lang-btn.active {
             background: var(--primary);
             color: #fff;
+        }
+        /* ---- TEST CONNECTION BUTTON ---- */
+        .test-conn-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 4px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-family: inherit;
+        }
+        .test-conn-btn:hover {
+            background: var(--border-color);
+            color: var(--text-primary);
         }
         .user-profile {
             display: flex;
@@ -1051,6 +1112,12 @@
 </head>
 <body>
 
+    <!-- LOADING OVERLAY -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p data-i18n="loadingData">Loading data...</p>
+    </div>
+
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <aside class="sidebar" id="sidebar">
@@ -1107,6 +1174,10 @@
                     <button class="lang-btn" data-lang="am">አማ</button>
                     <button class="lang-btn" data-lang="om">OM</button>
                 </div>
+                <!-- ===== TEST CONNECTION BUTTON ===== -->
+                <button class="test-conn-btn" id="testConnectionBtn" data-i18n="testConnection">
+                    <i class="fas fa-plug"></i> <span>Test Connection</span>
+                </button>
                 <div class="user-profile">
                     <img id="userAvatar" src="../assets/images/avatar.png" alt="User" onerror="this.src='https://ui-avatars.com/api/?name=Admin&background=1a6e3a&color=fff'" />
                     <span class="user-name" id="userDisplayName">Admin</span>
@@ -1352,7 +1423,7 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // MULTI-LANGUAGE (UPDATED: "customer" instead of "member")
+        // MULTI-LANGUAGE (UPDATED: testConnection + loadingData)
         // ============================================================
         const translations = {
             en: {
@@ -1441,7 +1512,11 @@
                 roleTeller: 'Teller',
                 roleAccountant: 'Accountant',
                 roleViewer: 'Viewer',
-                sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.'
+                sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.',
+                testConnection: 'Test Connection',
+                connectionSuccess: '✅ Connection successful!',
+                connectionFailed: '❌ Connection failed: ',
+                loadingData: 'Loading data...'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1529,7 +1604,11 @@
                 roleTeller: 'ተቀባይ',
                 roleAccountant: 'አካውንታንት',
                 roleViewer: 'ተመልካች',
-                sessionTimeout: 'የእርስዎ ክፍለ-ጊዜ በ{seconds} ሰከንዶች ውስጥ ያበቃል። በመዳፊት ወይም ቁልፍ ይንቀሳቀሱ ወይም ይጫኑ በመግቢያ ላይ ለመቆየት።'
+                sessionTimeout: 'የእርስዎ ክፍለ-ጊዜ በ{seconds} ሰከንዶች ውስጥ ያበቃል። በመዳፊት ወይም ቁልፍ ይንቀሳቀሱ ወይም ይጫኑ በመግቢያ ላይ ለመቆየት።',
+                testConnection: 'ግንኙነት ሞክር',
+                connectionSuccess: '✅ ግንኙነቱ ተሳክቷል!',
+                connectionFailed: '❌ ግንኙነቱ አልተሳካም: ',
+                loadingData: 'ውሂብ በማስገባት ላይ...'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1617,7 +1696,11 @@
                 roleTeller: 'Baatii',
                 roleAccountant: 'Herregaa',
                 roleViewer: 'Ilaalaa',
-                sessionTimeout: 'Sessiin keessan {seconds} sekoondii keessatti xumurama. Siiqaa ykn cuqaasaa sochoosuu ykn cuqaasaa akka seenan turtanii.'
+                sessionTimeout: 'Sessiin keessan {seconds} sekoondii keessatti xumurama. Siiqaa ykn cuqaasaa sochoosuu ykn cuqaasaa akka seenan turtanii.',
+                testConnection: 'Qunnamtii Mirkaneessi',
+                connectionSuccess: '✅ Qunnamtii milkaa\'e!',
+                connectionFailed: '❌ Qunnamtii hin milkaanne: ',
+                loadingData: 'Datuu galmeessuuf...'
             }
         };
 
@@ -1643,6 +1726,15 @@
                 btn.classList.toggle('active', btn.dataset.lang === lang);
             });
             try { localStorage.setItem('waciti-lang', lang); } catch (e) {}
+            // Update test connection button text
+            const testBtn = document.getElementById('testConnectionBtn');
+            if (testBtn) {
+                const span = testBtn.querySelector('span');
+                if (span) span.textContent = t.testConnection || 'Test Connection';
+            }
+            // Update loading overlay text
+            const loadingText = document.querySelector('#loadingOverlay p');
+            if (loadingText) loadingText.textContent = t.loadingData || 'Loading data...';
             updateUserInfo();
             updateMinSavingsDisplay();
             applyRoleBasedVisibility();
@@ -1705,6 +1797,26 @@
                 setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
             }, 4500);
         }
+
+        // ============================================================
+        // TEST CONNECTION
+        // ============================================================
+        async function testConnection() {
+            try {
+                const testRef = db.collection('customers').limit(1);
+                await testRef.get();
+                const t = translations[currentLang];
+                showToast(t.connectionSuccess || '✅ Connection successful!', 'success');
+                return true;
+            } catch (error) {
+                console.error('Connection test failed:', error);
+                const t = translations[currentLang];
+                showToast((t.connectionFailed || '❌ Connection failed: ') + error.message, 'error');
+                return false;
+            }
+        }
+
+        document.getElementById('testConnectionBtn')?.addEventListener('click', testConnection);
 
         // ============================================================
         // THEME TOGGLE
@@ -1887,11 +1999,13 @@
         }
 
         // ============================================================
-        // SETTINGS MANAGEMENT
+        // SETTINGS MANAGEMENT (with loading overlay)
         // ============================================================
 
         // ---- Load Settings ----
         async function loadSettings() {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.add('active');
             try {
                 const doc = await db.collection('settings').doc('system').get();
                 if (doc.exists) {
@@ -1916,9 +2030,11 @@
                 } else {
                     setDefaultSettings();
                 }
+                overlay.classList.remove('active');
             } catch (error) {
                 console.error('Error loading settings:', error);
                 showToast('Error loading settings: ' + error.message, 'error');
+                overlay.classList.remove('active');
             }
         }
 
@@ -1943,6 +2059,8 @@
 
         // ---- Save Settings with Audit ----
         async function saveSettings(formType, formData) {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.add('active');
             try {
                 const settingsRef = db.collection('settings').doc('system');
                 const oldDoc = await settingsRef.get();
@@ -2005,11 +2123,13 @@
                         });
                         break;
                     default:
+                        overlay.classList.remove('active');
                         return;
                 }
 
                 if (Object.keys(changes).length === 0) {
                     showToast('No changes detected.', 'warning');
+                    overlay.classList.remove('active');
                     return;
                 }
 
@@ -2019,22 +2139,26 @@
                     `Settings updated: ${Object.keys(changes).join(', ')}`);
 
                 showToast(translations[currentLang]?.settingsSaved || 'Settings saved successfully!', 'success');
+                overlay.classList.remove('active');
             } catch (error) {
                 console.error('Error saving settings:', error);
                 showToast((translations[currentLang]?.settingsError || 'Error saving settings: ') + error.message, 'error');
+                overlay.classList.remove('active');
             }
         }
 
         // ---- Load Profile ----
         async function loadProfile() {
-            const user = auth.currentUser;
-            if (!user) return;
-
-            currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'User';
-            document.getElementById('profileDisplayName').value = currentUserDisplayName;
-            document.getElementById('profileEmail').textContent = user.email || '';
-
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.add('active');
             try {
+                const user = auth.currentUser;
+                if (!user) return;
+
+                currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'User';
+                document.getElementById('profileDisplayName').value = currentUserDisplayName;
+                document.getElementById('profileEmail').textContent = user.email || '';
+
                 const doc = await db.collection('users').doc(user.uid).get();
                 if (doc.exists) {
                     const data = doc.data();
@@ -2045,20 +2169,23 @@
                         'viewer': t.roleViewer || 'Viewer' };
                     document.getElementById('profileRole').textContent = roleMap[currentUserRole] || currentUserRole;
                 }
-            } catch (e) {
-                console.error('Error loading user role:', e);
-            }
 
-            const avatar = document.getElementById('profileAvatar');
-            if (user.photoURL) {
-                avatar.src = user.photoURL;
-            } else {
-                const name = user.displayName || 'Admin';
-                avatar.src =
-                    `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1a6e3a&color=fff&size=76&bold=true`;
-            }
+                const avatar = document.getElementById('profileAvatar');
+                if (user.photoURL) {
+                    avatar.src = user.photoURL;
+                } else {
+                    const name = user.displayName || 'Admin';
+                    avatar.src =
+                        `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1a6e3a&color=fff&size=76&bold=true`;
+                }
 
-            updateUserInfo();
+                updateUserInfo();
+                overlay.classList.remove('active');
+            } catch (error) {
+                console.error('Error loading profile:', error);
+                showToast('Error loading profile: ' + error.message, 'error');
+                overlay.classList.remove('active');
+            }
         }
 
         // ---- Update Profile with Audit ----
@@ -2077,6 +2204,9 @@
             const originalHtml = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.add('active');
 
             try {
                 let changes = {};
@@ -2098,18 +2228,21 @@
                 if (newPw) {
                     if (newPw.length < 6) {
                         showToast(t.passwordTooShort, 'warning');
+                        overlay.classList.remove('active');
                         btn.disabled = false;
                         btn.innerHTML = originalHtml;
                         return;
                     }
                     if (newPw !== confirmPw) {
                         showToast(t.passwordMismatch, 'warning');
+                        overlay.classList.remove('active');
                         btn.disabled = false;
                         btn.innerHTML = originalHtml;
                         return;
                     }
                     if (!currentPw) {
                         showToast(t.currentPasswordRequired, 'warning');
+                        overlay.classList.remove('active');
                         btn.disabled = false;
                         btn.innerHTML = originalHtml;
                         return;
@@ -2128,6 +2261,7 @@
                         } else {
                             showToast(authError.message, 'error');
                         }
+                        overlay.classList.remove('active');
                         btn.disabled = false;
                         btn.innerHTML = originalHtml;
                         return;
@@ -2150,6 +2284,7 @@
                 console.error('Error updating profile:', error);
                 showToast('Error updating profile: ' + error.message, 'error');
             } finally {
+                overlay.classList.remove('active');
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
             }
@@ -2301,6 +2436,9 @@
                     currentUserRole = 'viewer';
                 }
 
+                // Expose testConnection globally
+                window.testConnection = testConnection;
+
                 initLanguage();
                 initTheme();
                 loadSidebarState();
@@ -2324,6 +2462,7 @@
 
                 document.getElementById('themeSwitch').addEventListener('click', toggleTheme);
 
+                // Load settings and profile with overlay
                 await loadSettings();
                 await loadProfile();
 
