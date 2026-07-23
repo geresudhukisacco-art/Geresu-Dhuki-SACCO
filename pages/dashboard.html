@@ -62,6 +62,47 @@
             --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.5);
         }
 
+        /* ============================================================
+           LOADING OVERLAY
+           ============================================================ */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .loading-overlay.active {
+            display: flex;
+        }
+        .loading-overlay .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .loading-overlay p {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        [data-theme="dark"] .loading-overlay {
+            background: rgba(0, 0, 0, 0.6);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -1222,6 +1263,12 @@
 </head>
 <body>
 
+    <!-- LOADING OVERLAY -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p data-i18n="loadingData">Loading data...</p>
+    </div>
+
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <aside class="sidebar" id="sidebar">
@@ -1523,7 +1570,7 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // MULTI-LANGUAGE
+        // MULTI-LANGUAGE (with loadingData key added)
         // ============================================================
         const translations = {
             en: {
@@ -1582,7 +1629,8 @@
                 sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.',
                 testConnection: 'Test Connection',
                 connectionSuccess: '✅ Connection successful!',
-                connectionFailed: '❌ Connection failed: '
+                connectionFailed: '❌ Connection failed: ',
+                loadingData: 'Loading data...'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1640,7 +1688,8 @@
                 sessionTimeout: 'የእርስዎ ክፍለ-ጊዜ በ{seconds} ሰከንዶች ውስጥ ያበቃል። በመዳፊት ወይም ቁልፍ ይንቀሳቀሱ ወይም ይጫኑ በመግቢያ ላይ ለመቆየት።',
                 testConnection: 'ግንኙነት ሞክር',
                 connectionSuccess: '✅ ግንኙነቱ ተሳክቷል!',
-                connectionFailed: '❌ ግንኙነቱ አልተሳካም: '
+                connectionFailed: '❌ ግንኙነቱ አልተሳካም: ',
+                loadingData: 'ውሂብ በማስገባት ላይ...'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1695,10 +1744,11 @@
                 closed: 'Cufamaa',
                 yearClosed: 'Waggaan kun cufameera (qoodni qoodame). Waggaa haaraan zeerodhaa eegala.',
                 yearOpen: 'Waggaan kun banaa jira.',
-                sessionTimeout: 'Sessiin keessan {seconds} sekoondii keessatti xumurama. Siiqaa ykn cuqaasaa sochoosuu ykn cuqaasuu akka seenan turtanii.',
+                sessionTimeout: 'Sessiin keessan {seconds} sekoondii keessatti xumurama. Siiqaa ykn cuqaasaa sochoosuu ykn cuqaasaa akka seenan turtanii.',
                 testConnection: 'Qunnamtii Mirkaneessi',
                 connectionSuccess: '✅ Qunnamtii milkaa\'e!',
-                connectionFailed: '❌ Qunnamtii hin milkaanne: '
+                connectionFailed: '❌ Qunnamtii hin milkaanne: ',
+                loadingData: 'Datuu galmeessuuf...'
             }
         };
 
@@ -1734,12 +1784,15 @@
             });
 
             try { localStorage.setItem('waciti-lang', lang); } catch (e) {}
-            // Also update the test connection button text (since it has a span inside)
+            // Update the test connection button text
             const testBtn = document.getElementById('testConnectionBtn');
             if (testBtn) {
                 const span = testBtn.querySelector('span');
                 if (span) span.textContent = t.testConnection || 'Test Connection';
             }
+            // Update loading overlay text
+            const loadingText = document.querySelector('#loadingOverlay p');
+            if (loadingText) loadingText.textContent = t.loadingData || 'Loading data...';
             updateYearStatus(selectedYear);
         }
 
@@ -2047,6 +2100,9 @@
         }
 
         async function loadDashboardData() {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.add('active');
+
             try {
                 const year = selectedYear;
                 const t = translations[currentLang] || translations.en;
@@ -2274,6 +2330,8 @@
                 });
                 renderNotifications(notifications);
 
+                overlay.classList.remove('active');
+
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
                 showToast('Failed to load dashboard data: ' + error.message, 'error');
@@ -2289,6 +2347,7 @@
                 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 updateCharts(months, Array(12).fill(0), Array(12).fill(0), Array(12).fill(0));
                 renderNotifications([]);
+                overlay.classList.remove('active');
             }
         }
 
@@ -2438,7 +2497,7 @@
                     if (e.key === 'Escape') hideLogoutModal();
                 });
 
-                // Also expose testConnection globally for debugging
+                // Expose testConnection globally for debugging
                 window.testConnection = testConnection;
 
                 updateDateTime();
