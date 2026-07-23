@@ -669,6 +669,68 @@
             color: var(--primary);
         }
 
+        /* ----- LOAN HISTORY & PREVIEW PANEL ----- */
+        .loan-history-preview {
+            display: none;
+            background: var(--bg-primary);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin: 8px 0 12px;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s;
+        }
+        .loan-history-preview.show {
+            display: block;
+        }
+        .loan-history-preview .section-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .loan-history-preview .history-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 4px 16px;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+        .loan-history-preview .history-grid .label {
+            color: var(--text-secondary);
+        }
+        .loan-history-preview .history-grid .value {
+            font-weight: 600;
+        }
+        .loan-history-preview .history-grid .value.positive {
+            color: var(--success);
+        }
+        .loan-history-preview .history-grid .value.negative {
+            color: var(--danger);
+        }
+        .loan-history-preview .preview-divider {
+            border-top: 1px solid var(--border-color);
+            margin: 6px 0 8px;
+            padding-top: 6px;
+        }
+        .loan-history-preview .preview-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 4px 16px;
+            font-size: 13px;
+        }
+        .loan-history-preview .preview-grid .label {
+            color: var(--text-secondary);
+        }
+        .loan-history-preview .preview-grid .value {
+            font-weight: 600;
+        }
+        .loan-history-preview .preview-grid .value.primary {
+            color: var(--primary);
+        }
+
         /* ----- GUARANTEES ----- */
         .guarantee-section {
             border: 1px solid var(--border-color);
@@ -1227,6 +1289,9 @@
             .loan-limit-info .info-grid .available-row {
                 grid-column: span 1;
             }
+            .loan-history-preview .preview-grid {
+                grid-template-columns: 1fr 1fr;
+            }
         }
         @media (max-width: 768px) {
             .sidebar {
@@ -1345,6 +1410,9 @@
             .view-detail-row .label {
                 width: 100%;
                 margin-bottom: 2px;
+            }
+            .loan-history-preview .preview-grid {
+                grid-template-columns: 1fr;
             }
         }
         @media (max-width: 480px) {
@@ -1513,6 +1581,24 @@
                                 <span class="label" data-i18n="availableToBorrow">✅ Available to Borrow:</span>
                                 <span class="value primary available-amount" id="infoAvailable">0.00</span> ETB
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- ===== LOAN HISTORY & PREVIEW PANEL (new) ===== -->
+                    <div class="loan-history-preview" id="loanHistoryPreview">
+                        <div class="section-title"><i class="fas fa-history"></i> Loan History & Calculation Preview</div>
+                        <div class="history-grid" id="historyGrid">
+                            <div><span class="label">Total Loans:</span> <span class="value" id="histTotalLoans">0</span></div>
+                            <div><span class="label">Active:</span> <span class="value positive" id="histActive">0</span></div>
+                            <div><span class="label">Pending:</span> <span class="value" id="histPending">0</span></div>
+                            <div><span class="label">Paid:</span> <span class="value" id="histPaid">0</span></div>
+                            <div style="grid-column: span 2;"><span class="label">Outstanding Balance:</span> <span class="value negative" id="histOutstanding">0.00</span> ETB</div>
+                        </div>
+                        <div class="preview-divider"></div>
+                        <div class="preview-grid">
+                            <div><span class="label">Proposed Amount:</span> <span class="value primary" id="previewAmount">0.00</span> ETB</div>
+                            <div><span class="label">Monthly Payment:</span> <span class="value primary" id="previewMonthly">0.00</span> ETB</div>
+                            <div><span class="label">Total Payable:</span> <span class="value primary" id="previewTotal">0.00</span> ETB</div>
                         </div>
                     </div>
 
@@ -2324,6 +2410,29 @@
             }
         }
 
+        // ---- Get all loans for a customer ----
+        async function getCustomerAllLoans(customerId) {
+            try {
+                const [snap1, snap2] = await Promise.all([
+                    db.collection('transactions')
+                        .where('customerId', '==', customerId)
+                        .where('type', '==', 'loan')
+                        .get(),
+                    db.collection('transactions')
+                        .where('memberId', '==', customerId)
+                        .where('type', '==', 'loan')
+                        .get()
+                ]);
+                let loans = [];
+                snap1.forEach(doc => loans.push({ id: doc.id, ...doc.data() }));
+                snap2.forEach(doc => loans.push({ id: doc.id, ...doc.data() }));
+                return loans;
+            } catch (error) {
+                console.error('Error getting customer loans:', error);
+                return [];
+            }
+        }
+
         // ---- Load customers ----
         let customersList = [];
         async function loadCustomersForSelect() {
@@ -2385,7 +2494,7 @@
             });
         }
 
-        // ---- selectCustomer with savings & exposure + update info box ----
+        // ---- selectCustomer with savings, exposure, history & preview ----
         async function selectCustomer(id, displayName) {
             document.getElementById('customerSearch').value = displayName;
             document.getElementById('customerId').value = id;
@@ -2418,8 +2527,59 @@
             document.getElementById('infoAvailable').textContent = available.toFixed(2);
             infoBox.classList.add('show');
 
+            // ---- Get loan history ----
+            const allLoans = await getCustomerAllLoans(id);
+            const activeLoans = allLoans.filter(l => l.status === 'active');
+            const pendingLoans = allLoans.filter(l => l.status === 'pending');
+            const paidLoans = allLoans.filter(l => l.status === 'paid');
+            const rejectedLoans = allLoans.filter(l => l.status === 'rejected');
+
+            // Calculate outstanding balance (sum of remaining amounts for active loans)
+            let outstanding = 0;
+            for (const loan of activeLoans) {
+                const repay = await getLoanRepayments(loan.id);
+                const totalPayable = loan.totalPayable ? Number(loan.totalPayable) : calculateTotalPayable(
+                    Number(loan.amount) || 0,
+                    Number(loan.interestRate) || 0,
+                    Number(loan.repaymentPeriod) || 0,
+                    loan.loanType || 'simple'
+                );
+                const remaining = Math.max(0, totalPayable - repay.total);
+                outstanding += remaining;
+            }
+            outstanding = Math.round(outstanding * 100) / 100;
+
+            // Update history grid
+            document.getElementById('histTotalLoans').textContent = allLoans.length;
+            document.getElementById('histActive').textContent = activeLoans.length;
+            document.getElementById('histPending').textContent = pendingLoans.length;
+            document.getElementById('histPaid').textContent = paidLoans.length;
+            document.getElementById('histOutstanding').textContent = outstanding.toFixed(2);
+
+            // Show the history panel
+            const historyPanel = document.getElementById('loanHistoryPreview');
+            historyPanel.classList.add('show');
+
+            // ---- Update preview based on current inputs ----
+            updatePreview();
+
             // Show toast with summary
             showToast(`💰 Savings: ${savings.toFixed(2)} | Existing loans: ${existingExposure.toFixed(2)} | Available: ${available.toFixed(2)}`, 'warning');
+        }
+
+        // ---- Update preview calculation ----
+        function updatePreview() {
+            const amount = parseFloat(document.getElementById('amountInput').value) || 0;
+            const rate = parseFloat(document.getElementById('interestRate').value) || defaultInterestRate;
+            const period = parseInt(document.getElementById('repaymentPeriod').value) || 12;
+            const loanType = document.getElementById('loanType').value;
+
+            const monthly = calculateMonthlyPayment(amount, rate, period, loanType);
+            const total = calculateTotalPayable(amount, rate, period, loanType);
+
+            document.getElementById('previewAmount').textContent = amount.toFixed(2);
+            document.getElementById('previewMonthly').textContent = monthly.toFixed(2);
+            document.getElementById('previewTotal').textContent = total.toFixed(2);
         }
 
         // ---- Setup edit customer search ----
@@ -2622,6 +2782,8 @@
                     const hint = document.getElementById('interestRateHint');
                     if (hint) hint.textContent = `Default: ${defaultInterestRate}%`;
                 }
+                // Update preview on load
+                updatePreview();
             } catch (error) {
                 console.error('Error loading settings:', error);
             }
@@ -3475,6 +3637,8 @@
                 renderGuarantees();
                 document.getElementById('loanFormSection').style.display = 'none';
                 document.getElementById('addLoanBtn').style.display = canApply() ? 'inline-flex' : 'none';
+                // Hide history panel
+                document.getElementById('loanHistoryPreview').classList.remove('show');
                 await loadLoans();
             } catch (error) {
                 showToast(translations[currentLang].loanError + error.message, 'error');
@@ -3511,10 +3675,15 @@
                 renderGuarantees();
                 // Hide the loan limit info box when form is cleared
                 document.getElementById('loanLimitInfo').classList.remove('show');
+                document.getElementById('loanHistoryPreview').classList.remove('show');
+                // Reset preview
+                updatePreview();
                 formSection.scrollIntoView({ behavior: 'smooth' });
             } else {
                 formSection.style.display = 'none';
                 addBtn.style.display = canApply() ? 'inline-flex' : 'none';
+                // Hide history panel
+                document.getElementById('loanHistoryPreview').classList.remove('show');
             }
         }
 
@@ -3612,6 +3781,7 @@
                     guarantees = [];
                     renderGuarantees();
                     document.getElementById('loanLimitInfo').classList.remove('show');
+                    document.getElementById('loanHistoryPreview').classList.remove('show');
                     document.getElementById('loanFormSection').style.display = 'none';
                     document.getElementById('addLoanBtn').style.display = canApply() ? 'inline-flex' : 'none';
                 });
@@ -3649,6 +3819,12 @@
                     if (e.target === this) closeViewLoanModal();
                 });
 
+                // ===== Setup preview update on input changes =====
+                document.getElementById('amountInput').addEventListener('input', updatePreview);
+                document.getElementById('interestRate').addEventListener('input', updatePreview);
+                document.getElementById('repaymentPeriod').addEventListener('input', updatePreview);
+                document.getElementById('loanType').addEventListener('change', updatePreview);
+
                 const searchInput = document.getElementById('searchInput');
                 const t = translations[currentLang];
                 searchInput.placeholder = t.searchPlaceholder || 'Search by customer name...';
@@ -3656,6 +3832,7 @@
                 // Expose functions
                 window.viewLoan = viewLoan;
                 window.closeViewLoanModal = closeViewLoanModal;
+                window.updatePreview = updatePreview;
             });
         });
 
@@ -3673,6 +3850,7 @@
         window.toggleLoanForm = toggleLoanForm;
         window.testConnection = testConnection;
         window.closeViewLoanModal = closeViewLoanModal;
+        window.updatePreview = updatePreview;
     </script>
     <script>
         // ============================================================
