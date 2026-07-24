@@ -1758,6 +1758,17 @@
         let selectedYear = new Date().getFullYear();
         let customersMap = {};
 
+        // ===== NEW: Store all transaction types for accurate capital calculation =====
+        let allSavings = [],
+            allLoans = [],
+            allRepayments = [],
+            allProfitIncome = [],
+            allProfitWithdrawal = [],
+            allWithdrawals = [],
+            allLeavingWithdrawals = [], // NEW
+            allTransferOut = [], // NEW
+            allTransferIn = []; // NEW
+
         function setLanguage(lang) {
             if (!translations[lang]) return;
             currentLang = lang;
@@ -1784,13 +1795,11 @@
             });
 
             try { localStorage.setItem('waciti-lang', lang); } catch (e) {}
-            // Update the test connection button text
             const testBtn = document.getElementById('testConnectionBtn');
             if (testBtn) {
                 const span = testBtn.querySelector('span');
                 if (span) span.textContent = t.testConnection || 'Test Connection';
             }
-            // Update loading overlay text
             const loadingText = document.querySelector('#loadingOverlay p');
             if (loadingText) loadingText.textContent = t.loadingData || 'Loading data...';
             updateYearStatus(selectedYear);
@@ -1959,14 +1968,8 @@
         }
 
         // ============================================================
-        // DASHBOARD DATA LOADING with FIXED customer name mapping
+        // DASHBOARD DATA LOADING with FIXED capital calculation
         // ============================================================
-        let savingsData = [],
-            loansData = [],
-            repaymentsData = [],
-            profitIncomeData = [],
-            profitWithdrawalData = [],
-            withdrawalData = [];
         let loansRepaymentsChart = null,
             monthlyChart = null;
 
@@ -2107,6 +2110,7 @@
                 const year = selectedYear;
                 const t = translations[currentLang] || translations.en;
 
+                // ---- Load customers ----
                 const customersSnap = await db.collection('customers').get();
                 const totalCustomers = customersSnap.size;
                 customersMap = {};
@@ -2119,29 +2123,65 @@
                     }
                 });
 
-                const savingsSnap = await db.collection('transactions').where('type', '==', 'savings').get();
-                const loansSnap = await db.collection('transactions').where('type', '==', 'loan').get();
-                const repaymentsSnap = await db.collection('transactions').where('type', '==', 'repayment').get();
-                const profitIncomeSnap = await db.collection('transactions').where('type', '==', 'profit_income').get();
-                const profitWithdrawalSnap = await db.collection('transactions').where('type', '==', 'profit_withdrawal')
-                    .get();
-                const withdrawalSnap = await db.collection('transactions').where('type', '==', 'withdrawal').get();
+                // ---- Load ALL transaction types for accurate capital calculation ----
+                const [
+                    savingsSnap,
+                    loansSnap,
+                    repaymentsSnap,
+                    profitIncomeSnap,
+                    profitWithdrawalSnap,
+                    withdrawalSnap,
+                    leavingWithdrawalSnap,
+                    transferOutSnap,
+                    transferInSnap
+                ] = await Promise.all([
+                    db.collection('transactions').where('type', '==', 'savings').get(),
+                    db.collection('transactions').where('type', '==', 'loan').get(),
+                    db.collection('transactions').where('type', '==', 'repayment').get(),
+                    db.collection('transactions').where('type', '==', 'profit_income').get(),
+                    db.collection('transactions').where('type', '==', 'profit_withdrawal').get(),
+                    db.collection('transactions').where('type', '==', 'withdrawal').get(),
+                    db.collection('transactions').where('type', '==', 'leaving_withdrawal').get(),
+                    db.collection('transactions').where('type', '==', 'transfer_out').get(),
+                    db.collection('transactions').where('type', '==', 'transfer_in').get()
+                ]);
 
-                const allSavings = savingsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-                const allLoans = loansSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-                const allRepayments = repaymentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-                const allProfitIncome = profitIncomeSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-                const allProfitWithdrawal = profitWithdrawalSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-                const allWithdrawals = withdrawalSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                // ---- Store all data for global calculations ----
+                allSavings = savingsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                allLoans = loansSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                allRepayments = repaymentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                allProfitIncome = profitIncomeSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                allProfitWithdrawal = profitWithdrawalSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                allWithdrawals = withdrawalSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                allLeavingWithdrawals = leavingWithdrawalSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                allTransferOut = transferOutSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                allTransferIn = transferInSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
+                // ============================================================
+                // TOTAL CAPITAL ALL YEARS (FIXED)
+                // Capital = Savings + Dividends + Transfers In - Withdrawals - Transfer Out - Leaving Withdrawals
+                // ============================================================
                 const totalSavingsAllYears = allSavings.reduce((s, item) => s + (Number(item.amount) || 0), 0);
                 const totalDividendsAllYears = allProfitWithdrawal
                     .filter(w => w.reason === 'Dividend')
                     .reduce((s, w) => s + (Number(w.amount) || 0), 0);
                 const totalWithdrawalsAllYears = allWithdrawals.reduce((s, w) => s + (Number(w.amount) || 0), 0);
-                const totalCapitalAllYears = Math.round((totalSavingsAllYears + totalDividendsAllYears - totalWithdrawalsAllYears) *
-                    100) / 100;
+                const totalLeavingWithdrawalsAllYears = allLeavingWithdrawals.reduce((s, w) => s + (Number(w.amount) || 0),
+                    0);
+                const totalTransferOutAllYears = allTransferOut.reduce((s, w) => s + (Number(w.amount) || 0), 0);
+                const totalTransferInAllYears = allTransferIn.reduce((s, w) => s + (Number(w.amount) || 0), 0);
 
+                // FIXED: Include all reductions and additions
+                const totalCapitalAllYears = Math.round((
+                    totalSavingsAllYears +
+                    totalDividendsAllYears +
+                    totalTransferInAllYears -
+                    totalWithdrawalsAllYears -
+                    totalTransferOutAllYears -
+                    totalLeavingWithdrawalsAllYears
+                ) * 100) / 100;
+
+                // ---- Calculate total profit across all years ----
                 const yearsSet = new Set();
                 [...allSavings, ...allLoans, ...allRepayments, ...allProfitIncome, ...allProfitWithdrawal]
                     .forEach(item => {
@@ -2170,13 +2210,20 @@
                 totalProfitAllYears = Math.round(totalProfitAllYears * 100) / 100;
                 const totalBalanceAllYears = Math.round((totalSavingsAllYears + totalProfitAllYears) * 100) / 100;
 
-                savingsData = allSavings.filter(s => isInYear(s.date || s.timestamp, year));
-                loansData = allLoans.filter(l => isInYear(l.date || l.timestamp, year));
-                repaymentsData = allRepayments.filter(r => isInYear(r.date || r.timestamp, year));
-                profitIncomeData = allProfitIncome.filter(p => isInYear(p.date || p.timestamp, year));
-                profitWithdrawalData = allProfitWithdrawal.filter(w => isInYear(w.date || w.timestamp, year));
-                withdrawalData = allWithdrawals.filter(w => isInYear(w.date || w.timestamp, year));
+                // ============================================================
+                // SELECTED YEAR FILTERED DATA
+                // ============================================================
+                const savingsData = allSavings.filter(s => isInYear(s.date || s.timestamp, year));
+                const loansData = allLoans.filter(l => isInYear(l.date || l.timestamp, year));
+                const repaymentsData = allRepayments.filter(r => isInYear(r.date || r.timestamp, year));
+                const profitIncomeData = allProfitIncome.filter(p => isInYear(p.date || p.timestamp, year));
+                const profitWithdrawalData = allProfitWithdrawal.filter(w => isInYear(w.date || w.timestamp, year));
+                const withdrawalData = allWithdrawals.filter(w => isInYear(w.date || w.timestamp, year));
+                const leavingWithdrawalData = allLeavingWithdrawals.filter(w => isInYear(w.date || w.timestamp, year));
+                const transferOutData = allTransferOut.filter(w => isInYear(w.date || w.timestamp, year));
+                const transferInData = allTransferIn.filter(w => isInYear(w.date || w.timestamp, year));
 
+                // ---- Yearly calculations ----
                 const totalSavings = savingsData.reduce((s, item) => s + (Number(item.amount) || 0), 0);
                 const totalLoans = loansData.filter(l => l.status === 'active' || l.status === 'paid')
                     .reduce((s, l) => s + (Number(l.amount) || 0), 0);
@@ -2187,6 +2234,7 @@
                 const profit = Math.round(((totalRepayments - totalLoans) + totalDeposits - totalDividends) * 100) / 100;
                 const totalBalance = Math.round((totalSavings + profit) * 100) / 100;
 
+                // ---- Update UI ----
                 document.getElementById('totalCustomersValue').textContent = totalCustomers.toLocaleString();
                 document.getElementById('balanceValue').textContent = totalBalance.toLocaleString();
                 document.getElementById('savingsValue').textContent = totalSavings.toLocaleString();
@@ -2197,13 +2245,14 @@
                 document.getElementById('totalBalanceAllValue').textContent = totalBalanceAllYears.toLocaleString();
                 document.getElementById('totalCapitalValue').textContent = totalCapitalAllYears.toLocaleString();
 
+                // ---- Change percentages ----
                 const currentMonth = new Date().getMonth();
                 const currentYear = year;
                 const prevYear = year - 1;
 
                 const curSavings = getMonthlyTotal(savingsData, 'amount', currentYear, currentMonth);
                 const prevSavings = getMonthlyTotal(
-                    savingsData.map(s => ({ ...s, date: s.date || s.timestamp })),
+                    allSavings.map(s => ({ ...s, date: s.date || s.timestamp })),
                     'amount', prevYear, currentMonth
                 );
                 const savChange = prevSavings > 0 ? ((curSavings - prevSavings) / prevSavings * 100) : 0;
@@ -2211,7 +2260,7 @@
 
                 const curLoans = getMonthlyTotal(loansData, 'amount', currentYear, currentMonth);
                 const prevLoans = getMonthlyTotal(
-                    loansData.map(l => ({ ...l, date: l.date || l.timestamp })),
+                    allLoans.map(l => ({ ...l, date: l.date || l.timestamp })),
                     'amount', prevYear, currentMonth
                 );
                 const loanChange = prevLoans > 0 ? ((curLoans - prevLoans) / prevLoans * 100) : 0;
@@ -2219,7 +2268,7 @@
 
                 const curRepayments = getMonthlyTotal(repaymentsData, 'amount', currentYear, currentMonth);
                 const prevRepayments = getMonthlyTotal(
-                    repaymentsData.map(r => ({ ...r, date: r.date || r.timestamp })),
+                    allRepayments.map(r => ({ ...r, date: r.date || r.timestamp })),
                     'amount', prevYear, currentMonth
                 );
                 const repChange = prevRepayments > 0 ? ((curRepayments - prevRepayments) / prevRepayments * 100) : 0;
@@ -2227,7 +2276,7 @@
 
                 const curDeposits = getMonthlyTotal(profitIncomeData, 'amount', currentYear, currentMonth);
                 const prevDeposits = getMonthlyTotal(
-                    profitIncomeData.map(p => ({ ...p, date: p.date || p.timestamp })),
+                    allProfitIncome.map(p => ({ ...p, date: p.date || p.timestamp })),
                     'amount', prevYear, currentMonth
                 );
                 const curProfit = (curRepayments - curLoans) + curDeposits;
@@ -2245,6 +2294,7 @@
                 document.getElementById('totalBalanceAllChange').innerHTML = `<span class="neutral">—</span>`;
                 document.getElementById('totalCapitalChange').innerHTML = `<span class="neutral">—</span>`;
 
+                // ---- Charts ----
                 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 const loansMonthly = months.map((_, i) => getMonthlyTotal(loansData.filter(l => l.status === 'active' || l
                     .status === 'paid'), 'amount', year, i));
@@ -2252,6 +2302,7 @@
                 const savingsMonthly = months.map((_, i) => getMonthlyTotal(savingsData, 'amount', year, i));
                 updateCharts(months, loansMonthly, repaymentsMonthly, savingsMonthly);
 
+                // ---- Notifications ----
                 const activities = [];
 
                 savingsData.slice(0, 5).forEach(s => {
