@@ -899,41 +899,59 @@
             border-bottom: none;
         }
 
-        .status-badge {
+        /* ===== BADGE COLORS – TYPE BADGES (Fixed) ===== */
+        .badge-type {
             padding: 3px 12px;
             border-radius: 20px;
             font-size: 11px;
             font-weight: 600;
             display: inline-block;
         }
-        .status-badge.completed {
+        .badge-type.type-withdrawal {
             background: #d4edda;
             color: #155724;
         }
-        .status-badge.pending {
-            background: #fff3cd;
-            color: #856404;
-        }
-        .status-badge.failed {
+        .badge-type.type-transfer_out {
             background: #f8d7da;
             color: #721c24;
         }
-        .status-badge.transfer_out {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        .status-badge.transfer_in {
+        .badge-type.type-transfer_in {
             background: #d4edda;
             color: #155724;
         }
-        .status-badge.service {
+        .badge-type.type-service {
             background: #cce5ff;
             color: #004085;
         }
-        .status-badge.leaving {
+        .badge-type.type-leaving {
             background: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
+        }
+        .badge-type.type-individual {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        /* ===== BADGE COLORS – STATUS BADGES ===== */
+        .badge-status {
+            padding: 3px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .badge-status.completed {
+            background: #d4edda;
+            color: #155724;
+        }
+        .badge-status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .badge-status.failed {
+            background: #f8d7da;
+            color: #721c24;
         }
 
         .action-btn {
@@ -2650,24 +2668,40 @@
         }
 
         // ============================================================
-        // SACCO PROFIT FUNCTIONS - FIXED: now sums ALL income types
+        // SACCO PROFIT FUNCTIONS - FIXED: now sums ALL income types and also checks savings with profit reasons
         // ============================================================
         async function getSaccoProfit() {
             try {
-                // Fetch all income transactions: profit_income, interest_income, loan_interest, etc.
+                // 1. Fetch all income transactions: profit_income, interest_income, loan_interest, fee_income
                 const incomeTypes = ['profit_income', 'interest_income', 'loan_interest', 'fee_income'];
                 const incomeSnap = await db.collection('transactions')
                     .where('type', 'in', incomeTypes)
                     .get();
 
-                // Fetch all service_withdrawal
+                // 2. Also fetch savings transactions that might be profit/dividend (legacy)
+                const savingsSnap = await db.collection('transactions')
+                    .where('type', '==', 'savings')
+                    .get();
+
+                // 3. Fetch all service_withdrawal
                 const serviceSnap = await db.collection('transactions')
                     .where('type', '==', 'service_withdrawal')
                     .get();
 
                 let totalIncome = 0;
+
+                // Income from explicit income types
                 incomeSnap.forEach(doc => {
                     totalIncome += Number(doc.data().amount) || 0;
+                });
+
+                // Income from savings with profit-related reasons (legacy)
+                savingsSnap.forEach(doc => {
+                    const data = doc.data();
+                    const reason = (data.reason || data.note || '').toLowerCase();
+                    if (reason.includes('profit') || reason.includes('dividend') || reason.includes('interest')) {
+                        totalIncome += Number(data.amount) || 0;
+                    }
                 });
 
                 let totalServices = 0;
@@ -2721,7 +2755,6 @@
 
         async function deductSaccoProfit(amount, serviceType, description) {
             try {
-                // First, recalculate the current total profit from all transactions
                 const profitData = await getSaccoProfit();
                 const currentProfit = profitData.totalProfit;
 
@@ -2863,38 +2896,30 @@
             }
             let html = '';
             items.forEach((tr, i) => {
-                // Determine badge class based on type and status
+                // ===== TYPE BADGE =====
+                let typeClass = '';
+                let typeLabel = tr.displayType;
+                if (typeLabel === 'withdrawal') { typeClass = 'type-withdrawal';
+                    typeLabel = 'Individual'; } else if (typeLabel === 'service_withdrawal') { typeClass =
+                        'type-service';
+                    typeLabel = 'Service'; } else if (typeLabel === 'leaving_withdrawal') { typeClass =
+                        'type-leaving';
+                    typeLabel = 'Leaving'; } else if (typeLabel === 'transfer_out') { typeClass =
+                        'type-transfer_out';
+                    typeLabel = 'Transfer Out'; } else if (typeLabel === 'transfer_in') { typeClass =
+                        'type-transfer_in';
+                    typeLabel = 'Transfer In'; }
+
+                // ===== STATUS BADGE =====
                 let statusClass = 'completed';
                 let statusLabel = t.completed;
                 if (tr.status === 'pending') { statusClass = 'pending';
                     statusLabel = t.pending; } else if (tr.status === 'failed') { statusClass = 'failed';
                     statusLabel = t.failed; }
 
-                // Override for specific types
-                if (tr.displayType === 'transfer_out') {
-                    statusClass = 'transfer_out';
-                    statusLabel = t.transferOut || 'Transfer Out';
-                } else if (tr.displayType === 'transfer_in') {
-                    statusClass = 'transfer_in';
-                    statusLabel = t.transferIn || 'Transfer In';
-                } else if (tr.displayType === 'service_withdrawal') {
-                    statusClass = 'service';
-                    statusLabel = 'Service';
-                } else if (tr.displayType === 'leaving_withdrawal') {
-                    statusClass = 'leaving';
-                    statusLabel = 'Leaving';
-                }
-
                 const dateStr = formatDate(tr.date || tr.timestamp);
                 let byUser = tr.createdByName || tr.createdBy || tr.createdByEmail || 'Admin';
                 if (byUser.includes('@')) byUser = byUser.split('@')[0];
-
-                let typeLabel = tr.displayType;
-                if (typeLabel === 'withdrawal') typeLabel = 'Individual';
-                else if (typeLabel === 'service_withdrawal') typeLabel = 'Service';
-                else if (typeLabel === 'leaving_withdrawal') typeLabel = 'Leaving';
-                else if (typeLabel === 'transfer_out') typeLabel = 'Transfer Out';
-                else if (typeLabel === 'transfer_in') typeLabel = 'Transfer In';
 
                 let actionsHtml = `
                     <button class="action-btn view-btn" onclick="viewTransaction('${tr.id}')" title="${t.view}"><i class="fas fa-eye"></i></button>
@@ -2907,11 +2932,11 @@
 
                 html += `<tr>
                     <td>${(currentPage-1)*pageSize + i + 1}</td>
-                    <td><span class="status-badge ${statusClass}">${typeLabel}</span></td>
+                    <td><span class="badge-type ${typeClass}">${typeLabel}</span></td>
                     <td>${tr.customerName}</td>
                     <td>${Number(tr.amount).toLocaleString()}</td>
                     <td style="font-size:12px; color:var(--text-secondary);">${tr.details || '—'}</td>
-                    <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+                    <td><span class="badge-status ${statusClass}">${statusLabel}</span></td>
                     <td>${dateStr}</td>
                     <td>${byUser}</td>
                     <td>${actionsHtml}</td>
