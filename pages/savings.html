@@ -1687,7 +1687,7 @@
                         <i class="fas fa-info-circle"></i> Min: <strong id="minSavingsDisplay">ETB 0.00</strong>
                     </span>
                     <span id="penaltyBadge" style="font-size:13px; color:var(--text-secondary); background:var(--bg-primary); padding:6px 16px; border-radius:20px; margin-left:8px;">
-                        <i class="fas fa-exclamation-triangle" style="color:var(--penalty);"></i> Penalty: <strong id="penaltyRateDisplay">0%</strong>
+                        <i class="fas fa-exclamation-triangle" style="color:var(--penalty);"></i> Penalty Rate: <strong id="penaltyRateDisplay">0%</strong>
                     </span>
                     <button class="btn-secondary" id="testConnectionBtn" style="margin-left:12px; padding:6px 14px; font-size:12px;" data-i18n="testConnection">
                         <i class="fas fa-plug"></i> Test Connection
@@ -2627,7 +2627,7 @@
         }
 
         // ============================================================
-        // SETTINGS LOADING
+        // SETTINGS LOADING – penaltyRate from settings
         // ============================================================
         const SETTINGS_DOC_ID = 'system';
 
@@ -2637,7 +2637,7 @@
                 if (doc.exists) {
                     const data = doc.data();
                     minSavingsAmount = data.minSavingsBalance || 0;
-                    penaltyRate = data.penaltyRate || 0.05;
+                    penaltyRate = data.penaltyRate || 0.05; // ← adjustable via Settings
                 } else {
                     minSavingsAmount = 0;
                     penaltyRate = 0.05;
@@ -2670,7 +2670,7 @@
         }
 
         // ============================================================
-        // PENALTY & UNPAID CALCULATION
+        // PENALTY & UNPAID CALCULATION – penalty from settings
         // ============================================================
         function calculatePenalty(amount, date, rate, savingsType = 'cash') {
             const eth = toEthiopian(date);
@@ -2712,7 +2712,7 @@
                 }
             });
 
-            // Check previous months (up to 12 months back)
+            // Check previous months (up to 12 months back) – starting from last month
             for (let i = 1; i <= 12; i++) {
                 let checkMonth = currentMonth - i;
                 let checkYear = currentYear;
@@ -3085,6 +3085,7 @@
                     let penaltyAmount = data.penaltyAmount || 0;
                     let penaltyStatus = data.penaltyStatus || 'no_penalty';
 
+                    // If no penalty amount saved, calculate it using current settings
                     if (!data.penaltyAmount && data.date) {
                         const date = data.date.toDate ? data.date.toDate() : new Date(data.date);
                         const eth = toEthiopian(date);
@@ -3909,7 +3910,7 @@
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     penaltyAmount: penaltyAmount,
                     penaltyStatus: penaltyStatus,
-                    penaltyRate: penaltyRate,
+                    penaltyRate: penaltyRate, // store the current penalty rate
                     unpaidBalance: unpaidBalance,
                     ethiopianDate: ethDate
                 };
@@ -4380,7 +4381,7 @@
                 }
 
                 updateUserInfo();
-                await loadSettings();
+                await loadSettings(); // ← loads penaltyRate from settings
                 updateSavingsTypeOptions(currentUserRole);
 
                 const usersNav = document.getElementById('usersNavItem');
