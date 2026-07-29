@@ -2439,7 +2439,7 @@
         let currentUserRole = 'viewer';
         let currentUserDisplayName = 'User';
         let minSavingsAmount = 0;
-        let penaltyRate = 0.05;
+        let savingsPenaltyRate = 0.05; // Default 5%
         const PENALTY_CUTOFF_DAY = 15;
 
         function setLanguage(lang) {
@@ -2627,7 +2627,7 @@
         }
 
         // ============================================================
-        // SETTINGS LOADING – penaltyRate from settings
+        // SETTINGS LOADING – savingsPenaltyRate from settings
         // ============================================================
         const SETTINGS_DOC_ID = 'system';
 
@@ -2637,21 +2637,23 @@
                 if (doc.exists) {
                     const data = doc.data();
                     minSavingsAmount = data.minSavingsBalance || 0;
-                    penaltyRate = data.penaltyRate || 0.05; // ← adjustable via Settings
+                    // Use the savings-specific penalty rate, fallback to general penaltyRate
+                    savingsPenaltyRate = data.savingsPenaltyRate !== undefined ? data.savingsPenaltyRate / 100 : (data
+                        .penaltyRate || 5) / 100;
                 } else {
                     minSavingsAmount = 0;
-                    penaltyRate = 0.05;
+                    savingsPenaltyRate = 0.05;
                 }
                 updateMinSavingsBadge();
                 updatePenaltyBadge();
-                return { minSavingsAmount, penaltyRate };
+                return { minSavingsAmount, savingsPenaltyRate };
             } catch (error) {
                 console.error('Error loading settings:', error);
                 minSavingsAmount = 0;
-                penaltyRate = 0.05;
+                savingsPenaltyRate = 0.05;
                 updateMinSavingsBadge();
                 updatePenaltyBadge();
-                return { minSavingsAmount: 0, penaltyRate: 0.05 };
+                return { minSavingsAmount: 0, savingsPenaltyRate: 0.05 };
             }
         }
 
@@ -2665,7 +2667,9 @@
         function updatePenaltyBadge() {
             const display = document.getElementById('penaltyRateDisplay');
             if (display) {
-                display.textContent = `${(penaltyRate * 100).toFixed(1)}%`;
+                // FIXED: Show the actual percentage without multiplying by 100 again
+                const percent = (savingsPenaltyRate * 100).toFixed(1);
+                display.textContent = `${percent}%`;
             }
         }
 
@@ -2677,9 +2681,7 @@
             const isLate = eth.day >= PENALTY_CUTOFF_DAY && eth.day <= 30;
             if (!isLate) return 0;
             let r = rate || 0.05;
-            if (savingsType === 'cash') r = rate || 0.05;
-            else if (savingsType === 'mobile') r = rate || 0.03;
-            else if (savingsType === 'bank') r = rate || 0.04;
+            // Use the savings-specific rate passed in
             return Math.round(amount * r * 100) / 100;
         }
 
@@ -2712,8 +2714,9 @@
                 }
             });
 
-            // Check previous months (up to 12 months back) – starting from last month
-            for (let i = 1; i <= 12; i++) {
+            // Check from current month backwards (including current month)
+            // Start from month 0 (current month) going backwards
+            for (let i = 0; i <= 12; i++) {
                 let checkMonth = currentMonth - i;
                 let checkYear = currentYear;
                 if (checkMonth < 1) {
@@ -3090,7 +3093,7 @@
                         const date = data.date.toDate ? data.date.toDate() : new Date(data.date);
                         const eth = toEthiopian(date);
                         if (eth.day >= PENALTY_CUTOFF_DAY && eth.day <= 30) {
-                            const rate = data.penaltyRate || penaltyRate;
+                            const rate = data.penaltyRate || savingsPenaltyRate;
                             penaltyAmount = calculatePenalty(data.amount || 0, date, rate, data.savingsType);
                             penaltyStatus = 'penalty_applied';
                         }
@@ -3458,7 +3461,7 @@
             }
 
             const date = new Date(dateInput);
-            const penalty = calculatePenalty(amount, date, penaltyRate, savingsType);
+            const penalty = calculatePenalty(amount, date, savingsPenaltyRate, savingsType);
             const unpaid = getUnpaidSavings(memberId, date);
             const totalDue = amount + penalty + unpaid.totalUnpaid;
 
@@ -3576,10 +3579,10 @@
             const isLate = eth.day >= PENALTY_CUTOFF_DAY && eth.day <= 30;
 
             if (isLate && amount > 0) {
-                const penalty = calculatePenalty(amount, date, penaltyRate, savingsType);
+                const penalty = calculatePenalty(amount, date, savingsPenaltyRate, savingsType);
                 const warning = document.getElementById('penaltyWarning');
                 const percentDisplay = document.getElementById('penaltyPercentDisplay');
-                const ratePercent = (penaltyRate * 100).toFixed(1);
+                const ratePercent = (savingsPenaltyRate * 100).toFixed(1);
                 percentDisplay.textContent = `${ratePercent}%`;
                 warning.classList.add('show');
                 document.getElementById('penaltyAmountInput').value = penalty.toFixed(2);
@@ -3910,7 +3913,7 @@
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     penaltyAmount: penaltyAmount,
                     penaltyStatus: penaltyStatus,
-                    penaltyRate: penaltyRate, // store the current penalty rate
+                    penaltyRate: savingsPenaltyRate,
                     unpaidBalance: unpaidBalance,
                     ethiopianDate: ethDate
                 };
@@ -4381,7 +4384,7 @@
                 }
 
                 updateUserInfo();
-                await loadSettings(); // ← loads penaltyRate from settings
+                await loadSettings();
                 updateSavingsTypeOptions(currentUserRole);
 
                 const usersNav = document.getElementById('usersNavItem');
