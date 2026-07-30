@@ -45,6 +45,7 @@
             --danger: #e74c3c;
             --warning: #f39c12;
             --info: #2196f3;
+            --penalty-color: #e67e22;
             --transition: 0.3s cubic-bezier(0.22, 1, 0.36, 1);
             --sidebar-width: 260px;
             --sidebar-collapsed-width: 72px;
@@ -683,6 +684,9 @@
         .action-icon.teal {
             background: #00897b;
         }
+        .action-icon.penalty {
+            background: #e67e22;
+        }
         .action-info .action-title {
             font-weight: 600;
             font-size: 13px;
@@ -698,7 +702,7 @@
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
             gap: 12px;
             margin-bottom: 28px;
         }
@@ -789,6 +793,9 @@
         }
         .stat-card.totalcapital {
             background: linear-gradient(135deg, #00695c, #00897b);
+        }
+        .stat-card.penalties {
+            background: linear-gradient(135deg, #b45f06, #e67e22);
         }
 
         .charts-row {
@@ -909,6 +916,9 @@
         }
         .notification-item .notif-icon.purple {
             background: #9c27b0;
+        }
+        .notification-item .notif-icon.penalty {
+            background: #e67e22;
         }
         .notification-item .notif-content {
             flex: 1;
@@ -1295,6 +1305,8 @@
                 <li><a href="withdrawals.html"><i class="fas fa-money-bill-wave"></i> <span data-i18n="navWithdrawals">Withdrawals</span></a></li>
                 <li><a href="dividends.html"><i class="fas fa-gift"></i> <span data-i18n="navDividends">Dividends</span></a></li>
                 <li><a href="reports.html"><i class="fas fa-chart-bar"></i> <span data-i18n="navReports">Reports</span></a></li>
+                <!-- Penalties link - always visible -->
+                <li><a href="penalties.html"><i class="fas fa-exclamation-triangle" style="color:#e67e22;"></i> <span data-i18n="navPenalties">Penalties</span></a></li>
                 <li id="auditNavItem" style="display:none;">
                     <a href="audit.html"><i class="fas fa-clipboard-list"></i> <span data-i18n="navAudit">Audit Trail</span></a>
                 </li>
@@ -1407,10 +1419,18 @@
                             <span class="action-desc" data-i18n="actionWithdrawalsDesc">Process withdrawals</span>
                         </div>
                     </div>
+                    <!-- Penalties Quick Action -->
+                    <div class="action-card" onclick="location.href='penalties.html'">
+                        <div class="action-icon penalty"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="action-info">
+                            <span class="action-title" data-i18n="actionPenalties">Penalties</span>
+                            <span class="action-desc" data-i18n="actionPenaltiesDesc">Manage penalty records</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Stats Grid (9 cards) -->
+            <!-- Stats Grid (10 cards including Penalties) -->
             <div class="performance-overview">
                 <h3 data-i18n="performanceOverview" style="font-size:16px; font-weight:600; color:var(--text-primary); margin-bottom:12px; transition:color 0.3s;">Performance Overview</h3>
                 <div class="stats-grid" id="statsGrid">
@@ -1486,6 +1506,15 @@
                             <span class="stat-change" id="totalCapitalChange"></span>
                         </div>
                     </div>
+                    <!-- Penalties Stat Card -->
+                    <div class="stat-card penalties">
+                        <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-label" data-i18n="statPenalties">Penalties</span>
+                            <span class="stat-value" id="penaltiesValue">0</span>
+                            <span class="stat-change" id="penaltiesChange"></span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1508,7 +1537,7 @@
             </div>
 
             <!-- ============================================================
-                 NOTIFICATIONS PANEL – KEPT, Recent Activity REMOVED
+                 NOTIFICATIONS PANEL
                  ============================================================ -->
             <div class="notifications-panel">
                 <div class="section-header">
@@ -1570,7 +1599,7 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // MULTI-LANGUAGE (with loadingData key added)
+        // MULTI-LANGUAGE (with penalty keys added)
         // ============================================================
         const translations = {
             en: {
@@ -1584,6 +1613,7 @@
                 navWithdrawals: 'Withdrawals',
                 navDividends: 'Dividends',
                 navReports: 'Reports',
+                navPenalties: 'Penalties',
                 navAudit: 'Audit Trail',
                 navUsers: 'Users',
                 navSettings: 'Settings',
@@ -1605,6 +1635,8 @@
                 actionWithdrawalsDesc: 'Process withdrawals',
                 actionRepayments: 'Repayments',
                 actionRepaymentsDesc: 'Record loan repayments',
+                actionPenalties: 'Penalties',
+                actionPenaltiesDesc: 'Manage penalty records',
                 performanceOverview: 'Performance Overview',
                 statTotalCustomers: 'Total Customers',
                 statBalance: 'Total Balance (ETB)',
@@ -1615,6 +1647,7 @@
                 statTotalProfit: 'Total Profit All Years (ETB)',
                 statTotalBalanceAll: 'Total Balance All Years (ETB)',
                 statTotalCapital: 'Total Capital All Years (ETB)',
+                statPenalties: 'Penalties',
                 chartLoansVsRepayments: 'Loans vs Repayments',
                 chartLoanSub: 'Loans Issued (ETB) · Repayments (ETB)',
                 chartMonthlyTrends: 'Monthly Trends',
@@ -1643,6 +1676,7 @@
                 navWithdrawals: 'መውጫዎች',
                 navDividends: 'ክፍፍል',
                 navReports: 'ሪፖርቶች',
+                navPenalties: 'ቅጣቶች',
                 navAudit: 'የምዝግብ ታሪክ',
                 navUsers: 'ተጠቃሚዎች',
                 navSettings: 'ቅንብሮች',
@@ -1664,6 +1698,8 @@
                 actionWithdrawalsDesc: 'መውጫዎችን ያስኬዱ',
                 actionRepayments: 'ክፍያዎች',
                 actionRepaymentsDesc: 'የብድር ክፍያዎችን ይመዝግቡ',
+                actionPenalties: 'ቅጣቶች',
+                actionPenaltiesDesc: 'የቅጣት መዝገቦችን ያስተዳድሩ',
                 performanceOverview: 'የአፈጻጸም አጠቃላይ እይታ',
                 statTotalCustomers: 'ጠቅላላ ደንበኞች',
                 statBalance: 'ጠቅላላ ሚዛን (ብር)',
@@ -1674,6 +1710,7 @@
                 statTotalProfit: 'ጠቅላላ ትርፍ ሁሉም ዓመታት (ብር)',
                 statTotalBalanceAll: 'ጠቅላላ ሚዛን ሁሉም ዓመታት (ብር)',
                 statTotalCapital: 'ጠቅላላ ካፒታል ሁሉም ዓመታት (ብር)',
+                statPenalties: 'ቅጣቶች',
                 chartLoansVsRepayments: 'ብድር እና ክፍያዎች',
                 chartLoanSub: 'የተሰጠ ብድር (ብር) · ክፍያዎች (ብር)',
                 chartMonthlyTrends: 'ወርሃዊ አዝማሚያዎች',
@@ -1702,6 +1739,7 @@
                 navWithdrawals: 'Baasii',
                 navDividends: 'Qooda',
                 navReports: 'Odeeffannoo',
+                navPenalties: 'Adaba',
                 navAudit: 'Seenaa Galmee',
                 navUsers: 'Fayyadamtoota',
                 navSettings: 'Qindeessaa',
@@ -1723,6 +1761,8 @@
                 actionWithdrawalsDesc: 'Baasiiwwan hojjedhi',
                 actionRepayments: 'Kaffaltuu',
                 actionRepaymentsDesc: 'Kaffaltuu liqii galmeessi',
+                actionPenalties: 'Adaba',
+                actionPenaltiesDesc: 'Galmee adabaa bulchi',
                 performanceOverview: 'Aguuggama Hoji',
                 statTotalCustomers: 'Maamila Waliigalaa',
                 statBalance: 'Iddoo Guutuu (ETB)',
@@ -1733,6 +1773,7 @@
                 statTotalProfit: 'Bu\'aa Guutuu Waggaa Hundaa (ETB)',
                 statTotalBalanceAll: 'Iddoo Guutuu Waggaa Hundaa (ETB)',
                 statTotalCapital: 'Kaapitaala Guutuu Waggaa Hundaa (ETB)',
+                statPenalties: 'Adaba',
                 chartLoansVsRepayments: 'Liqii fi Kaffaltuu',
                 chartLoanSub: 'Liqii Kenname (ETB) · Kaffaltuu (ETB)',
                 chartMonthlyTrends: 'Adeemsa Ji\'aa',
@@ -1758,16 +1799,17 @@
         let selectedYear = new Date().getFullYear();
         let customersMap = {};
 
-        // ===== NEW: Store all transaction types for accurate capital calculation =====
+        // Store all transaction types
         let allSavings = [],
             allLoans = [],
             allRepayments = [],
             allProfitIncome = [],
             allProfitWithdrawal = [],
             allWithdrawals = [],
-            allLeavingWithdrawals = [], // NEW
-            allTransferOut = [], // NEW
-            allTransferIn = []; // NEW
+            allLeavingWithdrawals = [],
+            allTransferOut = [],
+            allTransferIn = [],
+            allPenalties = [];
 
         function setLanguage(lang) {
             if (!translations[lang]) return;
@@ -1968,7 +2010,7 @@
         }
 
         // ============================================================
-        // DASHBOARD DATA LOADING with FIXED capital calculation
+        // DASHBOARD DATA LOADING with Penalties
         // ============================================================
         let loansRepaymentsChart = null,
             monthlyChart = null;
@@ -2123,7 +2165,7 @@
                     }
                 });
 
-                // ---- Load ALL transaction types for accurate capital calculation ----
+                // ---- Load ALL transaction types ----
                 const [
                     savingsSnap,
                     loansSnap,
@@ -2133,7 +2175,8 @@
                     withdrawalSnap,
                     leavingWithdrawalSnap,
                     transferOutSnap,
-                    transferInSnap
+                    transferInSnap,
+                    penaltiesSnap
                 ] = await Promise.all([
                     db.collection('transactions').where('type', '==', 'savings').get(),
                     db.collection('transactions').where('type', '==', 'loan').get(),
@@ -2143,10 +2186,11 @@
                     db.collection('transactions').where('type', '==', 'withdrawal').get(),
                     db.collection('transactions').where('type', '==', 'leaving_withdrawal').get(),
                     db.collection('transactions').where('type', '==', 'transfer_out').get(),
-                    db.collection('transactions').where('type', '==', 'transfer_in').get()
+                    db.collection('transactions').where('type', '==', 'transfer_in').get(),
+                    db.collection('transactions').where('type', '==', 'penalty').get()
                 ]);
 
-                // ---- Store all data for global calculations ----
+                // ---- Store all data ----
                 allSavings = savingsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
                 allLoans = loansSnap.docs.map(d => ({ id: d.id, ...d.data() }));
                 allRepayments = repaymentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -2156,10 +2200,18 @@
                 allLeavingWithdrawals = leavingWithdrawalSnap.docs.map(d => ({ id: d.id, ...d.data() }));
                 allTransferOut = transferOutSnap.docs.map(d => ({ id: d.id, ...d.data() }));
                 allTransferIn = transferInSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                allPenalties = penaltiesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                // ============================================================
+                // PENALTIES CALCULATION
+                // ============================================================
+                // Count only pending penalties (status === 'pending')
+                const pendingPenalties = allPenalties.filter(p => p.status === 'pending');
+                const totalPenaltiesCount = pendingPenalties.length;
+                const totalPenaltiesAmount = pendingPenalties.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
                 // ============================================================
                 // TOTAL CAPITAL ALL YEARS (FIXED)
-                // Capital = Savings + Dividends + Transfers In - Withdrawals - Transfer Out - Leaving Withdrawals
                 // ============================================================
                 const totalSavingsAllYears = allSavings.reduce((s, item) => s + (Number(item.amount) || 0), 0);
                 const totalDividendsAllYears = allProfitWithdrawal
@@ -2171,7 +2223,6 @@
                 const totalTransferOutAllYears = allTransferOut.reduce((s, w) => s + (Number(w.amount) || 0), 0);
                 const totalTransferInAllYears = allTransferIn.reduce((s, w) => s + (Number(w.amount) || 0), 0);
 
-                // FIXED: Include all reductions and additions
                 const totalCapitalAllYears = Math.round((
                     totalSavingsAllYears +
                     totalDividendsAllYears +
@@ -2244,6 +2295,16 @@
                 document.getElementById('totalProfitValue').textContent = totalProfitAllYears.toLocaleString();
                 document.getElementById('totalBalanceAllValue').textContent = totalBalanceAllYears.toLocaleString();
                 document.getElementById('totalCapitalValue').textContent = totalCapitalAllYears.toLocaleString();
+
+                // ---- Penalties ----
+                const penaltyDisplay = totalPenaltiesCount > 0 ?
+                    `${totalPenaltiesCount} (ETB ${totalPenaltiesAmount.toFixed(2)})` :
+                    '0';
+                document.getElementById('penaltiesValue').textContent = penaltyDisplay;
+                document.getElementById('penaltiesChange').innerHTML =
+                    totalPenaltiesCount > 0 ?
+                    `<span class="negative">${totalPenaltiesCount} pending</span>` :
+                    `<span class="positive">✓ All clear</span>`;
 
                 // ---- Change percentages ----
                 const currentMonth = new Date().getMonth();
@@ -2355,6 +2416,17 @@
                     });
                 });
 
+                // Penalty notifications
+                allPenalties.filter(p => p.status === 'pending').slice(0, 5).forEach(p => {
+                    const customerName = getCustomerName(p.memberId);
+                    activities.push({
+                        text: `⚠️ ${customerName} has a pending penalty of <strong>ETB ${Number(p.amount).toLocaleString()}</strong>`,
+                        icon: 'fa-exclamation-triangle',
+                        color: 'penalty',
+                        date: p.createdAt || p.timestamp
+                    });
+                });
+
                 activities.sort((a, b) => {
                     const da = toDate(a.date);
                     const db = toDate(b.date);
@@ -2364,13 +2436,14 @@
                     return db - da;
                 });
 
-                const notifications = activities.slice(0, 4).map(a => {
+                const notifications = activities.slice(0, 6).map(a => {
                     const colorMap = {
                         'blue': 'blue',
                         'orange': 'orange',
                         'teal': 'green',
                         'green': 'green',
-                        'purple': 'purple'
+                        'purple': 'purple',
+                        'penalty': 'penalty'
                     };
                     return {
                         text: a.text.replace(/<[^>]*>/g, ''),
@@ -2395,6 +2468,7 @@
                 document.getElementById('totalProfitValue').textContent = '0';
                 document.getElementById('totalBalanceAllValue').textContent = '0';
                 document.getElementById('totalCapitalValue').textContent = '0';
+                document.getElementById('penaltiesValue').textContent = '0';
                 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 updateCharts(months, Array(12).fill(0), Array(12).fill(0), Array(12).fill(0));
                 renderNotifications([]);
@@ -2424,7 +2498,7 @@
         }
 
         // ============================================================
-        // SESSION TIMEOUT (unchanged)
+        // SESSION TIMEOUT
         // ============================================================
         (function() {
             const SESSION_TIMEOUT = 5 * 60 * 1000;
@@ -2548,7 +2622,6 @@
                     if (e.key === 'Escape') hideLogoutModal();
                 });
 
-                // Expose testConnection globally for debugging
                 window.testConnection = testConnection;
 
                 updateDateTime();
