@@ -1475,10 +1475,9 @@
                 </div>
                 <div class="form-group">
                     <label data-i18n="paymentMethodLabel">Payment Method <span class="required">*</span></label>
+                    <!-- Options will be dynamically populated by JavaScript based on user role -->
                     <select id="paymentMethod" required>
-                        <option value="cash" data-i18n="cash">Cash</option>
-                        <option value="mobile" data-i18n="mobileTransfer">Mobile Transfer</option>
-                        <option value="bank" data-i18n="bankDeposit">Bank Deposit</option>
+                        <!-- Default options; will be replaced -->
                     </select>
                 </div>
                 <div class="form-group">
@@ -2111,7 +2110,8 @@
 
             const isAdmin = currentUserRole === 'admin';
             const isManager = currentUserRole === 'manager';
-            const canPay = isAdmin || isManager;
+            // Allow all users to pay penalties
+            const canPay = true;
             const canEdit = isAdmin;
             const canDelete = isAdmin;
 
@@ -2291,7 +2291,7 @@
         }
 
         // ============================================================
-        // PAY PENALTY
+        // PAY PENALTY (with role-based payment method options)
         // ============================================================
         function payPenalty(penaltyId) {
             const penalty = allPenalties.find(p => p.id === penaltyId);
@@ -2313,6 +2313,28 @@
             document.getElementById('payPenaltyCustomer').textContent = memberName;
             document.getElementById('paymentDate').value = new Date().toISOString().split('T')[0];
             document.getElementById('paymentNote').value = '';
+
+            // Populate payment method options based on user role
+            const methodSelect = document.getElementById('paymentMethod');
+            methodSelect.innerHTML = ''; // Clear existing options
+
+            // Base options for all users (mobile & bank)
+            const baseOptions = [
+                { value: 'mobile', label: t.mobileTransfer || 'Mobile Transfer' },
+                { value: 'bank', label: t.bankDeposit || 'Bank Deposit' }
+            ];
+
+            // Admin gets an extra option: Cash
+            if (currentUserRole === 'admin') {
+                baseOptions.unshift({ value: 'cash', label: t.cash || 'Cash' });
+            }
+
+            baseOptions.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.value;
+                option.textContent = opt.label;
+                methodSelect.appendChild(option);
+            });
 
             document.getElementById('payPenaltyModal').classList.add('active');
             document.getElementById('payPenaltyModal').style.display = 'flex';
