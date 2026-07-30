@@ -666,6 +666,26 @@
             box-shadow: 0 6px 24px rgba(45, 122, 61, 0.4);
         }
 
+        .action-btn.approve-btn {
+            background: linear-gradient(135deg, #2196f3, #1976d2);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+        }
+        .action-btn.approve-btn:hover {
+            background: linear-gradient(135deg, #1976d2, #0d47a1);
+            box-shadow: 0 6px 24px rgba(33, 150, 243, 0.4);
+        }
+
+        .action-btn.reject-btn {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+        }
+        .action-btn.reject-btn:hover {
+            background: linear-gradient(135deg, #c0392b, #99281b);
+            box-shadow: 0 6px 24px rgba(231, 76, 60, 0.4);
+        }
+
         .action-btn.edit-btn {
             background: linear-gradient(135deg, #ff9800, #f57c00);
             color: #fff;
@@ -694,15 +714,23 @@
             font-weight: 600;
             display: inline-block;
         }
-        .status-badge.pending {
+        .status-badge.pending-penalty {
             background: #fff3cd;
             color: #856404;
+        }
+        .status-badge.pending-approval {
+            background: #cce5ff;
+            color: #004085;
         }
         .status-badge.paid {
             background: #d4edda;
             color: #155724;
         }
         .status-badge.overdue {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status-badge.rejected {
             background: #f8d7da;
             color: #721c24;
         }
@@ -760,6 +788,9 @@
         }
         .stat-card .stat-value.total-value {
             color: var(--penalty);
+        }
+        .stat-card .stat-value.approval-value {
+            color: var(--info);
         }
         .stat-card .stat-icon {
             float: right;
@@ -883,6 +914,12 @@
         tbody tr.pending-row:hover {
             background: #fff3cd;
         }
+        tbody tr.approval-row {
+            background: #f0f7ff;
+        }
+        tbody tr.approval-row:hover {
+            background: #e3f0ff;
+        }
 
         .pagination-container {
             display: flex;
@@ -973,6 +1010,9 @@
         }
         .toast.penalty {
             background: var(--penalty);
+        }
+        .toast.info {
+            background: var(--info);
         }
         @keyframes slideIn {
             from {
@@ -1351,6 +1391,11 @@
                     <div class="stat-value pending-value" id="pendingCount">0</div>
                 </div>
                 <div class="stat-card">
+                    <i class="fas fa-clock stat-icon" style="color:var(--info);"></i>
+                    <div class="stat-label" data-i18n="awaitingApproval">Awaiting Approval</div>
+                    <div class="stat-value approval-value" id="approvalCount">0</div>
+                </div>
+                <div class="stat-card">
                     <i class="fas fa-check-circle stat-icon" style="color:var(--success);"></i>
                     <div class="stat-label" data-i18n="paidPenalties">Paid Penalties</div>
                     <div class="stat-value paid-value" id="paidCount">0</div>
@@ -1359,11 +1404,6 @@
                     <i class="fas fa-coins stat-icon" style="color:var(--penalty);"></i>
                     <div class="stat-label" data-i18n="totalPenaltyAmount">Total Penalty Amount</div>
                     <div class="stat-value total-value" id="totalAmount">ETB 0.00</div>
-                </div>
-                <div class="stat-card">
-                    <i class="fas fa-exclamation-circle stat-icon" style="color:var(--danger);"></i>
-                    <div class="stat-label" data-i18n="pendingAmount">Pending Amount</div>
-                    <div class="stat-value pending-value" id="pendingAmount">ETB 0.00</div>
                 </div>
             </div>
 
@@ -1384,7 +1424,9 @@
                     <select id="statusFilter">
                         <option value="all" data-i18n="allStatus">All Status</option>
                         <option value="pending" selected data-i18n="pending">Pending</option>
+                        <option value="approval" data-i18n="awaitingApproval">Awaiting Approval</option>
                         <option value="paid" data-i18n="paid">Paid</option>
+                        <option value="rejected" data-i18n="rejected">Rejected</option>
                     </select>
                 </div>
                 <div class="filter-wrapper">
@@ -1399,7 +1441,7 @@
             <!-- ===== TABLE ===== -->
             <div class="table-container">
                 <div class="table-header">
-                    <span data-i18n="penaltyRecords">Penalty Records <span style="font-size:12px; color:var(--text-muted); font-weight:400;">(Showing pending by default)</span></span>
+                    <span data-i18n="penaltyRecords">Penalty Records</span>
                     <strong id="totalPenaltyCount">0</strong>
                 </div>
                 <div class="table-wrapper">
@@ -1419,7 +1461,7 @@
                         <tbody id="penaltyBody">
                             <tr>
                                 <td colspan="8" style="text-align:center; padding:40px; color:var(--text-secondary);" data-i18n="noPenalties">
-                                    No pending penalties found.
+                                    No penalties found.
                                 </td>
                             </tr>
                         </tbody>
@@ -1475,9 +1517,8 @@
                 </div>
                 <div class="form-group">
                     <label data-i18n="paymentMethodLabel">Payment Method <span class="required">*</span></label>
-                    <!-- Options will be dynamically populated by JavaScript based on user role -->
                     <select id="paymentMethod" required>
-                        <!-- Default options; will be replaced -->
+                        <!-- Options dynamically populated -->
                     </select>
                 </div>
                 <div class="form-group">
@@ -1487,7 +1528,7 @@
                 <div class="form-actions">
                     <button type="button" class="btn-secondary" id="cancelPayBtn" data-i18n="cancelBtn">Cancel</button>
                     <button type="submit" class="btn-primary" id="confirmPayBtn">
-                        <i class="fas fa-check"></i> <span data-i18n="confirmPayment">Confirm Payment</span>
+                        <i class="fas fa-check"></i> <span data-i18n="submitPayment">Submit Payment</span>
                     </button>
                 </div>
             </form>
@@ -1511,7 +1552,9 @@
                     <label data-i18n="statusLabel">Status</label>
                     <select id="editStatus">
                         <option value="pending" data-i18n="pending">Pending</option>
+                        <option value="approval" data-i18n="awaitingApproval">Awaiting Approval</option>
                         <option value="paid" data-i18n="paid">Paid</option>
+                        <option value="rejected" data-i18n="rejected">Rejected</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -1583,15 +1626,16 @@
                 penaltiesSub: 'Track and manage penalties from unpaid savings and late loan repayments',
                 refreshBtn: 'Refresh',
                 pendingPenalties: 'Pending Penalties',
+                awaitingApproval: 'Awaiting Approval',
                 paidPenalties: 'Paid Penalties',
                 totalPenaltyAmount: 'Total Penalty Amount',
-                pendingAmount: 'Pending Amount',
                 penaltyError: 'Failed to load penalties.',
                 retryBtn: 'Retry',
                 searchPlaceholder: 'Search by customer name, ID, or transaction...',
                 allStatus: 'All Status',
                 pending: 'Pending',
                 paid: 'Paid',
+                rejected: 'Rejected',
                 allSources: 'All Sources',
                 savingsSource: 'Savings',
                 loanSource: 'Loan Repayment',
@@ -1618,7 +1662,7 @@
                 referenceNote: 'Reference / Note',
                 optionalNote: 'Optional reference or note',
                 cancelBtn: 'Cancel',
-                confirmPayment: 'Confirm Payment',
+                submitPayment: 'Submit Payment',
                 editPenaltyTitle: 'Edit Penalty',
                 statusLabel: 'Status',
                 sourceLabel: 'Source',
@@ -1627,24 +1671,35 @@
                 loadingPenalties: 'Loading penalties...',
                 penaltyUpdated: 'Penalty updated successfully!',
                 penaltyUpdateError: 'Error updating penalty: ',
-                penaltyPaid: 'Penalty paid successfully!',
+                penaltyPaid: 'Penalty payment submitted successfully! Awaiting approval.',
                 penaltyPayError: 'Error paying penalty: ',
                 penaltyDeleted: 'Penalty deleted successfully!',
                 penaltyDeleteError: 'Error deleting penalty: ',
                 confirmDelete: 'Are you sure you want to delete this penalty record? This action cannot be undone.',
-                confirmPay: 'Confirm payment for this penalty?',
+                confirmPay: 'Submit payment for this penalty? It will require approval.',
                 edit: 'Edit',
                 delete: 'Delete',
                 view: 'View',
                 pay: 'Pay',
+                approve: 'Approve',
+                reject: 'Reject',
                 transactionId: 'Transaction ID',
                 created: 'Created',
                 paidDate: 'Paid Date',
                 paymentMethod: 'Payment Method',
                 note: 'Note',
-                noPending: 'No pending penalties found.'
+                noPending: 'No pending penalties found.',
+                noApproval: 'No penalties awaiting approval.',
+                approvalInfo: 'Payment submitted for approval',
+                penaltyApproved: 'Penalty approved successfully!',
+                penaltyApprovalError: 'Error approving penalty: ',
+                penaltyRejected: 'Penalty rejected successfully!',
+                penaltyRejectError: 'Error rejecting penalty: ',
+                rejected: 'Rejected',
+                pendingPayment: 'Pending Payment'
             },
             am: {
+                // Amharic translations (simplified for brevity - same structure)
                 brandSub: 'ባንክ ስርዓት',
                 navDashboard: 'ዳሽቦርድ',
                 navCustomers: 'ደንበኞች',
@@ -1668,15 +1723,16 @@
                 penaltiesSub: 'ያልተከፈሉ ቁጠባዎች እና ዘግይተው የብድር ክፍያዎች ቅጣቶችን ይከታተሉ እና ያስተዳድሩ',
                 refreshBtn: 'እንደገና ጫን',
                 pendingPenalties: 'በመጠበቅ ላይ ያሉ ቅጣቶች',
+                awaitingApproval: 'ማጽደቅ የሚጠብቁ',
                 paidPenalties: 'የተከፈሉ ቅጣቶች',
                 totalPenaltyAmount: 'ጠቅላላ የቅጣት መጠን',
-                pendingAmount: 'በመጠበቅ ላይ ያለ መጠን',
                 penaltyError: 'ቅጣቶችን ማስገባት አልተሳካም።',
                 retryBtn: 'እንደገና ሞክር',
                 searchPlaceholder: 'በደንበኛ ስም፣ መታወቂያ ወይም ግብይት ይፈልጉ...',
                 allStatus: 'ሁሉም ሁኔታ',
                 pending: 'በመጠበቅ ላይ',
                 paid: 'ተከፍሏል',
+                rejected: 'ውድቅ ተደርጓል',
                 allSources: 'ሁሉም ምንጮች',
                 savingsSource: 'ቁጠባ',
                 loanSource: 'የብድር ክፍያ',
@@ -1703,7 +1759,7 @@
                 referenceNote: 'ማጣቀሻ / ማስታወሻ',
                 optionalNote: 'አማራጭ ማጣቀሻ ወይም ማስታወሻ',
                 cancelBtn: 'ሰርዝ',
-                confirmPayment: 'ክፍያ አረጋግጥ',
+                submitPayment: 'ክፍያ አስገባ',
                 editPenaltyTitle: 'ቅጣት ያስተካክሉ',
                 statusLabel: 'ሁኔታ',
                 sourceLabel: 'ምንጭ',
@@ -1712,24 +1768,35 @@
                 loadingPenalties: 'ቅጣቶች እየተጫኑ ነው...',
                 penaltyUpdated: 'ቅጣት በተሳካ ሁኔታ ተሻሽሏል!',
                 penaltyUpdateError: 'ቅጣት በማሻሻል ላይ ስህተት: ',
-                penaltyPaid: 'ቅጣት በተሳካ ሁኔታ ተከፍሏል!',
+                penaltyPaid: 'የቅጣት ክፍያ በተሳካ ሁኔታ ቀርቧል! ማጽደቅ ይጠበቃል።',
                 penaltyPayError: 'ቅጣት በመክፈል ላይ ስህተት: ',
                 penaltyDeleted: 'ቅጣት በተሳካ ሁኔታ ተሰርዟል!',
                 penaltyDeleteError: 'ቅጣት በመሰረዝ ላይ ስህተት: ',
                 confirmDelete: 'ይህን የቅጣት መዝገብ መሰረዝ እርግጠኛ ነዎት? ይህ ተግባር ሊቀለበስ አይችልም።',
-                confirmPay: 'ለዚህ ቅጣት ክፍያ ማረጋገጥ ይፈልጋሉ?',
+                confirmPay: 'ለዚህ ቅጣት ክፍያ ማስገባት ይፈልጋሉ? ማጽደቅ ያስፈልጋል።',
                 edit: 'ያስተካክሉ',
                 delete: 'ሰርዝ',
                 view: 'ይመልከቱ',
                 pay: 'ክፈሉ',
+                approve: 'ያጽድቁ',
+                reject: 'ውድቅ አድርጉ',
                 transactionId: 'የግብይት መታወቂያ',
                 created: 'ተፈጥሯል',
                 paidDate: 'የተከፈለበት ቀን',
                 paymentMethod: 'የክፍያ ዘዴ',
                 note: 'ማስታወሻ',
-                noPending: 'ምንም በመጠበቅ ላይ ያሉ ቅጣቶች አልተገኙም።'
+                noPending: 'ምንም በመጠበቅ ላይ ያሉ ቅጣቶች አልተገኙም።',
+                noApproval: 'ምንም ማጽደቅ የሚጠብቁ ቅጣቶች አልተገኙም።',
+                approvalInfo: 'ክፍያ ለማጽደቅ ቀርቧል',
+                penaltyApproved: 'ቅጣት በተሳካ ሁኔታ ጸድቋል!',
+                penaltyApprovalError: 'ቅጣት በማጽደቅ ላይ ስህተት: ',
+                penaltyRejected: 'ቅጣት በተሳካ ሁኔታ ውድቅ ተደርጓል!',
+                penaltyRejectError: 'ቅጣት ውድቅ በማድረግ ላይ ስህተት: ',
+                rejected: 'ውድቅ ተደርጓል',
+                pendingPayment: 'ክፍያ በመጠበቅ ላይ'
             },
             om: {
+                // Oromo translations
                 brandSub: 'Sirna Baankii',
                 navDashboard: 'Gabatee',
                 navCustomers: 'Maamila',
@@ -1753,15 +1820,16 @@
                 penaltiesSub: 'Adaboota kaasaa hin kaffalamneefi kaffaltii liqii waaree irraa uumaman hordofiifi bulchi',
                 refreshBtn: 'Deebi\'i Fe\'i',
                 pendingPenalties: 'Adaboota Eegamaa',
+                awaitingApproval: 'Mirkaneessa Eegamaa',
                 paidPenalties: 'Adaboota Kaffalamani',
                 totalPenaltyAmount: 'Waliigala Hanga Adabaa',
-                pendingAmount: 'Hanga Eegamaa',
                 penaltyError: 'Adaboota fe\'uun hin milkaane.',
                 retryBtn: 'Deebi\'i Yaali',
                 searchPlaceholder: 'Maqaa maamila, ID, yookiin daldalaan barbaadi...',
                 allStatus: 'Haala Hunda',
                 pending: 'Eegamaa',
                 paid: 'Kaffalame',
+                rejected: 'Didame',
                 allSources: 'Madda Hunda',
                 savingsSource: 'Kusaa',
                 loanSource: 'Kaffaltii Liqii',
@@ -1788,7 +1856,7 @@
                 referenceNote: 'Madda / Hubachi',
                 optionalNote: 'Hubachi filannoo',
                 cancelBtn: 'Haqi',
-                confirmPayment: 'Kaffaltii Mirkaneessi',
+                submitPayment: 'Kaffaltii Galchi',
                 editPenaltyTitle: 'Adaba Jijjiiri',
                 statusLabel: 'Haala',
                 sourceLabel: 'Madda',
@@ -1797,22 +1865,32 @@
                 loadingPenalties: 'Adaboota fe\'amaa jira...',
                 penaltyUpdated: 'Adabni sirriitti fooyya\'e!',
                 penaltyUpdateError: 'Adaba fooyyessuuf dogoggora: ',
-                penaltyPaid: 'Adabni sirriitti kaffalame!',
+                penaltyPaid: 'Kaffaltiin adabaa sirriitti galmeefame! Mirkaneessa eegamaa.',
                 penaltyPayError: 'Adaba kaffaluuf dogoggora: ',
                 penaltyDeleted: 'Adabni sirriitti haqame!',
                 penaltyDeleteError: 'Adaba haquuf dogoggora: ',
                 confirmDelete: 'Galmee adabaa kana haquu mirkaneeffattee? Gochi kun deebifamuu hin danda\'u.',
-                confirmPay: 'Kaffaltii adabaa kanaaf mirkaneeffatta?',
+                confirmPay: 'Kaffaltii adabaa kanaaf galchi? Mirkaneessa barbaada.',
                 edit: 'Jijjiiri',
                 delete: 'Haqi',
                 view: 'Ilaali',
                 pay: 'Kaffali',
+                approve: 'Mirkaneessi',
+                reject: 'Didi',
                 transactionId: 'ID Daldalaa',
                 created: 'Uumame',
                 paidDate: 'Guyyaa Kaffalame',
                 paymentMethod: 'Akkataa Kaffaltii',
                 note: 'Hubachi',
-                noPending: 'Adaboonni eegamaa hin argamne.'
+                noPending: 'Adaboonni eegamaa hin argamne.',
+                noApproval: 'Adaboonni mirkaneessa eegamaa hin argamne.',
+                approvalInfo: 'Kaffaltiin mirkaneessaaf galmeefame',
+                penaltyApproved: 'Adabni sirriitti mirkanaa\'e!',
+                penaltyApprovalError: 'Adaba mirkaneessuuf dogoggora: ',
+                penaltyRejected: 'Adabni sirriitti didame!',
+                penaltyRejectError: 'Adaba diduuf dogoggora: ',
+                rejected: 'Didame',
+                pendingPayment: 'Kaffaltii Eegamaa'
             }
         };
 
@@ -1859,7 +1937,6 @@
             document.title = `${t.pageTitle || 'Penalties'} – GERESU DHUKI SACCO`;
             try { localStorage.setItem('sacco-lang', lang); } catch (e) {}
 
-            // Re-render table with new language
             if (filteredPenalties.length > 0) {
                 const start = (currentPage - 1) * pageSize;
                 const end = start + pageSize;
@@ -1892,6 +1969,7 @@
             if (type === 'success') icon.className = 'fas fa-check-circle';
             else if (type === 'error') icon.className = 'fas fa-exclamation-circle';
             else if (type === 'warning') icon.className = 'fas fa-exclamation-triangle';
+            else if (type === 'info') icon.className = 'fas fa-info-circle';
             else icon.className = 'fas fa-exclamation-triangle';
             toast.appendChild(icon);
             const text = document.createElement('span');
@@ -1992,7 +2070,6 @@
             overlay.classList.add('active');
 
             try {
-                // Try ordered query first, fallback if index not ready
                 let snapshot;
                 try {
                     snapshot = await db.collection('transactions')
@@ -2070,10 +2147,12 @@
                 });
             }
 
-            // Sort: pending first, then by date desc
+            // Sort: pending first, then approval, then by date desc
             filtered.sort((a, b) => {
-                if (a.status === 'pending' && b.status !== 'pending') return -1;
-                if (a.status !== 'pending' && b.status === 'pending') return 1;
+                const statusOrder = { 'pending': 0, 'approval': 1, 'paid': 2, 'rejected': 3 };
+                const orderA = statusOrder[a.status] || 999;
+                const orderB = statusOrder[b.status] || 999;
+                if (orderA !== orderB) return orderA - orderB;
                 const da = a.createdAt?.toDate?.() || new Date(a.createdAt || 0);
                 const db = b.createdAt?.toDate?.() || new Date(b.createdAt || 0);
                 return db - da;
@@ -2101,7 +2180,9 @@
             if (!items || items.length === 0) {
                 const status = document.getElementById('statusFilter').value;
                 let msg = status === 'pending' ? t.noPending || 'No pending penalties found.' :
+                    status === 'approval' ? t.noApproval || 'No penalties awaiting approval.' :
                     status === 'paid' ? 'No paid penalties found.' :
+                    status === 'rejected' ? 'No rejected penalties found.' :
                     t.noPenalties || 'No penalties found.';
                 tbody.innerHTML =
                     `<tr><td colspan="8" style="text-align:center; padding:40px; color:var(--text-secondary);">${msg}</td></tr>`;
@@ -2110,8 +2191,8 @@
 
             const isAdmin = currentUserRole === 'admin';
             const isManager = currentUserRole === 'manager';
-            // Allow all users to pay penalties
-            const canPay = true;
+            const canApprove = isAdmin || isManager;
+            const canPay = true; // All users can submit payment
             const canEdit = isAdmin;
             const canDelete = isAdmin;
 
@@ -2121,9 +2202,16 @@
                 const memberIdDisplay = getMemberId(p.memberId);
                 const amount = Number(p.amount) || 0;
 
-                const isPending = p.status === 'pending';
-                const statusLabel = isPending ? t.pending || 'Pending' : t.paid || 'Paid';
-                const statusClass = isPending ? 'pending' : 'paid';
+                // Status handling
+                const statusMap = {
+                    'pending': { label: t.pending || 'Pending', class: 'pending-penalty' },
+                    'approval': { label: t.awaitingApproval || 'Awaiting Approval', class: 'pending-approval' },
+                    'paid': { label: t.paid || 'Paid', class: 'paid' },
+                    'rejected': { label: t.rejected || 'Rejected', class: 'rejected' }
+                };
+                const statusInfo = statusMap[p.status] || statusMap['pending'];
+                const statusLabel = statusInfo.label;
+                const statusClass = statusInfo.class;
 
                 const source = p.source || p.originalType || 'Unknown';
                 const sourceClass = source.toLowerCase().includes('loan') ? 'loan' : 'savings';
@@ -2140,9 +2228,18 @@
                 actionsHtml +=
                     `<button class="action-btn view-btn" onclick="viewPenalty('${p.id}')" title="${t.view || 'View'}"><i class="fas fa-eye"></i></button>`;
 
-                if (isPending && canPay) {
+                // Payment button - only for pending penalties
+                if (p.status === 'pending' && canPay) {
                     actionsHtml +=
                         `<button class="action-btn pay-btn" onclick="payPenalty('${p.id}')" title="${t.pay || 'Pay'}"><i class="fas fa-money-bill-wave"></i></button>`;
+                }
+
+                // Approval/Reject buttons - for penalties awaiting approval
+                if (p.status === 'approval' && canApprove) {
+                    actionsHtml +=
+                        `<button class="action-btn approve-btn" onclick="approvePenaltyPayment('${p.id}')" title="${t.approve || 'Approve'}"><i class="fas fa-check-circle"></i></button>`;
+                    actionsHtml +=
+                        `<button class="action-btn reject-btn" onclick="rejectPenaltyPayment('${p.id}')" title="${t.reject || 'Reject'}"><i class="fas fa-times-circle"></i></button>`;
                 }
 
                 if (canEdit) {
@@ -2155,13 +2252,19 @@
                         `<button class="action-btn delete-btn" onclick="deletePenalty('${p.id}')" title="${t.delete || 'Delete'}"><i class="fas fa-trash"></i></button>`;
                 }
 
-                const rowClass = isPending ? 'pending-row' : '';
+                const rowClass = p.status === 'pending' ? 'pending-row' :
+                    p.status === 'approval' ? 'approval-row' : '';
+
+                const approvalNote = p.status === 'approval' ?
+                    `<span style="font-size:10px; color:var(--info); display:block;">${t.approvalInfo || 'Payment submitted for approval'}</span>` :
+                    '';
 
                 html += `<tr class="${rowClass}">
                     <td>${(currentPage-1)*pageSize + i + 1}</td>
                     <td>
                         ${memberName}
                         <span style="font-size:11px; color:var(--text-muted); display:block;">CI: ${memberIdDisplay}</span>
+                        ${approvalNote}
                     </td>
                     <td><strong>ETB ${amount.toFixed(2)}</strong></td>
                     <td><span class="source-badge ${sourceClass}">${sourceLabel}</span></td>
@@ -2220,19 +2323,25 @@
         }
 
         // ============================================================
-        // STATS
+        // STATS - Only count approved/paid penalties in totals
         // ============================================================
         function updateStats() {
+            // Penalties that are still pending (unpaid) - not counted in totals
             const pending = allPenalties.filter(p => p.status === 'pending');
+            
+            // Penalties awaiting approval - not counted in totals yet
+            const awaitingApproval = allPenalties.filter(p => p.status === 'approval');
+            
+            // Only count paid penalties in totals (approved payments)
             const paid = allPenalties.filter(p => p.status === 'paid');
-
-            const totalAmount = allPenalties.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-            const pendingAmount = pending.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+            
+            // Total amount only from paid penalties (approved)
+            const totalAmount = paid.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
             document.getElementById('pendingCount').textContent = pending.length;
+            document.getElementById('approvalCount').textContent = awaitingApproval.length;
             document.getElementById('paidCount').textContent = paid.length;
             document.getElementById('totalAmount').textContent = `ETB ${totalAmount.toFixed(2)}`;
-            document.getElementById('pendingAmount').textContent = `ETB ${pendingAmount.toFixed(2)}`;
         }
 
         // ============================================================
@@ -2249,8 +2358,16 @@
             const memberName = getMemberName(penalty.memberId);
             const memberIdDisplay = getMemberId(penalty.memberId);
             const amount = Number(penalty.amount) || 0;
-            const statusLabel = penalty.status === 'pending' ? (t.pending || 'Pending') : (t.paid || 'Paid');
-            const statusClass = penalty.status === 'pending' ? 'pending' : 'paid';
+            
+            const statusMap = {
+                'pending': { label: t.pending || 'Pending', class: 'pending-penalty' },
+                'approval': { label: t.awaitingApproval || 'Awaiting Approval', class: 'pending-approval' },
+                'paid': { label: t.paid || 'Paid', class: 'paid' },
+                'rejected': { label: t.rejected || 'Rejected', class: 'rejected' }
+            };
+            const statusInfo = statusMap[penalty.status] || statusMap['pending'];
+            const statusLabel = statusInfo.label;
+            const statusClass = statusInfo.class;
 
             const source = penalty.source || penalty.originalType || 'Unknown';
             const sourceLabel = source.toLowerCase().includes('loan') ? (t.loanSource || 'Loan Repayment') : (t
@@ -2278,7 +2395,10 @@
                 <div class="view-detail-row"><span class="label">${t.created || 'Created'}</span><span class="value">${dateStr}</span></div>
                 ${penalty.status === 'paid' ? `<div class="view-detail-row"><span class="label">${t.paidDate || 'Paid Date'}</span><span class="value">${paidDateStr}</span></div>` : ''}
                 ${penalty.status === 'paid' ? `<div class="view-detail-row"><span class="label">${t.paymentMethod || 'Payment Method'}</span><span class="value">${penalty.paymentMethod || '—'}</span></div>` : ''}
+                ${penalty.status === 'approval' ? `<div class="view-detail-row"><span class="label">Payment Method</span><span class="value">${penalty.paymentMethod || '—'}</span></div>` : ''}
+                ${penalty.status === 'approval' ? `<div class="view-detail-row"><span class="label">Payment Date</span><span class="value">${penalty.paymentDate ? new Date(penalty.paymentDate).toLocaleDateString() : '—'}</span></div>` : ''}
                 ${penalty.note ? `<div class="view-detail-row"><span class="label">${t.note || 'Note'}</span><span class="value">${penalty.note}</span></div>` : ''}
+                ${penalty.paymentNote ? `<div class="view-detail-row"><span class="label">Payment Note</span><span class="value">${penalty.paymentNote}</span></div>` : ''}
             `;
 
             document.getElementById('viewPenaltyModal').classList.add('active');
@@ -2291,7 +2411,7 @@
         }
 
         // ============================================================
-        // PAY PENALTY (with role-based payment method options)
+        // PAY PENALTY - Submits for approval (not automatically paid)
         // ============================================================
         function payPenalty(penaltyId) {
             const penalty = allPenalties.find(p => p.id === penaltyId);
@@ -2303,9 +2423,13 @@
                 showToast('This penalty is already paid.', 'warning');
                 return;
             }
+            if (penalty.status === 'approval') {
+                showToast('This penalty is already awaiting approval.', 'warning');
+                return;
+            }
 
             const t = translations[currentLang] || translations.en;
-            if (!confirm(t.confirmPay || 'Confirm payment for this penalty?')) return;
+            if (!confirm(t.confirmPay || 'Submit payment for this penalty? It will require approval.')) return;
 
             const memberName = getMemberName(penalty.memberId);
             document.getElementById('payPenaltyId').value = penaltyId;
@@ -2316,9 +2440,8 @@
 
             // Populate payment method options based on user role
             const methodSelect = document.getElementById('paymentMethod');
-            methodSelect.innerHTML = ''; // Clear existing options
+            methodSelect.innerHTML = '';
 
-            // Base options for all users (mobile & bank)
             const baseOptions = [
                 { value: 'mobile', label: t.mobileTransfer || 'Mobile Transfer' },
                 { value: 'bank', label: t.bankDeposit || 'Bank Deposit' }
@@ -2346,7 +2469,7 @@
         }
 
         // ============================================================
-        // CONFIRM PAY PENALTY
+        // CONFIRM PAY PENALTY - Submits for approval
         // ============================================================
         document.getElementById('payPenaltyForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -2363,42 +2486,29 @@
             const btn = document.getElementById('confirmPayBtn');
             const origHtml = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
 
             try {
                 const user = auth.currentUser;
-                const paidByName = user?.displayName || user?.email || 'Admin';
+                const submittedByName = user?.displayName || user?.email || 'Admin';
 
+                // Update penalty status to 'approval' - pending admin/manager approval
                 await db.collection('transactions').doc(penaltyId).update({
-                    status: 'paid',
-                    paidAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    status: 'approval',
+                    submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
                     paymentDate: new Date(date),
                     paymentMethod: method,
                     paymentNote: note || '',
-                    paidByName: paidByName
-                });
-
-                // Log payment
-                const penalty = allPenalties.find(p => p.id === penaltyId);
-                await db.collection('transactions').add({
-                    type: 'penalty_payment',
-                    memberId: penalty.memberId,
-                    amount: penalty.amount || 0,
-                    date: new Date(date),
-                    method: method,
-                    note: note || '',
-                    status: 'done',
-                    penaltyId: penaltyId,
-                    createdByName: paidByName,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    submittedByName: submittedByName,
+                    approvalStatus: 'pending'
                 });
 
                 const t = translations[currentLang] || translations.en;
-                showToast(t.penaltyPaid || 'Penalty paid successfully!', 'success');
+                showToast(t.penaltyPaid || 'Penalty payment submitted successfully! Awaiting approval.', 'info');
                 closePayModal();
                 await loadPenalties();
             } catch (error) {
-                console.error('Error paying penalty:', error);
+                console.error('Error submitting penalty payment:', error);
                 const t = translations[currentLang] || translations.en;
                 showToast((t.penaltyPayError || 'Error paying penalty: ') + error.message, 'error');
             } finally {
@@ -2406,6 +2516,58 @@
                 btn.innerHTML = origHtml;
             }
         });
+
+        // ============================================================
+        // APPROVE PENALTY PAYMENT - Admin/Manager only
+        // ============================================================
+        async function approvePenaltyPayment(penaltyId) {
+            const t = translations[currentLang] || translations.en;
+            if (!confirm(t.approve || 'Approve this penalty payment?')) return;
+
+            try {
+                const user = auth.currentUser;
+                const approvedByName = user?.displayName || user?.email || 'Admin';
+
+                await db.collection('transactions').doc(penaltyId).update({
+                    status: 'paid',
+                    paidAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    approvedByName: approvedByName
+                });
+
+                showToast(t.penaltyApproved || 'Penalty approved successfully!', 'success');
+                await loadPenalties();
+            } catch (error) {
+                console.error('Error approving penalty:', error);
+                showToast((t.penaltyApprovalError || 'Error approving penalty: ') + error.message, 'error');
+            }
+        }
+
+        // ============================================================
+        // REJECT PENALTY PAYMENT - Admin/Manager only
+        // ============================================================
+        async function rejectPenaltyPayment(penaltyId) {
+            const t = translations[currentLang] || translations.en;
+            if (!confirm(t.reject || 'Reject this penalty payment? The penalty will remain pending.')) return;
+
+            try {
+                const user = auth.currentUser;
+                const rejectedByName = user?.displayName || user?.email || 'Admin';
+
+                await db.collection('transactions').doc(penaltyId).update({
+                    status: 'pending', // Revert to pending
+                    rejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    rejectedByName: rejectedByName,
+                    rejectionNote: 'Payment rejected'
+                });
+
+                showToast(t.penaltyRejected || 'Penalty rejected successfully!', 'warning');
+                await loadPenalties();
+            } catch (error) {
+                console.error('Error rejecting penalty:', error);
+                showToast((t.penaltyRejectError || 'Error rejecting penalty: ') + error.message, 'error');
+            }
+        }
 
         // ============================================================
         // EDIT PENALTY
@@ -2566,7 +2728,6 @@
                 btn.addEventListener('click', function() {
                     const lang = this.dataset.lang;
                     if (lang) setLanguage(lang);
-                    // Re-render table with new language
                     const start = (currentPage - 1) * pageSize;
                     const end = start + pageSize;
                     const pageItems = filteredPenalties.slice(start, end);
@@ -2618,6 +2779,8 @@
                 // Expose functions globally
                 window.viewPenalty = viewPenalty;
                 window.payPenalty = payPenalty;
+                window.approvePenaltyPayment = approvePenaltyPayment;
+                window.rejectPenaltyPayment = rejectPenaltyPayment;
                 window.editPenalty = editPenalty;
                 window.deletePenalty = deletePenalty;
                 window.goToPage = goToPage;
