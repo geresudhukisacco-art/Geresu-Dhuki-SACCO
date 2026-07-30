@@ -2439,7 +2439,7 @@
         let currentUserRole = 'viewer';
         let currentUserDisplayName = 'User';
         let minSavingsAmount = 0;
-        let savingsPenaltyRate = 0.05; // Default 5%
+        let savingsPenaltyRate = 0.05;
         const PENALTY_CUTOFF_DAY = 15;
 
         function setLanguage(lang) {
@@ -2627,7 +2627,7 @@
         }
 
         // ============================================================
-        // SETTINGS LOADING – savingsPenaltyRate from settings
+        // SETTINGS LOADING
         // ============================================================
         const SETTINGS_DOC_ID = 'system';
 
@@ -2637,7 +2637,6 @@
                 if (doc.exists) {
                     const data = doc.data();
                     minSavingsAmount = data.minSavingsBalance || 0;
-                    // Use the savings-specific penalty rate, fallback to general penaltyRate
                     savingsPenaltyRate = data.savingsPenaltyRate !== undefined ? data.savingsPenaltyRate / 100 : (data
                         .penaltyRate || 5) / 100;
                 } else {
@@ -2667,24 +2666,25 @@
         function updatePenaltyBadge() {
             const display = document.getElementById('penaltyRateDisplay');
             if (display) {
-                // FIXED: Show the actual percentage without multiplying by 100 again
                 const percent = (savingsPenaltyRate * 100).toFixed(1);
                 display.textContent = `${percent}%`;
             }
         }
 
         // ============================================================
-        // PENALTY & UNPAID CALCULATION – penalty from settings
+        // PENALTY & UNPAID CALCULATION - FIXED VERSION
         // ============================================================
         function calculatePenalty(amount, date, rate, savingsType = 'cash') {
             const eth = toEthiopian(date);
             const isLate = eth.day >= PENALTY_CUTOFF_DAY && eth.day <= 30;
             if (!isLate) return 0;
             let r = rate || 0.05;
-            // Use the savings-specific rate passed in
             return Math.round(amount * r * 100) / 100;
         }
 
+        // ============================================================
+        // FIXED: getUnpaidSavings - ONLY checks PREVIOUS months (NOT current)
+        // ============================================================
         function getUnpaidSavings(memberId, currentDate) {
             const currentEth = toEthiopian(currentDate);
             const currentMonth = currentEth.month;
@@ -2696,11 +2696,8 @@
                 (s.status === 'done' || s.status === 'printed' || s.status === 'approved')
             );
 
-            // Group by Ethiopian month/year
+            // Build set of paid months
             const paidMonths = new Set();
-            let totalUnpaid = 0;
-            let unpaidMonthsCount = 0;
-
             memberSavings.forEach(s => {
                 if (s.ethiopianDate) {
                     const eth = s.ethiopianDate;
@@ -2714,9 +2711,12 @@
                 }
             });
 
-            // Check from current month backwards (including current month)
-            // Start from month 0 (current month) going backwards
-            for (let i = 0; i <= 12; i++) {
+            // Check for unpaid months - ONLY PREVIOUS MONTHS (i starts from 1, NOT 0)
+            let totalUnpaid = 0;
+            let unpaidMonthsCount = 0;
+
+            // Check previous months only (up to 12 months back, EXCLUDING current month)
+            for (let i = 1; i <= 12; i++) {
                 let checkMonth = currentMonth - i;
                 let checkYear = currentYear;
                 if (checkMonth < 1) {
@@ -2951,7 +2951,7 @@
             document.getElementById('memberId').value = id;
             document.getElementById('memberSuggestions').style.display = 'none';
 
-            // Calculate unpaid savings for this member
+            // Calculate unpaid savings for this member using FIXED function
             const dateInput = document.getElementById('dateInput');
             if (dateInput && dateInput.value) {
                 const date = new Date(dateInput.value);
@@ -3088,7 +3088,6 @@
                     let penaltyAmount = data.penaltyAmount || 0;
                     let penaltyStatus = data.penaltyStatus || 'no_penalty';
 
-                    // If no penalty amount saved, calculate it using current settings
                     if (!data.penaltyAmount && data.date) {
                         const date = data.date.toDate ? data.date.toDate() : new Date(data.date);
                         const eth = toEthiopian(date);
@@ -3153,7 +3152,7 @@
         document.getElementById('testConnectionBtn')?.addEventListener('click', testConnection);
 
         // ============================================================
-        // applySearch() – with unpaid tracking
+        // applySearch()
         // ============================================================
         function applySearch() {
             searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
@@ -3799,7 +3798,7 @@
         }
 
         // ============================================================
-        // SAVE DEPOSIT (with penalty + unpaid)
+        // SAVE DEPOSIT
         // ============================================================
         async function saveDeposit(e) {
             e.preventDefault();
@@ -4045,7 +4044,6 @@
             document.getElementById('editSavingsModal').style.display = 'none';
         }
 
-        // ---- Update Savings ----
         async function updateSavings(e) {
             e.preventDefault();
             if (!canEditSavings()) {
@@ -4077,7 +4075,6 @@
                 if (savingsType === 'bank' && !bankName) { showToast('Please enter the bank name.', 'warning'); return; }
             }
 
-            // Duplicate check (exclude current)
             if (savingsType !== 'cash' && ttNumber && transferDate) {
                 try {
                     const parts = transferDate.split('-').map(Number);
@@ -4219,7 +4216,7 @@
         }
 
         // ============================================================
-        // PRINT SLIP (with penalty + unpaid)
+        // PRINT SLIP
         // ============================================================
         async function printSlip(txId) {
             if (!canPrint()) {
@@ -4413,10 +4410,8 @@
 
                 document.getElementById('editSavingsType').addEventListener('change', toggleEditConditionalFields);
 
-                // Penalty and unpaid calculation events
                 document.getElementById('dateInput').addEventListener('change', function() {
                     updatePenaltyAndWarnings();
-                    // Recalculate unpaid when date changes (month/year changes)
                     const memberId = document.getElementById('memberId').value;
                     if (memberId && this.value) {
                         const date = new Date(this.value);
@@ -4578,35 +4573,35 @@
                 let seconds = 30;
                 warningToast = document.createElement('div');
                 warningToast.style.cssText = `
-                        position: fixed;
-                        bottom: 30px;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        background: #f39c12;
-                        color: #fff;
-                        padding: 16px 24px;
-                        border-radius: 12px;
-                        font-size: 15px;
-                        font-weight: 500;
-                        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-                        z-index: 99999;
-                        max-width: 500px;
-                        text-align: center;
-                        display: flex;
-                        align-items: center;
-                        gap: 12px;
-                        animation: slideUp 0.3s ease;
-                    `;
+                            position: fixed;
+                            bottom: 30px;
+                            left: 50%;
+                            transform: translateX(-50%);
+                            background: #f39c12;
+                            color: #fff;
+                            padding: 16px 24px;
+                            border-radius: 12px;
+                            font-size: 15px;
+                            font-weight: 500;
+                            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+                            z-index: 99999;
+                            max-width: 500px;
+                            text-align: center;
+                            display: flex;
+                            align-items: center;
+                            gap: 12px;
+                            animation: slideUp 0.3s ease;
+                        `;
                 warningToast.innerHTML =
                     `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
 
                 const style = document.createElement('style');
                 style.textContent = `
-                        @keyframes slideUp {
-                            from { transform: translateX(-50%) translateY(20px); opacity: 0; }
-                            to { transform: translateX(-50%) translateY(0); opacity: 1; }
-                        }
-                    `;
+                            @keyframes slideUp {
+                                from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+                                to { transform: translateX(-50%) translateY(0); opacity: 1; }
+                            }
+                        `;
                 document.head.appendChild(style);
                 document.body.appendChild(warningToast);
 
