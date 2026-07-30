@@ -83,7 +83,7 @@
         }
 
         /* ============================================================
-           SIDEBAR – Bright green with HIGH CONTRAST text (Matches Dashboard)
+           SIDEBAR
            ============================================================ */
         .sidebar {
             width: var(--sidebar-width);
@@ -140,7 +140,6 @@
             border-radius: 4px;
         }
 
-        /* --- SIDEBAR BRAND --- */
         .sidebar-brand {
             padding: 20px 20px 16px;
             display: flex;
@@ -218,7 +217,6 @@
             color: rgba(255, 255, 255, 0.85);
         }
 
-        /* --- SIDEBAR NAVIGATION — HIGH CONTRAST --- */
         .sidebar-nav {
             flex: 1;
             padding: 16px 12px;
@@ -270,7 +268,6 @@
             color: var(--gold-light);
         }
 
-        /* --- SIDEBAR FOOTER (Logout) --- */
         .sidebar-footer {
             padding: 16px 20px 20px;
             border-top: 1px solid rgba(255, 255, 255, 0.12);
@@ -333,7 +330,6 @@
             margin-left: var(--sidebar-collapsed-width);
         }
 
-        /* ----- HEADER ----- */
         .top-header {
             background: var(--bg-card);
             padding: 16px 30px;
@@ -422,7 +418,6 @@
             transition: color 0.3s;
         }
 
-        /* ----- AUDIT CONTENT ----- */
         .dashboard-content {
             padding: 24px 30px 30px;
             flex: 1;
@@ -507,7 +502,6 @@
             background: #c0392b;
         }
 
-        /* ----- SEARCH & FILTERS ----- */
         .search-bar {
             display: flex;
             gap: 16px;
@@ -558,7 +552,7 @@
             box-shadow: 0 0 0 3px var(--input-focus);
         }
 
-        /* ----- STATS CARDS — ALL COLOURED ----- */
+        /* ===== STATS CARDS (All coloured) ===== */
         .audit-stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -599,7 +593,9 @@
             display: block;
             color: rgba(255, 255, 255, 0.7);
         }
-        /* Card colours */
+        .stat-card.login {
+            background: linear-gradient(135deg, #1a237e, #3f51b5);
+        }
         .stat-card.created {
             background: linear-gradient(135deg, #2d7a3d, #43a047);
         }
@@ -621,8 +617,17 @@
         .stat-card.printed {
             background: linear-gradient(135deg, #00695c, #00897b);
         }
+        .stat-card.penalty_paid {
+            background: linear-gradient(135deg, #0d47a1, #1976d2);
+        }
+        .stat-card.penalty_approved {
+            background: linear-gradient(135deg, #1b5e20, #2e7d32);
+        }
+        .stat-card.penalty_rejected {
+            background: linear-gradient(135deg, #880e4f, #ad1457);
+        }
 
-        /* ----- TABLE ----- */
+        /* ===== TABLE ===== */
         .table-container {
             background: var(--bg-card);
             border-radius: var(--radius);
@@ -684,13 +689,16 @@
             border-bottom: none;
         }
 
-        /* Action badges — with colours for generated & printed */
         .action-badge {
             padding: 3px 10px;
             border-radius: 20px;
             font-size: 11px;
             font-weight: 600;
             display: inline-block;
+        }
+        .action-badge.login {
+            background: #e8eaf6;
+            color: #1a237e;
         }
         .action-badge.created {
             background: #d4edda;
@@ -719,6 +727,18 @@
         .action-badge.printed {
             background: #b2dfdb;
             color: #004d40;
+        }
+        .action-badge.penalty_paid {
+            background: #bbdefb;
+            color: #0d47a1;
+        }
+        .action-badge.penalty_approved {
+            background: #c8e6c9;
+            color: #1b5e20;
+        }
+        .action-badge.penalty_rejected {
+            background: #f8bbd0;
+            color: #880e4f;
         }
 
         .collection-badge {
@@ -1136,7 +1156,9 @@
                 <li><a href="withdrawals.html"><i class="fas fa-money-bill-wave"></i> <span data-i18n="navWithdrawals">Withdrawals</span></a></li>
                 <li><a href="dividends.html"><i class="fas fa-gift"></i> <span data-i18n="navDividends">Dividends</span></a></li>
                 <li><a href="reports.html"><i class="fas fa-chart-bar"></i> <span data-i18n="navReports">Reports</span></a></li>
-                <!-- Audit Trail link - only visible to admin -->
+                <!-- Penalty link - always visible -->
+                <li><a href="penalties.html"><i class="fas fa-exclamation-triangle" style="color:#e67e22;"></i> <span data-i18n="navPenalties">Penalties</span></a></li>
+                <!-- Audit Trail link - visible to admin/manager -->
                 <li id="auditNavItem" style="display:none;"><a href="audit.html" class="active"><i class="fas fa-clipboard-list"></i> <span data-i18n="navAudit">Audit Trail</span></a></li>
                 <li id="usersNavItem" style="display:none;"><a href="users.html"><i class="fas fa-user-cog"></i> <span data-i18n="navUsers">Users</span></a></li>
                 <li><a href="settings.html"><i class="fas fa-cog"></i> <span data-i18n="navSettings">Settings</span></a></li>
@@ -1175,10 +1197,9 @@
             <div class="page-header">
                 <div class="page-header-left">
                     <h2 data-i18n="auditTitle">Audit Trail</h2>
-                    <p data-i18n="auditSub">Track all changes made across the system</p>
+                    <p data-i18n="auditSub">Track all changes made across the system including penalties</p>
                 </div>
                 <div class="page-header-right">
-                    <!-- Test Connection Button -->
                     <button class="btn-secondary" id="testConnectionBtn" style="padding:6px 14px; font-size:12px;">
                         <i class="fas fa-plug"></i> <span data-i18n="testConnection">Test Connection</span>
                     </button>
@@ -1190,6 +1211,11 @@
 
             <!-- Stats Cards — all coloured -->
             <div class="audit-stats" id="auditStats">
+                <div class="stat-card login">
+                    <span class="stat-icon"><i class="fas fa-sign-in-alt"></i></span>
+                    <span class="stat-number" id="loginCount">0</span>
+                    <span class="stat-label" data-i18n="login">Login</span>
+                </div>
                 <div class="stat-card created">
                     <span class="stat-icon"><i class="fas fa-plus-circle"></i></span>
                     <span class="stat-number" id="createdCount">0</span>
@@ -1225,6 +1251,21 @@
                     <span class="stat-number" id="printedCount">0</span>
                     <span class="stat-label" data-i18n="printed">Printed</span>
                 </div>
+                <div class="stat-card penalty_paid">
+                    <span class="stat-icon"><i class="fas fa-money-bill-wave"></i></span>
+                    <span class="stat-number" id="penaltyPaidCount">0</span>
+                    <span class="stat-label" data-i18n="penaltyPaid">Penalty Paid</span>
+                </div>
+                <div class="stat-card penalty_approved">
+                    <span class="stat-icon"><i class="fas fa-check-double"></i></span>
+                    <span class="stat-number" id="penaltyApprovedCount">0</span>
+                    <span class="stat-label" data-i18n="penaltyApproved">Penalty Approved</span>
+                </div>
+                <div class="stat-card penalty_rejected">
+                    <span class="stat-icon"><i class="fas fa-times"></i></span>
+                    <span class="stat-number" id="penaltyRejectedCount">0</span>
+                    <span class="stat-label" data-i18n="penaltyRejected">Penalty Rejected</span>
+                </div>
             </div>
 
             <!-- Search & Filters -->
@@ -1236,6 +1277,7 @@
                 <div class="filter-wrapper">
                     <select id="actionFilter">
                         <option value="all" data-i18n="allActions">All Actions</option>
+                        <option value="login" data-i18n="login">Login</option>
                         <option value="created" data-i18n="created">Created</option>
                         <option value="updated" data-i18n="updated">Updated</option>
                         <option value="deleted" data-i18n="deleted">Deleted</option>
@@ -1243,6 +1285,9 @@
                         <option value="rejected" data-i18n="rejected">Rejected</option>
                         <option value="generated" data-i18n="generated">Generated</option>
                         <option value="printed" data-i18n="printed">Printed</option>
+                        <option value="penalty_paid" data-i18n="penaltyPaid">Penalty Paid</option>
+                        <option value="penalty_approved" data-i18n="penaltyApproved">Penalty Approved</option>
+                        <option value="penalty_rejected" data-i18n="penaltyRejected">Penalty Rejected</option>
                     </select>
                 </div>
                 <div class="filter-wrapper">
@@ -1256,6 +1301,7 @@
                         <option value="withdrawals">Withdrawals</option>
                         <option value="repayments">Repayments</option>
                         <option value="dividends">Dividends</option>
+                        <option value="penalties">Penalties</option>
                         <option value="users">Users</option>
                         <option value="settings">Settings</option>
                     </select>
@@ -1308,7 +1354,7 @@
         </section>
 
         <footer class="app-footer">
-            <p>&copy; 2025 GERESU DHUKI SACCO. <span data-i18n="rights">All rights reserved.</span></p>
+            <p>&copy; 2026 GERESU DHUKI SACCO. <span data-i18n="rights">All rights reserved.</span></p>
         </footer>
     </main>
 
@@ -1370,7 +1416,7 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // MULTI-LANGUAGE (with connection strings)
+        // MULTI-LANGUAGE
         // ============================================================
         const translations = {
             en: {
@@ -1384,6 +1430,7 @@
                 navWithdrawals: 'Withdrawals',
                 navDividends: 'Dividends',
                 navReports: 'Reports',
+                navPenalties: 'Penalties',
                 navAudit: 'Audit Trail',
                 navUsers: 'Users',
                 navSettings: 'Settings',
@@ -1392,8 +1439,9 @@
                 breadcrumb: 'Home / Audit Trail',
                 rights: 'All rights reserved.',
                 auditTitle: 'Audit Trail',
-                auditSub: 'Track all changes made across the system',
+                auditSub: 'Track all changes made across the system including penalties',
                 refresh: 'Refresh',
+                login: 'Login',
                 created: 'Created',
                 updated: 'Updated',
                 deleted: 'Deleted',
@@ -1401,6 +1449,9 @@
                 rejected: 'Rejected',
                 generated: 'Generated',
                 printed: 'Printed',
+                penaltyPaid: 'Penalty Paid',
+                penaltyApproved: 'Penalty Approved',
+                penaltyRejected: 'Penalty Rejected',
                 timestamp: 'Timestamp',
                 user: 'User',
                 action: 'Action',
@@ -1441,6 +1492,7 @@
                 navWithdrawals: 'መውጫዎች',
                 navDividends: 'ክፍፍል',
                 navReports: 'ሪፖርቶች',
+                navPenalties: 'ቅጣቶች',
                 navAudit: 'የምዝግብ ታሪክ',
                 navUsers: 'ተጠቃሚዎች',
                 navSettings: 'ቅንብሮች',
@@ -1449,8 +1501,9 @@
                 breadcrumb: 'ዋና ገጽ / የምዝግብ ታሪክ',
                 rights: 'መብቶች በሙሉ ተጠብቀዋል።',
                 auditTitle: 'የምዝግብ ታሪክ',
-                auditSub: 'በስርዓቱ ውስጥ የተደረጉ ሁሉንም ለውጦች ይከታተሉ',
+                auditSub: 'ቅጣቶችን ጨምሮ በስርዓቱ ውስጥ የተደረጉ ሁሉንም ለውጦች ይከታተሉ',
                 refresh: 'አድስ',
+                login: 'ግባ',
                 created: 'ተፈጥሯል',
                 updated: 'ተሻሽሏል',
                 deleted: 'ተሰርዟል',
@@ -1458,6 +1511,9 @@
                 rejected: 'ውድቅ ተደርጓል',
                 generated: 'ተፈጥሯል',
                 printed: 'ታትሟል',
+                penaltyPaid: 'ቅጣት ተከፍሏል',
+                penaltyApproved: 'ቅጣት ጸድቋል',
+                penaltyRejected: 'ቅጣት ውድቅ ተደርጓል',
                 timestamp: 'ሰዓት',
                 user: 'ተጠቃሚ',
                 action: 'እርምጃ',
@@ -1498,6 +1554,7 @@
                 navWithdrawals: 'Baasii',
                 navDividends: 'Qooda',
                 navReports: 'Odeeffannoo',
+                navPenalties: 'Adaba',
                 navAudit: 'Seenaa Galmee',
                 navUsers: 'Fayyadamtoota',
                 navSettings: 'Qindeessaa',
@@ -1506,8 +1563,9 @@
                 breadcrumb: 'Mana / Seenaa Galmee',
                 rights: 'Mirgi hundi eegama.',
                 auditTitle: 'Seenaa Galmee',
-                auditSub: 'Jijjiirama siistamii keessa jiru hunda eegi',
+                auditSub: 'Adaboota idagadhaan jijjiirama siistamii keessa jiru hunda eegi',
                 refresh: 'Haaraa',
+                login: 'Seenuu',
                 created: 'Uumame',
                 updated: 'Jijjiirame',
                 deleted: 'Haqame',
@@ -1515,6 +1573,9 @@
                 rejected: 'Garfame',
                 generated: 'Uumame',
                 printed: 'Maxxanfame',
+                penaltyPaid: 'Adaba Kaffalame',
+                penaltyApproved: 'Adaba Mirkanaa\'e',
+                penaltyRejected: 'Adaba Garfame',
                 timestamp: 'Yeroo',
                 user: 'Fayyadamaa',
                 action: 'Gochaa',
@@ -1633,7 +1694,7 @@
         }
 
         // ============================================================
-        // TEST CONNECTION (added)
+        // TEST CONNECTION
         // ============================================================
         async function testConnection() {
             try {
@@ -1812,7 +1873,8 @@
             let html = '';
             items.forEach((entry, i) => {
                 const actionClass = entry.action || 'unknown';
-                const actionLabel = t[actionClass] || actionClass.charAt(0).toUpperCase() + actionClass.slice(1);
+                const actionLabel = t[entry.action] || entry.action?.charAt(0).toUpperCase() + entry.action?.slice(1) ||
+                    entry.action || '—';
                 const timestamp = formatDateTime(entry.timestamp);
                 const userName = entry.userDisplayName || entry.userName || entry.userEmail || 'Unknown';
                 const collectionLabel = entry.collection || '—';
@@ -1850,6 +1912,7 @@
         // ---- Update stats ----
         function updateStats() {
             const entries = filteredAuditEntries;
+            const login = entries.filter(e => e.action === 'login').length;
             const created = entries.filter(e => e.action === 'created').length;
             const updated = entries.filter(e => e.action === 'updated').length;
             const deleted = entries.filter(e => e.action === 'deleted').length;
@@ -1857,7 +1920,11 @@
             const rejected = entries.filter(e => e.action === 'rejected').length;
             const generated = entries.filter(e => e.action === 'generated').length;
             const printed = entries.filter(e => e.action === 'printed').length;
+            const penaltyPaid = entries.filter(e => e.action === 'penalty_paid').length;
+            const penaltyApproved = entries.filter(e => e.action === 'penalty_approved').length;
+            const penaltyRejected = entries.filter(e => e.action === 'penalty_rejected').length;
 
+            document.getElementById('loginCount').textContent = login;
             document.getElementById('createdCount').textContent = created;
             document.getElementById('updatedCount').textContent = updated;
             document.getElementById('deletedCount').textContent = deleted;
@@ -1865,6 +1932,9 @@
             document.getElementById('rejectedCount').textContent = rejected;
             document.getElementById('generatedCount').textContent = generated;
             document.getElementById('printedCount').textContent = printed;
+            document.getElementById('penaltyPaidCount').textContent = penaltyPaid;
+            document.getElementById('penaltyApprovedCount').textContent = penaltyApproved;
+            document.getElementById('penaltyRejectedCount').textContent = penaltyRejected;
             document.getElementById('totalAuditCount').textContent = entries.length;
             document.getElementById('totalAuditCountPagination').textContent = entries.length;
         }
@@ -2020,6 +2090,14 @@
 
                 updateUserInfo();
 
+                // Load theme
+                const savedTheme = localStorage.getItem('waciti-theme') || 'light';
+                if (savedTheme === 'dark') {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                } else {
+                    document.documentElement.removeAttribute('data-theme');
+                }
+
                 initLanguage();
                 loadSidebarState();
 
@@ -2093,8 +2171,7 @@
                 window.testConnection = testConnection;
             });
         });
-    </script>
-    <script>
+
         // ============================================================
         // SESSION TIMEOUT (5 minutes inactivity)
         // ============================================================
