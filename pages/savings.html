@@ -3076,7 +3076,7 @@
         }
 
         // ============================================================
-        // LOAD SAVINGS
+        // LOAD SAVINGS - FIXED VERSION
         // ============================================================
         async function loadSavings() {
             const overlay = document.getElementById('loadingOverlay');
@@ -3088,22 +3088,26 @@
             try {
                 let snapshot;
                 try {
+                    // Try ordered query first
                     snapshot = await db.collection('transactions')
                         .where('type', '==', 'savings')
                         .orderBy('createdAt', 'desc')
                         .get();
+                    console.log(`✅ Loaded ${snapshot.size} savings records with orderBy`);
                 } catch (indexError) {
-                    console.warn('Index not ready, using fallback query');
-                    snapshot = await db.collection('transactions')
+                    console.warn('Index not ready, using fallback query', indexError);
+                    // Fallback: without orderBy
+                    const snap = await db.collection('transactions')
                         .where('type', '==', 'savings')
                         .get();
-                    const docs = snapshot.docs;
+                    const docs = snap.docs;
                     docs.sort((a, b) => {
                         const da = a.data().createdAt?.toDate?.() || new Date(a.data().createdAt || 0);
                         const db = b.data().createdAt?.toDate?.() || new Date(b.data().createdAt || 0);
                         return db - da;
                     });
-                    snapshot = { docs, forEach: docs.forEach.bind(docs) };
+                    snapshot = { docs, forEach: docs.forEach.bind(docs), size: docs.length };
+                    console.log(`✅ Loaded ${snapshot.size} savings records using fallback`);
                 }
 
                 allSavings = [];
@@ -3130,12 +3134,22 @@
                     });
                 });
 
+                console.log(`📊 Total savings entries: ${allSavings.length}`);
+
                 populateYearFilter();
                 applySearch();
                 updateTotalCount();
                 hideGlobalError();
+
+                if (allSavings.length === 0) {
+                    // Show a message that no savings exist
+                    document.getElementById('savingsBody').innerHTML =
+                        `<tr><td colspan="11" style="text-align:center; padding:40px; color:var(--text-secondary);">No savings found. Start by recording a savings deposit above.</td></tr>`;
+                    updatePaginationInfo();
+                }
+
             } catch (error) {
-                console.error('Error loading savings:', error);
+                console.error('❌ Error loading savings:', error);
                 errorText.textContent = 'Failed to load savings: ' + error.message;
                 errorBox.classList.add('show');
                 showToast('Failed to load savings: ' + error.message, 'error');
@@ -3174,6 +3188,7 @@
             } else {
                 yearFilter.value = 'all';
             }
+            filterYear = yearFilter.value;
         }
 
         // ============================================================
@@ -3274,6 +3289,7 @@
             filteredSavings = filtered;
             currentPage = 1;
             paginateSavings();
+            console.log(`🔍 Filtered savings count: ${filteredSavings.length}`);
         }
 
         function paginateSavings() {
