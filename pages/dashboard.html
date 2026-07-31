@@ -1474,7 +1474,7 @@
                             <span class="stat-change" id="repaymentsChange"></span>
                         </div>
                     </div>
-                    <!-- PROFIT CARD - Now calculated as total income from all sources -->
+                    <!-- PROFIT CARD - Income from all sources -->
                     <div class="stat-card profit">
                         <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
                         <div class="stat-info">
@@ -1811,6 +1811,37 @@
             allTransferOut = [],
             allTransferIn = [],
             allPenalties = [];
+
+        // ============================================================
+        // INTEREST CALCULATION FUNCTIONS
+        // ============================================================
+        function calculateInterest(principal, rate, months, type) {
+            const r = rate / 100;
+            const monthlyRate = r / 12;
+            const n = months;
+            switch (type) {
+                case 'simple':
+                    return principal * r * (n / 12);
+                case 'compound':
+                    return principal * (Math.pow(1 + monthlyRate, n) - 1);
+                case 'fixed':
+                    return principal * r * (n / 12);
+                case 'reducing':
+                    if (monthlyRate === 0) return 0;
+                    const emi = principal * monthlyRate * Math.pow(1 + monthlyRate, n) / (Math.pow(1 + monthlyRate, n) - 1);
+                    return (emi * n) - principal;
+                default:
+                    return principal * r * (n / 12);
+            }
+        }
+
+        function getLoanInterest(loan) {
+            const amount = Number(loan.amount) || 0;
+            const rate = Number(loan.interestRate) || 0;
+            const period = Number(loan.repaymentPeriod) || 0;
+            const loanType = loan.loanType || 'simple';
+            return calculateInterest(amount, rate, period, loanType);
+        }
 
         // ============================================================
         // LANGUAGE FUNCTIONS
@@ -2213,8 +2244,8 @@
                 allPenalties = penaltiesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
                 // ============================================================
-                // PROFIT CALCULATION - FIXED: Income = Deposits + Penalties + Interest + Other Income
-                // NOT using (repayments - loans) because loans are assets, not expenses
+                // PROFIT CALCULATION - FIXED: Interest income from approved loans
+                // Interest is earned as soon as the loan is approved
                 // ============================================================
 
                 // 1. PENALTY INCOME - All penalty payments received
@@ -2226,13 +2257,15 @@
                 const totalDepositIncomeAllYears = allProfitIncome
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-                // 3. INTEREST INCOME - All repayments that are interest payments
-                const totalInterestIncomeAllYears = allRepayments
-                    .filter(r => r.type === 'interest' || r.paymentType === 'interest' || r.incomeType === 'Interest')
-                    .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+                // 3. INTEREST INCOME - Calculated from approved loans (active or paid)
+                // Interest is earned as soon as the loan is approved
+                const approvedLoansAllYears = allLoans.filter(l =>
+                    l.status === 'active' || l.status === 'paid' || l.status === 'approved'
+                );
+                const totalInterestIncomeAllYears = approvedLoansAllYears
+                    .reduce((sum, loan) => sum + getLoanInterest(loan), 0);
 
                 // 4. OTHER INCOME - Any other income sources (fees, etc.)
-                // This includes any other income not captured above
                 const totalOtherIncomeAllYears = allProfitIncome
                     .filter(p => p.incomeType === 'Other Deposit' || p.incomeType === 'Other')
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
@@ -2254,6 +2287,10 @@
                 const transferOutData = allTransferOut.filter(w => isInYear(w.date || w.timestamp, year));
                 const transferInData = allTransferIn.filter(w => isInYear(w.date || w.timestamp, year));
                 const penaltiesData = allPenalties.filter(p => isInYear(p.date || p.timestamp, year));
+                const approvedLoansYearly = allLoans.filter(l =>
+                    isInYear(l.date || l.timestamp, year) &&
+                    (l.status === 'active' || l.status === 'paid' || l.status === 'approved')
+                );
 
                 // ---- Yearly calculations ----
                 const totalSavings = savingsData.reduce((s, item) => s + (Number(item.amount) || 0), 0);
@@ -2272,9 +2309,8 @@
                 const yearlyDepositIncome = profitIncomeData
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-                const yearlyInterestIncome = repaymentsData
-                    .filter(r => r.type === 'interest' || r.paymentType === 'interest' || r.incomeType === 'Interest')
-                    .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+                const yearlyInterestIncome = approvedLoansYearly
+                    .reduce((sum, loan) => sum + getLoanInterest(loan), 0);
 
                 const yearlyOtherIncome = profitIncomeData
                     .filter(p => p.incomeType === 'Other Deposit' || p.incomeType === 'Other')
@@ -2366,6 +2402,12 @@
                 updateChange('repaymentsChange', repChange);
 
                 // ---- Profit change (year over year) ----
+                const prevApprovedLoans = allLoans.filter(l =>
+                    isInYear(l.date || l.timestamp, prevYear) &&
+                    (l.status === 'active' || l.status === 'paid' || l.status === 'approved')
+                );
+                const prevYearlyInterestIncome = prevApprovedLoans
+                    .reduce((sum, loan) => sum + getLoanInterest(loan), 0);
                 const prevYearlyPenaltyIncome = allPenalties
                     .filter(p => isInYear(p.date || p.timestamp, prevYear) && (p.status === 'paid' || p.status === 'done' ||
                         p.status === 'approved'))
@@ -2373,10 +2415,6 @@
                 const prevYearlyDepositIncome = allProfitIncome
                     .filter(p => isInYear(p.date || p.timestamp, prevYear))
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-                const prevYearlyInterestIncome = allRepayments
-                    .filter(r => isInYear(r.date || r.timestamp, prevYear) && (r.type === 'interest' || r.paymentType ===
-                        'interest' || r.incomeType === 'Interest'))
-                    .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
                 const prevYearlyOtherIncome = allProfitIncome
                     .filter(p => isInYear(p.date || p.timestamp, prevYear) && (p.incomeType === 'Other Deposit' || p
                         .incomeType === 'Other'))
@@ -2421,8 +2459,9 @@
 
                 loansData.filter(l => l.status === 'active' || l.status === 'paid').slice(0, 5).forEach(l => {
                     const customerName = getCustomerName(l.customerId);
+                    const interest = getLoanInterest(l);
                     activities.push({
-                        text: `${customerName} received a loan of <strong>ETB ${Number(l.amount).toLocaleString()}</strong>`,
+                        text: `${customerName} received a loan of <strong>ETB ${Number(l.amount).toLocaleString()}</strong> (Interest: ETB ${interest.toFixed(2)})`,
                         icon: 'fa-file-invoice',
                         color: 'orange',
                         date: l.date || l.timestamp
