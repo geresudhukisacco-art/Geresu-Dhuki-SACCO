@@ -18,9 +18,7 @@
     </script>
 
     <style>
-        /* ============================================================
-           ROOT VARIABLES
-           ============================================================ */
+        /* ===== STYLES ===== */
         :root {
             --primary: #1a6e3a;
             --primary-dark: #0f4f28;
@@ -86,9 +84,7 @@
             transition: background 0.3s, color 0.3s;
         }
 
-        /* ============================================================
-           GLOBAL ERROR BANNER
-           ============================================================ */
+        /* ===== GLOBAL ERROR BANNER ===== */
         #globalErrorBanner {
             display: none;
             position: fixed;
@@ -521,6 +517,28 @@
             color: #fff;
             border-color: var(--primary);
         }
+
+        /* Test Connection Button */
+        .test-conn-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 4px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-family: inherit;
+        }
+        .test-conn-btn:hover {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
+
         .user-profile {
             display: flex;
             align-items: center;
@@ -1356,7 +1374,6 @@
             font-size: 10px;
             color: var(--text-muted);
         }
-        /* Improved highlight for CI tag - dark background with white text */
         .suggestion-item .suggestion-detail-tag.highlight {
             background: var(--primary);
             color: #fff;
@@ -1364,7 +1381,7 @@
             font-weight: 600;
         }
         .suggestion-item .suggestion-detail-tag.highlight i {
-            color: rgba(255,255,255,0.8);
+            color: rgba(255, 255, 255, 0.8);
         }
 
         .suggestion-item .suggestion-badge {
@@ -1414,12 +1431,10 @@
             opacity: 0.4;
         }
 
-        /* Edit member suggestions - same styling */
         #editMemberSuggestions {
             composes: search-suggestions;
         }
 
-        /* When input is focused, show suggestions with rounded top corners */
         .form-group .search-suggestions.active {
             display: block;
         }
@@ -1428,7 +1443,6 @@
             border-radius: 0;
         }
 
-        /* Responsive tweaks */
         @media (max-width: 768px) {
             .suggestion-item {
                 padding: 8px 12px;
@@ -1678,6 +1692,10 @@
                     <button class="lang-btn" data-lang="am">አማ</button>
                     <button class="lang-btn" data-lang="om">OM</button>
                 </div>
+                <!-- TEST CONNECTION BUTTON (re-added) -->
+                <button class="test-conn-btn" id="testConnectionBtn" title="Test Connection">
+                    <i class="fas fa-plug"></i> <span data-i18n="testConnection">Test Connection</span>
+                </button>
                 <div class="user-profile">
                     <img id="userAvatar" src="../assets/images/avatar.png" alt="User" onerror="this.src='https://ui-avatars.com/api/?name=Admin&background=2d7a3d&color=fff'" />
                     <span class="user-name" id="userDisplayName">Admin</span>
@@ -1984,7 +2002,7 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // MULTI-LANGUAGE TRANSLATIONS
+        // MULTI-LANGUAGE TRANSLATIONS (FULL SET)
         // ============================================================
         const translations = {
             en: {
@@ -2079,7 +2097,10 @@
                 delete: 'Delete',
                 printSlip: 'Print Slip',
                 approve: 'Approve',
-                noCustomers: 'No matching customers found.'
+                noCustomers: 'No matching customers found.',
+                testConnection: 'Test Connection',
+                connectionSuccess: '✅ Connection successful!',
+                connectionFailed: '❌ Connection failed: '
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -2173,7 +2194,10 @@
                 delete: 'ሰርዝ',
                 printSlip: 'ስሊፕ ያትሙ',
                 approve: 'ያጽድቁ',
-                noCustomers: 'ምንም ተዛማጅ ደንበኞች አልተገኙም።'
+                noCustomers: 'ምንም ተዛማጅ ደንበኞች አልተገኙም።',
+                testConnection: 'ግንኙነት ሞክር',
+                connectionSuccess: '✅ ግንኙነቱ ተሳክቷል!',
+                connectionFailed: '❌ ግንኙነቱ አልተሳካም: '
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -2267,7 +2291,10 @@
                 delete: 'Haqi',
                 printSlip: 'Sliipii Maxxaf',
                 approve: 'Mirkaneeffachi',
-                noCustomers: 'Maamiltoonni wal qabatan hin argamne.'
+                noCustomers: 'Maamiltoonni wal qabatan hin argamne.',
+                testConnection: 'Qunnamtii Mirkaneessi',
+                connectionSuccess: '✅ Qunnamtii milkaa\'e!',
+                connectionFailed: '❌ Qunnamtii hin milkaanne: '
             }
         };
 
@@ -2294,25 +2321,37 @@
             currentLang = lang;
             const t = translations[lang];
 
+            // Update all elements with data-i18n attribute
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 if (t[key] !== undefined) {
                     if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                        if (el.type !== 'file') el.placeholder = t[key];
+                        if (el.type !== 'file') {
+                            el.placeholder = t[key];
+                        }
                     } else if (el.tagName === 'SELECT') {
+                        // Update select options with data-i18n
                         el.querySelectorAll('option[data-i18n]').forEach(opt => {
                             const optKey = opt.getAttribute('data-i18n');
-                            if (t[optKey]) opt.textContent = t[optKey];
+                            if (t[optKey]) {
+                                opt.textContent = t[optKey];
+                            }
                         });
+                        // Special case for cash option in savings type
                         const cashOption = el.querySelector('option[value="cash"]');
-                        if (cashOption && t.cash) cashOption.textContent = t.cash;
+                        if (cashOption && t.cash) {
+                            cashOption.textContent = t.cash;
+                        }
                     } else {
+                        // For elements with HTML content like penaltyBlockText
                         if (el.id === 'penaltyBlockText') {
                             const amountSpan = el.querySelector('#penaltyBlockAmount');
                             if (amountSpan) {
                                 const amountHTML = amountSpan.outerHTML;
-                                el.innerHTML = t[key].replace('<strong id="penaltyBlockAmount">ETB 0.00</strong>',
-                                    amountHTML);
+                                el.innerHTML = t[key].replace(
+                                    '<strong id="penaltyBlockAmount">ETB 0.00</strong>',
+                                    amountHTML
+                                );
                             } else {
                                 el.innerHTML = t[key];
                             }
@@ -2323,13 +2362,16 @@
                 }
             });
 
+            // Update language buttons
             document.querySelectorAll('.lang-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.lang === lang);
             });
 
+            // Update page title
             document.title = `${t.pageTitle || 'Savings'} – GERESU DHUKI SACCO`;
-            try { localStorage.setItem('sacco-lang', lang); } catch (e) {}
+            localStorage.setItem('sacco-lang', lang);
 
+            // Re-render table with new language
             if (filteredSavings.length > 0) {
                 const start = (currentPage - 1) * pageSize;
                 const end = start + pageSize;
@@ -2426,6 +2468,24 @@
             if (nameEl) nameEl.textContent = displayName + ' (' + roleLabel + ')';
             updateSidebarVisibility(currentUserRole);
         }
+
+        // ============================================================
+        // TEST CONNECTION
+        // ============================================================
+        async function testConnection() {
+            try {
+                await db.collection('customers').limit(1).get();
+                const t = translations[currentLang];
+                showToast(t.connectionSuccess || '✅ Connection successful!', 'success');
+                return true;
+            } catch (error) {
+                const t = translations[currentLang];
+                showToast((t.connectionFailed || '❌ Connection failed: ') + error.message, 'error');
+                return false;
+            }
+        }
+
+        document.getElementById('testConnectionBtn')?.addEventListener('click', testConnection);
 
         // ============================================================
         // ETHIOPIAN CALENDAR
@@ -2865,7 +2925,7 @@
         }
 
         // ============================================================
-        // EDIT MEMBER SEARCH (beautiful version)
+        // EDIT MEMBER SEARCH
         // ============================================================
         let editSearchSetupDone = false;
 
@@ -3076,7 +3136,7 @@
         }
 
         // ============================================================
-        // LOAD SAVINGS - FIXED VERSION
+        // LOAD SAVINGS - FIXED VERSION WITH PROPER DATA LOADING
         // ============================================================
         async function loadSavings() {
             const overlay = document.getElementById('loadingOverlay');
@@ -3087,31 +3147,34 @@
 
             try {
                 let snapshot;
+                let docsArray = [];
+
+                // Try ordered query first
                 try {
-                    // Try ordered query first
                     snapshot = await db.collection('transactions')
                         .where('type', '==', 'savings')
                         .orderBy('createdAt', 'desc')
                         .get();
-                    console.log(`✅ Loaded ${snapshot.size} savings records with orderBy`);
+                    docsArray = snapshot.docs;
+                    console.log(`✅ Loaded ${docsArray.length} savings records with orderBy`);
                 } catch (indexError) {
                     console.warn('Index not ready, using fallback query', indexError);
                     // Fallback: without orderBy
                     const snap = await db.collection('transactions')
                         .where('type', '==', 'savings')
                         .get();
-                    const docs = snap.docs;
-                    docs.sort((a, b) => {
+                    docsArray = snap.docs;
+                    // Sort manually by createdAt desc
+                    docsArray.sort((a, b) => {
                         const da = a.data().createdAt?.toDate?.() || new Date(a.data().createdAt || 0);
                         const db = b.data().createdAt?.toDate?.() || new Date(b.data().createdAt || 0);
                         return db - da;
                     });
-                    snapshot = { docs, forEach: docs.forEach.bind(docs), size: docs.length };
-                    console.log(`✅ Loaded ${snapshot.size} savings records using fallback`);
+                    console.log(`✅ Loaded ${docsArray.length} savings records using fallback`);
                 }
 
                 allSavings = [];
-                snapshot.forEach(doc => {
+                docsArray.forEach(doc => {
                     const data = doc.data();
                     let penaltyAmount = data.penaltyAmount || 0;
                     let penaltyStatus = data.penaltyStatus || 'no_penalty';
@@ -3142,7 +3205,6 @@
                 hideGlobalError();
 
                 if (allSavings.length === 0) {
-                    // Show a message that no savings exist
                     document.getElementById('savingsBody').innerHTML =
                         `<tr><td colspan="11" style="text-align:center; padding:40px; color:var(--text-secondary);">No savings found. Start by recording a savings deposit above.</td></tr>`;
                     updatePaginationInfo();
@@ -3188,7 +3250,6 @@
             } else {
                 yearFilter.value = 'all';
             }
-            filterYear = yearFilter.value;
         }
 
         // ============================================================
@@ -3540,7 +3601,6 @@
         // ============================================================
         async function printSlip(id) {
             showToast('Printing slip...', 'warning');
-            // Placeholder: implement actual print logic
         }
 
         // ============================================================
@@ -3611,7 +3671,7 @@
         }
 
         // ============================================================
-        // SAVE DEPOSIT - FIXED WITH ALL FIELDS
+        // SAVE DEPOSIT
         // ============================================================
         document.getElementById('savingsForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -3624,7 +3684,6 @@
             const penaltyStatus = document.getElementById('penaltyStatus').value;
             const unpaidBalance = parseFloat(document.getElementById('unpaidBalanceInput').value) || 0;
 
-            // Conditional fields
             const ttNumber = document.getElementById('ttNumber').value.trim();
             const transferDate = document.getElementById('transferDate').value;
             const bankName = document.getElementById('bankName').value.trim();
@@ -3896,6 +3955,7 @@
                 window.updateSummary = updateSummary;
                 window.toggleSidebar = toggleSidebar;
                 window.setLanguage = setLanguage;
+                window.testConnection = testConnection;
             });
         });
 
