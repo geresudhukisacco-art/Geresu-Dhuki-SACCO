@@ -560,11 +560,11 @@
         }
 
         /* ============================================================
-           MODERN LOAN SUMMARY CARDS
+           MODERN LOAN SUMMARY CARDS (4 cards)
            ============================================================ */
         .loan-summary {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 16px;
             margin-bottom: 24px;
         }
@@ -643,6 +643,9 @@
         }
         .summary-card.card-unpaid {
             background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+        .summary-card.card-due {
+            background: linear-gradient(135deg, #6a1b9a, #9c27b0);
         }
 
         /* ----- FORM SECTION (compact) ----- */
@@ -1641,7 +1644,7 @@
             </div>
 
             <!-- ============================================================
-                   MODERN LOAN SUMMARY CARDS (3 cards only)
+                   MODERN LOAN SUMMARY CARDS (4 cards)
                    ============================================================ -->
             <div class="loan-summary" id="loanSummary">
                 <div class="summary-card card-total">
@@ -1665,6 +1668,14 @@
                     <div class="card-info">
                         <span class="card-label" data-i18n="unpaidLoansLabel">📋 Unpaid Loans</span>
                         <span class="card-value" id="unpaidLoansValue">0.00</span>
+                        <span class="card-sub">ETB</span>
+                    </div>
+                </div>
+                <div class="summary-card card-due">
+                    <div class="card-icon"><i class="fas fa-calculator"></i></div>
+                    <div class="card-info">
+                        <span class="card-label" data-i18n="totalDueLabel">💳 Total Due</span>
+                        <span class="card-value" id="totalDueValue">0.00</span>
                         <span class="card-sub">ETB</span>
                     </div>
                 </div>
@@ -2059,7 +2070,8 @@
                 availableToBorrow: 'Available to Borrow',
                 totalLoansLabel: 'Total Loans',
                 totalPenaltiesLabel: 'Total Penalties',
-                unpaidLoansLabel: 'Unpaid Loans'
+                unpaidLoansLabel: 'Unpaid Loans',
+                totalDueLabel: 'Total Due'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -2155,7 +2167,8 @@
                 availableToBorrow: 'ለመበደር የሚገኝ',
                 totalLoansLabel: 'ጠቅላላ ብድር',
                 totalPenaltiesLabel: 'ጠቅላላ ቅጣት',
-                unpaidLoansLabel: 'ያልተከፈለ ብድር'
+                unpaidLoansLabel: 'ያልተከፈለ ብድር',
+                totalDueLabel: 'ጠቅላላ የሚከፈል'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -2251,7 +2264,8 @@
                 availableToBorrow: 'Liqii Argamu',
                 totalLoansLabel: 'Liqii Waliigalaa',
                 totalPenaltiesLabel: 'Adaboota Waliigalaa',
-                unpaidLoansLabel: 'Liqii Hin Kaffalamne'
+                unpaidLoansLabel: 'Liqii Hin Kaffalamne',
+                totalDueLabel: 'Waliigalaa Kaffalamuu Qabu'
             }
         };
 
@@ -2933,6 +2947,7 @@
         let filterYear = 'all';
         let totalPenaltiesSum = 0;
         let unpaidLoansSum = 0;
+        let totalDueSum = 0;
 
         // ---- Populate Year Filter ----
         function populateYearFilter() {
@@ -3051,12 +3066,13 @@
         }
 
         // ============================================================
-        // UPDATE LOAN SUMMARY CARDS (3 cards only)
+        // UPDATE LOAN SUMMARY CARDS (4 cards)
         // ============================================================
         async function updateLoanSummary() {
             let totalApproved = 0;
             let totalPenalties = 0;
             let totalUnpaid = 0;
+            let totalDue = 0;
 
             const approvedLoans = allLoans.filter(loan =>
                 loan.status === 'active' || loan.status === 'paid' || loan.status === 'approved'
@@ -3084,16 +3100,19 @@
 
                 if (remaining > 0) {
                     totalUnpaid += remaining;
+                    totalDue += remaining + penaltyAmount;
                     totalPenalties += penaltyAmount;
                 }
             }
 
             totalPenaltiesSum = totalPenalties;
             unpaidLoansSum = totalUnpaid;
+            totalDueSum = totalDue;
 
             document.getElementById('totalApprovedValue').textContent = totalApproved.toLocaleString();
             document.getElementById('totalPenaltiesValue').textContent = totalPenalties.toFixed(2);
             document.getElementById('unpaidLoansValue').textContent = totalUnpaid.toFixed(2);
+            document.getElementById('totalDueValue').textContent = totalDue.toFixed(2);
         }
 
         // ---- Apply search + year filter ----
