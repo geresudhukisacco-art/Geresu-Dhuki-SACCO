@@ -43,6 +43,7 @@
             --danger: #e74c3c;
             --warning: #f39c12;
             --info: #2196f3;
+            --penalty-color: #e67e22;
             --input-bg: #ffffff;
             --input-border: #d0d7d2;
             --input-focus: rgba(45, 122, 61, 0.1);
@@ -556,6 +557,60 @@
         }
         .btn-danger:hover {
             background: #c0392b;
+        }
+
+        /* ============================================================
+           LOAN SUMMARY CARDS (Like Savings Summary)
+           ============================================================ */
+        .loan-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+        .summary-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow);
+            transition: all 0.2s;
+        }
+        .summary-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+        .summary-card .label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            display: block;
+            transition: color 0.3s;
+        }
+        .summary-card .value {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-top: 4px;
+            transition: color 0.3s;
+        }
+        .summary-card .value.green {
+            color: var(--success);
+        }
+        .summary-card .value.orange {
+            color: var(--warning);
+        }
+        .summary-card .value.purple {
+            color: #9c27b0;
+        }
+        .summary-card .value.red {
+            color: var(--danger);
+        }
+        .summary-card .value.blue {
+            color: var(--info);
+        }
+        .summary-card .value.penalty-color {
+            color: #e67e22;
         }
 
         /* ----- FORM SECTION (compact) ----- */
@@ -1458,6 +1513,9 @@
             .brand-text .brand-name {
                 font-size: 14px;
             }
+            .loan-summary {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -1548,6 +1606,28 @@
                 </button>
             </div>
 
+            <!-- ============================================================
+                   LOAN SUMMARY CARDS (Like Savings Summary)
+                   ============================================================ -->
+            <div class="loan-summary" id="loanSummary">
+                <div class="summary-card">
+                    <span class="label" data-i18n="totalLoansLabel">💰 Total Approved Loans</span>
+                    <span class="value orange" id="totalApprovedValue">0.00</span>
+                </div>
+                <div class="summary-card">
+                    <span class="label" data-i18n="totalPenaltiesLabel">⚠️ Total Penalties</span>
+                    <span class="value penalty-color" id="totalPenaltiesValue">0.00</span>
+                </div>
+                <div class="summary-card">
+                    <span class="label" data-i18n="unpaidLoansLabel">📋 Unpaid Loans</span>
+                    <span class="value red" id="unpaidLoansValue">0.00</span>
+                </div>
+                <div class="summary-card">
+                    <span class="label" data-i18n="totalDueLabel">💳 Total Due</span>
+                    <span class="value purple" id="totalDueValue">0.00</span>
+                </div>
+            </div>
+
             <!-- Apply Loan Form -->
             <div class="form-section" id="loanFormSection" style="display:none;">
                 <h3 id="formTitle" data-i18n="applyLoan">Apply New Loan</h3>
@@ -1584,7 +1664,7 @@
                         </div>
                     </div>
 
-                    <!-- ===== LOAN HISTORY & PREVIEW PANEL (new) ===== -->
+                    <!-- ===== LOAN HISTORY & PREVIEW PANEL ===== -->
                     <div class="loan-history-preview" id="loanHistoryPreview">
                         <div class="section-title"><i class="fas fa-history"></i> Loan History & Calculation Preview</div>
                         <div class="history-grid" id="historyGrid">
@@ -1840,7 +1920,7 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // MULTI-LANGUAGE (with testConnection keys + new limit info)
+        // MULTI-LANGUAGE
         // ============================================================
         const translations = {
             en: {
@@ -1933,7 +2013,11 @@
                 multiplier: 'Multiplier',
                 maxLoan: 'Max Loan',
                 existingLoans: 'Existing Loans',
-                availableToBorrow: 'Available to Borrow'
+                availableToBorrow: 'Available to Borrow',
+                totalLoansLabel: 'Total Loans',
+                totalPenaltiesLabel: 'Total Penalties',
+                unpaidLoansLabel: 'Unpaid Loans',
+                totalDueLabel: 'Total Due'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -2025,7 +2109,11 @@
                 multiplier: 'ብዜት',
                 maxLoan: 'ከፍተኛ ብድር',
                 existingLoans: 'ነባር ብድሮች',
-                availableToBorrow: 'ለመበደር የሚገኝ'
+                availableToBorrow: 'ለመበደር የሚገኝ',
+                totalLoansLabel: 'ጠቅላላ ብድር',
+                totalPenaltiesLabel: 'ጠቅላላ ቅጣት',
+                unpaidLoansLabel: 'ያልተከፈለ ብድር',
+                totalDueLabel: 'ጠቅላላ የሚከፈል'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -2117,7 +2205,11 @@
                 multiplier: 'Baay\'isaa',
                 maxLoan: 'Liqii Olaanaa',
                 existingLoans: 'Liqii Jiru',
-                availableToBorrow: 'Liqii Argamu'
+                availableToBorrow: 'Liqii Argamu',
+                totalLoansLabel: 'Liqii Waliigalaa',
+                totalPenaltiesLabel: 'Adaboota Waliigalaa',
+                unpaidLoansLabel: 'Liqii Hin Kaffalamne',
+                totalDueLabel: 'Waliigalaa Kaffalamuu Qabu'
             }
         };
 
@@ -2147,7 +2239,6 @@
             if (searchInput) searchInput.placeholder = t.searchPlaceholder || 'Search by customer name...';
             updatePaginationInfo();
             renderPageButtons();
-            // Update test connection button text
             const testBtn = document.getElementById('testConnectionBtn');
             if (testBtn) {
                 const span = testBtn.querySelector('span');
@@ -2333,7 +2424,31 @@
         }
 
         // ============================================================
-        // FIXED: Get customer's total savings (checks both customerId AND memberId)
+        // LOAD CUSTOMERS
+        // ============================================================
+        let customersList = [];
+
+        async function loadCustomersForSelect() {
+            try {
+                const snapshot = await db.collection('customers').get();
+                customersList = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    customersList.push({
+                        id: doc.id,
+                        fullName: data.fullName,
+                        customerId: data.customerId
+                    });
+                });
+                return true;
+            } catch (error) {
+                showToast(translations[currentLang].loadError + error.message, 'error');
+                return false;
+            }
+        }
+
+        // ============================================================
+        // FIXED: Get customer's total savings
         // ============================================================
         async function getCustomerSavings(customerId) {
             try {
@@ -2360,7 +2475,7 @@
         }
 
         // ============================================================
-        // FIXED: Get total exposure (active + pending loans) – checks both customerId and memberId
+        // FIXED: Get total exposure (active + pending loans)
         // ============================================================
         async function getCustomerTotalLoanExposure(customerId) {
             try {
@@ -2430,27 +2545,6 @@
             } catch (error) {
                 console.error('Error getting customer loans:', error);
                 return [];
-            }
-        }
-
-        // ---- Load customers ----
-        let customersList = [];
-        async function loadCustomersForSelect() {
-            try {
-                const snapshot = await db.collection('customers').get();
-                customersList = [];
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    customersList.push({
-                        id: doc.id,
-                        fullName: data.fullName,
-                        customerId: data.customerId
-                    });
-                });
-                return true;
-            } catch (error) {
-                showToast(translations[currentLang].loadError + error.message, 'error');
-                return false;
             }
         }
 
@@ -2563,7 +2657,6 @@
             // ---- Update preview based on current inputs ----
             updatePreview();
 
-            // Show toast with summary
             showToast(`💰 Savings: ${savings.toFixed(2)} | Existing loans: ${existingExposure.toFixed(2)} | Available: ${available.toFixed(2)}`, 'warning');
         }
 
@@ -2775,14 +2868,12 @@
                     penaltyRate = data.penaltyRate || 5;
                     gracePeriod = data.gracePeriod || 7;
                 }
-                // Apply to form
                 const interestInput = document.getElementById('interestRate');
                 if (interestInput) {
                     interestInput.value = defaultInterestRate;
                     const hint = document.getElementById('interestRateHint');
                     if (hint) hint.textContent = `Default: ${defaultInterestRate}%`;
                 }
-                // Update preview on load
                 updatePreview();
             } catch (error) {
                 console.error('Error loading settings:', error);
@@ -2798,6 +2889,9 @@
         let filteredLoans = [];
         let searchQuery = '';
         let filterYear = 'all';
+        let totalPenaltiesSum = 0;
+        let unpaidLoansSum = 0;
+        let totalDueSum = 0;
 
         // ---- Populate Year Filter ----
         function populateYearFilter() {
@@ -2851,6 +2945,7 @@
                 populateYearFilter();
                 applySearch();
                 updateTotalCount();
+                updateLoanSummary(); // NEW: Update summary cards
                 overlay.classList.remove('active');
             } catch (error) {
                 console.error('Error loading loans:', error);
@@ -2888,10 +2983,7 @@
             const period = Number(loan.repaymentPeriod) || 0;
             if (!loanDate || period === 0) return { nextDue: null, daysOverdue: 0 };
 
-            // Count how many payments have been made
             const paymentCount = repayments.length;
-
-            // Next due is (paymentCount + 1) months from loan start
             const nextDue = new Date(loanDate);
             nextDue.setMonth(nextDue.getMonth() + paymentCount + 1);
 
@@ -2910,13 +3002,62 @@
             const { daysOverdue } = getDueDateInfo(loan, repayments);
             if (daysOverdue <= 0) return 0;
 
-            // Count how many payments are overdue
             const overdueMonths = Math.floor(daysOverdue / 30);
             if (overdueMonths <= 0) return 0;
 
-            // Penalty: monthlyPayment * penaltyRate% * overdueMonths
             const penaltyRateSetting = penaltyRate / 100;
             return Math.round((monthlyPayment * penaltyRateSetting * overdueMonths) * 100) / 100;
+        }
+
+        // ============================================================
+        // UPDATE LOAN SUMMARY CARDS (NEW)
+        // ============================================================
+        async function updateLoanSummary() {
+            let totalApproved = 0;
+            let totalPenalties = 0;
+            let totalUnpaid = 0;
+            let totalDue = 0;
+
+            const approvedLoans = allLoans.filter(loan =>
+                loan.status === 'active' || loan.status === 'paid' || loan.status === 'approved'
+            );
+
+            for (const loan of approvedLoans) {
+                const amount = Number(loan.amount) || 0;
+                totalApproved += amount;
+
+                const repay = await getLoanRepayments(loan.id);
+                const totalPayable = loan.totalPayable ? Number(loan.totalPayable) : calculateTotalPayable(
+                    Number(loan.amount) || 0,
+                    Number(loan.interestRate) || 0,
+                    Number(loan.repaymentPeriod) || 0,
+                    loan.loanType || 'simple'
+                );
+                const remaining = Math.max(0, totalPayable - repay.total);
+
+                // Calculate penalty for active loans
+                let penaltyAmount = 0;
+                if (loan.status === 'active') {
+                    const monthlyPayment = calculateMonthlyPayment(amount, Number(loan.interestRate) || 0,
+                        Number(loan.repaymentPeriod) || 0, loan.loanType || 'simple');
+                    penaltyAmount = calculatePenalty(loan, repay.list, monthlyPayment);
+                }
+
+                if (remaining > 0) {
+                    totalUnpaid += remaining;
+                    totalDue += remaining + penaltyAmount;
+                    totalPenalties += penaltyAmount;
+                }
+            }
+
+            totalPenaltiesSum = totalPenalties;
+            unpaidLoansSum = totalUnpaid;
+            totalDueSum = totalDue;
+
+            document.getElementById('totalApprovedValue').textContent = totalApproved.toLocaleString();
+            document.getElementById('totalPenaltiesValue').textContent = totalPenalties.toFixed(2);
+            document.getElementById('unpaidLoansValue').textContent = totalUnpaid.toFixed(2);
+            document.getElementById('totalDueValue').textContent = totalDue.toFixed(2);
         }
 
         // ---- Apply search + year filter ----
@@ -3012,7 +3153,6 @@
             };
             const typeLabel = typeLabels[loanType] || loanType;
 
-            // Guarantees display
             const gList = loan.guarantees || [];
             let guaranteesHtml = '';
             if (gList.length > 0) {
@@ -3023,7 +3163,6 @@
                 guaranteesHtml = 'None';
             }
 
-            // Build modal content
             const content = document.getElementById('viewLoanContent');
             content.innerHTML = `
                 <div class="view-detail-row"><span class="label">Transaction ID</span><span class="value">${loan.id}</span></div>
@@ -3109,7 +3248,6 @@
                     guaranteeHtml = '<span style="color:var(--text-secondary); font-size:12px;">None</span>';
                 }
 
-                // ---- Action Buttons with Role Checks ----
                 let actionsHtml = `
                         <button class="action-btn view-btn" onclick="viewLoan('${loan.id}')" title="${t.view}">
                             <i class="fas fa-eye"></i>
@@ -3178,7 +3316,6 @@
             });
             tbody.innerHTML = html;
 
-            // ---- Async updates (remaining, monthly, next due) ----
             loanPromises.forEach(async ({ loan, repayPromise, monthlyPayment, totalPayable, remainingId, monthlyId,
                     nextDueId }) => {
                 const { total: totalRepaid, list: repayments } = await repayPromise;
@@ -3188,7 +3325,6 @@
                 document.getElementById(remainingId).textContent = remaining.toLocaleString();
                 document.getElementById(monthlyId).textContent = monthlyPayment.toFixed(2);
 
-                // Auto-update status to paid if remaining = 0
                 if (remaining === 0 && loan.status === 'active') {
                     try {
                         await db.collection('transactions').doc(loan.id).update({
@@ -3637,7 +3773,6 @@
                 renderGuarantees();
                 document.getElementById('loanFormSection').style.display = 'none';
                 document.getElementById('addLoanBtn').style.display = canApply() ? 'inline-flex' : 'none';
-                // Hide history panel
                 document.getElementById('loanHistoryPreview').classList.remove('show');
                 await loadLoans();
             } catch (error) {
@@ -3673,16 +3808,13 @@
                 document.getElementById('saveBtn').innerHTML = `<i class="fas fa-save"></i> ${t.applyLoanBtn}`;
                 guarantees = [];
                 renderGuarantees();
-                // Hide the loan limit info box when form is cleared
                 document.getElementById('loanLimitInfo').classList.remove('show');
                 document.getElementById('loanHistoryPreview').classList.remove('show');
-                // Reset preview
                 updatePreview();
                 formSection.scrollIntoView({ behavior: 'smooth' });
             } else {
                 formSection.style.display = 'none';
                 addBtn.style.display = canApply() ? 'inline-flex' : 'none';
-                // Hide history panel
                 document.getElementById('loanHistoryPreview').classList.remove('show');
             }
         }
@@ -3756,7 +3888,6 @@
                     }
                 });
 
-                // Expose testConnection globally
                 window.testConnection = testConnection;
 
                 await loadSettings();
@@ -3813,13 +3944,11 @@
                 });
                 document.getElementById('editLoanForm').addEventListener('submit', updateLoan);
 
-                // ===== View Loan Modal close =====
                 document.getElementById('closeViewLoanModal').addEventListener('click', closeViewLoanModal);
                 document.getElementById('viewLoanModal').addEventListener('click', function(e) {
                     if (e.target === this) closeViewLoanModal();
                 });
 
-                // ===== Setup preview update on input changes =====
                 document.getElementById('amountInput').addEventListener('input', updatePreview);
                 document.getElementById('interestRate').addEventListener('input', updatePreview);
                 document.getElementById('repaymentPeriod').addEventListener('input', updatePreview);
@@ -3829,14 +3958,12 @@
                 const t = translations[currentLang];
                 searchInput.placeholder = t.searchPlaceholder || 'Search by customer name...';
 
-                // Expose functions
                 window.viewLoan = viewLoan;
                 window.closeViewLoanModal = closeViewLoanModal;
                 window.updatePreview = updatePreview;
             });
         });
 
-        // Expose functions for onclick (already done but keep)
         window.approveLoan = approveLoan;
         window.rejectLoan = rejectLoan;
         window.viewLoan = viewLoan;
@@ -3852,6 +3979,7 @@
         window.closeViewLoanModal = closeViewLoanModal;
         window.updatePreview = updatePreview;
     </script>
+
     <script>
         // ============================================================
         // SESSION TIMEOUT (5 minutes inactivity)
