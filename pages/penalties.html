@@ -14,8 +14,6 @@
     </script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js">
     </script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js">
-    </script>
 
     <style>
         /* ============================================================
@@ -45,8 +43,7 @@
             --danger: #e74c3c;
             --warning: #f39c12;
             --info: #2196f3;
-            --penalty: #e67e22;
-            --unpaid: #c0392b;
+            --penalty-color: #e67e22;
             --input-bg: #ffffff;
             --input-border: #d0d7d2;
             --input-focus: rgba(45, 122, 61, 0.1);
@@ -86,53 +83,6 @@
             transition: background 0.3s, color 0.3s;
         }
 
-        /* ============================================================
-           GLOBAL ERROR BANNER
-           ============================================================ */
-        #globalErrorBanner {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            z-index: 99999;
-            background: #721c24;
-            color: #fff;
-            padding: 14px 24px;
-            text-align: center;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            font-size: 15px;
-            font-weight: 500;
-            align-items: center;
-            justify-content: center;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-        #globalErrorBanner.show {
-            display: flex;
-        }
-        #globalErrorBanner .error-icon {
-            font-size: 24px;
-        }
-        #globalErrorBanner .error-message {
-            flex: 1;
-            min-width: 200px;
-        }
-        #globalErrorBanner .retry-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            color: #fff;
-            padding: 6px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: 0.2s;
-        }
-        #globalErrorBanner .retry-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        /* Loading overlay */
         .loading-overlay {
             display: none;
             position: fixed;
@@ -168,43 +118,6 @@
             font-weight: 500;
         }
 
-        /* Error box */
-        .error-box {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-            border-radius: 8px;
-            padding: 16px 20px;
-            margin: 16px 0;
-            display: none;
-            align-items: center;
-            gap: 12px;
-        }
-        .error-box.show {
-            display: flex;
-        }
-        .error-box i {
-            font-size: 24px;
-        }
-        .error-box .error-text {
-            flex: 1;
-        }
-        .error-box .retry-btn {
-            background: #721c24;
-            color: #fff;
-            border: none;
-            padding: 6px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-        }
-        .error-box .retry-btn:hover {
-            background: #5a151b;
-        }
-
-        /* ============================================================
-           SIDEBAR
-           ============================================================ */
         .sidebar {
             width: var(--sidebar-width);
             background: var(--bg-sidebar);
@@ -251,6 +164,7 @@
         .sidebar.collapsed .logout-btn i {
             font-size: 20px;
         }
+
         .sidebar::-webkit-scrollbar {
             width: 4px;
         }
@@ -434,9 +348,6 @@
             display: block;
         }
 
-        /* ============================================================
-           MAIN CONTENT
-           ============================================================ */
         .main-content {
             margin-left: var(--sidebar-width);
             flex: 1;
@@ -600,22 +511,82 @@
         .btn-secondary:hover {
             background: var(--input-border);
         }
-        .btn-danger {
-            background: var(--danger);
-            color: #fff;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 12px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.2s;
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
         }
-        .btn-danger:hover {
-            background: #c0392b;
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            padding: 18px 20px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow);
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-hover);
+        }
+        .stat-card .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .stat-card .stat-icon.orange {
+            background: linear-gradient(135deg, #e67e22, #f39c12);
+        }
+        .stat-card .stat-icon.green {
+            background: linear-gradient(135deg, #1a6e3a, #2e8b4a);
+        }
+        .stat-card .stat-icon.blue {
+            background: linear-gradient(135deg, #0d47a1, #1976d2);
+        }
+        .stat-card .stat-icon.red {
+            background: linear-gradient(135deg, #c62828, #e53935);
+        }
+        .stat-card .stat-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .stat-card .stat-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            display: block;
+            margin-bottom: 2px;
+            transition: color 0.3s;
+        }
+        .stat-card .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: block;
+            transition: color 0.3s;
+        }
+        .stat-card .stat-value.pending {
+            color: var(--warning);
+        }
+        .stat-card .stat-value.paid {
+            color: var(--success);
+        }
+        .stat-card .stat-value.total {
+            color: var(--penalty-color);
         }
 
-        /* ===== ACTION BUTTONS ===== */
+        /* Action Buttons */
         .action-btn {
             border: none;
             padding: 6px 10px;
@@ -666,26 +637,6 @@
             box-shadow: 0 6px 24px rgba(45, 122, 61, 0.4);
         }
 
-        .action-btn.approve-btn {
-            background: linear-gradient(135deg, #2196f3, #1976d2);
-            color: #fff;
-            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
-        }
-        .action-btn.approve-btn:hover {
-            background: linear-gradient(135deg, #1976d2, #0d47a1);
-            box-shadow: 0 6px 24px rgba(33, 150, 243, 0.4);
-        }
-
-        .action-btn.reject-btn {
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
-            color: #fff;
-            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
-        }
-        .action-btn.reject-btn:hover {
-            background: linear-gradient(135deg, #c0392b, #99281b);
-            box-shadow: 0 6px 24px rgba(231, 76, 60, 0.4);
-        }
-
         .action-btn.edit-btn {
             background: linear-gradient(135deg, #ff9800, #f57c00);
             color: #fff;
@@ -706,7 +657,7 @@
             box-shadow: 0 6px 24px rgba(231, 76, 60, 0.4);
         }
 
-        /* ===== BADGES ===== */
+        /* Badges */
         .status-badge {
             padding: 4px 12px;
             border-radius: 20px;
@@ -714,21 +665,13 @@
             font-weight: 600;
             display: inline-block;
         }
-        .status-badge.pending-penalty {
+        .status-badge.pending {
             background: #fff3cd;
             color: #856404;
-        }
-        .status-badge.pending-approval {
-            background: #cce5ff;
-            color: #004085;
         }
         .status-badge.paid {
             background: #d4edda;
             color: #155724;
-        }
-        .status-badge.overdue {
-            background: #f8d7da;
-            color: #721c24;
         }
         .status-badge.rejected {
             background: #f8d7da;
@@ -751,54 +694,7 @@
             color: #c45a1a;
         }
 
-        /* ===== STATS CARDS ===== */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-        .stat-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 16px 20px;
-            box-shadow: var(--shadow);
-            transition: all 0.3s;
-        }
-        .stat-card:hover {
-            box-shadow: var(--shadow-hover);
-        }
-        .stat-card .stat-label {
-            font-size: 13px;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
-        .stat-card .stat-value {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-top: 4px;
-        }
-        .stat-card .stat-value.pending-value {
-            color: var(--warning);
-        }
-        .stat-card .stat-value.paid-value {
-            color: var(--success);
-        }
-        .stat-card .stat-value.total-value {
-            color: var(--penalty);
-        }
-        .stat-card .stat-value.approval-value {
-            color: var(--info);
-        }
-        .stat-card .stat-icon {
-            float: right;
-            font-size: 28px;
-            opacity: 0.3;
-        }
-
-        /* ===== SEARCH & FILTER ===== */
+        /* Search Bar */
         .search-bar {
             display: flex;
             gap: 16px;
@@ -850,7 +746,7 @@
             box-shadow: 0 0 0 3px var(--input-focus);
         }
 
-        /* ===== TABLE ===== */
+        /* Table */
         .table-container {
             background: var(--bg-card);
             border-radius: 16px;
@@ -914,12 +810,6 @@
         tbody tr.pending-row:hover {
             background: #fff3cd;
         }
-        tbody tr.approval-row {
-            background: #f0f7ff;
-        }
-        tbody tr.approval-row:hover {
-            background: #e3f0ff;
-        }
 
         .pagination-container {
             display: flex;
@@ -972,75 +862,7 @@
             cursor: not-allowed;
         }
 
-        /* ===== TOASTS ===== */
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 99999;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .toast {
-            padding: 14px 24px;
-            border-radius: 12px;
-            color: #fff;
-            font-weight: 500;
-            font-size: 14px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-            animation: slideIn 0.3s ease;
-            min-width: 280px;
-            max-width: 400px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .toast i {
-            font-size: 18px;
-        }
-        .toast.success {
-            background: var(--success);
-        }
-        .toast.error {
-            background: var(--danger);
-        }
-        .toast.warning {
-            background: var(--warning);
-        }
-        .toast.penalty {
-            background: var(--penalty);
-        }
-        .toast.info {
-            background: var(--info);
-        }
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-        .toast.fade-out {
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .app-footer {
-            background: var(--bg-card);
-            border-top: 1px solid var(--border-color);
-            padding: 16px 30px;
-            text-align: center;
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-top: auto;
-            transition: all 0.3s;
-        }
-
-        /* ===== MODALS ===== */
+        /* Modal */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -1060,7 +882,7 @@
         .modal-content {
             background: var(--bg-card);
             border-radius: 16px;
-            max-width: 550px;
+            max-width: 650px;
             width: 100%;
             max-height: 90vh;
             overflow-y: auto;
@@ -1076,11 +898,6 @@
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 12px;
         }
-        .modal-content .modal-header h3 {
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--text-primary);
-        }
         .modal-content .modal-close {
             background: none;
             border: none;
@@ -1094,11 +911,11 @@
         }
 
         .modal-content .form-group {
-            margin-bottom: 14px;
+            margin-bottom: 16px;
         }
         .modal-content .form-group label {
             font-weight: 500;
-            font-size: 13px;
+            font-size: 14px;
             color: var(--text-primary);
             display: block;
             margin-bottom: 4px;
@@ -1110,10 +927,10 @@
         .modal-content .form-group input,
         .modal-content .form-group select,
         .modal-content .form-group textarea {
-            padding: 8px 12px;
+            padding: 10px 14px;
             border: 1px solid var(--input-border);
             border-radius: 8px;
-            font-size: 13px;
+            font-size: 14px;
             font-family: inherit;
             background: var(--input-bg);
             color: var(--text-primary);
@@ -1171,7 +988,89 @@
             color: var(--text-primary);
         }
 
-        /* ===== RESPONSIVE ===== */
+        .duplicate-warning {
+            display: none;
+            background: #fff3e0;
+            border: 1px solid #ff9800;
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: #e65100;
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+        .duplicate-warning.show {
+            display: block;
+        }
+        .duplicate-warning i {
+            margin-right: 8px;
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 14px 24px;
+            border-radius: 12px;
+            color: #fff;
+            font-weight: 500;
+            font-size: 14px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            animation: slideIn 0.3s ease;
+            min-width: 280px;
+            max-width: 400px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .toast i {
+            font-size: 18px;
+        }
+        .toast.success {
+            background: var(--success);
+        }
+        .toast.error {
+            background: var(--danger);
+        }
+        .toast.warning {
+            background: var(--warning);
+        }
+        .toast.info {
+            background: var(--info);
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .toast.fade-out {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .app-footer {
+            background: var(--bg-card);
+            border-top: 1px solid var(--border-color);
+            padding: 16px 30px;
+            text-align: center;
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: auto;
+            transition: all 0.3s;
+        }
+
+        /* Responsive */
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -1265,7 +1164,11 @@
                 width: 100%;
                 margin-bottom: 2px;
             }
+            .penalty-amount-display {
+                font-size: 22px;
+            }
         }
+
         @media (max-width: 480px) {
             .stats-grid {
                 grid-template-columns: 1fr;
@@ -1294,14 +1197,6 @@
 </head>
 <body>
 
-    <!-- GLOBAL ERROR BANNER -->
-    <div id="globalErrorBanner">
-        <span class="error-icon"><i class="fas fa-exclamation-circle"></i></span>
-        <span class="error-message" id="globalErrorMessage">Something went wrong.</span>
-        <button class="retry-btn" id="globalRetryBtn"><i class="fas fa-sync-alt"></i> Retry</button>
-    </div>
-
-    <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>
         <p data-i18n="loadingPenalties">Loading penalties...</p>
@@ -1309,7 +1204,6 @@
 
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <!-- ===== SIDEBAR ===== -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
             <button class="sidebar-toggle-btn" id="sidebarToggleBtn" title="Toggle Sidebar">
@@ -1334,8 +1228,10 @@
                 <li><a href="withdrawals.html"><i class="fas fa-money-bill-wave"></i> <span data-i18n="navWithdrawals">Withdrawals</span></a></li>
                 <li><a href="dividends.html"><i class="fas fa-gift"></i> <span data-i18n="navDividends">Dividends</span></a></li>
                 <li><a href="reports.html"><i class="fas fa-chart-bar"></i> <span data-i18n="navReports">Reports</span></a></li>
-                <li class="active"><a href="penalties.html"><i class="fas fa-exclamation-triangle"></i> <span data-i18n="navPenalties">Penalties</span></a></li>
-                <li id="auditNavItem" style="display:none;"><a href="audit.html"><i class="fas fa-clipboard-list"></i> <span data-i18n="navAudit">Audit Trail</span></a></li>
+                <li class="active"><a href="penalties.html"><i class="fas fa-exclamation-triangle" style="color:#e67e22;"></i> <span data-i18n="navPenalties">Penalties</span></a></li>
+                <li id="auditNavItem" style="display:none;">
+                    <a href="audit.html"><i class="fas fa-clipboard-list"></i> <span data-i18n="navAudit">Audit Trail</span></a>
+                </li>
                 <li id="usersNavItem" style="display:none;"><a href="users.html"><i class="fas fa-user-cog"></i> <span data-i18n="navUsers">Users</span></a></li>
                 <li><a href="settings.html"><i class="fas fa-cog"></i> <span data-i18n="navSettings">Settings</span></a></li>
             </ul>
@@ -1345,7 +1241,6 @@
         </div>
     </aside>
 
-    <!-- ===== MAIN CONTENT ===== -->
     <main class="main-content">
 
         <header class="top-header">
@@ -1376,45 +1271,44 @@
                     <h2 data-i18n="penaltiesTitle">Penalty Management</h2>
                     <p data-i18n="penaltiesSub">Track and manage penalties from unpaid savings and late loan repayments</p>
                 </div>
-                <div class="page-header-right">
-                    <button class="btn-secondary" id="refreshBtn">
-                        <i class="fas fa-sync-alt"></i> <span data-i18n="refreshBtn">Refresh</span>
-                    </button>
+                <button class="btn-secondary" id="refreshBtn">
+                    <i class="fas fa-sync-alt"></i> <span data-i18n="refreshBtn">Refresh</span>
+                </button>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon orange"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label" data-i18n="pendingPenalties">Pending Penalties</span>
+                        <span class="stat-value pending" id="pendingCount">0</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label" data-i18n="paidPenalties">Paid Penalties</span>
+                        <span class="stat-value paid" id="paidCount">0</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon red"><i class="fas fa-coins"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label" data-i18n="totalPenaltyAmount">Total Paid Penalties</span>
+                        <span class="stat-value total" id="totalAmount">ETB 0.00</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label" data-i18n="totalCustomers">Customers with Penalties</span>
+                        <span class="stat-value" id="customerCount">0</span>
+                    </div>
                 </div>
             </div>
 
-            <!-- ===== STATS CARDS ===== -->
-            <div class="stats-grid" id="statsGrid">
-                <div class="stat-card">
-                    <i class="fas fa-exclamation-triangle stat-icon" style="color:var(--warning);"></i>
-                    <div class="stat-label" data-i18n="pendingPenalties">Pending Penalties</div>
-                    <div class="stat-value pending-value" id="pendingCount">0</div>
-                </div>
-                <div class="stat-card">
-                    <i class="fas fa-clock stat-icon" style="color:var(--info);"></i>
-                    <div class="stat-label" data-i18n="awaitingApproval">Awaiting Approval</div>
-                    <div class="stat-value approval-value" id="approvalCount">0</div>
-                </div>
-                <div class="stat-card">
-                    <i class="fas fa-check-circle stat-icon" style="color:var(--success);"></i>
-                    <div class="stat-label" data-i18n="paidPenalties">Paid Penalties</div>
-                    <div class="stat-value paid-value" id="paidCount">0</div>
-                </div>
-                <div class="stat-card">
-                    <i class="fas fa-coins stat-icon" style="color:var(--penalty);"></i>
-                    <div class="stat-label" data-i18n="totalPenaltyAmount">Total Penalty Amount</div>
-                    <div class="stat-value total-value" id="totalAmount">ETB 0.00</div>
-                </div>
-            </div>
-
-            <!-- ===== ERROR BOX ===== -->
-            <div class="error-box" id="penaltyErrorBox">
-                <i class="fas fa-exclamation-triangle"></i>
-                <span class="error-text" id="penaltyErrorText" data-i18n="penaltyError">Failed to load penalties.</span>
-                <button class="retry-btn" id="retryPenaltiesBtn"><i class="fas fa-sync-alt"></i> <span data-i18n="retryBtn">Retry</span></button>
-            </div>
-
-            <!-- ===== SEARCH & FILTER ===== -->
+            <!-- Search Bar -->
             <div class="search-bar">
                 <div class="search-wrapper">
                     <i class="fas fa-search"></i>
@@ -1423,8 +1317,7 @@
                 <div class="filter-wrapper">
                     <select id="statusFilter">
                         <option value="all" data-i18n="allStatus">All Status</option>
-                        <option value="pending" selected data-i18n="pending">Pending</option>
-                        <option value="approval" data-i18n="awaitingApproval">Awaiting Approval</option>
+                        <option value="pending" data-i18n="pending">Pending</option>
                         <option value="paid" data-i18n="paid">Paid</option>
                         <option value="rejected" data-i18n="rejected">Rejected</option>
                     </select>
@@ -1438,7 +1331,7 @@
                 </div>
             </div>
 
-            <!-- ===== TABLE ===== -->
+            <!-- Table -->
             <div class="table-container">
                 <div class="table-header">
                     <span data-i18n="penaltyRecords">Penalty Records</span>
@@ -1483,7 +1376,7 @@
         </section>
 
         <footer class="app-footer">
-            <p>© 2026 GERESU DHUKI SACCO. <span data-i18n="rights">All rights reserved.</span> <span data-i18n="designedBy">Designed by : Eng. Abdi.F Software</span></p>
+            <p>© 2026 GERESU DHUKI SACCO. All rights reserved. Designed by : Eng. Abdi.F Software</p>
         </footer>
     </main>
 
@@ -1507,28 +1400,51 @@
             </div>
             <form id="payPenaltyForm">
                 <input type="hidden" id="payPenaltyId" />
+
                 <div class="penalty-amount-display">
                     <span data-i18n="amountLabel">Amount:</span> <span id="payPenaltyAmount">ETB 0.00</span>
                     <br /><small data-i18n="customerLabel">Customer: <span id="payPenaltyCustomer">—</span></small>
                 </div>
+
+                <div class="duplicate-warning" id="duplicateWarning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span data-i18n="duplicateWarning">This TT number and transfer date combination already exists. Please check.</span>
+                </div>
+
                 <div class="form-group">
                     <label data-i18n="paymentDateLabel">Payment Date <span class="required">*</span></label>
                     <input type="date" id="paymentDate" required />
                 </div>
+
                 <div class="form-group">
-                    <label data-i18n="paymentMethodLabel">Payment Method <span class="required">*</span></label>
+                    <label data-i18n="paymentMethodLabel">Transfer Type <span class="required">*</span></label>
                     <select id="paymentMethod" required>
-                        <!-- Options dynamically populated -->
+                        <option value="mobile" data-i18n="mobileTransfer">Mobile Transfer</option>
+                        <option value="bank" data-i18n="bankDeposit">Bank Deposit</option>
+                        <option value="cash" data-i18n="cash">Cash</option>
                     </select>
+                    <small id="transferTypeInfo" style="color:var(--text-secondary); font-size:11px;">Cash available for Admin/Manager only</small>
                 </div>
+
                 <div class="form-group">
-                    <label data-i18n="referenceNote">Reference / Note</label>
-                    <input type="text" id="paymentNote" data-i18n="optionalNote" placeholder="Optional reference or note" />
+                    <label data-i18n="ttNumberLabel">TT Number <span class="required">*</span></label>
+                    <input type="text" id="ttNumber" placeholder="Enter TT number" required />
                 </div>
+
+                <div class="form-group">
+                    <label data-i18n="bankNameLabel">Bank / Provider Name</label>
+                    <input type="text" id="bankName" placeholder="Enter bank or provider name" />
+                </div>
+
+                <div class="form-group">
+                    <label data-i18n="referenceNote">Note (optional)</label>
+                    <input type="text" id="paymentNote" placeholder="Optional reference or note" />
+                </div>
+
                 <div class="form-actions">
                     <button type="button" class="btn-secondary" id="cancelPayBtn" data-i18n="cancelBtn">Cancel</button>
                     <button type="submit" class="btn-primary" id="confirmPayBtn">
-                        <i class="fas fa-check"></i> <span data-i18n="submitPayment">Submit Payment</span>
+                        <i class="fas fa-check"></i> <span data-i18n="submitPayment">Pay Penalty</span>
                     </button>
                 </div>
             </form>
@@ -1552,7 +1468,6 @@
                     <label data-i18n="statusLabel">Status</label>
                     <select id="editStatus">
                         <option value="pending" data-i18n="pending">Pending</option>
-                        <option value="approval" data-i18n="awaitingApproval">Awaiting Approval</option>
                         <option value="paid" data-i18n="paid">Paid</option>
                         <option value="rejected" data-i18n="rejected">Rejected</option>
                     </select>
@@ -1566,7 +1481,7 @@
                 </div>
                 <div class="form-group">
                     <label data-i18n="noteLabel">Note</label>
-                    <textarea id="editNote" rows="3" data-i18n="optionalNote" placeholder="Optional note"></textarea>
+                    <textarea id="editNote" rows="3" placeholder="Optional note"></textarea>
                 </div>
                 <div class="form-actions">
                     <button type="button" class="btn-secondary" id="cancelEditBtn" data-i18n="cancelBtn">Cancel</button>
@@ -1577,6 +1492,8 @@
             </form>
         </div>
     </div>
+
+    <div id="toast-container" class="toast-container"></div>
 
     <script>
         // ============================================================
@@ -1594,12 +1511,10 @@
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
-        const storage = firebase.storage();
-
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // MULTI-LANGUAGE TRANSLATIONS
+        // TRANSLATIONS (simplified)
         // ============================================================
         const translations = {
             en: {
@@ -1620,17 +1535,13 @@
                 logout: 'Logout',
                 pageTitle: 'Penalties',
                 breadcrumb: 'Home / Penalties',
-                rights: 'All rights reserved.',
-                designedBy: 'Designed by : Eng. Abdi.F Software',
                 penaltiesTitle: 'Penalty Management',
                 penaltiesSub: 'Track and manage penalties from unpaid savings and late loan repayments',
                 refreshBtn: 'Refresh',
                 pendingPenalties: 'Pending Penalties',
-                awaitingApproval: 'Awaiting Approval',
                 paidPenalties: 'Paid Penalties',
-                totalPenaltyAmount: 'Total Penalty Amount',
-                penaltyError: 'Failed to load penalties.',
-                retryBtn: 'Retry',
+                totalPenaltyAmount: 'Total Paid Penalties',
+                totalCustomers: 'Customers with Penalties',
                 searchPlaceholder: 'Search by customer name, ID, or transaction...',
                 allStatus: 'All Status',
                 pending: 'Pending',
@@ -1655,253 +1566,53 @@
                 amountLabel: 'Amount',
                 customerLabel: 'Customer',
                 paymentDateLabel: 'Payment Date',
-                paymentMethodLabel: 'Payment Method',
+                paymentMethodLabel: 'Transfer Type',
                 cash: 'Cash',
                 mobileTransfer: 'Mobile Transfer',
                 bankDeposit: 'Bank Deposit',
-                referenceNote: 'Reference / Note',
+                ttNumberLabel: 'TT Number',
+                bankNameLabel: 'Bank / Provider Name',
+                referenceNote: 'Note (optional)',
                 optionalNote: 'Optional reference or note',
                 cancelBtn: 'Cancel',
-                submitPayment: 'Submit Payment',
+                submitPayment: 'Pay Penalty',
                 editPenaltyTitle: 'Edit Penalty',
                 statusLabel: 'Status',
                 sourceLabel: 'Source',
                 noteLabel: 'Note',
                 updatePenalty: 'Update Penalty',
                 loadingPenalties: 'Loading penalties...',
-                penaltyUpdated: 'Penalty updated successfully!',
-                penaltyUpdateError: 'Error updating penalty: ',
-                penaltyPaid: 'Penalty payment submitted successfully! Awaiting approval.',
+                penaltyPaid: 'Penalty paid successfully! Payment recorded.',
                 penaltyPayError: 'Error paying penalty: ',
-                penaltyDeleted: 'Penalty deleted successfully!',
-                penaltyDeleteError: 'Error deleting penalty: ',
-                confirmDelete: 'Are you sure you want to delete this penalty record? This action cannot be undone.',
-                confirmPay: 'Submit payment for this penalty? It will require approval.',
+                pay: 'Pay',
+                view: 'View',
                 edit: 'Edit',
                 delete: 'Delete',
-                view: 'View',
-                pay: 'Pay',
-                approve: 'Approve',
-                reject: 'Reject',
                 transactionId: 'Transaction ID',
                 created: 'Created',
                 paidDate: 'Paid Date',
-                paymentMethod: 'Payment Method',
+                paymentMethod: 'Transfer Type',
                 note: 'Note',
-                noPending: 'No pending penalties found.',
-                noApproval: 'No penalties awaiting approval.',
-                approvalInfo: 'Payment submitted for approval',
-                penaltyApproved: 'Penalty approved successfully!',
-                penaltyApprovalError: 'Error approving penalty: ',
-                penaltyRejected: 'Penalty rejected successfully!',
-                penaltyRejectError: 'Error rejecting penalty: ',
-                rejected: 'Rejected',
-                pendingPayment: 'Pending Payment'
-            },
-            am: {
-                // Amharic translations (simplified for brevity - same structure)
-                brandSub: 'ባንክ ስርዓት',
-                navDashboard: 'ዳሽቦርድ',
-                navCustomers: 'ደንበኞች',
-                navSavings: 'ቁጠባዎች',
-                navDeposits: 'ተቀማጭ',
-                navLoans: 'ብድር',
-                navRepayments: 'ክፍያዎች',
-                navWithdrawals: 'መውጫዎች',
-                navDividends: 'ክፍፍል',
-                navReports: 'ሪፖርቶች',
-                navPenalties: 'ቅጣቶች',
-                navAudit: 'የምዝግብ ታሪክ',
-                navUsers: 'ተጠቃሚዎች',
-                navSettings: 'ቅንብሮች',
-                logout: 'ውጣ',
-                pageTitle: 'ቅጣቶች',
-                breadcrumb: 'ዋና ገጽ / ቅጣቶች',
-                rights: 'መብቶች በሙሉ ተጠብቀዋል።',
-                designedBy: 'የተነደፈው በ: ኢንጅ. አብዲ.ኤፍ ሶፍትዌር',
-                penaltiesTitle: 'የቅጣት አስተዳደር',
-                penaltiesSub: 'ያልተከፈሉ ቁጠባዎች እና ዘግይተው የብድር ክፍያዎች ቅጣቶችን ይከታተሉ እና ያስተዳድሩ',
-                refreshBtn: 'እንደገና ጫን',
-                pendingPenalties: 'በመጠበቅ ላይ ያሉ ቅጣቶች',
-                awaitingApproval: 'ማጽደቅ የሚጠብቁ',
-                paidPenalties: 'የተከፈሉ ቅጣቶች',
-                totalPenaltyAmount: 'ጠቅላላ የቅጣት መጠን',
-                penaltyError: 'ቅጣቶችን ማስገባት አልተሳካም።',
-                retryBtn: 'እንደገና ሞክር',
-                searchPlaceholder: 'በደንበኛ ስም፣ መታወቂያ ወይም ግብይት ይፈልጉ...',
-                allStatus: 'ሁሉም ሁኔታ',
-                pending: 'በመጠበቅ ላይ',
-                paid: 'ተከፍሏል',
-                rejected: 'ውድቅ ተደርጓል',
-                allSources: 'ሁሉም ምንጮች',
-                savingsSource: 'ቁጠባ',
-                loanSource: 'የብድር ክፍያ',
-                penaltyRecords: 'የቅጣት መዝገቦች',
-                customerHeader: 'ደንበኛ',
-                amountHeader: 'መጠን',
-                sourceHeader: 'ምንጭ',
-                originalTransactionHeader: 'የመጀመሪያ ግብይት',
-                statusHeader: 'ሁኔታ',
-                dateHeader: 'ቀን',
-                actionsHeader: 'ተግባራት',
-                noPenalties: 'ምንም ቅጣቶች አልተገኙም።',
-                showing: 'እያሳየ',
-                of: 'ከ',
-                penaltyDetails: 'የቅጣት ዝርዝሮች',
-                payPenaltyTitle: 'ቅጣት ክፈሉ',
-                amountLabel: 'መጠን',
-                customerLabel: 'ደንበኛ',
-                paymentDateLabel: 'የክፍያ ቀን',
-                paymentMethodLabel: 'የክፍያ ዘዴ',
-                cash: 'ጥሬ ገንዘብ',
-                mobileTransfer: 'ከሞባይል ዝውውር',
-                bankDeposit: 'የባንክ ተቀማጭ',
-                referenceNote: 'ማጣቀሻ / ማስታወሻ',
-                optionalNote: 'አማራጭ ማጣቀሻ ወይም ማስታወሻ',
-                cancelBtn: 'ሰርዝ',
-                submitPayment: 'ክፍያ አስገባ',
-                editPenaltyTitle: 'ቅጣት ያስተካክሉ',
-                statusLabel: 'ሁኔታ',
-                sourceLabel: 'ምንጭ',
-                noteLabel: 'ማስታወሻ',
-                updatePenalty: 'ቅጣት ያሻሽሉ',
-                loadingPenalties: 'ቅጣቶች እየተጫኑ ነው...',
-                penaltyUpdated: 'ቅጣት በተሳካ ሁኔታ ተሻሽሏል!',
-                penaltyUpdateError: 'ቅጣት በማሻሻል ላይ ስህተት: ',
-                penaltyPaid: 'የቅጣት ክፍያ በተሳካ ሁኔታ ቀርቧል! ማጽደቅ ይጠበቃል።',
-                penaltyPayError: 'ቅጣት በመክፈል ላይ ስህተት: ',
-                penaltyDeleted: 'ቅጣት በተሳካ ሁኔታ ተሰርዟል!',
-                penaltyDeleteError: 'ቅጣት በመሰረዝ ላይ ስህተት: ',
-                confirmDelete: 'ይህን የቅጣት መዝገብ መሰረዝ እርግጠኛ ነዎት? ይህ ተግባር ሊቀለበስ አይችልም።',
-                confirmPay: 'ለዚህ ቅጣት ክፍያ ማስገባት ይፈልጋሉ? ማጽደቅ ያስፈልጋል።',
-                edit: 'ያስተካክሉ',
-                delete: 'ሰርዝ',
-                view: 'ይመልከቱ',
-                pay: 'ክፈሉ',
-                approve: 'ያጽድቁ',
-                reject: 'ውድቅ አድርጉ',
-                transactionId: 'የግብይት መታወቂያ',
-                created: 'ተፈጥሯል',
-                paidDate: 'የተከፈለበት ቀን',
-                paymentMethod: 'የክፍያ ዘዴ',
-                note: 'ማስታወሻ',
-                noPending: 'ምንም በመጠበቅ ላይ ያሉ ቅጣቶች አልተገኙም።',
-                noApproval: 'ምንም ማጽደቅ የሚጠብቁ ቅጣቶች አልተገኙም።',
-                approvalInfo: 'ክፍያ ለማጽደቅ ቀርቧል',
-                penaltyApproved: 'ቅጣት በተሳካ ሁኔታ ጸድቋል!',
-                penaltyApprovalError: 'ቅጣት በማጽደቅ ላይ ስህተት: ',
-                penaltyRejected: 'ቅጣት በተሳካ ሁኔታ ውድቅ ተደርጓል!',
-                penaltyRejectError: 'ቅጣት ውድቅ በማድረግ ላይ ስህተት: ',
-                rejected: 'ውድቅ ተደርጓል',
-                pendingPayment: 'ክፍያ በመጠበቅ ላይ'
-            },
-            om: {
-                // Oromo translations
-                brandSub: 'Sirna Baankii',
-                navDashboard: 'Gabatee',
-                navCustomers: 'Maamila',
-                navSavings: 'Kusaa',
-                navDeposits: 'Kaasaa',
-                navLoans: 'Liqii',
-                navRepayments: 'Kaffaltuu',
-                navWithdrawals: 'Baasii',
-                navDividends: 'Qooda',
-                navReports: 'Odeeffannoo',
-                navPenalties: 'Adaba',
-                navAudit: 'Seenaa Galmee',
-                navUsers: 'Fayyadamtoota',
-                navSettings: 'Qindeessaa',
-                logout: 'Baasi',
-                pageTitle: 'Adaba',
-                breadcrumb: 'Mana / Adaba',
-                rights: 'Mirgi hundi eegama.',
-                designedBy: 'Kan uume: Eng. Abdi.F Software',
-                penaltiesTitle: 'Bulchiinsa Adabaa',
-                penaltiesSub: 'Adaboota kaasaa hin kaffalamneefi kaffaltii liqii waaree irraa uumaman hordofiifi bulchi',
-                refreshBtn: 'Deebi\'i Fe\'i',
-                pendingPenalties: 'Adaboota Eegamaa',
-                awaitingApproval: 'Mirkaneessa Eegamaa',
-                paidPenalties: 'Adaboota Kaffalamani',
-                totalPenaltyAmount: 'Waliigala Hanga Adabaa',
-                penaltyError: 'Adaboota fe\'uun hin milkaane.',
-                retryBtn: 'Deebi\'i Yaali',
-                searchPlaceholder: 'Maqaa maamila, ID, yookiin daldalaan barbaadi...',
-                allStatus: 'Haala Hunda',
-                pending: 'Eegamaa',
-                paid: 'Kaffalame',
-                rejected: 'Didame',
-                allSources: 'Madda Hunda',
-                savingsSource: 'Kusaa',
-                loanSource: 'Kaffaltii Liqii',
-                penaltyRecords: 'Galmee Adabaa',
-                customerHeader: 'Maamila',
-                amountHeader: 'Hanga',
-                sourceHeader: 'Madda',
-                originalTransactionHeader: 'Daldala Jalqabaa',
-                statusHeader: 'Haala',
-                dateHeader: 'Guyyaa',
-                actionsHeader: 'Gochaa',
-                noPenalties: 'Adaboonni hin argamne.',
-                showing: 'Agarsii',
-                of: 'keessaa',
-                penaltyDetails: 'Gadifageenya Adabaa',
-                payPenaltyTitle: 'Adaba Kaffali',
-                amountLabel: 'Hanga',
-                customerLabel: 'Maamila',
-                paymentDateLabel: 'Guyyaa Kaffaltii',
-                paymentMethodLabel: 'Akkataa Kaffaltii',
-                cash: 'Maallaqa Saaphanaa',
-                mobileTransfer: 'Sochoosa Moobayilaa',
-                bankDeposit: 'Kuusaa Baankii',
-                referenceNote: 'Madda / Hubachi',
-                optionalNote: 'Hubachi filannoo',
-                cancelBtn: 'Haqi',
-                submitPayment: 'Kaffaltii Galchi',
-                editPenaltyTitle: 'Adaba Jijjiiri',
-                statusLabel: 'Haala',
-                sourceLabel: 'Madda',
-                noteLabel: 'Hubachi',
-                updatePenalty: 'Adaba Fooyyessi',
-                loadingPenalties: 'Adaboota fe\'amaa jira...',
-                penaltyUpdated: 'Adabni sirriitti fooyya\'e!',
-                penaltyUpdateError: 'Adaba fooyyessuuf dogoggora: ',
-                penaltyPaid: 'Kaffaltiin adabaa sirriitti galmeefame! Mirkaneessa eegamaa.',
-                penaltyPayError: 'Adaba kaffaluuf dogoggora: ',
-                penaltyDeleted: 'Adabni sirriitti haqame!',
-                penaltyDeleteError: 'Adaba haquuf dogoggora: ',
-                confirmDelete: 'Galmee adabaa kana haquu mirkaneeffattee? Gochi kun deebifamuu hin danda\'u.',
-                confirmPay: 'Kaffaltii adabaa kanaaf galchi? Mirkaneessa barbaada.',
-                edit: 'Jijjiiri',
-                delete: 'Haqi',
-                view: 'Ilaali',
-                pay: 'Kaffali',
-                approve: 'Mirkaneessi',
-                reject: 'Didi',
-                transactionId: 'ID Daldalaa',
-                created: 'Uumame',
-                paidDate: 'Guyyaa Kaffalame',
-                paymentMethod: 'Akkataa Kaffaltii',
-                note: 'Hubachi',
-                noPending: 'Adaboonni eegamaa hin argamne.',
-                noApproval: 'Adaboonni mirkaneessa eegamaa hin argamne.',
-                approvalInfo: 'Kaffaltiin mirkaneessaaf galmeefame',
-                penaltyApproved: 'Adabni sirriitti mirkanaa\'e!',
-                penaltyApprovalError: 'Adaba mirkaneessuuf dogoggora: ',
-                penaltyRejected: 'Adabni sirriitti didame!',
-                penaltyRejectError: 'Adaba diduuf dogoggora: ',
-                rejected: 'Didame',
-                pendingPayment: 'Kaffaltii Eegamaa'
+                deleteConfirm: 'Are you sure you want to delete this penalty record?',
+                deleteSuccess: 'Penalty deleted successfully!',
+                deleteError: 'Error deleting penalty: ',
+                editSuccess: 'Penalty updated successfully!',
+                editError: 'Error updating penalty: ',
+                duplicateWarning: 'This TT number and transfer date combination already exists. Please check.',
+                duplicateError: 'Duplicate TT number and transfer date found!',
+                ttNumberRequired: 'TT number is required.',
+                transferTypeRestricted: 'Cash transfers are restricted to Admin and Manager only.',
+                rights: 'All rights reserved.',
+                designedBy: 'Designed by : Eng. Abdi.F Software',
+                loadingPenalties: 'Loading penalties...',
             }
         };
 
-        // ============================================================
-        // GLOBAL VARIABLES
-        // ============================================================
         let currentLang = 'en';
         let currentUserRole = 'viewer';
-        let currentUserDisplayName = 'User';
+        let currentUserDisplayName = 'Admin';
         let allPenalties = [];
-        let membersList = [];
+        let customersMap = {};
         let filteredPenalties = [];
         let currentPage = 1;
         const pageSize = 10;
@@ -1913,7 +1624,6 @@
             if (!translations[lang]) return;
             currentLang = lang;
             const t = translations[lang];
-
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 if (t[key] !== undefined) {
@@ -1929,27 +1639,49 @@
                     }
                 }
             });
-
             document.querySelectorAll('.lang-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.lang === lang);
             });
-
-            document.title = `${t.pageTitle || 'Penalties'} – GERESU DHUKI SACCO`;
-            try { localStorage.setItem('sacco-lang', lang); } catch (e) {}
-
-            if (filteredPenalties.length > 0) {
-                const start = (currentPage - 1) * pageSize;
-                const end = start + pageSize;
-                const pageItems = filteredPenalties.slice(start, end);
-                renderTable(pageItems);
-            }
+            try { localStorage.setItem('waciti-lang', lang); } catch (e) {}
             updatePaginationInfo();
+            renderPageButtons();
+            updateTransferTypeOptions();
         }
 
         function initLanguage() {
-            const saved = localStorage.getItem('sacco-lang') || 'en';
+            const saved = localStorage.getItem('waciti-lang') || navigator.language.split('-')[0];
             const valid = ['en', 'am', 'om'];
             setLanguage(valid.includes(saved) ? saved : 'en');
+        }
+
+        function updateTransferTypeOptions() {
+            const select = document.getElementById('paymentMethod');
+            if (!select) return;
+            const isAdminManager = ['admin', 'manager'].includes(currentUserRole);
+            const currentVal = select.value;
+            const t = translations[currentLang] || translations.en;
+            select.innerHTML = '';
+            if (isAdminManager) {
+                const opt = document.createElement('option');
+                opt.value = 'cash';
+                opt.textContent = t.cash || 'Cash';
+                select.appendChild(opt);
+            }
+            const mobileOpt = document.createElement('option');
+            mobileOpt.value = 'mobile';
+            mobileOpt.textContent = t.mobileTransfer || 'Mobile Transfer';
+            select.appendChild(mobileOpt);
+            const bankOpt = document.createElement('option');
+            bankOpt.value = 'bank';
+            bankOpt.textContent = t.bankDeposit || 'Bank Deposit';
+            select.appendChild(bankOpt);
+            if ([...select.options].some(o => o.value === currentVal)) select.value = currentVal;
+            else select.value = 'mobile';
+            const infoEl = document.getElementById('transferTypeInfo');
+            if (infoEl) {
+                infoEl.textContent = isAdminManager ? 'Cash available for Admin/Manager only' :
+                    'Mobile Transfer and Bank Deposit only';
+            }
         }
 
         // ============================================================
@@ -2003,60 +1735,72 @@
         }
 
         // ============================================================
-        // ROLE-BASED SIDEBAR
-        // ============================================================
-        function updateSidebarVisibility(role) {
-            const auditNav = document.getElementById('auditNavItem');
-            if (auditNav) auditNav.style.display = (role === 'admin') ? '' : 'none';
-            const usersNav = document.getElementById('usersNavItem');
-            if (usersNav) usersNav.style.display = (role === 'admin') ? '' : 'none';
-        }
-
-        // ============================================================
-        // AUTH & USER
+        // USER INFO
         // ============================================================
         function updateUserInfo() {
             const roleMap = { admin: 'ADMIN', manager: 'MANAGER', teller: 'TELLER', accountant: 'ACCOUNTANT',
                 viewer: 'VIEWER' };
             const roleLabel = roleMap[currentUserRole] || 'VIEWER';
             const displayName = currentUserDisplayName || 'User';
-            const nameEl = document.getElementById('userDisplayName');
-            if (nameEl) nameEl.textContent = displayName + ' (' + roleLabel + ')';
-            updateSidebarVisibility(currentUserRole);
+            document.getElementById('userDisplayName').textContent = displayName + ' (' + roleLabel + ')';
+            const auditNav = document.getElementById('auditNavItem');
+            if (auditNav) auditNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
+            const usersNav = document.getElementById('usersNavItem');
+            if (usersNav) usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
+            updateTransferTypeOptions();
         }
 
         // ============================================================
-        // LOAD MEMBERS
+        // GET CUSTOMER NAME
         // ============================================================
-        async function loadMembers() {
+        function getCustomerName(customerId) {
+            if (!customerId) return 'Unknown';
+            return customersMap[customerId] || customerId;
+        }
+
+        // ============================================================
+        // LOAD CUSTOMERS
+        // ============================================================
+        async function loadCustomers() {
             try {
                 const snapshot = await db.collection('customers').get();
-                membersList = [];
+                customersMap = {};
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    membersList.push({
-                        id: doc.id,
-                        fullName: data.fullName || data.name || 'Unknown',
-                        customerId: data.customerId || data.memberId || '',
-                    });
+                    customersMap[doc.id] = data.fullName || data.name || 'Unknown';
                 });
                 return true;
             } catch (error) {
-                console.error('Error loading members:', error);
+                console.error('Error loading customers:', error);
                 return false;
             }
         }
 
-        function getMemberName(memberId) {
-            const member = membersList.find(m => m.id === memberId);
-            if (member) return member.fullName;
-            return memberId || 'Unknown';
-        }
+        // ============================================================
+        // CHECK DUPLICATE
+        // ============================================================
+        async function checkDuplicate(ttNumber, transferDate, excludeId = null) {
+            try {
+                if (!ttNumber || !transferDate) return false;
+                const parts = transferDate.split('-').map(Number);
+                const start = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 0, 0, 0));
+                const end = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999));
 
-        function getMemberId(memberId) {
-            const member = membersList.find(m => m.id === memberId);
-            if (member) return member.customerId || memberId;
-            return memberId || '—';
+                let query = db.collection('transactions')
+                    .where('ttNumber', '==', ttNumber)
+                    .where('transferDate', '>=', start)
+                    .where('transferDate', '<=', end)
+                    .where('type', 'in', ['savings', 'profit_income', 'repayment', 'penalty']);
+
+                const snapshot = await query.get();
+                if (excludeId) {
+                    return snapshot.docs.some(d => d.id !== excludeId);
+                }
+                return !snapshot.empty;
+            } catch (error) {
+                console.error('Duplicate check error:', error);
+                return false;
+            }
         }
 
         // ============================================================
@@ -2064,9 +1808,6 @@
         // ============================================================
         async function loadPenalties() {
             const overlay = document.getElementById('loadingOverlay');
-            const errorBox = document.getElementById('penaltyErrorBox');
-            const errorText = document.getElementById('penaltyErrorText');
-            errorBox.classList.remove('show');
             overlay.classList.add('active');
 
             try {
@@ -2095,18 +1836,16 @@
                     const data = doc.data();
                     allPenalties.push({
                         id: doc.id,
-                        ...data
+                        ...data,
+                        customerName: getCustomerName(data.memberId || data.customerId)
                     });
                 });
 
-                console.log(`✅ Loaded ${allPenalties.length} penalties`);
+                console.log('✅ Loaded penalties:', allPenalties.length);
                 applyFilters();
                 updateStats();
-                hideGlobalError();
             } catch (error) {
-                console.error('❌ Error loading penalties:', error);
-                errorText.textContent = 'Failed to load penalties: ' + error.message;
-                errorBox.classList.add('show');
+                console.error('Error loading penalties:', error);
                 showToast('Failed to load penalties: ' + error.message, 'error');
             } finally {
                 overlay.classList.remove('active');
@@ -2125,14 +1864,9 @@
 
             if (searchQuery) {
                 filtered = filtered.filter(p => {
-                    const memberName = getMemberName(p.memberId).toLowerCase();
-                    const memberId = getMemberId(p.memberId).toLowerCase();
-                    const source = p.source || (p.originalType || '');
-                    const transId = (p.originalTransactionId || p.originalSavingsId || '').toLowerCase();
-                    return memberName.includes(searchQuery) ||
-                        memberId.includes(searchQuery) ||
-                        source.toLowerCase().includes(searchQuery) ||
-                        transId.includes(searchQuery);
+                    const name = (p.customerName || '').toLowerCase();
+                    const id = (p.memberId || p.customerId || '').toLowerCase();
+                    return name.includes(searchQuery) || id.includes(searchQuery);
                 });
             }
 
@@ -2143,13 +1877,12 @@
             if (sourceFilter !== 'all') {
                 filtered = filtered.filter(p => {
                     const src = p.source || p.originalType || '';
-                    return src.toLowerCase().includes(sourceFilter === 'savings' ? 'savings' : 'loan');
+                    return src.toLowerCase().includes(sourceFilter);
                 });
             }
 
-            // Sort: pending first, then approval, then by date desc
             filtered.sort((a, b) => {
-                const statusOrder = { 'pending': 0, 'approval': 1, 'paid': 2, 'rejected': 3 };
+                const statusOrder = { 'pending': 0, 'paid': 1, 'rejected': 2 };
                 const orderA = statusOrder[a.status] || 999;
                 const orderB = statusOrder[b.status] || 999;
                 if (orderA !== orderB) return orderA - orderB;
@@ -2179,8 +1912,7 @@
 
             if (!items || items.length === 0) {
                 const status = document.getElementById('statusFilter').value;
-                let msg = status === 'pending' ? t.noPending || 'No pending penalties found.' :
-                    status === 'approval' ? t.noApproval || 'No penalties awaiting approval.' :
+                let msg = status === 'pending' ? 'No pending penalties found.' :
                     status === 'paid' ? 'No paid penalties found.' :
                     status === 'rejected' ? 'No rejected penalties found.' :
                     t.noPenalties || 'No penalties found.';
@@ -2190,22 +1922,17 @@
             }
 
             const isAdmin = currentUserRole === 'admin';
-            const isManager = currentUserRole === 'manager';
-            const canApprove = isAdmin || isManager;
-            const canPay = true; // All users can submit payment
-            const canEdit = isAdmin;
-            const canDelete = isAdmin;
 
             let html = '';
             items.forEach((p, i) => {
-                const memberName = getMemberName(p.memberId);
-                const memberIdDisplay = getMemberId(p.memberId);
                 const amount = Number(p.amount) || 0;
+                const source = p.source || p.originalType || 'Unknown';
+                const sourceLabel = source.toLowerCase().includes('loan') ? (t.loanSource || 'Loan Repayment') : (t
+                    .savingsSource || 'Savings');
+                const sourceClass = source.toLowerCase().includes('loan') ? 'loan' : 'savings';
 
-                // Status handling
                 const statusMap = {
-                    'pending': { label: t.pending || 'Pending', class: 'pending-penalty' },
-                    'approval': { label: t.awaitingApproval || 'Awaiting Approval', class: 'pending-approval' },
+                    'pending': { label: t.pending || 'Pending', class: 'pending' },
                     'paid': { label: t.paid || 'Paid', class: 'paid' },
                     'rejected': { label: t.rejected || 'Rejected', class: 'rejected' }
                 };
@@ -2213,62 +1940,45 @@
                 const statusLabel = statusInfo.label;
                 const statusClass = statusInfo.class;
 
-                const source = p.source || p.originalType || 'Unknown';
-                const sourceClass = source.toLowerCase().includes('loan') ? 'loan' : 'savings';
-                const sourceLabel = source.toLowerCase().includes('loan') ? (t.loanSource || 'Loan Repayment') : (t
-                    .savingsSource || 'Savings');
-
                 const dateStr = p.createdAt?.toDate?.() ?
                     p.createdAt.toDate().toLocaleDateString() :
                     new Date(p.createdAt || Date.now()).toLocaleDateString();
 
                 const originalId = p.originalTransactionId || p.originalSavingsId || '—';
 
-                let actionsHtml = '';
-                actionsHtml +=
-                    `<button class="action-btn view-btn" onclick="viewPenalty('${p.id}')" title="${t.view || 'View'}"><i class="fas fa-eye"></i></button>`;
+                let actionsHtml = `
+                    <button class="action-btn view-btn" onclick="window.viewPenalty('${p.id}')" title="${t.view || 'View'}"><i class="fas fa-eye"></i></button>
+                `;
 
-                // Payment button - only for pending penalties
-                if (p.status === 'pending' && canPay) {
+                // Pay button - only for pending penalties
+                if (p.status === 'pending') {
                     actionsHtml +=
-                        `<button class="action-btn pay-btn" onclick="payPenalty('${p.id}')" title="${t.pay || 'Pay'}"><i class="fas fa-money-bill-wave"></i></button>`;
+                        `<button class="action-btn pay-btn" onclick="window.payPenalty('${p.id}')" title="${t.pay || 'Pay'}"><i class="fas fa-money-bill-wave"></i></button>`;
                 }
 
-                // Approval/Reject buttons - for penalties awaiting approval
-                if (p.status === 'approval' && canApprove) {
+                // Edit button - Admin only
+                if (isAdmin) {
                     actionsHtml +=
-                        `<button class="action-btn approve-btn" onclick="approvePenaltyPayment('${p.id}')" title="${t.approve || 'Approve'}"><i class="fas fa-check-circle"></i></button>`;
-                    actionsHtml +=
-                        `<button class="action-btn reject-btn" onclick="rejectPenaltyPayment('${p.id}')" title="${t.reject || 'Reject'}"><i class="fas fa-times-circle"></i></button>`;
+                        `<button class="action-btn edit-btn" onclick="window.editPenalty('${p.id}')" title="${t.edit || 'Edit'}"><i class="fas fa-edit"></i></button>`;
                 }
 
-                if (canEdit) {
+                // Delete button - Admin only
+                if (isAdmin) {
                     actionsHtml +=
-                        `<button class="action-btn edit-btn" onclick="editPenalty('${p.id}')" title="${t.edit || 'Edit'}"><i class="fas fa-edit"></i></button>`;
+                        `<button class="action-btn delete-btn" onclick="window.deletePenalty('${p.id}')" title="${t.delete || 'Delete'}"><i class="fas fa-trash"></i></button>`;
                 }
 
-                if (canDelete) {
-                    actionsHtml +=
-                        `<button class="action-btn delete-btn" onclick="deletePenalty('${p.id}')" title="${t.delete || 'Delete'}"><i class="fas fa-trash"></i></button>`;
-                }
-
-                const rowClass = p.status === 'pending' ? 'pending-row' :
-                    p.status === 'approval' ? 'approval-row' : '';
-
-                const approvalNote = p.status === 'approval' ?
-                    `<span style="font-size:10px; color:var(--info); display:block;">${t.approvalInfo || 'Payment submitted for approval'}</span>` :
-                    '';
+                const rowClass = p.status === 'pending' ? 'pending-row' : '';
 
                 html += `<tr class="${rowClass}">
                     <td>${(currentPage-1)*pageSize + i + 1}</td>
                     <td>
-                        ${memberName}
-                        <span style="font-size:11px; color:var(--text-muted); display:block;">CI: ${memberIdDisplay}</span>
-                        ${approvalNote}
+                        ${p.customerName || 'Unknown'}
+                        ${p.memberId ? `<span style="font-size:11px; color:var(--text-muted); display:block;">ID: ${p.memberId}</span>` : ''}
                     </td>
                     <td><strong>ETB ${amount.toFixed(2)}</strong></td>
                     <td><span class="source-badge ${sourceClass}">${sourceLabel}</span></td>
-                    <td style="font-size:12px; color:var(--text-muted); font-family: monospace;">${originalId.slice(0, 12)}...</td>
+                    <td style="font-size:12px; color:var(--text-muted); font-family: monospace;">${typeof originalId === 'string' ? originalId.slice(0, 12) + '...' : '—'}</td>
                     <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
                     <td>${dateStr}</td>
                     <td style="white-space:nowrap;">${actionsHtml}</td>
@@ -2323,25 +2033,25 @@
         }
 
         // ============================================================
-        // STATS - Only count approved/paid penalties in totals
+        // UPDATE STATS - Only count paid penalties
         // ============================================================
         function updateStats() {
-            // Penalties that are still pending (unpaid) - not counted in totals
             const pending = allPenalties.filter(p => p.status === 'pending');
-            
-            // Penalties awaiting approval - not counted in totals yet
-            const awaitingApproval = allPenalties.filter(p => p.status === 'approval');
-            
-            // Only count paid penalties in totals (approved payments)
             const paid = allPenalties.filter(p => p.status === 'paid');
-            
-            // Total amount only from paid penalties (approved)
+
             const totalAmount = paid.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
+            const uniqueCustomers = new Set();
+            allPenalties.forEach(p => {
+                if (p.memberId || p.customerId) {
+                    uniqueCustomers.add(p.memberId || p.customerId);
+                }
+            });
+
             document.getElementById('pendingCount').textContent = pending.length;
-            document.getElementById('approvalCount').textContent = awaitingApproval.length;
             document.getElementById('paidCount').textContent = paid.length;
             document.getElementById('totalAmount').textContent = `ETB ${totalAmount.toFixed(2)}`;
+            document.getElementById('customerCount').textContent = uniqueCustomers.size;
         }
 
         // ============================================================
@@ -2355,13 +2065,9 @@
             }
 
             const t = translations[currentLang] || translations.en;
-            const memberName = getMemberName(penalty.memberId);
-            const memberIdDisplay = getMemberId(penalty.memberId);
             const amount = Number(penalty.amount) || 0;
-            
             const statusMap = {
-                'pending': { label: t.pending || 'Pending', class: 'pending-penalty' },
-                'approval': { label: t.awaitingApproval || 'Awaiting Approval', class: 'pending-approval' },
+                'pending': { label: t.pending || 'Pending', class: 'pending' },
                 'paid': { label: t.paid || 'Paid', class: 'paid' },
                 'rejected': { label: t.rejected || 'Rejected', class: 'rejected' }
             };
@@ -2372,6 +2078,7 @@
             const source = penalty.source || penalty.originalType || 'Unknown';
             const sourceLabel = source.toLowerCase().includes('loan') ? (t.loanSource || 'Loan Repayment') : (t
                 .savingsSource || 'Savings');
+            const sourceClass = source.toLowerCase().includes('loan') ? 'loan' : 'savings';
 
             const dateStr = penalty.createdAt?.toDate?.() ?
                 penalty.createdAt.toDate().toLocaleString() :
@@ -2386,17 +2093,17 @@
             const content = document.getElementById('viewPenaltyContent');
             content.innerHTML = `
                 <div class="view-detail-row"><span class="label">${t.transactionId || 'Transaction ID'}</span><span class="value" style="font-family:monospace;font-size:12px;">${penalty.id}</span></div>
-                <div class="view-detail-row"><span class="label">${t.customerLabel || 'Customer'}</span><span class="value">${memberName}</span></div>
-                <div class="view-detail-row"><span class="label">Customer ID</span><span class="value">${memberIdDisplay}</span></div>
+                <div class="view-detail-row"><span class="label">${t.customerLabel || 'Customer'}</span><span class="value">${penalty.customerName || 'Unknown'}</span></div>
+                <div class="view-detail-row"><span class="label">Customer ID</span><span class="value">${penalty.memberId || penalty.customerId || '—'}</span></div>
                 <div class="view-detail-row"><span class="label">${t.amountLabel || 'Amount'}</span><span class="value"><strong>ETB ${amount.toFixed(2)}</strong></span></div>
-                <div class="view-detail-row"><span class="label">${t.sourceLabel || 'Source'}</span><span class="value"><span class="source-badge ${source.toLowerCase().includes('loan') ? 'loan' : 'savings'}">${sourceLabel}</span></span></div>
+                <div class="view-detail-row"><span class="label">${t.sourceLabel || 'Source'}</span><span class="value"><span class="source-badge ${sourceClass}">${sourceLabel}</span></span></div>
                 <div class="view-detail-row"><span class="label">${t.originalTransactionHeader || 'Original Transaction'}</span><span class="value" style="font-family:monospace;font-size:12px;">${originalId}</span></div>
                 <div class="view-detail-row"><span class="label">${t.statusLabel || 'Status'}</span><span class="value"><span class="status-badge ${statusClass}">${statusLabel}</span></span></div>
                 <div class="view-detail-row"><span class="label">${t.created || 'Created'}</span><span class="value">${dateStr}</span></div>
                 ${penalty.status === 'paid' ? `<div class="view-detail-row"><span class="label">${t.paidDate || 'Paid Date'}</span><span class="value">${paidDateStr}</span></div>` : ''}
-                ${penalty.status === 'paid' ? `<div class="view-detail-row"><span class="label">${t.paymentMethod || 'Payment Method'}</span><span class="value">${penalty.paymentMethod || '—'}</span></div>` : ''}
-                ${penalty.status === 'approval' ? `<div class="view-detail-row"><span class="label">Payment Method</span><span class="value">${penalty.paymentMethod || '—'}</span></div>` : ''}
-                ${penalty.status === 'approval' ? `<div class="view-detail-row"><span class="label">Payment Date</span><span class="value">${penalty.paymentDate ? new Date(penalty.paymentDate).toLocaleDateString() : '—'}</span></div>` : ''}
+                ${penalty.status === 'paid' ? `<div class="view-detail-row"><span class="label">${t.paymentMethod || 'Transfer Type'}</span><span class="value">${penalty.paymentMethod || '—'}</span></div>` : ''}
+                ${penalty.status === 'paid' ? `<div class="view-detail-row"><span class="label">TT Number</span><span class="value">${penalty.ttNumber || '—'}</span></div>` : ''}
+                ${penalty.status === 'paid' ? `<div class="view-detail-row"><span class="label">Bank / Provider</span><span class="value">${penalty.bankName || '—'}</span></div>` : ''}
                 ${penalty.note ? `<div class="view-detail-row"><span class="label">${t.note || 'Note'}</span><span class="value">${penalty.note}</span></div>` : ''}
                 ${penalty.paymentNote ? `<div class="view-detail-row"><span class="label">Payment Note</span><span class="value">${penalty.paymentNote}</span></div>` : ''}
             `;
@@ -2411,105 +2118,115 @@
         }
 
         // ============================================================
-        // PAY PENALTY - Submits for approval (not automatically paid)
+        // PAY PENALTY - Opens modal directly
         // ============================================================
         function payPenalty(penaltyId) {
+            console.log('🔵 payPenalty called with ID:', penaltyId);
+
             const penalty = allPenalties.find(p => p.id === penaltyId);
             if (!penalty) {
                 showToast('Penalty not found.', 'error');
                 return;
             }
+
             if (penalty.status === 'paid') {
                 showToast('This penalty is already paid.', 'warning');
                 return;
             }
-            if (penalty.status === 'approval') {
-                showToast('This penalty is already awaiting approval.', 'warning');
-                return;
-            }
 
-            const t = translations[currentLang] || translations.en;
-            if (!confirm(t.confirmPay || 'Submit payment for this penalty? It will require approval.')) return;
-
-            const memberName = getMemberName(penalty.memberId);
+            // Populate the modal with penalty data
             document.getElementById('payPenaltyId').value = penaltyId;
             document.getElementById('payPenaltyAmount').textContent = `ETB ${Number(penalty.amount).toFixed(2)}`;
-            document.getElementById('payPenaltyCustomer').textContent = memberName;
+            document.getElementById('payPenaltyCustomer').textContent = penalty.customerName || 'Unknown';
             document.getElementById('paymentDate').value = new Date().toISOString().split('T')[0];
             document.getElementById('paymentNote').value = '';
+            document.getElementById('ttNumber').value = '';
+            document.getElementById('bankName').value = '';
+            document.getElementById('duplicateWarning').classList.remove('show');
 
-            // Populate payment method options based on user role
-            const methodSelect = document.getElementById('paymentMethod');
-            methodSelect.innerHTML = '';
+            updateTransferTypeOptions();
 
-            const baseOptions = [
-                { value: 'mobile', label: t.mobileTransfer || 'Mobile Transfer' },
-                { value: 'bank', label: t.bankDeposit || 'Bank Deposit' }
-            ];
+            // Show the modal
+            const modal = document.getElementById('payPenaltyModal');
+            modal.classList.add('active');
+            modal.style.display = 'flex';
 
-            // Admin gets an extra option: Cash
-            if (currentUserRole === 'admin') {
-                baseOptions.unshift({ value: 'cash', label: t.cash || 'Cash' });
-            }
-
-            baseOptions.forEach(opt => {
-                const option = document.createElement('option');
-                option.value = opt.value;
-                option.textContent = opt.label;
-                methodSelect.appendChild(option);
-            });
-
-            document.getElementById('payPenaltyModal').classList.add('active');
-            document.getElementById('payPenaltyModal').style.display = 'flex';
+            console.log('✅ Pay modal opened');
         }
 
         function closePayModal() {
             document.getElementById('payPenaltyModal').classList.remove('active');
             document.getElementById('payPenaltyModal').style.display = 'none';
+            document.getElementById('duplicateWarning').classList.remove('show');
         }
 
         // ============================================================
-        // CONFIRM PAY PENALTY - Submits for approval
+        // SUBMIT PAYMENT
         // ============================================================
         document.getElementById('payPenaltyForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            const penaltyId = document.getElementById('payPenaltyId').value;
-            const date = document.getElementById('paymentDate').value;
-            const method = document.getElementById('paymentMethod').value;
-            const note = document.getElementById('paymentNote').value.trim();
 
-            if (!date) {
+            const penaltyId = document.getElementById('payPenaltyId').value;
+            const paymentDate = document.getElementById('paymentDate').value;
+            const paymentMethod = document.getElementById('paymentMethod').value;
+            const ttNumber = document.getElementById('ttNumber').value.trim();
+            const bankName = document.getElementById('bankName').value.trim();
+            const paymentNote = document.getElementById('paymentNote').value.trim();
+
+            const t = translations[currentLang] || translations.en;
+
+            if (!paymentDate) {
                 showToast('Please select a payment date.', 'warning');
+                return;
+            }
+
+            if (!ttNumber) {
+                showToast(t.ttNumberRequired || 'TT number is required.', 'warning');
+                return;
+            }
+
+            const isAdminManager = ['admin', 'manager'].includes(currentUserRole);
+            if (paymentMethod === 'cash' && !isAdminManager) {
+                showToast(t.transferTypeRestricted || 'Cash transfers are restricted to Admin and Manager only.', 'error');
+                return;
+            }
+
+            // Check duplicate
+            const isDuplicate = await checkDuplicate(ttNumber, paymentDate, penaltyId);
+            if (isDuplicate) {
+                showToast(t.duplicateError || 'Duplicate TT number and transfer date found!', 'error');
+                document.getElementById('duplicateWarning').classList.add('show');
                 return;
             }
 
             const btn = document.getElementById('confirmPayBtn');
             const origHtml = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
 
             try {
                 const user = auth.currentUser;
-                const submittedByName = user?.displayName || user?.email || 'Admin';
+                const paidByName = user?.displayName || user?.email || 'Admin';
 
-                // Update penalty status to 'approval' - pending admin/manager approval
                 await db.collection('transactions').doc(penaltyId).update({
-                    status: 'approval',
-                    submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    paymentDate: new Date(date),
-                    paymentMethod: method,
-                    paymentNote: note || '',
-                    submittedByName: submittedByName,
-                    approvalStatus: 'pending'
+                    status: 'paid',
+                    paidAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    paidByName: paidByName,
+                    paymentDate: new Date(paymentDate),
+                    paymentMethod: paymentMethod,
+                    ttNumber: ttNumber,
+                    bankName: bankName || '',
+                    paymentNote: paymentNote || '',
+                    approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    approvedByName: paidByName
                 });
 
-                const t = translations[currentLang] || translations.en;
-                showToast(t.penaltyPaid || 'Penalty payment submitted successfully! Awaiting approval.', 'info');
+                showToast(t.penaltyPaid || 'Penalty paid successfully! Payment recorded.', 'success');
                 closePayModal();
                 await loadPenalties();
+
             } catch (error) {
-                console.error('Error submitting penalty payment:', error);
-                const t = translations[currentLang] || translations.en;
+                console.error('Error paying penalty:', error);
                 showToast((t.penaltyPayError || 'Error paying penalty: ') + error.message, 'error');
             } finally {
                 btn.disabled = false;
@@ -2518,61 +2235,39 @@
         });
 
         // ============================================================
-        // APPROVE PENALTY PAYMENT - Admin/Manager only
+        // DUPLICATE CHECK
         // ============================================================
-        async function approvePenaltyPayment(penaltyId) {
-            const t = translations[currentLang] || translations.en;
-            if (!confirm(t.approve || 'Approve this penalty payment?')) return;
+        document.getElementById('ttNumber').addEventListener('blur', async function() {
+            const ttNumber = this.value.trim();
+            const transferDate = document.getElementById('paymentDate').value;
+            const penaltyId = document.getElementById('payPenaltyId').value;
 
-            try {
-                const user = auth.currentUser;
-                const approvedByName = user?.displayName || user?.email || 'Admin';
-
-                await db.collection('transactions').doc(penaltyId).update({
-                    status: 'paid',
-                    paidAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    approvedByName: approvedByName
-                });
-
-                showToast(t.penaltyApproved || 'Penalty approved successfully!', 'success');
-                await loadPenalties();
-            } catch (error) {
-                console.error('Error approving penalty:', error);
-                showToast((t.penaltyApprovalError || 'Error approving penalty: ') + error.message, 'error');
+            if (ttNumber && transferDate) {
+                const isDuplicate = await checkDuplicate(ttNumber, transferDate, penaltyId);
+                document.getElementById('duplicateWarning').classList.toggle('show', isDuplicate);
             }
-        }
+        });
 
-        // ============================================================
-        // REJECT PENALTY PAYMENT - Admin/Manager only
-        // ============================================================
-        async function rejectPenaltyPayment(penaltyId) {
-            const t = translations[currentLang] || translations.en;
-            if (!confirm(t.reject || 'Reject this penalty payment? The penalty will remain pending.')) return;
+        document.getElementById('paymentDate').addEventListener('change', async function() {
+            const ttNumber = document.getElementById('ttNumber').value.trim();
+            const transferDate = this.value;
+            const penaltyId = document.getElementById('payPenaltyId').value;
 
-            try {
-                const user = auth.currentUser;
-                const rejectedByName = user?.displayName || user?.email || 'Admin';
-
-                await db.collection('transactions').doc(penaltyId).update({
-                    status: 'pending', // Revert to pending
-                    rejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    rejectedByName: rejectedByName,
-                    rejectionNote: 'Payment rejected'
-                });
-
-                showToast(t.penaltyRejected || 'Penalty rejected successfully!', 'warning');
-                await loadPenalties();
-            } catch (error) {
-                console.error('Error rejecting penalty:', error);
-                showToast((t.penaltyRejectError || 'Error rejecting penalty: ') + error.message, 'error');
+            if (ttNumber && transferDate) {
+                const isDuplicate = await checkDuplicate(ttNumber, transferDate, penaltyId);
+                document.getElementById('duplicateWarning').classList.toggle('show', isDuplicate);
             }
-        }
+        });
 
         // ============================================================
         // EDIT PENALTY
         // ============================================================
         function editPenalty(penaltyId) {
+            if (currentUserRole !== 'admin') {
+                showToast('Only Admin can edit penalties.', 'warning');
+                return;
+            }
+
             const penalty = allPenalties.find(p => p.id === penaltyId);
             if (!penalty) {
                 showToast('Penalty not found.', 'error');
@@ -2599,6 +2294,12 @@
         // ============================================================
         document.getElementById('editPenaltyForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+
+            if (currentUserRole !== 'admin') {
+                showToast('Only Admin can edit penalties.', 'warning');
+                return;
+            }
+
             const penaltyId = document.getElementById('editPenaltyId').value;
             const amount = parseFloat(document.getElementById('editAmount').value);
             const status = document.getElementById('editStatus').value;
@@ -2615,6 +2316,8 @@
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
 
+            const t = translations[currentLang] || translations.en;
+
             try {
                 await db.collection('transactions').doc(penaltyId).update({
                     amount: amount,
@@ -2624,14 +2327,12 @@
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-                const t = translations[currentLang] || translations.en;
-                showToast(t.penaltyUpdated || 'Penalty updated successfully!', 'success');
+                showToast(t.editSuccess || 'Penalty updated successfully!', 'success');
                 closeEditModal();
                 await loadPenalties();
             } catch (error) {
                 console.error('Error updating penalty:', error);
-                const t = translations[currentLang] || translations.en;
-                showToast((t.penaltyUpdateError || 'Error updating penalty: ') + error.message, 'error');
+                showToast((t.editError || 'Error updating penalty: ') + error.message, 'error');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = origHtml;
@@ -2642,108 +2343,36 @@
         // DELETE PENALTY
         // ============================================================
         async function deletePenalty(penaltyId) {
-            const t = translations[currentLang] || translations.en;
-            if (!confirm(t.confirmDelete || 'Are you sure you want to delete this penalty record? This action cannot be undone.'))
+            if (currentUserRole !== 'admin') {
+                showToast('Only Admin can delete penalties.', 'warning');
                 return;
+            }
+
+            const t = translations[currentLang] || translations.en;
+            if (!confirm(t.deleteConfirm || 'Are you sure you want to delete this penalty record?')) return;
 
             try {
                 await db.collection('transactions').doc(penaltyId).delete();
-                showToast(t.penaltyDeleted || 'Penalty deleted successfully.', 'success');
+                showToast(t.deleteSuccess || 'Penalty deleted successfully.', 'success');
                 await loadPenalties();
             } catch (error) {
-                showToast((t.penaltyDeleteError || 'Error deleting penalty: ') + error.message, 'error');
+                showToast((t.deleteError || 'Error deleting penalty: ') + error.message, 'error');
             }
         }
 
         // ============================================================
-        // GLOBAL ERROR HANDLING
+        // PAGE INIT
         // ============================================================
-        function showGlobalError(message) {
-            const banner = document.getElementById('globalErrorBanner');
-            document.getElementById('globalErrorMessage').textContent = message;
-            banner.classList.add('show');
-        }
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🔵 DOM loaded, initializing penalties page...');
 
-        function hideGlobalError() {
-            document.getElementById('globalErrorBanner').classList.remove('show');
-        }
-
-        // ============================================================
-        // INIT
-        // ============================================================
-        document.addEventListener('DOMContentLoaded', function() {
-            // Sidebar events
-            document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
-            document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
-            document.getElementById('sidebarToggleBtn').addEventListener('click', toggleSidebarCollapse);
-
-            // Logout
-            document.getElementById('logoutBtn').addEventListener('click', async function() {
-                if (confirm('Are you sure you want to log out?')) {
-                    await auth.signOut();
-                    window.location.href = '../login.html';
-                }
-            });
-
-            // Modal close buttons
-            document.getElementById('closeViewModal').addEventListener('click', closeViewModal);
-            document.getElementById('viewPenaltyModal').addEventListener('click', function(e) {
-                if (e.target === this) closeViewModal();
-            });
-            document.getElementById('closePayModal').addEventListener('click', closePayModal);
-            document.getElementById('cancelPayBtn').addEventListener('click', closePayModal);
-            document.getElementById('payPenaltyModal').addEventListener('click', function(e) {
-                if (e.target === this) closePayModal();
-            });
-            document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
-            document.getElementById('cancelEditBtn').addEventListener('click', closeEditModal);
-            document.getElementById('editPenaltyModal').addEventListener('click', function(e) {
-                if (e.target === this) closeEditModal();
-            });
-
-            // Search and filter
-            document.getElementById('searchInput').addEventListener('input', applyFilters);
-            document.getElementById('statusFilter').addEventListener('change', applyFilters);
-            document.getElementById('sourceFilter').addEventListener('change', applyFilters);
-
-            // Refresh
-            document.getElementById('refreshBtn').addEventListener('click', loadPenalties);
-            document.getElementById('retryPenaltiesBtn').addEventListener('click', loadPenalties);
-            document.getElementById('globalRetryBtn').addEventListener('click', function() {
-                hideGlobalError();
-                loadPenalties();
-            });
-
-            // Pagination
-            document.getElementById('prevPage').addEventListener('click', function() {
-                if (currentPage > 1) goToPage(currentPage - 1);
-            });
-            document.getElementById('nextPage').addEventListener('click', function() {
-                const totalPages = Math.ceil(filteredPenalties.length / pageSize);
-                if (currentPage < totalPages) goToPage(currentPage + 1);
-            });
-
-            // Language switcher
-            document.querySelectorAll('.lang-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const lang = this.dataset.lang;
-                    if (lang) setLanguage(lang);
-                    const start = (currentPage - 1) * pageSize;
-                    const end = start + pageSize;
-                    const pageItems = filteredPenalties.slice(start, end);
-                    renderTable(pageItems);
-                    updatePaginationInfo();
-                });
-            });
-
-            loadSidebarState();
-
-            // Auth
             auth.onAuthStateChanged(async (user) => {
                 if (!user) {
-                    window.location.href = '../login.html';
+                    window.location.href = '../index.html';
                     return;
                 }
+
+                console.log('🔵 User authenticated:', user.uid);
 
                 try {
                     const doc = await db.collection('users').doc(user.uid).get();
@@ -2751,43 +2380,95 @@
                         const data = doc.data();
                         currentUserRole = data.role || 'viewer';
                         currentUserDisplayName = data.displayName || data.name || user.displayName || user.email?.split(
-                            '@')[0] || 'User';
+                            '@')[0] || 'Admin';
                     } else {
                         currentUserRole = 'viewer';
-                        currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'User';
+                        currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'Admin';
                     }
                 } catch (err) {
-                    console.error('Error fetching user data:', err);
+                    console.error('Error fetching user role:', err);
                     currentUserRole = 'viewer';
-                    currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'User';
+                    currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'Admin';
                 }
+
+                console.log('🔵 User role:', currentUserRole);
 
                 updateUserInfo();
                 initLanguage();
+                loadSidebarState();
 
-                // Load theme
-                const savedTheme = localStorage.getItem('waciti-theme') || 'light';
-                if (savedTheme === 'dark') {
-                    document.documentElement.setAttribute('data-theme', 'dark');
-                } else {
-                    document.documentElement.removeAttribute('data-theme');
-                }
+                document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
+                document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
+                document.getElementById('sidebarToggleBtn').addEventListener('click', toggleSidebarCollapse);
 
-                await loadMembers();
+                document.querySelectorAll('.lang-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        setLanguage(this.dataset.lang);
+                        const pageItems = filteredPenalties.slice((currentPage - 1) * pageSize,
+                            currentPage * pageSize);
+                        renderTable(pageItems);
+                        updatePaginationInfo();
+                        renderPageButtons();
+                    });
+                });
+
+                document.getElementById('logoutBtn').addEventListener('click', async function() {
+                    if (confirm('Are you sure you want to log out?')) {
+                        await auth.signOut();
+                        window.location.href = '../index.html';
+                    }
+                });
+
+                await loadCustomers();
                 await loadPenalties();
 
-                // Expose functions globally
+                document.getElementById('searchInput').addEventListener('input', applyFilters);
+                document.getElementById('statusFilter').addEventListener('change', applyFilters);
+                document.getElementById('sourceFilter').addEventListener('change', applyFilters);
+                document.getElementById('refreshBtn').addEventListener('click', loadPenalties);
+
+                document.getElementById('prevPage').addEventListener('click', function() {
+                    if (currentPage > 1) goToPage(currentPage - 1);
+                });
+                document.getElementById('nextPage').addEventListener('click', function() {
+                    const totalPages = Math.ceil(filteredPenalties.length / pageSize);
+                    if (currentPage < totalPages) goToPage(currentPage + 1);
+                });
+
+                document.getElementById('closeViewModal').addEventListener('click', closeViewModal);
+                document.getElementById('viewPenaltyModal').addEventListener('click', function(e) {
+                    if (e.target === this) closeViewModal();
+                });
+                document.getElementById('closePayModal').addEventListener('click', closePayModal);
+                document.getElementById('cancelPayBtn').addEventListener('click', closePayModal);
+                document.getElementById('payPenaltyModal').addEventListener('click', function(e) {
+                    if (e.target === this) closePayModal();
+                });
+                document.getElementById('closeEditModal').addEventListener('click', closeEditModal);
+                document.getElementById('cancelEditBtn').addEventListener('click', closeEditModal);
+                document.getElementById('editPenaltyModal').addEventListener('click', function(e) {
+                    if (e.target === this) closeEditModal();
+                });
+
+                // Make functions globally accessible
                 window.viewPenalty = viewPenalty;
                 window.payPenalty = payPenalty;
-                window.approvePenaltyPayment = approvePenaltyPayment;
-                window.rejectPenaltyPayment = rejectPenaltyPayment;
                 window.editPenalty = editPenalty;
                 window.deletePenalty = deletePenalty;
                 window.goToPage = goToPage;
                 window.closeViewModal = closeViewModal;
                 window.closePayModal = closePayModal;
                 window.closeEditModal = closeEditModal;
-                window.setLanguage = setLanguage;
+                window.loadPenalties = loadPenalties;
+                window.applyFilters = applyFilters;
+
+                console.log('✅ Penalties page initialized');
+                console.log('🔵 Functions exposed to window:', {
+                    viewPenalty: typeof window.viewPenalty,
+                    payPenalty: typeof window.payPenalty,
+                    editPenalty: typeof window.editPenalty,
+                    deletePenalty: typeof window.deletePenalty
+                });
             });
         });
 
@@ -2797,71 +2478,56 @@
         (function() {
             const SESSION_TIMEOUT = 5 * 60 * 1000;
             const WARNING_TIMEOUT = SESSION_TIMEOUT - 30 * 1000;
-
-            let timer = null;
-            let warningTimer = null;
-            let warningToast = null;
-            let countdownInterval = null;
+            let timer = null,
+                warningTimer = null,
+                warningToast = null,
+                countdownInterval = null;
 
             function resetTimer() {
                 clearTimeout(timer);
                 clearTimeout(warningTimer);
                 clearInterval(countdownInterval);
-                if (warningToast) {
-                    warningToast.remove();
-                    warningToast = null;
-                }
+                if (warningToast) { warningToast.remove();
+                    warningToast = null; }
                 warningTimer = setTimeout(showWarning, WARNING_TIMEOUT);
                 timer = setTimeout(forceLogout, SESSION_TIMEOUT);
             }
 
             function showWarning() {
                 const t = translations && translations[currentLang] ? translations[currentLang] : { sessionTimeout: 'Your session will expire in {seconds} seconds.' };
+                const message = t.sessionTimeout || 'Your session will expire in {seconds} seconds.';
                 let seconds = 30;
-                const msg = t.sessionTimeout || 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
                 warningToast = document.createElement('div');
                 warningToast.style.cssText = `
-                    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-                    background: #f39c12; color: #fff; padding: 16px 24px; border-radius: 12px;
-                    font-size: 15px; font-weight: 500; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-                    z-index: 99999; max-width: 500px; text-align: center; display: flex;
-                    align-items: center; gap: 12px; animation: slideUp 0.3s ease;
-                `;
+                            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+                            background: #f39c12; color: #fff; padding: 16px 24px; border-radius: 12px;
+                            font-size: 15px; font-weight: 500; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+                            z-index: 99999; max-width: 500px; text-align: center; display: flex;
+                            align-items: center; gap: 12px; animation: slideUp 0.3s ease;
+                        `;
                 warningToast.innerHTML =
-                    `<i class="fas fa-clock"></i> <span id="sessionWarningText">${msg.replace('{seconds}', seconds)}</span>`;
-
-                const style = document.createElement('style');
-                style.textContent = `
-                    @keyframes slideUp {
-                        from { transform: translateX(-50%) translateY(20px); opacity: 0; }
-                        to { transform: translateX(-50%) translateY(0); opacity: 1; }
-                    }
-                `;
-                document.head.appendChild(style);
+                    `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
                 document.body.appendChild(warningToast);
-
                 countdownInterval = setInterval(() => {
                     seconds--;
                     const textEl = document.getElementById('sessionWarningText');
-                    if (textEl) textEl.textContent = msg.replace('{seconds}', seconds);
+                    if (textEl) textEl.textContent = message.replace('{seconds}', seconds);
                     if (seconds <= 0) clearInterval(countdownInterval);
                 }, 1000);
             }
 
             function forceLogout() {
                 clearInterval(countdownInterval);
-                if (warningToast) {
-                    warningToast.remove();
-                    warningToast = null;
-                }
-                auth.signOut().then(() => { window.location.href = '../login.html'; }).catch(() => { window.location
-                        .href = '../login.html'; });
+                if (warningToast) { warningToast.remove();
+                    warningToast = null; }
+                auth.signOut().then(() => { window.location.href = '../index.html'; }).catch(() => { window.location
+                        .href = '../index.html'; });
             }
 
             const events = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
 
             function handleActivity() { resetTimer(); }
-            events.forEach(evt => document.addEventListener(evt, handleActivity));
+            events.forEach(evt => { document.addEventListener(evt, handleActivity); });
             resetTimer();
 
             window.addEventListener('beforeunload', function() {
@@ -2869,7 +2535,7 @@
                 clearTimeout(warningTimer);
                 clearInterval(countdownInterval);
                 if (warningToast) warningToast.remove();
-                events.forEach(evt => document.removeEventListener(evt, handleActivity));
+                events.forEach(evt => { document.removeEventListener(evt, handleActivity); });
             });
         })();
     </script>
