@@ -434,7 +434,6 @@
             color: #fff;
             border-color: var(--primary);
         }
-        /* ---- TEST CONNECTION BUTTON ---- */
         .test-conn-btn {
             background: transparent;
             border: 1px solid var(--border-color);
@@ -700,9 +699,6 @@
             transition: color 0.3s;
         }
 
-        /* ============================================================
-           STAT CARDS - FONT SIZE FIX
-           ============================================================ */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -739,7 +735,7 @@
         }
         .stat-card .stat-info {
             flex: 1;
-            min-width: 0; /* prevent overflow */
+            min-width: 0;
         }
         .stat-card .stat-label {
             font-size: 12px;
@@ -752,7 +748,7 @@
             text-overflow: ellipsis;
         }
         .stat-card .stat-value {
-            font-size: 16px;  /* reduced from 20px to fit card */
+            font-size: 16px;
             font-weight: 700;
             display: block;
             letter-spacing: 0.2px;
@@ -1437,7 +1433,7 @@
                 </div>
             </div>
 
-            <!-- Stats Grid (9 cards - only ONE Total Capital) -->
+            <!-- Stats Grid -->
             <div class="performance-overview">
                 <h3 data-i18n="performanceOverview" style="font-size:16px; font-weight:600; color:var(--text-primary); margin-bottom:12px; transition:color 0.3s;">Performance Overview</h3>
                 <div class="stats-grid" id="statsGrid">
@@ -1460,7 +1456,7 @@
                     <div class="stat-card savings">
                         <div class="stat-icon"><i class="fas fa-piggy-bank"></i></div>
                         <div class="stat-info">
-                            <span class="stat-label" data-i18n="statSavings">Savings (ETB)</span>
+                            <span class="stat-label" data-i18n="statSavings">Approved Savings (ETB)</span>
                             <span class="stat-value" id="savingsValue">0</span>
                             <span class="stat-change" id="savingsChange"></span>
                         </div>
@@ -1536,7 +1532,7 @@
                 <div class="chart-card">
                     <div class="chart-header">
                         <h4><i class="fas fa-chart-line"></i> <span data-i18n="chartMonthlyTrends">Monthly Trends</span></h4>
-                        <span class="chart-sub" data-i18n="chartMonthlySub">Savings & Loans by month</span>
+                        <span class="chart-sub" data-i18n="chartMonthlySub">Approved Savings & Loans by month</span>
                     </div>
                     <div class="chart-container"><canvas id="monthlyChart"></canvas></div>
                 </div>
@@ -1605,6 +1601,37 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
+        // INTEREST CALCULATION FUNCTIONS
+        // ============================================================
+        function calculateInterest(principal, rate, months, type) {
+            const r = rate / 100;
+            const monthlyRate = r / 12;
+            const n = months;
+            switch (type) {
+                case 'simple':
+                    return principal * r * (n / 12);
+                case 'compound':
+                    return principal * (Math.pow(1 + monthlyRate, n) - 1);
+                case 'fixed':
+                    return principal * r * (n / 12);
+                case 'reducing':
+                    if (monthlyRate === 0) return 0;
+                    const emi = principal * monthlyRate * Math.pow(1 + monthlyRate, n) / (Math.pow(1 + monthlyRate, n) - 1);
+                    return (emi * n) - principal;
+                default:
+                    return principal * r * (n / 12);
+            }
+        }
+
+        function getLoanInterest(loan) {
+            const amount = Number(loan.amount) || 0;
+            const rate = Number(loan.interestRate) || 0;
+            const period = Number(loan.repaymentPeriod) || 0;
+            const loanType = loan.loanType || 'simple';
+            return calculateInterest(amount, rate, period, loanType);
+        }
+
+        // ============================================================
         // MULTI-LANGUAGE
         // ============================================================
         const translations = {
@@ -1646,7 +1673,7 @@
                 performanceOverview: 'Performance Overview',
                 statTotalCustomers: 'Total Customers',
                 statBalance: 'Total Balance (ETB)',
-                statSavings: 'Savings (ETB)',
+                statSavings: 'Approved Savings (ETB)',
                 statLoans: 'Loans (ETB)',
                 statRepayments: 'Repayments (ETB)',
                 statProfit: 'Total Income (ETB)',
@@ -1657,7 +1684,7 @@
                 chartLoansVsRepayments: 'Loans vs Repayments',
                 chartLoanSub: 'Loans Issued (ETB) · Repayments (ETB)',
                 chartMonthlyTrends: 'Monthly Trends',
-                chartMonthlySub: 'Savings & Loans by month',
+                chartMonthlySub: 'Approved Savings & Loans by month',
                 notifications: 'Notifications',
                 selectYear: 'Select Year:',
                 status: 'Status:',
@@ -1709,7 +1736,7 @@
                 performanceOverview: 'የአፈጻጸም አጠቃላይ እይታ',
                 statTotalCustomers: 'ጠቅላላ ደንበኞች',
                 statBalance: 'ጠቅላላ ሚዛን (ብር)',
-                statSavings: 'ቁጠባ (ብር)',
+                statSavings: 'የጸደቀ ቁጠባ (ብር)',
                 statLoans: 'ብድር (ብር)',
                 statRepayments: 'ክፍያዎች (ብር)',
                 statProfit: 'ጠቅላላ ገቢ (ብር)',
@@ -1720,7 +1747,7 @@
                 chartLoansVsRepayments: 'ብድር እና ክፍያዎች',
                 chartLoanSub: 'የተሰጠ ብድር (ብር) · ክፍያዎች (ብር)',
                 chartMonthlyTrends: 'ወርሃዊ አዝማሚያዎች',
-                chartMonthlySub: 'በወር ቁጠባ እና ብድር',
+                chartMonthlySub: 'የጸደቀ ቁጠባ እና ብድር በወር',
                 notifications: 'ማሳወቂያዎች',
                 selectYear: 'ዓመት ይምረጡ:',
                 status: 'ሁኔታ:',
@@ -1772,7 +1799,7 @@
                 performanceOverview: 'Aguuggama Hoji',
                 statTotalCustomers: 'Maamila Waliigalaa',
                 statBalance: 'Iddoo Guutuu (ETB)',
-                statSavings: 'Kusaa (ETB)',
+                statSavings: 'Kusaa Mirkanaa\'e (ETB)',
                 statLoans: 'Liqii (ETB)',
                 statRepayments: 'Kaffaltuu (ETB)',
                 statProfit: 'Galii Waliigalaa (ETB)',
@@ -1783,7 +1810,7 @@
                 chartLoansVsRepayments: 'Liqii fi Kaffaltuu',
                 chartLoanSub: 'Liqii Kenname (ETB) · Kaffaltuu (ETB)',
                 chartMonthlyTrends: 'Adeemsa Ji\'aa',
-                chartMonthlySub: 'Kusaa fi Liqii ji\'aan',
+                chartMonthlySub: 'Kusaa Mirkanaa\'e fi Liqii ji\'aan',
                 notifications: 'Beeksisaa',
                 selectYear: 'Waggaa Filadhu:',
                 status: 'Haala:',
@@ -1816,37 +1843,6 @@
             allTransferOut = [],
             allTransferIn = [],
             allPenalties = [];
-
-        // ============================================================
-        // INTEREST CALCULATION FUNCTIONS
-        // ============================================================
-        function calculateInterest(principal, rate, months, type) {
-            const r = rate / 100;
-            const monthlyRate = r / 12;
-            const n = months;
-            switch (type) {
-                case 'simple':
-                    return principal * r * (n / 12);
-                case 'compound':
-                    return principal * (Math.pow(1 + monthlyRate, n) - 1);
-                case 'fixed':
-                    return principal * r * (n / 12);
-                case 'reducing':
-                    if (monthlyRate === 0) return 0;
-                    const emi = principal * monthlyRate * Math.pow(1 + monthlyRate, n) / (Math.pow(1 + monthlyRate, n) - 1);
-                    return (emi * n) - principal;
-                default:
-                    return principal * r * (n / 12);
-            }
-        }
-
-        function getLoanInterest(loan) {
-            const amount = Number(loan.amount) || 0;
-            const rate = Number(loan.interestRate) || 0;
-            const period = Number(loan.repaymentPeriod) || 0;
-            const loanType = loan.loanType || 'simple';
-            return calculateInterest(amount, rate, period, loanType);
-        }
 
         // ============================================================
         // LANGUAGE FUNCTIONS
@@ -2121,7 +2117,7 @@
                 data: {
                     labels: months,
                     datasets: [
-                        { label: 'Savings', data: savingsData, borderColor: '#2d7a3d',
+                        { label: 'Approved Savings', data: savingsData, borderColor: '#2d7a3d',
                             backgroundColor: 'rgba(45,122,61,0.1)', fill: true, tension: 0.3,
                             pointBackgroundColor: '#2d7a3d' },
                         { label: 'Loans', data: loansData, borderColor: '#2196f3',
@@ -2249,8 +2245,7 @@
                 allPenalties = penaltiesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
                 // ============================================================
-                // PROFIT CALCULATION - Interest income from approved loans
-                // Interest is earned as soon as the loan is approved
+                // INCOME CALCULATION (Same as Dividends page)
                 // ============================================================
 
                 // 1. PENALTY INCOME - All penalty payments received
@@ -2258,19 +2253,18 @@
                     .filter(p => p.status === 'paid' || p.status === 'done' || p.status === 'approved')
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-                // 2. DEPOSIT INCOME - All profit_income transactions (registration fees, other deposits)
+                // 2. DEPOSIT INCOME - All profit_income transactions
                 const totalDepositIncomeAllYears = allProfitIncome
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-                // 3. INTEREST INCOME - Calculated from approved loans (active or paid)
-                // Interest is earned as soon as the loan is approved
+                // 3. INTEREST INCOME - Calculated from approved loans
                 const approvedLoansAllYears = allLoans.filter(l =>
                     l.status === 'active' || l.status === 'paid' || l.status === 'approved'
                 );
                 const totalInterestIncomeAllYears = approvedLoansAllYears
                     .reduce((sum, loan) => sum + getLoanInterest(loan), 0);
 
-                // 4. OTHER INCOME - Any other income sources (fees, etc.)
+                // 4. OTHER INCOME
                 const totalOtherIncomeAllYears = allProfitIncome
                     .filter(p => p.incomeType === 'Other Deposit' || p.incomeType === 'Other')
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
@@ -2282,31 +2276,22 @@
                 ) / 100;
 
                 // ---- SELECTED YEAR FILTERED DATA ----
-                const savingsData = allSavings.filter(s => isInYear(s.date || s.timestamp, year));
+                // CRITICAL FIX: Only include APPROVED savings
+                const savingsData = allSavings.filter(s => 
+                    isInYear(s.date || s.timestamp, year) && 
+                    s.status === 'approved'
+                );
                 const loansData = allLoans.filter(l => isInYear(l.date || l.timestamp, year));
                 const repaymentsData = allRepayments.filter(r => isInYear(r.date || r.timestamp, year));
                 const profitIncomeData = allProfitIncome.filter(p => isInYear(p.date || p.timestamp, year));
                 const profitWithdrawalData = allProfitWithdrawal.filter(w => isInYear(w.date || w.timestamp, year));
-                const withdrawalData = allWithdrawals.filter(w => isInYear(w.date || w.timestamp, year));
-                const leavingWithdrawalData = allLeavingWithdrawals.filter(w => isInYear(w.date || w.timestamp, year));
-                const transferOutData = allTransferOut.filter(w => isInYear(w.date || w.timestamp, year));
-                const transferInData = allTransferIn.filter(w => isInYear(w.date || w.timestamp, year));
                 const penaltiesData = allPenalties.filter(p => isInYear(p.date || p.timestamp, year));
                 const approvedLoansYearly = allLoans.filter(l =>
                     isInYear(l.date || l.timestamp, year) &&
                     (l.status === 'active' || l.status === 'paid' || l.status === 'approved')
                 );
 
-                // ---- Yearly calculations ----
-                const totalSavings = savingsData.reduce((s, item) => s + (Number(item.amount) || 0), 0);
-                const totalLoans = loansData.filter(l => l.status === 'active' || l.status === 'paid')
-                    .reduce((s, l) => s + (Number(l.amount) || 0), 0);
-                const totalRepayments = repaymentsData.reduce((s, r) => s + (Number(r.amount) || 0), 0);
-                const totalDeposits = profitIncomeData.reduce((s, p) => s + (Number(p.amount) || 0), 0);
-                const totalDividends = profitWithdrawalData.filter(w => w.reason === 'Dividend')
-                    .reduce((s, w) => s + (Number(w.amount) || 0), 0);
-
-                // ---- YEARLY INCOME (Profit) ----
+                // ---- YEARLY INCOME ----
                 const yearlyPenaltyIncome = penaltiesData
                     .filter(p => p.status === 'paid' || p.status === 'done' || p.status === 'approved')
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
@@ -2321,15 +2306,35 @@
                     .filter(p => p.incomeType === 'Other Deposit' || p.incomeType === 'Other')
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-                const totalIncomeYearly = Math.round(
+                let totalIncomeYearly = Math.round(
                     (yearlyPenaltyIncome + yearlyDepositIncome + yearlyInterestIncome + yearlyOtherIncome) * 100
                 ) / 100;
+
+                // ---- CHECK IF DIVIDENDS WERE DISTRIBUTED ----
+                const dividendEntries = profitWithdrawalData
+                    .filter(w => w.reason === 'Dividend');
+
+                // CRITICAL: If dividends have been distributed, set totalIncome to 0
+                // This ensures the dashboard shows 0 profit after distribution
+                if (dividendEntries.length > 0) {
+                    totalIncomeYearly = 0;
+                }
+
+                // ---- Yearly calculations ----
+                // CRITICAL FIX: Only count APPROVED savings
+                const totalSavings = savingsData.reduce((s, item) => s + (Number(item.amount) || 0), 0);
+                const totalLoans = loansData.filter(l => l.status === 'active' || l.status === 'paid')
+                    .reduce((s, l) => s + (Number(l.amount) || 0), 0);
+                const totalRepayments = repaymentsData.reduce((s, r) => s + (Number(r.amount) || 0), 0);
 
                 // ---- Total Balance (Yearly) ----
                 const totalBalanceYearly = Math.round((totalSavings + totalIncomeYearly) * 100) / 100;
 
                 // ---- TOTAL CAPITAL ALL YEARS ----
-                const totalSavingsAllYears = allSavings.reduce((s, item) => s + (Number(item.amount) || 0), 0);
+                // CRITICAL FIX: Only count APPROVED savings
+                const totalSavingsAllYears = allSavings
+                    .filter(s => s.status === 'approved')
+                    .reduce((s, item) => s + (Number(item.amount) || 0), 0);
                 const totalDividendsAllYears = allProfitWithdrawal
                     .filter(w => w.reason === 'Dividend')
                     .reduce((s, w) => s + (Number(w.amount) || 0), 0);
@@ -2384,7 +2389,7 @@
 
                 const curSavings = getMonthlyTotal(savingsData, 'amount', currentYear, currentMonth);
                 const prevSavings = getMonthlyTotal(
-                    allSavings.map(s => ({ ...s, date: s.date || s.timestamp })),
+                    allSavings.filter(s => s.status === 'approved').map(s => ({ ...s, date: s.date || s.timestamp })),
                     'amount', prevYear, currentMonth
                 );
                 const savChange = prevSavings > 0 ? ((curSavings - prevSavings) / prevSavings * 100) : 0;
@@ -2424,8 +2429,15 @@
                     .filter(p => isInYear(p.date || p.timestamp, prevYear) && (p.incomeType === 'Other Deposit' || p
                         .incomeType === 'Other'))
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-                const prevTotalIncome = prevYearlyPenaltyIncome + prevYearlyDepositIncome + prevYearlyInterestIncome +
+                let prevTotalIncome = prevYearlyPenaltyIncome + prevYearlyDepositIncome + prevYearlyInterestIncome +
                     prevYearlyOtherIncome;
+
+                // Check if previous year had dividends distributed
+                const prevDividendEntries = allProfitWithdrawal
+                    .filter(w => isInYear(w.date || w.timestamp, prevYear) && w.reason === 'Dividend');
+                if (prevDividendEntries.length > 0) {
+                    prevTotalIncome = 0;
+                }
 
                 const profitChange = prevTotalIncome > 0 ? ((totalIncomeYearly - prevTotalIncome) / prevTotalIncome * 100) :
                     0;
@@ -2446,6 +2458,7 @@
                 const loansMonthly = months.map((_, i) => getMonthlyTotal(loansData.filter(l => l.status === 'active' || l
                     .status === 'paid'), 'amount', year, i));
                 const repaymentsMonthly = months.map((_, i) => getMonthlyTotal(repaymentsData, 'amount', year, i));
+                // CRITICAL FIX: Only use APPROVED savings for charts
                 const savingsMonthly = months.map((_, i) => getMonthlyTotal(savingsData, 'amount', year, i));
                 updateCharts(months, loansMonthly, repaymentsMonthly, savingsMonthly);
 
@@ -2493,16 +2506,6 @@
                     });
                 });
 
-                profitWithdrawalData.filter(w => w.reason === 'Dividend').slice(0, 3).forEach(w => {
-                    const customerName = getCustomerName(w.customerId);
-                    activities.push({
-                        text: `Dividend of <strong>ETB ${Number(w.amount).toLocaleString()}</strong> distributed to ${customerName}`,
-                        icon: 'fa-gift',
-                        color: 'purple',
-                        date: w.date || w.timestamp
-                    });
-                });
-
                 // Penalty notifications
                 allPenalties.filter(p => p.status === 'pending' || p.status === 'approval').slice(0, 5).forEach(p => {
                     const customerName = getCustomerName(p.memberId);
@@ -2511,6 +2514,17 @@
                         icon: 'fa-exclamation-triangle',
                         color: 'penalty',
                         date: p.createdAt || p.timestamp
+                    });
+                });
+
+                // Dividend notifications
+                dividendEntries.slice(0, 3).forEach(w => {
+                    const customerName = getCustomerName(w.customerId);
+                    activities.push({
+                        text: `💎 Dividend of <strong>ETB ${Number(w.amount).toLocaleString()}</strong> distributed to ${customerName}`,
+                        icon: 'fa-gift',
+                        color: 'purple',
+                        date: w.date || w.timestamp
                     });
                 });
 
@@ -2546,6 +2560,7 @@
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
                 showToast('Failed to load dashboard data: ' + error.message, 'error');
+                // Set default values so UI shows something
                 document.getElementById('totalCustomersValue').textContent = '0';
                 document.getElementById('balanceValue').textContent = '0';
                 document.getElementById('savingsValue').textContent = '0';
