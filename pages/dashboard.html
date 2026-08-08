@@ -230,7 +230,9 @@
         .brand-logo-img {
             width: 100%;
             height: 100%;
-            object-fit: contain;
+            object-fit: scale-down;
+            max-width: 100%;
+            max-height: 100%;
             display: block;
         }
         .brand-text .brand-name {
@@ -2186,6 +2188,9 @@
             return `Customer (${customerId})`;
         }
 
+        // ============================================================
+        // MAIN LOAD FUNCTION (FIXED)
+        // ============================================================
         async function loadDashboardData() {
             const overlay = document.getElementById('loadingOverlay');
             overlay.classList.add('active');
@@ -2245,16 +2250,17 @@
                 allPenalties = penaltiesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
                 // ============================================================
-                // INCOME CALCULATION (Same as Dividends page)
+                // INCOME CALCULATION (FIXED – no double‑counting, only approved)
                 // ============================================================
 
-                // 1. PENALTY INCOME - All penalty payments received
+                // 1. PENALTY INCOME - All penalty payments received (approved/paid)
                 const totalPenaltyIncomeAllYears = allPenalties
                     .filter(p => p.status === 'paid' || p.status === 'done' || p.status === 'approved')
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-                // 2. DEPOSIT INCOME - All profit_income transactions
+                // 2. DEPOSIT INCOME - ONLY approved profit_income transactions
                 const totalDepositIncomeAllYears = allProfitIncome
+                    .filter(p => p.status === 'approved' || p.status === 'completed' || p.status === 'paid')
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
                 // 3. INTEREST INCOME - Calculated from approved loans
@@ -2264,23 +2270,13 @@
                 const totalInterestIncomeAllYears = approvedLoansAllYears
                     .reduce((sum, loan) => sum + getLoanInterest(loan), 0);
 
-                // 4. OTHER INCOME
-                const totalOtherIncomeAllYears = allProfitIncome
-                    .filter(p => p.incomeType === 'Other Deposit' || p.incomeType === 'Other')
-                    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-
-                // TOTAL INCOME = Penalties + Deposits + Interest + Other Income
+                // 4. TOTAL INCOME = Penalties + Deposits + Interest (NO other income)
                 const totalIncomeAllYears = Math.round(
-                    (totalPenaltyIncomeAllYears + totalDepositIncomeAllYears + totalInterestIncomeAllYears + totalOtherIncomeAllYears) *
-                    100
+                    (totalPenaltyIncomeAllYears + totalDepositIncomeAllYears + totalInterestIncomeAllYears) * 100
                 ) / 100;
 
                 // ---- SELECTED YEAR FILTERED DATA ----
-                // CRITICAL FIX: Only include APPROVED savings
-                const savingsData = allSavings.filter(s => 
-                    isInYear(s.date || s.timestamp, year) && 
-                    s.status === 'approved'
-                );
+                const savingsData = allSavings.filter(s => isInYear(s.date || s.timestamp, year) && s.status === 'approved');
                 const loansData = allLoans.filter(l => isInYear(l.date || l.timestamp, year));
                 const repaymentsData = allRepayments.filter(r => isInYear(r.date || r.timestamp, year));
                 const profitIncomeData = allProfitIncome.filter(p => isInYear(p.date || p.timestamp, year));
@@ -2291,37 +2287,31 @@
                     (l.status === 'active' || l.status === 'paid' || l.status === 'approved')
                 );
 
-                // ---- YEARLY INCOME ----
+                // ---- YEARLY INCOME (only approved deposits, no double‑counting) ----
                 const yearlyPenaltyIncome = penaltiesData
                     .filter(p => p.status === 'paid' || p.status === 'done' || p.status === 'approved')
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
                 const yearlyDepositIncome = profitIncomeData
+                    .filter(p => p.status === 'approved' || p.status === 'completed' || p.status === 'paid')
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
                 const yearlyInterestIncome = approvedLoansYearly
                     .reduce((sum, loan) => sum + getLoanInterest(loan), 0);
 
-                const yearlyOtherIncome = profitIncomeData
-                    .filter(p => p.incomeType === 'Other Deposit' || p.incomeType === 'Other')
-                    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-
                 let totalIncomeYearly = Math.round(
-                    (yearlyPenaltyIncome + yearlyDepositIncome + yearlyInterestIncome + yearlyOtherIncome) * 100
+                    (yearlyPenaltyIncome + yearlyDepositIncome + yearlyInterestIncome) * 100
                 ) / 100;
 
                 // ---- CHECK IF DIVIDENDS WERE DISTRIBUTED ----
                 const dividendEntries = profitWithdrawalData
                     .filter(w => w.reason === 'Dividend');
 
-                // CRITICAL: If dividends have been distributed, set totalIncome to 0
-                // This ensures the dashboard shows 0 profit after distribution
                 if (dividendEntries.length > 0) {
                     totalIncomeYearly = 0;
                 }
 
                 // ---- Yearly calculations ----
-                // CRITICAL FIX: Only count APPROVED savings
                 const totalSavings = savingsData.reduce((s, item) => s + (Number(item.amount) || 0), 0);
                 const totalLoans = loansData.filter(l => l.status === 'active' || l.status === 'paid')
                     .reduce((s, l) => s + (Number(l.amount) || 0), 0);
@@ -2331,7 +2321,6 @@
                 const totalBalanceYearly = Math.round((totalSavings + totalIncomeYearly) * 100) / 100;
 
                 // ---- TOTAL CAPITAL ALL YEARS ----
-                // CRITICAL FIX: Only count APPROVED savings
                 const totalSavingsAllYears = allSavings
                     .filter(s => s.status === 'approved')
                     .reduce((s, item) => s + (Number(item.amount) || 0), 0);
@@ -2423,16 +2412,11 @@
                         p.status === 'approved'))
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
                 const prevYearlyDepositIncome = allProfitIncome
-                    .filter(p => isInYear(p.date || p.timestamp, prevYear))
+                    .filter(p => isInYear(p.date || p.timestamp, prevYear) && (p.status === 'approved' || p.status ===
+                        'completed' || p.status === 'paid'))
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-                const prevYearlyOtherIncome = allProfitIncome
-                    .filter(p => isInYear(p.date || p.timestamp, prevYear) && (p.incomeType === 'Other Deposit' || p
-                        .incomeType === 'Other'))
-                    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-                let prevTotalIncome = prevYearlyPenaltyIncome + prevYearlyDepositIncome + prevYearlyInterestIncome +
-                    prevYearlyOtherIncome;
+                let prevTotalIncome = prevYearlyPenaltyIncome + prevYearlyDepositIncome + prevYearlyInterestIncome;
 
-                // Check if previous year had dividends distributed
                 const prevDividendEntries = allProfitWithdrawal
                     .filter(w => isInYear(w.date || w.timestamp, prevYear) && w.reason === 'Dividend');
                 if (prevDividendEntries.length > 0) {
@@ -2458,7 +2442,6 @@
                 const loansMonthly = months.map((_, i) => getMonthlyTotal(loansData.filter(l => l.status === 'active' || l
                     .status === 'paid'), 'amount', year, i));
                 const repaymentsMonthly = months.map((_, i) => getMonthlyTotal(repaymentsData, 'amount', year, i));
-                // CRITICAL FIX: Only use APPROVED savings for charts
                 const savingsMonthly = months.map((_, i) => getMonthlyTotal(savingsData, 'amount', year, i));
                 updateCharts(months, loansMonthly, repaymentsMonthly, savingsMonthly);
 
@@ -2496,17 +2479,17 @@
                     });
                 });
 
-                profitIncomeData.slice(0, 3).forEach(p => {
-                    const type = p.incomeType || 'Deposit';
-                    activities.push({
-                        text: `Income (${type}) of <strong>ETB ${Number(p.amount).toLocaleString()}</strong>`,
-                        icon: 'fa-arrow-down',
-                        color: 'green',
-                        date: p.date || p.timestamp
+                profitIncomeData.filter(p => p.status === 'approved' || p.status === 'completed' || p.status === 'paid')
+                    .slice(0, 3).forEach(p => {
+                        const type = p.incomeType || 'Deposit';
+                        activities.push({
+                            text: `Income (${type}) of <strong>ETB ${Number(p.amount).toLocaleString()}</strong>`,
+                            icon: 'fa-arrow-down',
+                            color: 'green',
+                            date: p.date || p.timestamp
+                        });
                     });
-                });
 
-                // Penalty notifications
                 allPenalties.filter(p => p.status === 'pending' || p.status === 'approval').slice(0, 5).forEach(p => {
                     const customerName = getCustomerName(p.memberId);
                     activities.push({
@@ -2517,7 +2500,6 @@
                     });
                 });
 
-                // Dividend notifications
                 dividendEntries.slice(0, 3).forEach(w => {
                     const customerName = getCustomerName(w.customerId);
                     activities.push({
