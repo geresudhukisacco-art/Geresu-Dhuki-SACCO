@@ -226,7 +226,9 @@
         .brand-logo-img {
             width: 100%;
             height: 100%;
-            object-fit: contain;
+            object-fit: scale-down;
+            max-width: 100%;
+            max-height: 100%;
             display: block;
         }
         .brand-text .brand-name {
@@ -924,6 +926,13 @@
         }
         .customer-info-display .info-row .value.warning {
             color: var(--danger);
+        }
+        .customer-info-display .info-row .value.due-date {
+            color: var(--info);
+        }
+        .customer-info-display .info-row .value.due-date.overdue {
+            color: var(--danger);
+            font-weight: 700;
         }
 
         #customerSuggestions {
@@ -1872,6 +1881,11 @@
                             <span class="label" data-i18n="unpaidSavings">Unpaid Previous:</span>
                             <span class="value warning" id="unpaidSavingsDisplay">ETB 0.00</span>
                         </div>
+                        <!-- NEW ROW: Next Savings Due Date -->
+                        <div class="info-row">
+                            <span class="label" data-i18n="nextDueDate">Next Savings Due:</span>
+                            <span class="value due-date" id="nextDueDateDisplay">—</span>
+                        </div>
                     </div>
                 </div>
 
@@ -2065,6 +2079,7 @@
                 penaltyBlockedForm: '⛔ Savings is BLOCKED – Please clear the outstanding penalty first.',
                 minSavingsRequired: 'Minimum Deposit Required:',
                 fromSettings: 'from System Settings',
+                nextDueDate: 'Next Savings Due:',
             }
         };
 
@@ -2410,7 +2425,7 @@
         }
 
         // ============================================================
-        // GET UNPAID SAVINGS
+        // GET UNPAID PREVIOUS SAVINGS & NEXT DUE DATE
         // ============================================================
         function getUnpaidPreviousSavings(customerId) {
             const customerSavings = allSavings.filter(s =>
@@ -2419,7 +2434,16 @@
             );
 
             if (customerSavings.length === 0) {
-                return { unpaidMonths: 0, totalUnpaid: 0, monthlyAverage: 0 };
+                // No savings yet – set a default due date (next month's first day)
+                const now = new Date();
+                const nextDue = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                return {
+                    unpaidMonths: 0,
+                    totalUnpaid: 0,
+                    monthlyAverage: 0,
+                    nextDueDate: nextDue,
+                    daysLeft: Math.ceil((nextDue - now) / (1000 * 60 * 60 * 24))
+                };
             }
 
             const sorted = customerSavings.sort((a, b) => {
@@ -2431,9 +2455,21 @@
             const totalAmount = sorted.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
             const monthlyAverage = totalAmount / Math.max(1, sorted.length);
 
+            // Last savings date
+            const lastDate = sorted[sorted.length - 1].date ? 
+                (sorted[sorted.length - 1].date.toDate ? sorted[sorted.length - 1].date.toDate() : new Date(sorted[sorted.length - 1].date)) :
+                new Date();
+
+            // Next due date = lastDate + 1 month (or 30 days)
+            const nextDue = new Date(lastDate);
+            nextDue.setMonth(nextDue.getMonth() + 1);
+
+            // If nextDue is in the past, set it to today (overdue)
+            const now = new Date();
+            let daysLeft = Math.ceil((nextDue - now) / (1000 * 60 * 60 * 24));
+
             const firstDate = sorted[0].date ? (sorted[0].date.toDate ? sorted[0].date.toDate() : new Date(sorted[0].date)) :
                 new Date();
-            const now = new Date();
             const monthsDiff = (now.getFullYear() - firstDate.getFullYear()) * 12 +
                 (now.getMonth() - firstDate.getMonth());
 
@@ -2449,7 +2485,7 @@
             const unpaidMonths = Math.max(0, monthsDiff - actualMonths);
             const totalUnpaid = Math.round(unpaidMonths * monthlyAverage * 100) / 100;
 
-            return { unpaidMonths, totalUnpaid, monthlyAverage };
+            return { unpaidMonths, totalUnpaid, monthlyAverage, nextDueDate: nextDue, daysLeft };
         }
 
         // ============================================================
@@ -2504,7 +2540,15 @@
                 const unpaidData = getUnpaidPreviousSavings(customerId);
 
                 console.log(`📊 Unpaid months: ${unpaidData.unpaidMonths}, Total: ${unpaidData.totalUnpaid}`);
+                console.log(`📊 Days left: ${unpaidData.daysLeft}`);
 
+                // If days left >= 0, no penalty needed yet
+                if (unpaidData.daysLeft >= 0) {
+                    console.log('✅ Not overdue yet');
+                    return { penaltyAmount: 0, unpaidMonths: 0 };
+                }
+
+                // If overdue and no pending penalty, create one
                 if (unpaidData.unpaidMonths === 0 || unpaidData.totalUnpaid <= 0) {
                     console.log('✅ No unpaid savings');
                     return { penaltyAmount: 0, unpaidMonths: 0 };
@@ -2640,9 +2684,32 @@
             document.getElementById('unpaidSavingsDisplay').className = 'value ' + (unpaidData.totalUnpaid > 0 ? 'warning' :
                 'positive');
 
+            // --- Display Next Due Date ---
+            const dueDateEl = document.getElementById('nextDueDateDisplay');
+            if (unpaidData.nextDueDate) {
+                const due = unpaidData.nextDueDate;
+                const days = unpaidData.daysLeft;
+                let displayText = due.toLocaleDateString();
+                if (days >= 0) {
+                    displayText += ` (${days} day${days !== 1 ? 's' : ''} left)`;
+                    dueDateEl.className = 'value due-date';
+                } else {
+                    const overdueDays = Math.abs(days);
+                    displayText += ` (⚠️ Overdue by ${overdueDays} day${overdueDays !== 1 ? 's' : ''})`;
+                    dueDateEl.className = 'value due-date overdue';
+                }
+                dueDateEl.textContent = displayText;
+            } else {
+                dueDateEl.textContent = '—';
+                dueDateEl.className = 'value due-date';
+            }
+
             infoDisplay.classList.add('active');
 
-            await checkAndCreateSavingsPenalty(id, 0);
+            // --- Check and generate penalty if overdue ---
+            if (unpaidData.daysLeft < 0 && unpaidData.totalUnpaid > 0) {
+                await checkAndCreateSavingsPenalty(id, 0);
+            }
 
             const allPenalties = await getMemberPenaltiesWithDetails(id);
 
@@ -2907,8 +2974,7 @@
         }
 
         // ============================================================
-        // RENDER TABLE - FIXED: Admin can edit/delete any record
-        // Manager can only edit/delete pending records
+        // RENDER TABLE - Admin can edit/delete any record, Manager only pending
         // ============================================================
         function renderTable(items) {
             const tbody = document.getElementById('savingsBody');
@@ -2942,15 +3008,11 @@
                     'bank': t.bankDeposit || 'Bank' };
                 const transferLabel = transferTypeMap[s.transferType] || s.transferType || '—';
 
-                // ============================================================
-                // FIXED: Admin can edit/delete ANY record
-                // Manager can only edit/delete PENDING records
-                // ============================================================
                 let actionsHtml = `
                     <button class="action-btn view-btn" onclick="viewSavings('${s.id}')" title="${t.view}"><i class="fas fa-eye"></i></button>
                 `;
 
-                // Approve/Reject buttons - only for Admin/Manager on pending records
+                // Approve/Reject - Admin/Manager only for pending
                 if (canApproveReject() && s.status === 'pending') {
                     actionsHtml += `
                         <button class="action-btn approve-btn" onclick="approveSavings('${s.id}')" title="${t.approve}"><i class="fas fa-check-circle"></i></button>
@@ -2958,24 +3020,20 @@
                     `;
                 }
 
-                // EDIT button - Admin can edit ANY record, Manager only PENDING
+                // Edit - Admin can edit any, Manager only pending
                 if (currentUserRole === 'admin') {
-                    // Admin can edit any record
                     actionsHtml +=
                         `<button class="action-btn edit-btn" onclick="editSavings('${s.id}')" title="${t.edit}"><i class="fas fa-edit"></i></button>`;
                 } else if (currentUserRole === 'manager' && s.status === 'pending') {
-                    // Manager can only edit pending records
                     actionsHtml +=
                         `<button class="action-btn edit-btn" onclick="editSavings('${s.id}')" title="${t.edit}"><i class="fas fa-edit"></i></button>`;
                 }
 
-                // DELETE button - Admin can delete ANY record, Manager only PENDING
+                // Delete - Admin can delete any, Manager only pending
                 if (currentUserRole === 'admin') {
-                    // Admin can delete any record
                     actionsHtml +=
                         `<button class="action-btn delete-btn" onclick="deleteSavings('${s.id}')" title="${t.delete}"><i class="fas fa-trash"></i></button>`;
                 } else if (currentUserRole === 'manager' && s.status === 'pending') {
-                    // Manager can only delete pending records
                     actionsHtml +=
                         `<button class="action-btn delete-btn" onclick="deleteSavings('${s.id}')" title="${t.delete}"><i class="fas fa-trash"></i></button>`;
                 }
@@ -3208,13 +3266,9 @@
         // EDIT SAVINGS
         // ============================================================
         function editSavings(id) {
-            // Only Admin and Manager can edit
             if (!canEdit()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
-            
             const savings = allSavings.find(s => s.id === id);
             if (!savings) { showToast('Savings record not found.', 'error'); return; }
-            
-            // Manager can only edit pending records
             if (currentUserRole === 'manager' && savings.status !== 'pending') {
                 showToast(translations[currentLang].cannotEditApproved, 'warning');
                 return;
@@ -3256,7 +3310,6 @@
             document.getElementById('bankName').value = savings.bankName || '';
             document.getElementById('noteInput').value = savings.note || '';
 
-            // Only Admin can edit TT number and transfer date
             const isAdminOnly = currentUserRole === 'admin';
             document.getElementById('ttNumber').disabled = !isAdminOnly;
             document.getElementById('transferDate').disabled = !isAdminOnly;
@@ -3270,21 +3323,16 @@
         // DELETE SAVINGS
         // ============================================================
         async function deleteSavings(id) {
-            // Only Admin can delete any record, Manager can delete pending only
             if (currentUserRole !== 'admin' && currentUserRole !== 'manager') {
                 showToast(translations[currentLang].unauthorized, 'error');
                 return;
             }
-            
             const savings = allSavings.find(s => s.id === id);
             if (!savings) { showToast('Savings record not found.', 'error'); return; }
-            
-            // Manager can only delete pending records
             if (currentUserRole === 'manager' && savings.status !== 'pending') {
                 showToast('Cannot delete an approved or rejected savings record.', 'warning');
                 return;
             }
-            
             if (!confirm(translations[currentLang].deleteConfirm)) return;
 
             try {
@@ -3426,6 +3474,25 @@
                     document.getElementById('pendingSavingsDisplay').textContent = 'ETB ' + pendingData.total.toFixed(2);
                     const unpaidData = getUnpaidPreviousSavings(selectedCustomerId);
                     document.getElementById('unpaidSavingsDisplay').textContent = 'ETB ' + unpaidData.totalUnpaid.toFixed(2);
+                    // Update next due date
+                    const dueDateEl = document.getElementById('nextDueDateDisplay');
+                    if (unpaidData.nextDueDate) {
+                        const due = unpaidData.nextDueDate;
+                        const days = unpaidData.daysLeft;
+                        let displayText = due.toLocaleDateString();
+                        if (days >= 0) {
+                            displayText += ` (${days} day${days !== 1 ? 's' : ''} left)`;
+                            dueDateEl.className = 'value due-date';
+                        } else {
+                            const overdueDays = Math.abs(days);
+                            displayText += ` (⚠️ Overdue by ${overdueDays} day${overdueDays !== 1 ? 's' : ''})`;
+                            dueDateEl.className = 'value due-date overdue';
+                        }
+                        dueDateEl.textContent = displayText;
+                    } else {
+                        dueDateEl.textContent = '—';
+                        dueDateEl.className = 'value due-date';
+                    }
                 }
             } catch (error) {
                 showToast(t.saveError + error.message, 'error');
