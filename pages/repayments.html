@@ -17,7 +17,7 @@
 
     <style>
         /* ============================================================
-           ROOT VARIABLES
+           ROOT VARIABLES (same as before, green theme)
            ============================================================ */
         :root {
             --primary: #1a6e3a;
@@ -226,7 +226,9 @@
         .brand-logo-img {
             width: 100%;
             height: 100%;
-            object-fit: contain;
+            object-fit: scale-down;
+            max-width: 100%;
+            max-height: 100%;
             display: block;
         }
         .brand-text .brand-name {
@@ -813,6 +815,7 @@
             margin-bottom: 12px;
             display: none;
             transition: all 0.3s;
+            position: relative;
         }
         .loan-info-display.active {
             display: block;
@@ -847,6 +850,37 @@
         }
         .loan-info-display .info-row .value.remaining.warning {
             color: var(--danger);
+        }
+        .loan-info-display .info-row .value.due-date {
+            color: var(--info);
+        }
+        .loan-info-display .info-row .value.due-date.overdue {
+            color: var(--danger);
+            font-weight: 700;
+        }
+
+        /* Refresh button inside loan info */
+        .refresh-penalty-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+            font-size: 14px;
+        }
+        .refresh-penalty-btn:hover {
+            background: var(--border-color);
+            color: var(--primary);
+            transform: rotate(90deg);
         }
 
         .amount-wrapper {
@@ -1609,6 +1643,13 @@
                 white-space: normal;
                 text-align: center;
             }
+            .refresh-penalty-btn {
+                top: 4px;
+                right: 4px;
+                width: 28px;
+                height: 28px;
+                font-size: 12px;
+            }
         }
 
         @media (max-width: 480px) {
@@ -1897,7 +1938,6 @@
                 <button class="modal-close" id="modalClose">&times;</button>
             </div>
 
-            <!-- FIX: Added the missing form-section wrapper with the correct ID -->
             <div class="form-section" id="repaymentFormSection">
                 <form id="repaymentForm" novalidate>
                     <input type="hidden" id="editId" />
@@ -1907,8 +1947,11 @@
                         <span data-i18n="duplicateWarning">This TT number and transfer date combination already exists for this customer. Please check.</span>
                     </div>
 
+                    <!-- ====================================================
+                        FORM ROW 1: Loan Search, Amount, Date
+                    ==================================================== -->
                     <div class="form-row">
-                        <div class="form-group">
+                        <div class="form-group" style="position:relative;">
                             <label data-i18n="searchLoan">Search Loan <span class="required">*</span></label>
                             <input type="text" id="loanSearch" placeholder="Search by customer name or loan ID..." autocomplete="off" required />
                             <input type="hidden" id="loanId" />
@@ -1930,7 +1973,13 @@
                         </div>
                     </div>
 
+                    <!-- ====================================================
+                        LOAN INFO DISPLAY (with Next Payment Due)
+                    ==================================================== -->
                     <div class="loan-info-display" id="loanInfoDisplay">
+                        <button class="refresh-penalty-btn" id="refreshPenaltyBtn" title="Refresh penalty status">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
                         <div class="info-grid">
                             <div class="info-row">
                                 <span class="label" data-i18n="customer">Customer:</span>
@@ -1964,9 +2013,17 @@
                                 <span class="label" data-i18n="status">Status:</span>
                                 <span class="value" id="loanStatus">—</span>
                             </div>
+                            <!-- 🔥 NEW: Next Payment Due -->
+                            <div class="info-row">
+                                <span class="label" data-i18n="nextDueDate">Next Payment Due:</span>
+                                <span class="value due-date" id="nextDueDateDisplay">—</span>
+                            </div>
                         </div>
                     </div>
 
+                    <!-- ====================================================
+                        FORM ROW 2: Payment Method, Note
+                    ==================================================== -->
                     <div class="form-row two">
                         <div class="form-group">
                             <label data-i18n="paymentMethod">Payment Method <span class="required">*</span></label>
@@ -1981,6 +2038,9 @@
                         </div>
                     </div>
 
+                    <!-- ====================================================
+                        CONDITIONAL FIELDS (TT Number, Transfer Date, Bank Name)
+                    ==================================================== -->
                     <div class="conditional-fields" id="conditionalFields">
                         <div class="form-row two">
                             <div class="form-group">
@@ -2000,6 +2060,9 @@
                         </div>
                     </div>
 
+                    <!-- ====================================================
+                        FORM ACTIONS
+                    ==================================================== -->
                     <div class="form-actions">
                         <button type="button" class="btn-secondary" id="resetFormBtn"><span data-i18n="clear">Clear</span></button>
                         <button type="submit" class="btn-primary" id="saveBtn">
@@ -2008,7 +2071,6 @@
                     </div>
                 </form>
             </div>
-            <!-- END FIX -->
         </div>
     </div>
 
@@ -2159,7 +2221,8 @@
                 cannotEditApproved: 'Cannot edit an approved or rejected repayment.',
                 cash: 'Cash',
                 printRecorded: 'Print recorded successfully.',
-                sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.'
+                sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.',
+                nextDueDate: 'Next Payment Due:'
             }
         };
 
@@ -2181,6 +2244,7 @@
         let loansPenaltyRate = 0.05;
         let gracePeriod = 7;
         let penaltyAutoGenerate = true;
+        let currentLoanId = null;
 
         // ============================================================
         // TOAST SYSTEM
@@ -2301,7 +2365,6 @@
             const displayName = currentUserDisplayName || 'User';
             document.getElementById('userDisplayName').textContent = displayName + ' (' + roleLabel + ')';
             isAdmin = currentUserRole === 'admin';
-            const isAdminManager = ['admin', 'manager'].includes(currentUserRole);
             const auditNav = document.getElementById('auditNavItem');
             if (auditNav) auditNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
             const usersNav = document.getElementById('usersNavItem');
@@ -2406,10 +2469,8 @@
 
         function canApproveReject() { return ['admin', 'manager'].includes(currentUserRole); }
 
-        // EDIT permission: admin and manager
         function canEdit() { return currentUserRole === 'admin' || currentUserRole === 'manager'; }
 
-        // DELETE permission: only admin
         function canDelete() { return currentUserRole === 'admin'; }
 
         // ============================================================
@@ -2576,7 +2637,7 @@
         }
 
         // ============================================================
-        // CHECK DUPLICATE (uses customerId, not loanId)
+        // CHECK DUPLICATE
         // ============================================================
         async function checkDuplicate(customerId, ttNumber, transferDate, excludeId = null) {
             try {
@@ -2607,18 +2668,12 @@
         // CHECK AND CREATE PENALTY
         // ============================================================
         async function checkAndCreatePenalty(loanId, memberId) {
-            console.log('🔍 Checking penalty for loan:', loanId, 'member:', memberId);
-
             try {
                 const loanDoc = await db.collection('transactions').doc(loanId).get();
-                if (!loanDoc.exists) {
-                    console.log('❌ Loan not found');
-                    return { penaltyAmount: 0, unpaidMonths: 0 };
-                }
+                if (!loanDoc.exists) return { penaltyAmount: 0, unpaidMonths: 0 };
 
                 const loanData = loanDoc.data();
                 if (!loanData.date || !loanData.amount || !loanData.repaymentPeriod) {
-                    console.log('⏭️ Loan missing required fields');
                     return { penaltyAmount: 0, unpaidMonths: 0 };
                 }
 
@@ -2626,11 +2681,7 @@
                 const now = new Date();
                 const monthsDiff = (now.getFullYear() - loanDate.getFullYear()) * 12 +
                     (now.getMonth() - loanDate.getMonth());
-
-                if (monthsDiff <= 0) {
-                    console.log('⏭️ Loan just started');
-                    return { penaltyAmount: 0, unpaidMonths: 0 };
-                }
+                if (monthsDiff <= 0) return { penaltyAmount: 0, unpaidMonths: 0 };
 
                 const repaySnapshot = await db.collection('transactions')
                     .where('loanId', '==', loanId)
@@ -2644,13 +2695,7 @@
 
                 const paidMonths = approvedRepayments.length;
                 const unpaidMonths = Math.max(0, monthsDiff - paidMonths);
-
-                console.log(`💰 Paid months: ${paidMonths}, Unpaid months: ${unpaidMonths}`);
-
-                if (unpaidMonths === 0) {
-                    console.log('✅ No unpaid months');
-                    return { penaltyAmount: 0, unpaidMonths: 0 };
-                }
+                if (unpaidMonths === 0) return { penaltyAmount: 0, unpaidMonths: 0 };
 
                 const monthlyPayment = calculateMonthlyPayment(
                     Number(loanData.amount) || 0,
@@ -2660,14 +2705,7 @@
                 );
 
                 const penaltyAmount = Math.round((monthlyPayment * unpaidMonths) * loansPenaltyRate * 100) / 100;
-
-                console.log(`📊 Monthly payment: ${monthlyPayment.toFixed(2)}`);
-                console.log(`📊 Penalty amount: ${penaltyAmount.toFixed(2)}`);
-
-                if (penaltyAmount <= 0) {
-                    console.log('⏭️ Penalty amount is zero');
-                    return { penaltyAmount: 0, unpaidMonths: unpaidMonths };
-                }
+                if (penaltyAmount <= 0) return { penaltyAmount: 0, unpaidMonths: unpaidMonths };
 
                 const existingPenalty = await db.collection('transactions')
                     .where('memberId', '==', memberId)
@@ -2677,7 +2715,6 @@
                     .get();
 
                 if (!existingPenalty.empty) {
-                    console.log('⏭️ Penalty already exists');
                     let existingTotal = 0;
                     existingPenalty.forEach(doc => {
                         existingTotal += Number(doc.data().amount) || 0;
@@ -2700,14 +2737,11 @@
                     createdBy: 'system-auto'
                 };
 
-                console.log('✅ Creating penalty record:', penaltyData);
                 await db.collection('transactions').add(penaltyData);
-
                 showToast(
                     `⚠️ Penalty of ETB ${penaltyAmount.toFixed(2)} generated for ${unpaidMonths} unpaid month(s).`,
                     'warning'
                 );
-
                 return { penaltyAmount: penaltyAmount, unpaidMonths: unpaidMonths };
 
             } catch (error) {
@@ -2800,137 +2834,201 @@
             const loan = allLoans.find(l => l.id === id);
             if (!loan) return;
 
+            currentLoanId = id;
             document.getElementById('loanSearch').value = displayName;
             document.getElementById('loanId').value = id;
             document.getElementById('loanSuggestions').style.display = 'none';
             selectedLoanId = id;
 
-            const loanInfo = document.getElementById('loanInfoDisplay');
-            document.getElementById('loanMemberName').textContent = loan.customerName || 'Unknown';
-            document.getElementById('loanAmount').textContent = Number(loan.amount).toLocaleString();
-            const totalPayable = Number(loan.totalPayable || loan.amount);
-            document.getElementById('loanTotalPayable').textContent = totalPayable.toLocaleString();
-            document.getElementById('loanStatus').textContent = loan.status || 'N/A';
-            document.getElementById('loanStatus').style.color = loan.status === 'active' ? 'var(--primary)' : 'var(--warning)';
+            const refreshBtn = document.getElementById('refreshPenaltyBtn');
+            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            refreshBtn.disabled = true;
 
-            const totalPaid = await getLoanRepaymentsTotal(id);
-            const remaining = Math.max(0, Math.round((totalPayable - totalPaid) * 100) / 100);
-            document.getElementById('loanTotalPaid').textContent = totalPaid.toLocaleString();
-            const remainingEl = document.getElementById('loanRemaining');
-            remainingEl.textContent = remaining.toLocaleString();
-            remainingEl.className = `value remaining ${remaining <= 0 ? 'warning' : ''}`;
+            try {
+                const loanInfo = document.getElementById('loanInfoDisplay');
+                document.getElementById('loanMemberName').textContent = loan.customerName || 'Unknown';
+                document.getElementById('loanAmount').textContent = Number(loan.amount).toLocaleString();
+                const totalPayable = Number(loan.totalPayable || loan.amount);
+                document.getElementById('loanTotalPayable').textContent = totalPayable.toLocaleString();
+                document.getElementById('loanStatus').textContent = loan.status || 'N/A';
+                document.getElementById('loanStatus').style.color = loan.status === 'active' ? 'var(--primary)' :
+                    'var(--warning)';
 
-            const principal = Number(loan.amount) || 0;
-            const interestRate = Number(loan.interestRate) || 0;
-            const period = Number(loan.repaymentPeriod) || 0;
-            const loanType = loan.loanType || 'simple';
-            const monthlyPayment = calculateMonthlyPayment(principal, interestRate, period, loanType);
-            document.getElementById('monthlyPaymentValue').textContent = monthlyPayment.toFixed(2);
+                const totalPaid = await getLoanRepaymentsTotal(id);
+                const remaining = Math.max(0, Math.round((totalPayable - totalPaid) * 100) / 100);
+                document.getElementById('loanTotalPaid').textContent = totalPaid.toLocaleString();
+                const remainingEl = document.getElementById('loanRemaining');
+                remainingEl.textContent = remaining.toLocaleString();
+                remainingEl.className = `value remaining ${remaining <= 0 ? 'warning' : ''}`;
 
-            const minRepayment = Math.min(monthlyPayment, remaining);
-            document.getElementById('minAmountDisplay').textContent = minRepayment.toFixed(2);
-            document.getElementById('minAmountHint').style.display = 'block';
+                const principal = Number(loan.amount) || 0;
+                const interestRate = Number(loan.interestRate) || 0;
+                const period = Number(loan.repaymentPeriod) || 0;
+                const loanType = loan.loanType || 'simple';
+                const monthlyPayment = calculateMonthlyPayment(principal, interestRate, period, loanType);
+                document.getElementById('monthlyPaymentValue').textContent = monthlyPayment.toFixed(2);
 
-            const statusEl = document.getElementById('minRepaymentStatus');
-            if (remaining === 0) {
-                statusEl.textContent = 'Fully paid';
-                statusEl.className = 'value';
-            } else {
-                statusEl.textContent = 'Min: ' + minRepayment.toFixed(2) + ' ETB';
-                statusEl.className = 'value';
-            }
+                const minRepayment = Math.min(monthlyPayment, remaining);
+                document.getElementById('minAmountDisplay').textContent = minRepayment.toFixed(2);
+                document.getElementById('minAmountHint').style.display = 'block';
 
-            loanInfo.classList.add('active');
-
-            const amountInput = document.getElementById('amountInput');
-            amountInput.max = remaining;
-            amountInput.min = minRepayment;
-            amountInput.placeholder = `Min: ${minRepayment.toFixed(2)} | Max: ${remaining.toLocaleString()}`;
-
-            updateRepayAllButton();
-
-            // Check penalties
-            const penaltyResult = await checkAndCreatePenalty(id, loan.customerId);
-            const allPenalties = await getMemberPenaltiesWithDetails(loan.customerId);
-
-            const block = document.getElementById('penaltyBlock');
-            const blockAmount = document.getElementById('penaltyBlockAmount');
-            const saveBtn = document.getElementById('saveBtn');
-            const formSection = document.getElementById('repaymentFormSection');
-            const penaltyDetails = document.getElementById('penaltyDetails');
-
-            if (allPenalties.total > 0) {
-                blockAmount.textContent = `ETB ${allPenalties.total.toFixed(2)}`;
-                block.classList.add('show');
-
-                let detailsHtml = '';
-                allPenalties.details.forEach((d, idx) => {
-                    const rateDisplay = ((d.penaltyRate || loansPenaltyRate) * 100).toFixed(1);
-                    detailsHtml += `
-                        <span class="calc-line">
-                            ${idx === 0 ? '📊' : '   '} 
-                            Unpaid months: ${d.unpaidMonths} | 
-                            Monthly: ETB ${d.monthlyPayment.toFixed(2)} | 
-                            Rate: ${rateDisplay}% | 
-                            Penalty: ETB ${d.amount.toFixed(2)}
-                        </span>
-                    `;
-                });
-                detailsHtml += `
-                    <span class="calc-line calc-total">⚠️ Total penalty: ETB ${allPenalties.total.toFixed(2)}</span>
-                `;
-                penaltyDetails.innerHTML = detailsHtml;
-
-                saveBtn.disabled = true;
-                if (formSection) {
-                    formSection.classList.add('penalty-blocked');
-                    const oldBadge = formSection.querySelector('.form-blocked-badge');
-                    if (oldBadge) oldBadge.remove();
-                    const badge = document.createElement('div');
-                    badge.className = 'form-blocked-badge';
-                    const t = translations[currentLang];
-                    badge.innerHTML =
-                    `<i class="fas fa-lock"></i> ${t.penaltyBlockedForm || '⛔ Repayment is BLOCKED – Please clear the outstanding penalty first.'}`;
-                    formSection.appendChild(badge);
+                const statusEl = document.getElementById('minRepaymentStatus');
+                if (remaining === 0) {
+                    statusEl.textContent = 'Fully paid';
+                    statusEl.className = 'value';
+                } else {
+                    statusEl.textContent = 'Min: ' + minRepayment.toFixed(2) + ' ETB';
+                    statusEl.className = 'value';
                 }
 
-                showToast(
-                    `⛔ Repayment BLOCKED: ETB ${allPenalties.total.toFixed(2)} outstanding penalty. Please pay it first.`,
-                    'warning'
+                // 🔥 CALCULATE NEXT DUE DATE
+                const loanStartDate = loan.date && loan.date.toDate ? loan.date.toDate() : new Date(loan.date);
+                const approvedRepays = allRepayments.filter(r =>
+                    r.loanId === id &&
+                    (r.status === 'approved' || r.printed === true)
                 );
-            } else {
-                block.classList.remove('show');
-                saveBtn.disabled = false;
-                if (formSection) {
-                    formSection.classList.remove('penalty-blocked');
-                    const oldBadge = formSection.querySelector('.form-blocked-badge');
-                    if (oldBadge) oldBadge.remove();
-                }
-                penaltyDetails.innerHTML = `
-                    <span class="calc-line"><span class="calc-label">📊 Unpaid months:</span> <span id="penaltyUnpaidMonths">0</span></span>
-                    <span class="calc-line"><span class="calc-label">💰 Monthly payment:</span> ETB <span id="penaltyMonthlyPayment">0.00</span></span>
-                    <span class="calc-line"><span class="calc-label">📈 Penalty rate:</span> <span id="penaltyRateDisplayDetail">${(loansPenaltyRate * 100).toFixed(1)}%</span></span>
-                    <span class="calc-line calc-total">⚠️ Total penalty: ETB <span id="penaltyTotalDisplay">0.00</span></span>
-                `;
-            }
+                const repayCount = approvedRepays.length;
 
-            // Unpaid previous months check
-            const repayList = (await db.collection('transactions')
-                .where('loanId', '==', id)
-                .where('type', '==', 'repayment')
-                .get()).docs.map(d => ({ id: d.id, ...d.data() }));
-            const unpaidData = getUnpaidPreviousMonths(loan, repayList);
-            const unpaidWarning = document.getElementById('unpaidWarning');
-            const alreadyPaidWarning = document.getElementById('alreadyPaidWarning');
-            if (unpaidData.totalUnpaid > 0) {
-                unpaidWarning.classList.add('show');
-                document.getElementById('unpaidWarningText').textContent =
-                    `⚠️ Unpaid previous monthly loan(s): ETB ${unpaidData.totalUnpaid.toFixed(2)} (${unpaidData.unpaidMonths} months)`;
-                alreadyPaidWarning.classList.remove('show');
-            } else {
-                unpaidWarning.classList.remove('show');
-                alreadyPaidWarning.classList.add('show');
+                let nextDueDate = null;
+                let daysLeft = null;
+                const dueDateEl = document.getElementById('nextDueDateDisplay');
+
+                if (remaining <= 0) {
+                    dueDateEl.textContent = '✅ Fully paid – no more payments';
+                    dueDateEl.className = 'value due-date';
+                } else {
+                    nextDueDate = new Date(loanStartDate);
+                    nextDueDate.setMonth(nextDueDate.getMonth() + repayCount + 1);
+                    const now = new Date();
+                    daysLeft = Math.ceil((nextDueDate - now) / (1000 * 60 * 60 * 24));
+
+                    let displayText = nextDueDate.toLocaleDateString();
+                    if (daysLeft >= 0) {
+                        displayText += ` (${daysLeft} day${daysLeft !== 1 ? 's' : ''} left)`;
+                        dueDateEl.className = 'value due-date';
+                    } else {
+                        const overdueDays = Math.abs(daysLeft);
+                        displayText += ` (⚠️ Overdue by ${overdueDays} day${overdueDays !== 1 ? 's' : ''})`;
+                        dueDateEl.className = 'value due-date overdue';
+                    }
+                    dueDateEl.textContent = displayText;
+                }
+
+                loanInfo.classList.add('active');
+
+                const amountInput = document.getElementById('amountInput');
+                amountInput.max = remaining;
+                amountInput.min = minRepayment;
+                amountInput.placeholder = `Min: ${minRepayment.toFixed(2)} | Max: ${remaining.toLocaleString()}`;
+
+                updateRepayAllButton();
+
+                // --- Check Penalties ---
+                const penaltyResult = await checkAndCreatePenalty(id, loan.customerId);
+                const allPenalties = await getMemberPenaltiesWithDetails(loan.customerId);
+
+                const block = document.getElementById('penaltyBlock');
+                const blockAmount = document.getElementById('penaltyBlockAmount');
+                const saveBtn = document.getElementById('saveBtn');
+                const formSection = document.getElementById('repaymentFormSection');
+                const penaltyDetails = document.getElementById('penaltyDetails');
+
+                if (allPenalties.total > 0) {
+                    blockAmount.textContent = `ETB ${allPenalties.total.toFixed(2)}`;
+                    block.classList.add('show');
+
+                    let detailsHtml = '';
+                    allPenalties.details.forEach((d, idx) => {
+                        const rateDisplay = ((d.penaltyRate || loansPenaltyRate) * 100).toFixed(1);
+                        detailsHtml += `
+                            <span class="calc-line">
+                                ${idx === 0 ? '📊' : '   '} 
+                                Unpaid months: ${d.unpaidMonths} | 
+                                Monthly: ETB ${d.monthlyPayment.toFixed(2)} | 
+                                Rate: ${rateDisplay}% | 
+                                Penalty: ETB ${d.amount.toFixed(2)}
+                            </span>
+                        `;
+                    });
+                    detailsHtml += `
+                        <span class="calc-line calc-total">⚠️ Total penalty: ETB ${allPenalties.total.toFixed(2)}</span>
+                    `;
+                    penaltyDetails.innerHTML = detailsHtml;
+
+                    saveBtn.disabled = true;
+                    if (formSection) {
+                        formSection.classList.add('penalty-blocked');
+                        const oldBadge = formSection.querySelector('.form-blocked-badge');
+                        if (oldBadge) oldBadge.remove();
+                        const badge = document.createElement('div');
+                        badge.className = 'form-blocked-badge';
+                        const t = translations[currentLang];
+                        badge.innerHTML =
+                            `<i class="fas fa-lock"></i> ${t.penaltyBlockedForm || '⛔ Repayment is BLOCKED – Please clear the outstanding penalty first.'}`;
+                        formSection.appendChild(badge);
+                    }
+
+                    showToast(
+                        `⛔ Repayment BLOCKED: ETB ${allPenalties.total.toFixed(2)} outstanding penalty. Please pay it first.`,
+                        'warning'
+                    );
+                } else {
+                    block.classList.remove('show');
+                    saveBtn.disabled = false;
+                    if (formSection) {
+                        formSection.classList.remove('penalty-blocked');
+                        const oldBadge = formSection.querySelector('.form-blocked-badge');
+                        if (oldBadge) oldBadge.remove();
+                    }
+                    penaltyDetails.innerHTML = `
+                        <span class="calc-line"><span class="calc-label">📊 Unpaid months:</span> <span id="penaltyUnpaidMonths">0</span></span>
+                        <span class="calc-line"><span class="calc-label">💰 Monthly payment:</span> ETB <span id="penaltyMonthlyPayment">0.00</span></span>
+                        <span class="calc-line"><span class="calc-label">📈 Penalty rate:</span> <span id="penaltyRateDisplayDetail">${(loansPenaltyRate * 100).toFixed(1)}%</span></span>
+                        <span class="calc-line calc-total">⚠️ Total penalty: ETB <span id="penaltyTotalDisplay">0.00</span></span>
+                    `;
+                }
+
+                // Unpaid previous months check
+                const repayList = (await db.collection('transactions')
+                    .where('loanId', '==', id)
+                    .where('type', '==', 'repayment')
+                    .get()).docs.map(d => ({ id: d.id, ...d.data() }));
+                const unpaidData = getUnpaidPreviousMonths(loan, repayList);
+                const unpaidWarning = document.getElementById('unpaidWarning');
+                const alreadyPaidWarning = document.getElementById('alreadyPaidWarning');
+                if (unpaidData.totalUnpaid > 0) {
+                    unpaidWarning.classList.add('show');
+                    document.getElementById('unpaidWarningText').textContent =
+                        `⚠️ Unpaid previous monthly loan(s): ETB ${unpaidData.totalUnpaid.toFixed(2)} (${unpaidData.unpaidMonths} months)`;
+                    alreadyPaidWarning.classList.remove('show');
+                } else {
+                    unpaidWarning.classList.remove('show');
+                    alreadyPaidWarning.classList.add('show');
+                }
+
+            } catch (error) {
+                console.error('Error in selectLoan:', error);
+                showToast('Error loading loan details: ' + error.message, 'error');
+            } finally {
+                refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                refreshBtn.disabled = false;
             }
+        }
+
+        // Refresh penalty status
+        async function refreshPenaltyStatus() {
+            if (!currentLoanId) {
+                showToast('Please select a loan first.', 'warning');
+                return;
+            }
+            const loan = allLoans.find(l => l.id === currentLoanId);
+            if (!loan) {
+                showToast('Loan not found. Please search again.', 'error');
+                return;
+            }
+            const displayName = loan.customerName + ' (' + (loan.customerId || '') + ')';
+            await selectLoan(currentLoanId, displayName);
+            showToast('Penalty status refreshed.', 'success');
         }
 
         function getUnpaidPreviousMonths(loan, repayments) {
@@ -3197,7 +3295,6 @@
                     <button class="action-btn print-btn" onclick="printRepaymentSlip('${r.id}')" title="${t.printSlip}"><i class="fas fa-print"></i></button>
                 `;
 
-                // Approve/Reject only for pending
                 if (canApproveReject() && r.status === 'pending') {
                     actionsHtml += `
                         <button class="action-btn approve-btn" onclick="approveRepayment('${r.id}')" title="${t.approve}"><i class="fas fa-check-circle"></i></button>
@@ -3205,14 +3302,12 @@
                     `;
                 }
 
-                // Edit: show for pending (if canEdit) OR for approved (if admin)
                 const canEditThis = canEdit() && (r.status === 'pending' || (r.status === 'approved' && currentUserRole === 'admin'));
                 if (canEditThis) {
                     actionsHtml +=
                         `<button class="action-btn edit-btn" onclick="editRepayment('${r.id}')" title="${t.edit}"><i class="fas fa-edit"></i></button>`;
                 }
 
-                // Delete: show for pending (if canDelete) OR for approved (if admin)
                 const canDeleteThis = canDelete() && (r.status === 'pending' || (r.status === 'approved' && currentUserRole === 'admin'));
                 if (canDeleteThis) {
                     actionsHtml +=
@@ -3354,9 +3449,7 @@
                     approvedBy: getDisplayName(auth.currentUser)
                 });
 
-                // Update loan balance
                 await updateLoanBalance(loanId);
-
                 await logAudit('approved', 'transactions', id, { previousStatus: { old: 'pending', new: 'approved' } },
                     'Repayment approved');
                 showToast(translations[currentLang].approvalSuccess, 'success');
@@ -3412,14 +3505,13 @@
         }
 
         // ============================================================
-        // EDIT REPAYMENT (admin can edit approved as well)
+        // EDIT REPAYMENT
         // ============================================================
         function editRepayment(id) {
             if (!canEdit()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
             const repayment = allRepayments.find(r => r.id === id);
             if (!repayment) { showToast('Repayment not found.', 'error'); return; }
 
-            // Allow edit if pending OR (approved and user is admin)
             if (repayment.status !== 'pending' && !(repayment.status === 'approved' && currentUserRole === 'admin')) {
                 showToast(translations[currentLang].cannotEditApproved, 'warning');
                 return;
@@ -3428,7 +3520,6 @@
             document.getElementById('editId').value = id;
             document.getElementById('modalTitle').textContent = 'Edit Repayment';
 
-            // Set loan info
             const loan = allLoans.find(l => l.id === repayment.loanId);
             if (loan) {
                 document.getElementById('loanSearch').value = loan.customerName + ' (' + (loan.customerId || '') + ')';
@@ -3462,14 +3553,13 @@
         }
 
         // ============================================================
-        // DELETE REPAYMENT (admin can delete approved as well)
+        // DELETE REPAYMENT
         // ============================================================
         async function deleteRepayment(id) {
             if (!canDelete()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
             const repayment = allRepayments.find(r => r.id === id);
             if (!repayment) { showToast('Repayment not found.', 'error'); return; }
 
-            // Allow delete if pending OR (approved and user is admin)
             if (repayment.status !== 'pending' && !(repayment.status === 'approved' && currentUserRole === 'admin')) {
                 showToast('Cannot delete an approved or rejected repayment.', 'warning');
                 return;
@@ -3549,7 +3639,6 @@
             if (!amount || amount <= 0) { showToast('Please enter a valid amount.', 'warning'); return; }
             if (!date) { showToast('Please select a date.', 'warning'); return; }
 
-            // --- FIX: use customerId for duplicate check, not loanId ---
             const loan = allLoans.find(l => l.id === loanId);
             if (!loan) { showToast(t.loanNotFound, 'error'); return; }
             const customerId = loan.customerId;
@@ -3562,7 +3651,6 @@
                     return;
                 }
 
-                // Use customerId for duplicate check
                 const isDuplicate = await checkDuplicate(customerId, ttNumber, transferDate, editId || null);
                 if (isDuplicate) {
                     showToast(t.duplicateError || 'Duplicate TT number and transfer date found!', 'error');
@@ -3571,7 +3659,6 @@
                 }
             }
 
-            // Penalty check
             const allPenalties = await getMemberPenaltiesWithDetails(customerId);
             if (allPenalties.total > 0) {
                 showToast(
@@ -3667,9 +3754,7 @@
                         status: { old: null, new: 'pending' }
                     }, 'Repayment recorded');
 
-                    // Update loan balance
                     await updateLoanBalance(loanId);
-
                     showToast(t.recordSaved || 'Repayment recorded successfully!', 'success');
                 }
 
@@ -3819,7 +3904,6 @@
             document.getElementById('bankName').value = '';
             isRepayAll = false;
             toggleConditionalFields();
-            // reset penalty block state in modal
             const formSection = document.getElementById('repaymentFormSection');
             if (formSection) {
                 formSection.classList.remove('penalty-blocked');
@@ -3920,7 +4004,14 @@
                 document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
                 document.getElementById('paymentMethod').addEventListener('change', toggleConditionalFields);
 
-                // Duplicate check - now uses customerId from selected loan
+                document.getElementById('refreshPenaltyBtn').addEventListener('click', refreshPenaltyStatus);
+
+                document.addEventListener('visibilitychange', function() {
+                    if (!document.hidden && currentLoanId) {
+                        refreshPenaltyStatus();
+                    }
+                });
+
                 document.getElementById('ttNumber').addEventListener('blur', async function() {
                     const loanId = document.getElementById('loanId').value;
                     const loan = allLoans.find(l => l.id === loanId);
@@ -3953,7 +4044,6 @@
 
                 await loadRepayments();
 
-                // Event Listeners
                 document.getElementById('addRepaymentBtn').addEventListener('click', () => {
                     openModal('Add Repayment');
                 });
@@ -4028,6 +4118,7 @@
         window.closeViewModal = closeViewModal;
         window.closeModal = closeModal;
         window.openModal = openModal;
+        window.refreshPenaltyStatus = refreshPenaltyStatus;
 
         // ============================================================
         // SESSION TIMEOUT
