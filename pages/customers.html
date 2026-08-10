@@ -2555,22 +2555,28 @@
             }
         }
 
-        // ---- DELETE CUSTOMER ----
+        // ---- DELETE CUSTOMER - FIXED ----
         async function deleteCustomer(customerId) {
             try {
                 const docRef = db.collection('customers').doc(customerId);
                 const doc = await docRef.get();
                 const customerData = doc.exists ? doc.data() : {};
 
-                await deletePhoto(customerId);
+                // 1. Delete the Firestore document first (this is the critical operation)
                 await docRef.delete();
 
-                await logAudit('deleted', 'customers', customerId, { deletedData: { old: null, new: customerData } },
-                    `Customer ${customerData.fullName || 'Unknown'} (${customerData.customerId || 'N/A'}) deleted`);
+                // 2. Delete photo in background – don't await, catch errors silently
+                deletePhoto(customerId).catch(() => {});
+
+                // 3. Log audit in background – don't await, catch errors silently
+                logAudit('deleted', 'customers', customerId, { deletedData: { old: null, new: customerData } },
+                    `Customer ${customerData.fullName || 'Unknown'} (${customerData.customerId || 'N/A'}) deleted`
+                ).catch(() => {});
 
                 showToast(translations[currentLang].customerDeleted, 'success');
                 return { success: true };
             } catch (error) {
+                console.error('Delete error:', error);
                 showToast(translations[currentLang].errorDeleting + error.message, 'error');
                 return { success: false };
             }
