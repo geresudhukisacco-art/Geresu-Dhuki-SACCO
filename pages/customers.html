@@ -2403,18 +2403,37 @@
             }
         }
 
+        // --- UPLOAD PHOTO WITH TIMEOUT (fix for hanging) ---
         async function uploadPhoto(customerId, file) {
             if (!file) return null;
             const ref = storage.ref().child(`customers/${customerId}/profile.jpg`);
-            await ref.put(file);
-            return await ref.getDownloadURL();
+            const timeoutMs = 30000; // 30 seconds
+            try {
+                // Use Promise.race to timeout the upload
+                const uploadPromise = ref.put(file);
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Photo upload timed out after 30 seconds')), timeoutMs)
+                );
+                const snapshot = await Promise.race([uploadPromise, timeoutPromise]);
+                // If we get here, upload succeeded; get download URL
+                const url = await snapshot.ref.getDownloadURL();
+                return url;
+            } catch (error) {
+                console.error('Photo upload error:', error);
+                // Silently fail – customer is already saved
+                return null;
+            }
         }
 
         async function deletePhoto(customerId) {
-            try { await storage.ref().child(`customers/${customerId}/profile.jpg`).delete(); } catch (e) {}
+            try {
+                await storage.ref().child(`customers/${customerId}/profile.jpg`).delete();
+            } catch (e) {
+                // ignore
+            }
         }
 
-        // ---- ADD CUSTOMER ----
+        // ---- ADD CUSTOMER (photo upload non-blocking) ----
         async function addCustomer(data, file) {
             try {
                 const phone = data.phone.trim();
@@ -2443,6 +2462,7 @@
 
                 const docRef = db.collection('customers').doc();
 
+                // 1. Save customer (without photo) – fast
                 await docRef.set({
                     ...data,
                     fullName: fullNameEn,
@@ -2454,14 +2474,18 @@
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-                let photoURL = null;
+                // 2. If photo provided, upload in background (non-blocking)
                 if (file) {
-                    try {
-                        photoURL = await uploadPhoto(docRef.id, file);
-                        await docRef.update({ photoURL });
-                    } catch (e) { console.warn('Photo upload failed:', e); }
+                    uploadPhoto(docRef.id, file)
+                        .then(photoURL => {
+                            if (photoURL) {
+                                return docRef.update({ photoURL });
+                            }
+                        })
+                        .catch(err => console.error('Background photo upload failed:', err));
                 }
 
+                // 3. Log audit (await, but it's fast)
                 await logAudit('created', 'customers', docRef.id, {
                     fullName: { old: null, new: fullNameEn },
                     fullNameAm: { old: null, new: fullNameAm },
@@ -2474,7 +2498,7 @@
                     gender: { old: null, new: data.gender || 'Male' },
                     status: { old: null, new: data.status || 'active' },
                     dateJoined: { old: null, new: data.dateJoined || '' },
-                    photoURL: { old: null, new: photoURL || null }
+                    photoURL: { old: null, new: null }
                 }, `Customer ${fullNameEn} (${customerId}) created`);
 
                 showToast(translations[currentLang].customerSaved, 'success');
@@ -2485,7 +2509,7 @@
             }
         }
 
-        // ---- UPDATE CUSTOMER ----
+        // ---- UPDATE CUSTOMER (photo upload non-blocking) ----
         async function updateCustomer(customerId, data, file) {
             try {
                 const phone = data.phone.trim();
@@ -2520,15 +2544,22 @@
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
 
+                // 1. Update customer data (without photo) – fast
                 await docRef.update(updateData);
 
-                let newPhotoURL = oldData.photoURL || null;
+                // 2. If new photo provided, delete old in background and upload new
                 if (file) {
-                    await deletePhoto(customerId);
-                    newPhotoURL = await uploadPhoto(customerId, file);
-                    await docRef.update({ photoURL: newPhotoURL });
+                    deletePhoto(customerId).catch(() => {});
+                    uploadPhoto(customerId, file)
+                        .then(photoURL => {
+                            if (photoURL) {
+                                return docRef.update({ photoURL });
+                            }
+                        })
+                        .catch(err => console.error('Background photo upload failed:', err));
                 }
 
+                // 3. Prepare changes for audit
                 const changes = {};
                 const fieldsToCompare = ['firstNameEn', 'middleNameEn', 'lastNameEn', 'firstNameAm', 'middleNameAm',
                     'lastNameAm', 'phone', 'nid', 'nationality', 'address', 'status', 'gender', 'dateJoined'
@@ -2540,9 +2571,8 @@
                         changes[field] = { old: oldVal, new: newVal };
                     }
                 });
-                if (oldData.photoURL !== newPhotoURL) {
-                    changes.photoURL = { old: oldData.photoURL || null, new: newPhotoURL || null };
-                }
+                // Photo change will be logged later if needed – we skip for simplicity
+                // but we can note that it will be updated in background.
 
                 await logAudit('updated', 'customers', customerId, changes,
                     `Customer ${fullNameEn} (${oldData.customerId || 'N/A'}) updated`);
@@ -2555,20 +2585,20 @@
             }
         }
 
-        // ---- DELETE CUSTOMER - FIXED ----
+        // ---- DELETE CUSTOMER (photo deletion non-blocking) ----
         async function deleteCustomer(customerId) {
             try {
                 const docRef = db.collection('customers').doc(customerId);
                 const doc = await docRef.get();
                 const customerData = doc.exists ? doc.data() : {};
 
-                // 1. Delete the Firestore document first (this is the critical operation)
+                // 1. Delete the Firestore document first (critical)
                 await docRef.delete();
 
-                // 2. Delete photo in background – don't await, catch errors silently
+                // 2. Delete photo in background
                 deletePhoto(customerId).catch(() => {});
 
-                // 3. Log audit in background – don't await, catch errors silently
+                // 3. Log audit in background
                 logAudit('deleted', 'customers', customerId, { deletedData: { old: null, new: customerData } },
                     `Customer ${customerData.fullName || 'Unknown'} (${customerData.customerId || 'N/A'}) deleted`
                 ).catch(() => {});
