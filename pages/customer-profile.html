@@ -2552,9 +2552,10 @@
                 const period = Number(loan.repaymentPeriod) || 0;
                 const loanType = loan.loanType || 'simple';
 
-                // Only count approved repayments
+                // --- FIX: include 'paid' and 'done' as valid repayment statuses ---
                 const repayments = allTransactions
-                    .filter(tx => tx.loanId === loanId && tx.type === 'repayment' && tx.status === 'approved')
+                    .filter(tx => tx.loanId === loanId && tx.type === 'repayment' && 
+                        (tx.status === 'approved' || tx.status === 'paid' || tx.status === 'done'))
                     .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
 
                 const totalPayable = loan.totalPayable ?
@@ -2609,11 +2610,13 @@
                 const dateStr = formatDate(penalty.date || penalty.timestamp);
                 const note = penalty.note || '';
 
-                // Status mapping
+                // Status mapping – added 'done' and 'completed' as paid aliases
                 const statusMap = {
                     'pending': { label: t.penaltyPending || 'Pending', class: 'penalty_pending' },
                     'approval': { label: t.penaltyApproval || 'Awaiting Approval', class: 'penalty_approval' },
                     'paid': { label: t.penaltyPaid || 'Paid', class: 'penalty_paid' },
+                    'done': { label: t.penaltyPaid || 'Paid', class: 'penalty_paid' },
+                    'completed': { label: t.penaltyPaid || 'Paid', class: 'penalty_paid' },
                     'rejected': { label: t.penaltyRejected || 'Rejected', class: 'penalty_rejected' }
                 };
                 const statusInfo = statusMap[status] || statusMap['pending'];
@@ -2675,6 +2678,8 @@
                 'pending': t.penaltyPending || 'Pending',
                 'approval': t.penaltyApproval || 'Awaiting Approval',
                 'paid': t.penaltyPaid || 'Paid',
+                'done': t.penaltyPaid || 'Paid',
+                'completed': t.penaltyPaid || 'Paid',
                 'rejected': t.penaltyRejected || 'Rejected'
             };
             const statusLabel = statusMap[status] || 'Pending';
@@ -2722,9 +2727,10 @@
                 const period = Number(loan.repaymentPeriod) || 0;
                 const loanType = loan.loanType || 'simple';
 
-                // Only count approved repayments
+                // --- FIX: include 'paid' and 'done' as valid repayment statuses ---
                 const repayments = allTransactions
-                    .filter(tx => tx.loanId === loanId && tx.type === 'repayment' && tx.status === 'approved')
+                    .filter(tx => tx.loanId === loanId && tx.type === 'repayment' && 
+                        (tx.status === 'approved' || tx.status === 'paid' || tx.status === 'done'))
                     .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
 
                 const totalPayable = loan.totalPayable ?
@@ -2886,6 +2892,11 @@
                             statusClass = 'penalty_paid';
                             statusLabel = t.penaltyPaid || 'Paid';
                             break;
+                        case 'done':
+                        case 'completed':
+                            statusClass = 'penalty_paid';
+                            statusLabel = t.penaltyPaid || 'Paid';
+                            break;
                         case 'rejected':
                             statusClass = 'penalty_rejected';
                             statusLabel = t.penaltyRejected || 'Rejected';
@@ -2904,12 +2915,18 @@
                         statusLabel = t.pending;
                     }
                 } else {
-                    if (tx.status === 'done' || tx.status === 'completed' || tx.status === 'distributed') {
+                    // --- FIX: treat 'approved', 'paid', 'done', 'completed', 'distributed' as DONE ---
+                    const doneStatuses = ['done', 'completed', 'distributed', 'approved', 'paid'];
+                    if (doneStatuses.includes(tx.status)) {
                         statusClass = 'done';
-                        statusLabel = t.done;
-                    } else {
+                        statusLabel = t.done || 'Done';
+                    } else if (tx.status === 'pending' || tx.status === 'review') {
                         statusClass = 'pending';
-                        statusLabel = t.pending;
+                        statusLabel = t.pending || 'Pending';
+                    } else {
+                        // fallback – show actual status
+                        statusClass = 'pending';
+                        statusLabel = tx.status || 'Pending';
                     }
                 }
 
