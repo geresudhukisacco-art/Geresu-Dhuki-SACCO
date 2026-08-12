@@ -2166,6 +2166,7 @@
                 approve: 'Approve',
                 approved: 'Approved',
                 approvedBy: 'Approved By',
+                approvedAt: 'Approved At',
                 recordNotFound: 'Record not found.',
                 approvedSuccess: 'Deposit approved successfully!',
                 approvalError: 'Error approving deposit: ',
@@ -2248,6 +2249,7 @@
                 approve: 'ጸድቅ',
                 approved: 'ጸድቋል',
                 approvedBy: 'የጸደቀው',
+                approvedAt: 'የጸደቀበት ቀን',
                 recordNotFound: 'መዝገብ አልተገኘም።',
                 approvedSuccess: 'ተቀማጭ በተሳካ ሁኔታ ጸድቋል!',
                 approvalError: 'ተቀማጭ በማጽደቅ ላይ ስህተት: ',
@@ -2330,6 +2332,7 @@
                 approve: 'Mirkaneessi',
                 approved: 'Mirkanaafame',
                 approvedBy: 'Mirkaneesse',
+                approvedAt: 'Yeroo Mirkanaafame',
                 recordNotFound: 'Galmee hin argamne.',
                 approvedSuccess: 'Kaasaan sirriitti mirkanaafame!',
                 approvalError: 'Kaasaa mirkaneessuuf dogoggora: ',
@@ -3204,7 +3207,7 @@
         }
 
         // ============================================================
-        // VIEW DEPOSIT
+        // VIEW DEPOSIT — now includes Approved At
         // ============================================================
         function viewDeposit(id) {
             const d = allDeposits.find(item => item.id === id);
@@ -3235,6 +3238,17 @@
             const approvedBy = d.approvedBy || d.approvedByName || '—';
             const approvedDisplay = approvedBy.includes('@') ? approvedBy.split('@')[0] : approvedBy;
 
+            // ----- Approved At -----
+            let approvedAtStr = '—';
+            if (d.approvedAt) {
+                approvedAtStr = d.approvedAt.toDate ?
+                    d.approvedAt.toDate().toLocaleString() :
+                    new Date(d.approvedAt).toLocaleString();
+            } else if (d.approvedByName && d.status === 'approved') {
+                // fallback if approvedAt missing but status is approved
+                approvedAtStr = 'Approved (date unknown)';
+            }
+
             const methodMap = { 'cash': t.cash || 'Cash', 'bank': t.bankTransfer || 'Bank Transfer',
                 'mobile': t.mobileMoney || 'Mobile Money' };
             const methodLabel = methodMap[d.paymentMethod] || d.paymentMethod || 'Cash';
@@ -3259,10 +3273,11 @@
                 <div class="view-detail-row"><span class="label">Payment Method</span><span class="value">${methodLabel}</span></div>
                 ${extraRows}
                 <div class="view-detail-row"><span class="label">Status</span><span class="value"><span class="status-badge ${statusClass}">${statusLabel}</span></span></div>
+                <div class="view-detail-row"><span class="label">${t.approvedBy}</span><span class="value">${approvedDisplay}</span></div>
+                <div class="view-detail-row"><span class="label">${t.approvedAt}</span><span class="value">${approvedAtStr}</span></div>
                 <div class="view-detail-row"><span class="label">Description</span><span class="value">${note}</span></div>
                 <div class="view-detail-row"><span class="label">Date</span><span class="value">${dateStr}</span></div>
                 <div class="view-detail-row"><span class="label">Recorded By</span><span class="value">${recordedDisplay}</span></div>
-                <div class="view-detail-row"><span class="label">Approved By</span><span class="value">${approvedDisplay}</span></div>
             `;
 
             const modal = document.getElementById('viewDepositModal');
