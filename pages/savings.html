@@ -2080,6 +2080,11 @@
                 minSavingsRequired: 'Minimum Deposit Required:',
                 fromSettings: 'from System Settings',
                 nextDueDate: 'Next Savings Due:',
+                approvedByLabel: 'Approved By',
+                approvedAtLabel: 'Approved At',
+                rejectedByLabel: 'Rejected By',
+                rejectedAtLabel: 'Rejected At',
+                notYetApproved: 'Not yet approved',
             }
         };
 
@@ -2434,7 +2439,6 @@
             );
 
             if (customerSavings.length === 0) {
-                // No savings yet – set a default due date (next month's first day)
                 const now = new Date();
                 const nextDue = new Date(now.getFullYear(), now.getMonth() + 1, 1);
                 return {
@@ -2455,20 +2459,19 @@
             const totalAmount = sorted.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
             const monthlyAverage = totalAmount / Math.max(1, sorted.length);
 
-            // Last savings date
-            const lastDate = sorted[sorted.length - 1].date ? 
-                (sorted[sorted.length - 1].date.toDate ? sorted[sorted.length - 1].date.toDate() : new Date(sorted[sorted.length - 1].date)) :
+            const lastDate = sorted[sorted.length - 1].date ?
+                (sorted[sorted.length - 1].date.toDate ? sorted[sorted.length - 1].date.toDate() : new Date(sorted[
+                    sorted.length - 1].date)) :
                 new Date();
 
-            // Next due date = lastDate + 1 month (or 30 days)
             const nextDue = new Date(lastDate);
             nextDue.setMonth(nextDue.getMonth() + 1);
 
-            // If nextDue is in the past, set it to today (overdue)
             const now = new Date();
             let daysLeft = Math.ceil((nextDue - now) / (1000 * 60 * 60 * 24));
 
-            const firstDate = sorted[0].date ? (sorted[0].date.toDate ? sorted[0].date.toDate() : new Date(sorted[0].date)) :
+            const firstDate = sorted[0].date ? (sorted[0].date.toDate ? sorted[0].date.toDate() : new Date(sorted[0]
+                .date)) :
                 new Date();
             const monthsDiff = (now.getFullYear() - firstDate.getFullYear()) * 12 +
                 (now.getMonth() - firstDate.getMonth());
@@ -2542,13 +2545,11 @@
                 console.log(`📊 Unpaid months: ${unpaidData.unpaidMonths}, Total: ${unpaidData.totalUnpaid}`);
                 console.log(`📊 Days left: ${unpaidData.daysLeft}`);
 
-                // If days left >= 0, no penalty needed yet
                 if (unpaidData.daysLeft >= 0) {
                     console.log('✅ Not overdue yet');
                     return { penaltyAmount: 0, unpaidMonths: 0 };
                 }
 
-                // If overdue and no pending penalty, create one
                 if (unpaidData.unpaidMonths === 0 || unpaidData.totalUnpaid <= 0) {
                     console.log('✅ No unpaid savings');
                     return { penaltyAmount: 0, unpaidMonths: 0 };
@@ -2634,12 +2635,12 @@
                 let html = '';
                 filtered.slice(0, 10).forEach(([id, data]) => {
                     html += `
-                        <div onclick="selectCustomer('${id}')">
-                            ${data.fullName}
-                            <span style="color:var(--text-secondary); font-size:12px;">${data.customerId || ''}</span>
-                            ${data.phone ? `<span style="color:var(--text-secondary); font-size:11px; margin-left:8px;">${data.phone}</span>` : ''}
-                        </div>
-                    `;
+                            <div onclick="selectCustomer('${id}')">
+                                ${data.fullName}
+                                <span style="color:var(--text-secondary); font-size:12px;">${data.customerId || ''}</span>
+                                ${data.phone ? `<span style="color:var(--text-secondary); font-size:11px; margin-left:8px;">${data.phone}</span>` : ''}
+                            </div>
+                        `;
                 });
                 suggestions.innerHTML = html;
                 suggestions.style.display = 'block';
@@ -2684,7 +2685,6 @@
             document.getElementById('unpaidSavingsDisplay').className = 'value ' + (unpaidData.totalUnpaid > 0 ? 'warning' :
                 'positive');
 
-            // --- Display Next Due Date ---
             const dueDateEl = document.getElementById('nextDueDateDisplay');
             if (unpaidData.nextDueDate) {
                 const due = unpaidData.nextDueDate;
@@ -2706,7 +2706,6 @@
 
             infoDisplay.classList.add('active');
 
-            // --- Check and generate penalty if overdue ---
             if (unpaidData.daysLeft < 0 && unpaidData.totalUnpaid > 0) {
                 await checkAndCreateSavingsPenalty(id, 0);
             }
@@ -2727,18 +2726,18 @@
                 allPenalties.details.forEach((d, idx) => {
                     const rateDisplay = ((d.penaltyRate || savingsPenaltyRate) * 100).toFixed(1);
                     detailsHtml += `
-                        <span class="calc-line">
-                            ${idx === 0 ? '📊' : '   '} 
-                            Unpaid months: ${d.unpaidMonths} | 
-                            Monthly: ETB ${d.monthlyPayment.toFixed(2)} | 
-                            Rate: ${rateDisplay}% | 
-                            Penalty: ETB ${d.amount.toFixed(2)}
-                        </span>
-                    `;
+                            <span class="calc-line">
+                                ${idx === 0 ? '📊' : '   '} 
+                                Unpaid months: ${d.unpaidMonths} | 
+                                Monthly: ETB ${d.monthlyPayment.toFixed(2)} | 
+                                Rate: ${rateDisplay}% | 
+                                Penalty: ETB ${d.amount.toFixed(2)}
+                            </span>
+                        `;
                 });
                 detailsHtml += `
-                    <span class="calc-line calc-total">⚠️ Total penalty: ETB ${allPenalties.total.toFixed(2)}</span>
-                `;
+                            <span class="calc-line calc-total">⚠️ Total penalty: ETB ${allPenalties.total.toFixed(2)}</span>
+                        `;
                 penaltyDetails.innerHTML = detailsHtml;
 
                 saveBtn.disabled = true;
@@ -2748,7 +2747,8 @@
                 const badge = document.createElement('div');
                 badge.className = 'form-blocked-badge';
                 const t = translations[currentLang];
-                badge.innerHTML = `<i class="fas fa-lock"></i> ${t.penaltyBlockedForm || '⛔ Savings is BLOCKED – Please clear the outstanding penalty first.'}`;
+                badge.innerHTML =
+                `<i class="fas fa-lock"></i> ${t.penaltyBlockedForm || '⛔ Savings is BLOCKED – Please clear the outstanding penalty first.'}`;
                 formSection.appendChild(badge);
 
                 showToast(
@@ -2762,11 +2762,11 @@
                 const oldBadge = formSection.querySelector('.form-blocked-badge');
                 if (oldBadge) oldBadge.remove();
                 penaltyDetails.innerHTML = `
-                    <span class="calc-line"><span class="calc-label">📊 Unpaid months:</span> <span id="penaltyUnpaidMonths">0</span></span>
-                    <span class="calc-line"><span class="calc-label">💰 Monthly savings:</span> ETB <span id="penaltyMonthlyPayment">0.00</span></span>
-                    <span class="calc-line"><span class="calc-label">📈 Penalty rate:</span> <span id="penaltyRateDisplayDetail">${(savingsPenaltyRate * 100).toFixed(1)}%</span></span>
-                    <span class="calc-line calc-total">⚠️ Total penalty: ETB <span id="penaltyTotalDisplay">0.00</span></span>
-                `;
+                            <span class="calc-line"><span class="calc-label">📊 Unpaid months:</span> <span id="penaltyUnpaidMonths">0</span></span>
+                            <span class="calc-line"><span class="calc-label">💰 Monthly savings:</span> ETB <span id="penaltyMonthlyPayment">0.00</span></span>
+                            <span class="calc-line"><span class="calc-label">📈 Penalty rate:</span> <span id="penaltyRateDisplayDetail">${(savingsPenaltyRate * 100).toFixed(1)}%</span></span>
+                            <span class="calc-line calc-total">⚠️ Total penalty: ETB <span id="penaltyTotalDisplay">0.00</span></span>
+                        `;
             }
 
             const unpaidWarning = document.getElementById('unpaidWarning');
@@ -2974,7 +2974,7 @@
         }
 
         // ============================================================
-        // RENDER TABLE - Admin can edit/delete any record, Manager only pending
+        // RENDER TABLE
         // ============================================================
         function renderTable(items) {
             const tbody = document.getElementById('savingsBody');
@@ -3009,18 +3009,16 @@
                 const transferLabel = transferTypeMap[s.transferType] || s.transferType || '—';
 
                 let actionsHtml = `
-                    <button class="action-btn view-btn" onclick="viewSavings('${s.id}')" title="${t.view}"><i class="fas fa-eye"></i></button>
-                `;
+                            <button class="action-btn view-btn" onclick="viewSavings('${s.id}')" title="${t.view}"><i class="fas fa-eye"></i></button>
+                        `;
 
-                // Approve/Reject - Admin/Manager only for pending
                 if (canApproveReject() && s.status === 'pending') {
                     actionsHtml += `
-                        <button class="action-btn approve-btn" onclick="approveSavings('${s.id}')" title="${t.approve}"><i class="fas fa-check-circle"></i></button>
-                        <button class="action-btn reject-btn" onclick="rejectSavings('${s.id}')" title="${t.reject}"><i class="fas fa-times-circle"></i></button>
-                    `;
+                                <button class="action-btn approve-btn" onclick="approveSavings('${s.id}')" title="${t.approve}"><i class="fas fa-check-circle"></i></button>
+                                <button class="action-btn reject-btn" onclick="rejectSavings('${s.id}')" title="${t.reject}"><i class="fas fa-times-circle"></i></button>
+                            `;
                 }
 
-                // Edit - Admin can edit any, Manager only pending
                 if (currentUserRole === 'admin') {
                     actionsHtml +=
                         `<button class="action-btn edit-btn" onclick="editSavings('${s.id}')" title="${t.edit}"><i class="fas fa-edit"></i></button>`;
@@ -3029,7 +3027,6 @@
                         `<button class="action-btn edit-btn" onclick="editSavings('${s.id}')" title="${t.edit}"><i class="fas fa-edit"></i></button>`;
                 }
 
-                // Delete - Admin can delete any, Manager only pending
                 if (currentUserRole === 'admin') {
                     actionsHtml +=
                         `<button class="action-btn delete-btn" onclick="deleteSavings('${s.id}')" title="${t.delete}"><i class="fas fa-trash"></i></button>`;
@@ -3039,19 +3036,19 @@
                 }
 
                 html += `
-                    <tr>
-                        <td>${(currentPage-1)*pageSize + i + 1}</td>
-                        <td><strong>${s.customerName || 'Unknown'}</strong></td>
-                        <td><strong>ETB ${Number(s.amount).toLocaleString()}</strong></td>
-                        <td><span style="font-size:11px; background:var(--border-color); padding:2px 8px; border-radius:12px;">${typeLabel}</span></td>
-                        <td><span style="font-size:11px; background:var(--border-color); padding:2px 8px; border-radius:12px;">${transferLabel}</span></td>
-                        <td>${s.ttNumber ? `<code style="font-size:12px;">${s.ttNumber}</code>` : '—'}</td>
-                        <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
-                        <td>${byUser}</td>
-                        <td>${dateStr}</td>
-                        <td>${actionsHtml}</td>
-                    </tr>
-                `;
+                            <tr>
+                                <td>${(currentPage-1)*pageSize + i + 1}</td>
+                                <td><strong>${s.customerName || 'Unknown'}</strong></td>
+                                <td><strong>ETB ${Number(s.amount).toLocaleString()}</strong></td>
+                                <td><span style="font-size:11px; background:var(--border-color); padding:2px 8px; border-radius:12px;">${typeLabel}</span></td>
+                                <td><span style="font-size:11px; background:var(--border-color); padding:2px 8px; border-radius:12px;">${transferLabel}</span></td>
+                                <td>${s.ttNumber ? `<code style="font-size:12px;">${s.ttNumber}</code>` : '—'}</td>
+                                <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+                                <td>${byUser}</td>
+                                <td>${dateStr}</td>
+                                <td>${actionsHtml}</td>
+                            </tr>
+                        `;
             });
             tbody.innerHTML = html;
         }
@@ -3146,7 +3143,7 @@
         }
 
         // ============================================================
-        // VIEW SAVINGS
+        // VIEW SAVINGS — with "Approved By" & "Approved At" fields
         // ============================================================
         function viewSavings(id) {
             const savings = allSavings.find(s => s.id === id);
@@ -3175,29 +3172,78 @@
 
             const note = savings.note || '—';
 
-            const content = document.getElementById('viewSavingsContent');
+            // ---- Approved / Rejected info ----
+            let approvalHtml = '';
+            if (savings.status === 'approved') {
+                const approvedBy = savings.approvedBy || '—';
+                let approvedAtStr = '—';
+                if (savings.approvedAt) {
+                    approvedAtStr = savings.approvedAt.toDate ?
+                        savings.approvedAt.toDate().toLocaleString() :
+                        new Date(savings.approvedAt).toLocaleString();
+                }
+                approvalHtml = `
+                            <div class="view-detail-row">
+                                <span class="label">${t.approvedByLabel || 'Approved By'}</span>
+                                <span class="value"><strong>${approvedBy}</strong></span>
+                            </div>
+                            <div class="view-detail-row">
+                                <span class="label">${t.approvedAtLabel || 'Approved At'}</span>
+                                <span class="value">${approvedAtStr}</span>
+                            </div>
+                        `;
+            } else if (savings.status === 'rejected') {
+                const rejectedBy = savings.rejectedBy || '—';
+                let rejectedAtStr = '—';
+                if (savings.rejectedAt) {
+                    rejectedAtStr = savings.rejectedAt.toDate ?
+                        savings.rejectedAt.toDate().toLocaleString() :
+                        new Date(savings.rejectedAt).toLocaleString();
+                }
+                approvalHtml = `
+                            <div class="view-detail-row">
+                                <span class="label">${t.rejectedByLabel || 'Rejected By'}</span>
+                                <span class="value"><strong>${rejectedBy}</strong></span>
+                            </div>
+                            <div class="view-detail-row">
+                                <span class="label">${t.rejectedAtLabel || 'Rejected At'}</span>
+                                <span class="value">${rejectedAtStr}</span>
+                            </div>
+                        `;
+            } else {
+                // pending – show a subtle note
+                approvalHtml = `
+                            <div class="view-detail-row" style="opacity:0.7;">
+                                <span class="label">${t.approvedByLabel || 'Approved By'}</span>
+                                <span class="value"><em>${t.notYetApproved || 'Not yet approved'}</em></span>
+                            </div>
+                        `;
+            }
+
             let extraRows = '';
             if (savings.transferType !== 'cash') {
                 extraRows += `
-                    <div class="view-detail-row"><span class="label">TT Number</span><span class="value">${savings.ttNumber || '—'}</span></div>
-                    <div class="view-detail-row"><span class="label">Transfer Date</span><span class="value">${savings.transferDate ? (savings.transferDate.toDate ? savings.transferDate.toDate().toLocaleDateString() : new Date(savings.transferDate).toLocaleDateString()) : '—'}</span></div>
-                    <div class="view-detail-row"><span class="label">Bank / Provider</span><span class="value">${savings.bankName || '—'}</span></div>
-                `;
+                            <div class="view-detail-row"><span class="label">TT Number</span><span class="value">${savings.ttNumber || '—'}</span></div>
+                            <div class="view-detail-row"><span class="label">Transfer Date</span><span class="value">${savings.transferDate ? (savings.transferDate.toDate ? savings.transferDate.toDate().toLocaleDateString() : new Date(savings.transferDate).toLocaleDateString()) : '—'}</span></div>
+                            <div class="view-detail-row"><span class="label">Bank / Provider</span><span class="value">${savings.bankName || '—'}</span></div>
+                        `;
             }
 
+            const content = document.getElementById('viewSavingsContent');
             content.innerHTML = `
-                <div class="view-detail-row"><span class="label">Transaction ID</span><span class="value">${savings.id.slice(0,12)}</span></div>
-                <div class="view-detail-row"><span class="label">Customer</span><span class="value">${savings.customerName || 'Unknown'}</span></div>
-                <div class="view-detail-row"><span class="label">Customer ID</span><span class="value">${savings.customerId || '—'}</span></div>
-                <div class="view-detail-row"><span class="label">Amount</span><span class="value">ETB ${Number(savings.amount).toLocaleString()}</span></div>
-                <div class="view-detail-row"><span class="label">Savings Type</span><span class="value">${typeLabel}</span></div>
-                <div class="view-detail-row"><span class="label">Transfer Type</span><span class="value">${transferLabel}</span></div>
-                ${extraRows}
-                <div class="view-detail-row"><span class="label">Status</span><span class="value"><span class="status-badge ${statusClass}">${statusLabel}</span></span></div>
-                <div class="view-detail-row"><span class="label">Date</span><span class="value">${dateStr}</span></div>
-                <div class="view-detail-row"><span class="label">Recorded By</span><span class="value">${byUser}</span></div>
-                <div class="view-detail-row"><span class="label">Note</span><span class="value">${note}</span></div>
-            `;
+                        <div class="view-detail-row"><span class="label">Transaction ID</span><span class="value">${savings.id.slice(0,12)}</span></div>
+                        <div class="view-detail-row"><span class="label">Customer</span><span class="value">${savings.customerName || 'Unknown'}</span></div>
+                        <div class="view-detail-row"><span class="label">Customer ID</span><span class="value">${savings.customerId || '—'}</span></div>
+                        <div class="view-detail-row"><span class="label">Amount</span><span class="value">ETB ${Number(savings.amount).toLocaleString()}</span></div>
+                        <div class="view-detail-row"><span class="label">Savings Type</span><span class="value">${typeLabel}</span></div>
+                        <div class="view-detail-row"><span class="label">Transfer Type</span><span class="value">${transferLabel}</span></div>
+                        ${extraRows}
+                        <div class="view-detail-row"><span class="label">Status</span><span class="value"><span class="status-badge ${statusClass}">${statusLabel}</span></span></div>
+                        ${approvalHtml}
+                        <div class="view-detail-row"><span class="label">Date</span><span class="value">${dateStr}</span></div>
+                        <div class="view-detail-row"><span class="label">Recorded By</span><span class="value">${byUser}</span></div>
+                        <div class="view-detail-row"><span class="label">Note</span><span class="value">${note}</span></div>
+                    `;
             document.getElementById('viewSavingsModal').classList.add('active');
             document.getElementById('viewSavingsModal').style.display = 'flex';
         }
@@ -3474,7 +3520,6 @@
                     document.getElementById('pendingSavingsDisplay').textContent = 'ETB ' + pendingData.total.toFixed(2);
                     const unpaidData = getUnpaidPreviousSavings(selectedCustomerId);
                     document.getElementById('unpaidSavingsDisplay').textContent = 'ETB ' + unpaidData.totalUnpaid.toFixed(2);
-                    // Update next due date
                     const dueDateEl = document.getElementById('nextDueDateDisplay');
                     if (unpaidData.nextDueDate) {
                         const due = unpaidData.nextDueDate;
@@ -3630,7 +3675,7 @@
 
                     if (customerId && ttNumber && transferDate) {
                         const isDuplicate = await checkDuplicate(customerId, ttNumber, transferDate, editId ||
-                        null);
+                            null);
                         document.getElementById('duplicateWarning').classList.toggle('show', isDuplicate);
                     }
                 });
@@ -3643,7 +3688,7 @@
 
                     if (customerId && ttNumber && transferDate) {
                         const isDuplicate = await checkDuplicate(customerId, ttNumber, transferDate, editId ||
-                        null);
+                            null);
                         document.getElementById('duplicateWarning').classList.toggle('show', isDuplicate);
                     }
                 });
@@ -3741,12 +3786,12 @@
                 let seconds = 30;
                 warningToast = document.createElement('div');
                 warningToast.style.cssText = `
-                            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-                            background: #f39c12; color: #fff; padding: 16px 24px; border-radius: 12px;
-                            font-size: 15px; font-weight: 500; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-                            z-index: 99999; max-width: 500px; text-align: center; display: flex;
-                            align-items: center; gap: 12px; animation: slideUp 0.3s ease;
-                        `;
+                                position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+                                background: #f39c12; color: #fff; padding: 16px 24px; border-radius: 12px;
+                                font-size: 15px; font-weight: 500; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+                                z-index: 99999; max-width: 500px; text-align: center; display: flex;
+                                align-items: center; gap: 12px; animation: slideUp 0.3s ease;
+                            `;
                 warningToast.innerHTML =
                     `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
                 const style = document.createElement('style');
