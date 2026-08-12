@@ -84,7 +84,6 @@
             transition: background 0.3s, color 0.3s;
         }
 
-        /* ===== LOADING OVERLAY ===== */
         .loading-overlay {
             display: none;
             position: fixed;
@@ -120,7 +119,6 @@
             font-weight: 500;
         }
 
-        /* ===== SIDEBAR ===== */
         .sidebar {
             width: var(--sidebar-width);
             background: var(--bg-sidebar);
@@ -351,7 +349,6 @@
             display: block;
         }
 
-        /* ===== MAIN CONTENT ===== */
         .main-content {
             margin-left: var(--sidebar-width);
             flex: 1;
@@ -680,6 +677,52 @@
             margin-top: 6px;
         }
 
+        /* ===== YEARLY FILTER ===== */
+        .yearly-filter-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
+            padding: 12px 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .yearly-filter-container label {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+            transition: color 0.3s;
+        }
+        .yearly-filter-container select {
+            padding: 8px 14px;
+            border: 1px solid var(--input-border);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-family: inherit;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            transition: all 0.2s;
+            min-width: 120px;
+            cursor: pointer;
+        }
+        .yearly-filter-container select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--input-focus);
+        }
+        .yearly-filter-container .year-badge {
+            background: var(--primary);
+            color: #fff;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
         /* ===== REPORT SUMMARY ===== */
         .report-summary {
             display: grid;
@@ -870,6 +913,7 @@
             border-top: 2px solid var(--border-color);
         }
 
+        /* ===== STATUS BADGES ===== */
         .status-badge {
             padding: 3px 10px;
             border-radius: 20px;
@@ -905,6 +949,10 @@
         .status-badge.overdue {
             background: #f8d7da;
             color: #721c24;
+        }
+        .status-badge.distributed {
+            background: #d1f7e6;
+            color: #0b6b4a;
         }
 
         .action-btn {
@@ -1645,8 +1693,15 @@
                 <div id="monthlyReport"></div>
             </div>
 
-            <!-- TAB: YEARLY -->
+            <!-- TAB: YEARLY (with year filter) -->
             <div class="tab-content" id="tabYearly">
+                <div class="yearly-filter-container no-print">
+                    <label for="yearlyYearFilter" data-i18n="selectYear">Select Year:</label>
+                    <select id="yearlyYearFilter">
+                        <option value="">Loading...</option>
+                    </select>
+                    <span class="year-badge" id="yearlyBadge">📅 <span id="yearlyBadgeYear">2026</span></span>
+                </div>
                 <div id="yearlyReport"></div>
             </div>
 
@@ -1872,6 +1927,7 @@
                 active: 'Active',
                 completed: 'Completed',
                 overdue: 'Overdue',
+                distributed: 'Distributed',
                 cash: 'Cash',
                 mobileBanking: 'Mobile Banking',
                 bankDeposit: 'Bank Deposit',
@@ -1887,10 +1943,10 @@
                 printOrientation: 'Print Orientation:',
                 portrait: 'Portrait',
                 landscape: 'Landscape',
-                actions: 'Actions'
+                actions: 'Actions',
+                selectYear: 'Select Year:'
             },
             am: {
-                // Amharic translations (keep your existing ones, add new status labels)
                 brandSub: 'ባንክ ስርዓት',
                 navDashboard: 'ዳሽቦርድ',
                 navCustomers: 'ደንበኞች',
@@ -1992,6 +2048,7 @@
                 active: 'ንቁ',
                 completed: 'ተጠናቋል',
                 overdue: 'ጊዜ ያለፈበት',
+                distributed: 'ተከፋፍሏል',
                 cash: 'ጥሬ ገንዘብ',
                 mobileBanking: 'ሞባይል ባንክ',
                 bankDeposit: 'ባንክ ተቀማጭ',
@@ -2007,10 +2064,10 @@
                 printOrientation: 'የህትመት አቅጣጫ:',
                 portrait: 'ቁመታዊ',
                 landscape: 'አግድም',
-                actions: 'ድርጊቶች'
+                actions: 'ድርጊቶች',
+                selectYear: 'ዓመት ይምረጡ:'
             },
             om: {
-                // Oromo translations (keep your existing ones, add new status labels)
                 brandSub: 'Sirna Baankii',
                 navDashboard: 'Gabatee',
                 navCustomers: 'Maamila',
@@ -2112,6 +2169,7 @@
                 active: 'Hojjechaa',
                 completed: 'Xumuraa',
                 overdue: 'Yeroo dabarte',
+                distributed: 'Qoodame',
                 cash: 'Qarshii',
                 mobileBanking: 'Baankii Mobayilaa',
                 bankDeposit: 'Kaasa Baankii',
@@ -2127,7 +2185,8 @@
                 printOrientation: 'Haala Maxxansa:',
                 portrait: 'Dhaabbataa',
                 landscape: 'Dalakee',
-                actions: 'Gochoota'
+                actions: 'Gochoota',
+                selectYear: 'Waggaa fili:'
             }
         };
 
@@ -2174,6 +2233,8 @@
                 orientSelect.options[0].text = t.portrait || 'Portrait';
                 orientSelect.options[1].text = t.landscape || 'Landscape';
             }
+            const label = document.querySelector('.yearly-filter-container label');
+            if (label) label.textContent = t.selectYear || 'Select Year:';
         }
 
         function initLanguage() {
@@ -2673,7 +2734,7 @@
         }
 
         // ============================================================
-        // RENDER REPORT (with EXTENDED STATUS MAPPING)
+        // RENDER REPORT
         // ============================================================
         function renderReport(containerId, filtered, t, title) {
             const container = document.getElementById(containerId);
@@ -2716,9 +2777,7 @@
                 return db - da;
             });
 
-            // ============================================================
-            // ★★★ EXTENDED STATUS MAPPING ★★★
-            // ============================================================
+            // ★★★ EXTENDED STATUS MAPPING WITH "distributed" ★★★
             const statusMap = {
                 'pending': { label: t.pending || 'Pending', class: 'pending' },
                 'approved': { label: t.approved || 'Approved', class: 'approved' },
@@ -2726,7 +2785,8 @@
                 'paid': { label: t.paid || 'Paid', class: 'paid' },
                 'active': { label: t.active || 'Active', class: 'active' },
                 'completed': { label: t.completed || 'Completed', class: 'completed' },
-                'overdue': { label: t.overdue || 'Overdue', class: 'overdue' }
+                'overdue': { label: t.overdue || 'Overdue', class: 'overdue' },
+                'distributed': { label: t.distributed || 'Distributed', class: 'distributed' }
             };
 
             let tableRows = '';
@@ -2739,25 +2799,20 @@
                 allItems.slice(0, 50).forEach((item, i) => {
                     const customerName = getCustomerName(item);
 
-                    // Transfer type with translation
                     const transferTypeMap = { 'cash': t.cash || 'Cash', 'mobile': t.mobileBanking || 'Mobile',
                         'bank': t.bankDeposit || 'Bank' };
                     const transferType = transferTypeMap[item.transferType] || item.transferType || '—';
 
-                    // ★★★ Use the extended status mapping ★★★
                     const status = statusMap[item.status] || statusMap['pending'];
                     const statusLabel = status.label;
                     const statusClass = status.class;
 
-                    // Recorded by
                     let recordedBy = item.createdByName || item.createdBy || item.createdByEmail || 'Admin';
                     if (recordedBy.includes('@')) recordedBy = recordedBy.split('@')[0];
 
-                    // Approved by
                     let approvedBy = item.approvedBy || '—';
                     if (approvedBy && approvedBy.includes('@')) approvedBy = approvedBy.split('@')[0];
 
-                    // Transfer date
                     let transferDate = '—';
                     if (item.transferDate) {
                         const td = item.transferDate.toDate ? item.transferDate.toDate() : new Date(item
@@ -2765,7 +2820,6 @@
                         transferDate = td.toLocaleDateString();
                     }
 
-                    // Action buttons (View only for now)
                     let actionsHtml = `
                         <button class="action-btn view-btn" onclick="viewTransaction('${item.id}')" title="${t.view}"><i class="fas fa-eye"></i></button>
                     `;
@@ -2932,7 +2986,7 @@
             const customerName = getCustomerName(transaction);
             const dateStr = formatDate(transaction.date || transaction.timestamp);
 
-            // Use the same extended status mapping
+            // Same extended status mapping
             const statusMap = {
                 'pending': { label: t.pending || 'Pending', class: 'pending' },
                 'approved': { label: t.approved || 'Approved', class: 'approved' },
@@ -2940,7 +2994,8 @@
                 'paid': { label: t.paid || 'Paid', class: 'paid' },
                 'active': { label: t.active || 'Active', class: 'active' },
                 'completed': { label: t.completed || 'Completed', class: 'completed' },
-                'overdue': { label: t.overdue || 'Overdue', class: 'overdue' }
+                'overdue': { label: t.overdue || 'Overdue', class: 'overdue' },
+                'distributed': { label: t.distributed || 'Distributed', class: 'distributed' }
             };
             const status = statusMap[transaction.status] || statusMap['pending'];
             const statusLabel = status.label;
@@ -2990,6 +3045,60 @@
         }
 
         // ============================================================
+        // POPULATE YEARLY FILTER
+        // ============================================================
+        function populateYearlyFilter() {
+            const select = document.getElementById('yearlyYearFilter');
+            const years = new Set();
+            const allTypes = ['savings', 'loans', 'repayments', 'profitIncome', 'profitWithdrawal', 'withdrawals'];
+            allTypes.forEach(type => {
+                allData[type].forEach(item => {
+                    const d = toDate(item.date || item.timestamp);
+                    if (d) years.add(d.getFullYear());
+                });
+            });
+            const currentYear = new Date().getFullYear();
+            years.add(currentYear);
+
+            const sortedYears = Array.from(years).sort((a, b) => b - a);
+            select.innerHTML = '';
+            sortedYears.forEach(year => {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                select.appendChild(option);
+            });
+            if (sortedYears.includes(currentYear)) {
+                select.value = currentYear;
+            } else if (sortedYears.length > 0) {
+                select.value = sortedYears[0];
+            }
+            document.getElementById('yearlyBadgeYear').textContent = select.value;
+        }
+
+        // ============================================================
+        // LOAD YEARLY REPORT
+        // ============================================================
+        function loadYearlyReport() {
+            const select = document.getElementById('yearlyYearFilter');
+            const year = parseInt(select.value);
+            if (!year) return;
+
+            const t = translations[currentLang];
+            const yearStart = new Date(year, 0, 1);
+            const yearEnd = new Date(year, 11, 31);
+            const yearStartStr = yearStart.toISOString().split('T')[0];
+            const yearEndStr = yearEnd.toISOString().split('T')[0];
+
+            const filtered = getFilteredData(allData, yearStartStr, yearEndStr, '');
+            renderReport('yearlyReport', filtered, t, `Year ${year}`);
+
+            const totalRecords = filtered.savings.length + filtered.loans.length + filtered.repayments.length +
+                filtered.profitIncome.length + filtered.profitWithdrawal.length + filtered.withdrawals.length;
+            document.getElementById('yearlyBadge').innerHTML = `📅 ${year} (${totalRecords} records)`;
+        }
+
+        // ============================================================
         // GENERATE CUSTOM REPORT
         // ============================================================
         async function generateCustomReport(e) {
@@ -3031,11 +3140,8 @@
             const monthlyFiltered = getFilteredData(allData, monthStartStr, monthEndStr, '');
             renderReport('monthlyReport', monthlyFiltered, t, t.thisMonth);
 
-            const yearStart = new Date(now.getFullYear(), 0, 1);
-            const yearStartStr = yearStart.toISOString().split('T')[0];
-            const yearEndStr = now.toISOString().split('T')[0];
-            const yearlyFiltered = getFilteredData(allData, yearStartStr, yearEndStr, '');
-            renderReport('yearlyReport', yearlyFiltered, t, t.thisYear);
+            populateYearlyFilter();
+            loadYearlyReport();
 
             document.getElementById('customDateFrom').value = monthStartStr;
             document.getElementById('customDateTo').value = monthEndStr;
@@ -3043,7 +3149,7 @@
         }
 
         // ============================================================
-        // PRINT REPORT (with orientation)
+        // PRINT REPORT
         // ============================================================
         function printReport() {
             const activeTabEl = document.querySelector('.tab-content.active');
@@ -3136,6 +3242,10 @@
             document.getElementById('tab' + tabId.charAt(0).toUpperCase() + tabId.slice(1)).classList.add('active');
             document.querySelector(`.tab-btn[data-tab="${tabId}"]`).classList.add('active');
             activeTab = tabId;
+
+            if (tabId === 'yearly') {
+                loadYearlyReport();
+            }
         }
 
         // ============================================================
@@ -3190,6 +3300,8 @@
                 document.querySelectorAll('.lang-btn').forEach(btn => {
                     btn.addEventListener('click', function() {
                         setLanguage(this.dataset.lang);
+                        populateYearlyFilter();
+                        loadYearlyReport();
                     });
                 });
 
@@ -3216,6 +3328,8 @@
                 document.getElementById('viewTransactionModal').addEventListener('click', function(e) {
                     if (e.target === this) closeViewModal();
                 });
+
+                document.getElementById('yearlyYearFilter').addEventListener('change', loadYearlyReport);
 
                 await loadCustomers();
                 const dataLoaded = await fetchAllData();
@@ -3305,12 +3419,12 @@
             });
         })();
 
-        // Expose functions to global scope for onclick handlers
         window.viewTransaction = viewTransaction;
         window.closeViewModal = closeViewModal;
         window.switchTab = switchTab;
         window.toggleSidebar = toggleSidebar;
         window.testConnection = testConnection;
+        window.loadYearlyReport = loadYearlyReport;
     </script>
 </body>
 </html>
