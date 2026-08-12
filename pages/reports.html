@@ -1816,11 +1816,12 @@
         let currentLang = 'en';
         let currentUserRole = 'viewer';
         let currentUserDisplayName = 'Admin';
-        let allMembers = [];
         let membersMap = {};
         let reportChart = null;
         let activeTab = 'daily';
         let allData = { savings: [], loans: [], repayments: [], profitIncome: [], profitWithdrawal: [], withdrawals: [] };
+        let _debugLogged = false;
+        let _debugCount = 0;
 
         // ============================================================
         // LANGUAGE FUNCTIONS
@@ -2021,142 +2022,170 @@
         }
 
         // ============================================================
-        // FIXED: ROBUST CUSTOMER NAME LOOKUP
+        // ★★★ ENHANCED CUSTOMER NAME LOOKUP WITH DEBUGGING ★★★
         // ============================================================
-        function getCustomerName(memberId, transaction) {
-            // If we have a direct memberName on the transaction, use it first
-            if (transaction && transaction.memberName) {
-                return transaction.memberName;
+        function extractIdFromAny(val) {
+            if (!val) return null;
+            if (typeof val === 'string') {
+                if (val.includes('/')) {
+                    const parts = val.split('/');
+                    return parts[parts.length - 1];
+                }
+                return val;
             }
-            if (transaction && transaction.customerName) {
-                return transaction.customerName;
+            if (typeof val === 'object') {
+                if (val.id && typeof val.id === 'string') return val.id;
+                if (val._key && typeof val._key === 'string') return val._key;
+                if (val.path && typeof val.path === 'string') {
+                    const parts = val.path.split('/');
+                    return parts[parts.length - 1];
+                }
+                if (val.toJSON && typeof val.toJSON === 'function') {
+                    try {
+                        const json = val.toJSON();
+                        if (json && json.id) return json.id;
+                    } catch (e) {}
+                }
+                try {
+                    const str = JSON.stringify(val);
+                    const parsed = JSON.parse(str);
+                    if (parsed.id) return parsed.id;
+                    if (parsed._key) return parsed._key;
+                    const keys = Object.keys(parsed);
+                    if (keys.length === 1 && typeof parsed[keys[0]] === 'string') {
+                        return parsed[keys[0]];
+                    }
+                } catch (e) {}
+                const str = val.toString ? val.toString() : String(val);
+                if (str && str !== '[object Object]') {
+                    if (str.includes('/')) {
+                        const parts = str.split('/');
+                        return parts[parts.length - 1];
+                    }
+                    return str;
+                }
+            }
+            return null;
+        }
+
+        function getCustomerName(transaction) {
+            // 1. Direct name fields
+            if (transaction) {
+                if (transaction.memberName) return transaction.memberName;
+                if (transaction.customerName) return transaction.customerName;
             }
 
-            if (!memberId) {
-                // For transactions without a member (e.g. profit income), show a dash
+            // 2. Try customerId (used by savings/loans/withdrawals)
+            let rawId = null;
+            let fieldName = 'unknown';
+            if (transaction && transaction.customerId) {
+                rawId = transaction.customerId;
+                fieldName = 'customerId';
+            } else if (transaction && transaction.memberId) {
+                rawId = transaction.memberId;
+                fieldName = 'memberId';
+            } else {
                 return '—';
             }
 
-            // Case 1: memberId is a string ID
-            if (typeof memberId === 'string') {
-                if (membersMap[memberId]) {
-                    return membersMap[memberId];
-                }
-                // Try to see if memberId is actually a Firestore path like "customers/abc123"
-                if (memberId.includes('/')) {
-                    const parts = memberId.split('/');
-                    const lastPart = parts[parts.length - 1];
-                    if (membersMap[lastPart]) {
-                        return membersMap[lastPart];
+            // 3. Extract the clean ID
+            const extracted = extractIdFromAny(rawId);
+            if (!extracted) {
+                console.warn('⚠️ Could not extract ID from', fieldName, ':', rawId);
+                return '—';
+            }
+
+            // 4. Lookup in membersMap
+            let name = null;
+            if (membersMap[extracted]) {
+                name = membersMap[extracted];
+            } else if (membersMap[String(extracted)]) {
+                name = membersMap[String(extracted)];
+            } else {
+                // Try partial match (if ID is a suffix)
+                for (const [key, val] of Object.entries(membersMap)) {
+                    if (key.endsWith(extracted) || String(key).endsWith(extracted)) {
+                        name = val;
+                        break;
                     }
                 }
-                // If we still don't have it, check if we can find by memberNumber
-                for (const [id, name] of Object.entries(membersMap)) {
-                    if (id === memberId || id.endsWith(memberId)) {
-                        return name;
-                    }
-                }
-                // If the string is a short ID, try to match by checking if any customer ID ends with it
-                if (memberId.length > 4) {
-                    for (const [id, name] of Object.entries(membersMap)) {
-                        if (id.endsWith(memberId) || id === memberId) {
-                            return name;
+            }
+
+            // 5. If still not found, check alternative fields on transaction
+            if (!name && transaction) {
+                const altFields = ['member', 'customer', 'memberNumber', 'customerNumber'];
+                for (const f of altFields) {
+                    if (transaction[f]) {
+                        const altId = extractIdFromAny(transaction[f]);
+                        if (altId && membersMap[altId]) {
+                            name = membersMap[altId];
+                            break;
                         }
                     }
                 }
             }
 
-            // Case 2: memberId is a Firestore DocumentReference object with .id
-            if (memberId && typeof memberId === 'object') {
-                // Check for .id property (Firestore reference)
-                if (memberId.id && typeof memberId.id === 'string') {
-                    if (membersMap[memberId.id]) {
-                        return membersMap[memberId.id];
-                    }
-                }
-                // Check for .path property
-                if (memberId.path && typeof memberId.path === 'string') {
-                    const parts = memberId.path.split('/');
-                    const lastPart = parts[parts.length - 1];
-                    if (membersMap[lastPart]) {
-                        return membersMap[lastPart];
-                    }
-                }
-                // Check for ._key or .key (some Firestore libs)
-                if (memberId._key && typeof memberId._key === 'string') {
-                    if (membersMap[memberId._key]) {
-                        return membersMap[memberId._key];
-                    }
-                }
-                // If it's a plain object with an 'id' key
-                if (memberId.id && typeof memberId.id === 'string') {
-                    if (membersMap[memberId.id]) {
-                        return membersMap[memberId.id];
-                    }
-                }
-                // If it has a toJSON or toString that gives an ID
-                try {
-                    const jsonStr = JSON.stringify(memberId);
-                    const parsed = JSON.parse(jsonStr);
-                    if (parsed.id && typeof parsed.id === 'string' && membersMap[parsed.id]) {
-                        return membersMap[parsed.id];
-                    }
-                } catch (e) {}
+            // 6. Log the resolution for debugging (first few transactions only)
+            if (!_debugLogged) {
+                console.log(`🔍 Transaction ${transaction?.id || '?'}: field=${fieldName}, raw=${JSON.stringify(rawId)}, extracted=${extracted}, found=${name || '❌ NOT FOUND'}`);
+                _debugCount++;
+                if (_debugCount >= 5) _debugLogged = true;
             }
 
-            // Case 3: memberId is a number or other primitive
-            if (memberId && typeof memberId !== 'string' && typeof memberId !== 'object') {
-                const idStr = String(memberId);
-                if (membersMap[idStr]) {
-                    return membersMap[idStr];
-                }
+            // 7. Return name or truncated ID
+            if (name) return name;
+            if (extracted) {
+                console.warn('⚠️ Customer name not found for extracted ID:', extracted, 'from transaction:', transaction?.id);
+                return extracted.length > 10 ? extracted.substring(0, 8) + '…' : extracted;
             }
-
-            // Final fallback: if transaction has a memberId but we can't find it,
-            // log a warning (only in dev) and return the raw ID or "Unknown"
-            if (memberId && typeof memberId === 'string') {
-                console.warn('Customer not found in membersMap for ID:', memberId);
-                // Return the ID itself so the user can see what's being referenced
-                return memberId.substring(0, 12) + '…';
-            }
-
             return '—';
         }
 
         // ============================================================
-        // LOAD CUSTOMERS
+        // LOAD CUSTOMERS – map by multiple identifiers
         // ============================================================
         async function loadCustomers() {
             try {
                 const snapshot = await db.collection('customers').get();
-                allMembers = [];
                 membersMap = {};
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    const fullName = data.fullName || 'Unknown';
-                    // Store by document ID
+                    const fullName = data.fullName || data.name || 'Unknown';
                     membersMap[doc.id] = fullName;
-                    // Also store by any memberNumber field if it exists
-                    if (data.memberNumber) {
-                        membersMap[data.memberNumber] = fullName;
-                    }
-                    // Also store by email if it exists
-                    if (data.email) {
-                        membersMap[data.email] = fullName;
-                    }
-                    allMembers.push({ id: doc.id, fullName: fullName, memberNumber: data.memberNumber || '' });
+                    if (data.memberNumber) membersMap[data.memberNumber] = fullName;
+                    if (data.email) membersMap[data.email] = fullName;
+                    if (data.customerId) membersMap[data.customerId] = fullName;
+                    if (data.phone) membersMap[data.phone] = fullName;
                 });
+                console.log('✅ Loaded', Object.keys(membersMap).length, 'customer mappings');
+
+                // Populate the customer dropdown for custom reports
                 const select = document.getElementById('customMemberFilter');
                 const t = translations[currentLang];
                 select.innerHTML = `<option value="">${t.allCustomers}</option>`;
-                allMembers.sort((a, b) => a.fullName.localeCompare(b.fullName));
-                allMembers.forEach(m => {
-                    const label = m.memberNumber ? `${m.fullName} (${m.memberNumber})` : m.fullName;
-                    select.innerHTML += `<option value="${m.id}">${label}</option>`;
-                });
-                console.log(`✅ Loaded ${allMembers.length} customers into membersMap`);
+                const sorted = Object.keys(membersMap)
+                    .filter(key => key.length > 5)
+                    .sort((a, b) => (membersMap[a] || '').localeCompare(membersMap[b] || ''));
+                const seen = new Set();
+                for (const key of sorted) {
+                    const name = membersMap[key];
+                    if (seen.has(name)) continue;
+                    seen.add(name);
+                    let label = name;
+                    if (key && key.length > 3 && !key.includes('@') && !key.includes('+')) {
+                        const shortKey = key.length > 8 ? key.substring(0, 6) + '…' : key;
+                        label = `${name} (${shortKey})`;
+                    }
+                    const option = document.createElement('option');
+                    option.value = key;
+                    option.textContent = label;
+                    select.appendChild(option);
+                }
+                return true;
             } catch (error) {
                 console.error('Error loading customers:', error);
+                showToast('Error loading customers: ' + error.message, 'error');
+                return false;
             }
         }
 
@@ -2209,19 +2238,9 @@
         // ============================================================
         function getFilteredData(data, dateFrom, dateTo, memberId) {
             const filterFn = (item) => {
-                // Handle member filtering - compare with proper ID extraction
                 if (memberId) {
-                    // Get the actual member ID from the item
-                    let itemMemberId = item.memberId;
-                    // If it's a reference object, extract the ID
-                    if (itemMemberId && typeof itemMemberId === 'object' && itemMemberId.id) {
-                        itemMemberId = itemMemberId.id;
-                    }
-                    // If it's a path string, extract the last part
-                    if (typeof itemMemberId === 'string' && itemMemberId.includes('/')) {
-                        itemMemberId = itemMemberId.split('/').pop();
-                    }
-                    if (itemMemberId !== memberId) return false;
+                    const itemId = extractIdFromAny(item.customerId || item.memberId);
+                    if (itemId && itemId !== memberId) return false;
                 }
                 return isDateInRange(item.date || item.timestamp, dateFrom, dateTo);
             };
@@ -2351,6 +2370,9 @@
             };
         }
 
+        // ============================================================
+        // RENDER REPORT – uses enhanced getCustomerName
+        // ============================================================
         function renderReport(containerId, filtered, t, title, reportType = 'profit_loss') {
             const container = document.getElementById(containerId);
             if (!container) return;
@@ -2377,7 +2399,7 @@
                 <div class="summary-card"><span class="label">${t.netProfit}</span><span class="value ${netProfit >= 0 ? 'green' : 'red'}">${formatCurrency(netProfit)}</span></div>
             `;
 
-            // Build table data with FIXED customer name lookup
+            // Build table data
             const allItems = [];
             savings.forEach(item => allItems.push({ ...item, _type: t.savings }));
             loans.forEach(item => allItems.push({ ...item, _type: t.totalLoans }));
@@ -2396,9 +2418,12 @@
             if (allItems.length === 0) {
                 tableRows = `<tr><td colspan="5" style="text-align:center; padding:30px;">${t.noData}</td></tr>`;
             } else {
+                // Reset debug for this render
+                _debugLogged = false;
+                _debugCount = 0;
+
                 allItems.slice(0, 50).forEach((item, i) => {
-                    // FIXED: Use the robust customer name lookup with the transaction object
-                    const customerName = getCustomerName(item.memberId, item);
+                    const customerName = getCustomerName(item);
                     tableRows += `
                         <tr>
                             <td>${i + 1}</td>
@@ -2468,7 +2493,6 @@
                 `;
             }
 
-            // Chart
             const chartData = buildChartDataFromFiltered(filtered, t);
             const chartId = 'chart_' + containerId.replace('#', '');
             const chartHtml = `
