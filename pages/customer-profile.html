@@ -1529,6 +1529,9 @@
         let filteredTransactions = [];
         let runningBalanceMap = {};
 
+        // ===== GLOBAL REFERENCE TO CURRENT CUSTOMER =====
+        let currentCustomer = null;
+
         // ============================================================
         // LOGOUT MODAL FUNCTIONS
         // ============================================================
@@ -1707,6 +1710,23 @@
         let customerId = null;
 
         // ============================================================
+        // GET CUSTOMER NAME (uses currentCustomer if available)
+        // ============================================================
+        function getCustomerName(memberId) {
+            // If we have the current customer loaded and the id matches, use that name
+            if (currentCustomer && (currentCustomer.id === memberId || currentCustomer.customerId === memberId)) {
+                return currentCustomer.fullName || 'Unknown';
+            }
+
+            // Fallback: search in transactions
+            const tx = allTransactions.find(t => t.customerId === memberId || t.memberId === memberId);
+            if (tx && tx.customerName) return tx.customerName;
+
+            // Last resort: return "Unknown"
+            return 'Unknown';
+        }
+
+        // ============================================================
         // LOAD PROFILE DATA
         // ============================================================
         async function loadProfile(customerId) {
@@ -1722,6 +1742,7 @@
                 }
 
                 const customer = { id: customerDoc.id, ...customerDoc.data() };
+                currentCustomer = customer; // store globally
 
                 const [snap1, snap2, penaltySnap] = await Promise.all([
                     db.collection('transactions').where('customerId', '==', customerId).get(),
@@ -2050,6 +2071,9 @@
                 return;
             }
 
+            // Use currentCustomer name for all penalties
+            const customerName = currentCustomer ? currentCustomer.fullName : 'Unknown';
+
             let html = '';
             penalties.forEach(penalty => {
                 const amount = Number(penalty.amount) || 0;
@@ -2134,8 +2158,9 @@
             const dateStr = formatDate(penalty.date || penalty.timestamp);
             const note = penalty.note || '—';
             const loanId = penalty.loanId || '—';
-            const memberId = penalty.memberId || penalty.customerId || '—';
-            const customerName = getCustomerName(memberId);
+
+            // Use currentCustomer if available
+            const customerName = currentCustomer ? currentCustomer.fullName : getCustomerName(penalty.memberId || penalty.customerId);
 
             const content = document.getElementById('viewPenaltyContent');
             content.innerHTML = `
@@ -2206,9 +2231,10 @@
             const statusLabel = statusMap[status] || 'Pending';
             const dateStr = formatDate(penalty.date || penalty.timestamp);
             const note = penalty.note || '';
-            const memberId = penalty.memberId || penalty.customerId || '—';
-            const customerName = getCustomerName(memberId);
             const loanId = penalty.loanId || '—';
+
+            // Use currentCustomer if available
+            const customerName = currentCustomer ? currentCustomer.fullName : getCustomerName(penalty.memberId || penalty.customerId);
 
             document.getElementById('payPenaltyId').value = penaltyId;
             document.getElementById('payPenaltyAmount').textContent = `ETB ${amount.toLocaleString()}`;
@@ -2243,21 +2269,6 @@
             closePayPenaltyModal();
             // Redirect to penalties page with the penalty ID
             window.location.href = `penalties.html?pay=${penaltyId}`;
-        }
-
-        // ============================================================
-        // GET CUSTOMER NAME
-        // ============================================================
-        function getCustomerName(customerId) {
-            // Try to find in allTransactions
-            const tx = allTransactions.find(t => t.customerId === customerId || t.memberId === customerId);
-            if (tx && tx.customerName) return tx.customerName;
-
-            // Try to find in the profile data
-            const customer = allTransactions.find(t => t.id === customerId);
-            if (customer && customer.customerName) return customer.customerName;
-
-            return 'Unknown';
         }
 
         // ============================================================
