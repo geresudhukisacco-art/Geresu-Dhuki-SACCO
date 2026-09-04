@@ -2689,7 +2689,7 @@
         </div>
     </div>
 
-    <!-- Delete Confirmation Modal (existing, kept for consistency) -->
+    <!-- Delete Confirmation Modal -->
     <div class="confirm-modal-overlay" id="deleteConfirmModal">
         <div class="confirm-modal">
             <div class="modal-icon danger">
@@ -2860,7 +2860,9 @@
                 unpaidLoansLabel: 'Unpaid Loans',
                 totalDueLabel: 'Total Due',
                 printAgreement: 'Print Agreement',
-                payLoan: 'Pay Loan'
+                payLoan: 'Pay Loan',
+                agreementOnProgress: 'Agreement On Progress',
+                loanPaymentDone: 'Loan Payment is Done'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -2959,7 +2961,9 @@
                 unpaidLoansLabel: 'ያልተከፈለ ብድር',
                 totalDueLabel: 'ጠቅላላ የሚከፈል',
                 printAgreement: 'ውል አትም',
-                payLoan: 'ብድር ክፈል'
+                payLoan: 'ብድር ክፈል',
+                agreementOnProgress: 'ውል በሂደት ላይ',
+                loanPaymentDone: 'የብድር ክፍያ ተጠናቋል'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -3058,7 +3062,9 @@
                 unpaidLoansLabel: 'Liqii Hin Kaffalamne',
                 totalDueLabel: 'Waliigalaa Kaffalamuu Qabu',
                 printAgreement: 'Waliigaltee Maxxansi',
-                payLoan: 'Liqii Kaffali'
+                payLoan: 'Liqii Kaffali',
+                agreementOnProgress: 'Waliigaltee Toleefame',
+                loanPaymentDone: 'Kaffaltiin Liqii Xumurame'
             }
         };
 
@@ -3067,155 +3073,125 @@
         let currentUserDisplayName = 'Admin';
 
         // ============================================================
-        // CACHE for fetched loans (to avoid repeated Firestore calls)
+        // LOAN CACHE
         // ============================================================
         let loanCache = {};
+        let loanIdMapping = {};
 
         // ============================================================
-        // ROBUST HELPER: Get loan by ID with multiple fallback strategies
+        // STRONG HELPER: Get loan by ID with multiple strategies
         // ============================================================
         async function getLoanById(loanId) {
             if (!loanId) return null;
 
-            // Strategy 1: Check cache
+            // Strategy 1: Check mapping cache
+            if (loanIdMapping[loanId] && loanCache[loanIdMapping[loanId]]) {
+                return loanCache[loanIdMapping[loanId]];
+            }
+
+            // Strategy 2: Check direct cache
             if (loanCache[loanId]) {
                 return loanCache[loanId];
             }
 
-            // Strategy 2: Find in allLoans by id
+            // Strategy 3: Find in allLoans by id
             let loan = allLoans.find(l => l.id === loanId);
             if (loan) {
                 loanCache[loanId] = loan;
+                loanIdMapping[loanId] = loan.id;
+                if (loan.loanId) loanIdMapping[loan.loanId] = loan.id;
                 return loan;
             }
 
-            // Strategy 3: Find in allLoans by loanId field
+            // Strategy 4: Find in allLoans by loanId field
             loan = allLoans.find(l => l.loanId === loanId);
             if (loan) {
                 loanCache[loanId] = loan;
+                loanIdMapping[loanId] = loan.id;
+                if (loan.loanId) loanIdMapping[loan.loanId] = loan.id;
                 return loan;
             }
 
-            // Strategy 4: Fetch from Firestore by document ID
+            // Strategy 5: Direct Firestore fetch
             try {
                 const doc = await db.collection('transactions').doc(loanId).get();
                 if (doc.exists) {
                     const data = doc.data();
-                    // Only return if it's a loan transaction
-                    if (data.type === 'loan') {
+                    if (data.type === 'loan' || data.loanId || data.amount) {
                         loan = { id: doc.id, ...data };
                         loanCache[loanId] = loan;
-                        // Also add to allLoans if not already there
-                        if (!allLoans.find(l => l.id === loan.id)) {
+                        loanCache[doc.id] = loan;
+                        loanIdMapping[loanId] = doc.id;
+                        if (data.loanId) loanIdMapping[data.loanId] = doc.id;
+                        if (!allLoans.find(l => l.id === doc.id)) {
                             allLoans.push(loan);
                         }
                         return loan;
                     }
                 }
-            } catch (error) {
-                console.warn('Firestore doc fetch failed:', error);
-            }
+            } catch (e) { console.warn('Direct doc fetch failed:', e); }
 
-            // Strategy 5: Query Firestore by loanId field
+            // Strategy 6: Query by loanId field
             try {
-                const querySnapshot = await db.collection('transactions')
-                    .where('loanId', '==', loanId)
-                    .where('type', '==', 'loan')
-                    .limit(1)
-                    .get();
-                if (!querySnapshot.empty) {
-                    const doc = querySnapshot.docs[0];
-                    loan = { id: doc.id, ...doc.data() };
+                const qs = await db.collection('transactions').where('loanId', '==', loanId).limit(1).get();
+                if (!qs.empty) {
+                    const doc = qs.docs[0];
+                    const data = doc.data();
+                    loan = { id: doc.id, ...data };
                     loanCache[loanId] = loan;
-                    if (!allLoans.find(l => l.id === loan.id)) {
+                    loanCache[doc.id] = loan;
+                    loanIdMapping[loanId] = doc.id;
+                    if (data.loanId) loanIdMapping[data.loanId] = doc.id;
+                    if (!allLoans.find(l => l.id === doc.id)) {
                         allLoans.push(loan);
                     }
                     return loan;
                 }
-            } catch (error) {
-                console.warn('Firestore query by loanId failed:', error);
-            }
+            } catch (e) { console.warn('Query by loanId failed:', e); }
 
-            // Strategy 6: Try to find by searching all transactions (without type filter)
+            // Strategy 7: Fallback - search all loans
             try {
-                const querySnapshot = await db.collection('transactions')
-                    .where('loanId', '==', loanId)
-                    .limit(1)
-                    .get();
-                if (!querySnapshot.empty) {
-                    const doc = querySnapshot.docs[0];
-                    const data = doc.data();
-                    if (data.type === 'loan') {
-                        loan = { id: doc.id, ...data };
-                        loanCache[loanId] = loan;
-                        if (!allLoans.find(l => l.id === loan.id)) {
-                            allLoans.push(loan);
-                        }
-                        return loan;
-                    }
-                }
-            } catch (error) {
-                console.warn('Firestore broad query failed:', error);
-            }
-
-            // Strategy 7: Try to find by customerId and amount (last resort)
-            // This is a fallback for loans that might have been created with a different ID
-            try {
-                // Look for loans with the given ID as a string in any field
-                // This is a bit of a hack but can work for some cases
-                const allDocs = await db.collection('transactions')
-                    .where('type', '==', 'loan')
-                    .limit(50)
-                    .get();
+                const allDocs = await db.collection('transactions').where('type', '==', 'loan').limit(200).get();
                 for (const doc of allDocs.docs) {
                     const data = doc.data();
-                    // Check if any field contains the loanId as a substring
-                    const stringFields = ['loanId', 'id', 'transactionId', 'reference'];
-                    for (const field of stringFields) {
+                    const searchFields = ['loanId', 'id', 'transactionId', 'reference'];
+                    for (const field of searchFields) {
                         if (data[field] && String(data[field]) === String(loanId)) {
                             loan = { id: doc.id, ...data };
                             loanCache[loanId] = loan;
-                            if (!allLoans.find(l => l.id === loan.id)) {
+                            loanCache[doc.id] = loan;
+                            loanIdMapping[loanId] = doc.id;
+                            if (data.loanId) loanIdMapping[data.loanId] = doc.id;
+                            if (!allLoans.find(l => l.id === doc.id)) {
                                 allLoans.push(loan);
                             }
                             return loan;
                         }
                     }
                 }
-            } catch (error) {
-                console.warn('Firestore broad search failed:', error);
-            }
+            } catch (e) { console.warn('Fallback search failed:', e); }
 
             return null;
         }
 
         // ============================================================
-        // ROBUST HELPER: Get customer by ID with fallback
+        // HELPER: Get customer by ID (with fallback)
         // ============================================================
         async function getCustomerById(customerId) {
             if (!customerId) return null;
-
-            // First try from local list
             let customer = customersList.find(c => c.id === customerId);
             if (customer) return customer;
-
-            // If not found, fetch from Firestore
             try {
                 const doc = await db.collection('customers').doc(customerId).get();
                 if (doc.exists) {
-                    const data = doc.data();
-                    customer = { id: doc.id, ...data };
-                    // Add to local list for future use
+                    customer = { id: doc.id, ...doc.data() };
                     if (!customersList.find(c => c.id === customer.id)) {
                         customersList.push(customer);
                     }
                     return customer;
                 }
                 return null;
-            } catch (error) {
-                console.error('Error fetching customer from Firestore:', error);
-                return null;
-            }
+            } catch (e) { return null; }
         }
 
         function setLanguage(lang) {
@@ -3245,6 +3221,9 @@
                 const span = testBtn.querySelector('span');
                 if (span) span.textContent = t.testConnection || 'Test Connection';
             }
+            // Re-render table to update loan progress labels
+            const currentItems = filteredLoans.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+            renderTable(currentItems);
         }
 
         function initLanguage() {
@@ -3319,21 +3298,13 @@
             }
         }
 
-        function canApply() {
-            return ['admin', 'manager', 'teller'].includes(currentUserRole);
-        }
+        function canApply() { return ['admin', 'manager', 'teller'].includes(currentUserRole); }
 
-        function canApproveReject() {
-            return ['admin', 'manager'].includes(currentUserRole);
-        }
+        function canApproveReject() { return ['admin', 'manager'].includes(currentUserRole); }
 
-        function canEdit() {
-            return currentUserRole === 'admin';
-        }
+        function canEdit() { return currentUserRole === 'admin'; }
 
-        function canDelete() {
-            return currentUserRole === 'admin';
-        }
+        function canDelete() { return currentUserRole === 'admin'; }
 
         function updateUserInfo() {
             const roleMap = { admin: 'ADMIN', manager: 'MANAGER', teller: 'TELLER', accountant: 'ACCOUNTANT',
@@ -3341,12 +3312,10 @@
             const roleLabel = roleMap[currentUserRole] || 'VIEWER';
             const displayName = currentUserDisplayName || 'User';
             document.getElementById('userDisplayName').textContent = displayName + ' (' + roleLabel + ')';
-
             const auditNav = document.getElementById('auditNavItem');
             if (auditNav) {
                 auditNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
             }
-
             const usersNav = document.getElementById('usersNavItem');
             if (usersNav) {
                 usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
@@ -3359,7 +3328,6 @@
                 const userEmail = user?.email || 'system';
                 const userName = user?.displayName || user?.email || 'System';
                 const userDisplayName = user?.displayName || 'System';
-
                 await db.collection('audit').add({
                     action: action,
                     collection: collection,
@@ -3446,20 +3414,12 @@
         async function getCustomerSavings(customerId) {
             try {
                 const [snap1, snap2] = await Promise.all([
-                    db.collection('transactions')
-                    .where('customerId', '==', customerId)
-                    .where('type', '==', 'savings')
-                    .get(),
-                    db.collection('transactions')
-                    .where('memberId', '==', customerId)
-                    .where('type', '==', 'savings')
-                    .get()
+                    db.collection('transactions').where('customerId', '==', customerId).where('type', '==', 'savings').get(),
+                    db.collection('transactions').where('memberId', '==', customerId).where('type', '==', 'savings').get()
                 ]);
-
                 let total = 0;
                 snap1.forEach(doc => total += Number(doc.data().amount) || 0);
                 snap2.forEach(doc => total += Number(doc.data().amount) || 0);
-
                 return Math.round(total * 100) / 100;
             } catch (error) {
                 console.error('Error getting customer savings:', error);
@@ -3473,24 +3433,16 @@
                     .where('customerId', '==', customerId)
                     .where('type', '==', 'loan')
                     .where('status', 'in', ['active', 'pending']);
-
                 let query2 = db.collection('transactions')
                     .where('memberId', '==', customerId)
                     .where('type', '==', 'loan')
                     .where('status', 'in', ['active', 'pending']);
-
                 const [snap1, snap2] = await Promise.all([query1.get(), query2.get()]);
-
                 let total = 0;
-                snap1.forEach(doc => {
-                    if (excludeLoanId && doc.id === excludeLoanId) return;
-                    total += Number(doc.data().amount) || 0;
-                });
-                snap2.forEach(doc => {
-                    if (excludeLoanId && doc.id === excludeLoanId) return;
-                    total += Number(doc.data().amount) || 0;
-                });
-
+                snap1.forEach(doc => { if (excludeLoanId && doc.id === excludeLoanId) return;
+                    total += Number(doc.data().amount) || 0; });
+                snap2.forEach(doc => { if (excludeLoanId && doc.id === excludeLoanId) return;
+                    total += Number(doc.data().amount) || 0; });
                 return Math.round(total * 100) / 100;
             } catch (error) {
                 console.error('Error getting total loan exposure:', error);
@@ -3504,25 +3456,16 @@
                     .where('customerId', '==', customerId)
                     .where('type', '==', 'loan')
                     .where('status', 'in', ['active', 'pending']);
-
                 let query2 = db.collection('transactions')
                     .where('memberId', '==', customerId)
                     .where('type', '==', 'loan')
                     .where('status', 'in', ['active', 'pending']);
-
                 const [snap1, snap2] = await Promise.all([query1.get(), query2.get()]);
-
                 let has = false;
-                snap1.forEach(doc => {
-                    if (excludeLoanId && doc.id === excludeLoanId) return;
-                    has = true;
-                });
-                if (!has) {
-                    snap2.forEach(doc => {
-                        if (excludeLoanId && doc.id === excludeLoanId) return;
-                        has = true;
-                    });
-                }
+                snap1.forEach(doc => { if (excludeLoanId && doc.id === excludeLoanId) return;
+                    has = true; });
+                if (!has) { snap2.forEach(doc => { if (excludeLoanId && doc.id === excludeLoanId) return;
+                        has = true; }); }
                 return has;
             } catch (error) {
                 console.error('Error checking active/pending loans:', error);
@@ -3533,14 +3476,8 @@
         async function getCustomerAllLoans(customerId) {
             try {
                 const [snap1, snap2] = await Promise.all([
-                    db.collection('transactions')
-                    .where('customerId', '==', customerId)
-                    .where('type', '==', 'loan')
-                    .get(),
-                    db.collection('transactions')
-                    .where('memberId', '==', customerId)
-                    .where('type', '==', 'loan')
-                    .get()
+                    db.collection('transactions').where('customerId', '==', customerId).where('type', '==', 'loan').get(),
+                    db.collection('transactions').where('memberId', '==', customerId).where('type', '==', 'loan').get()
                 ]);
                 let loans = [];
                 snap1.forEach(doc => loans.push({ id: doc.id, ...doc.data() }));
@@ -3564,22 +3501,17 @@
 
             searchInput.addEventListener('input', function() {
                 const query = this.value.toLowerCase().trim();
-                if (!query) {
-                    suggestions.style.display = 'none';
-                    hiddenId.value = '';
-                    return;
-                }
+                if (!query) { suggestions.style.display = 'none';
+                    hiddenId.value = ''; return; }
                 const filtered = customersList.filter(c =>
                     c.fullName.toLowerCase().includes(query) ||
                     (c.customerId && c.customerId.toLowerCase().includes(query))
                 );
-                if (filtered.length === 0) {
-                    suggestions.style.display = 'none';
-                    return;
-                }
+                if (filtered.length === 0) { suggestions.style.display = 'none'; return; }
                 let html = '';
                 filtered.forEach(c => {
-                    html += `<div onclick="selectCustomer('${c.id}', '${c.fullName} (${c.customerId||''})')">
+                    html +=
+                        `<div onclick="selectCustomer('${c.id}', '${c.fullName} (${c.customerId||''})')">
                                 ${c.fullName} <span style="color:var(--text-secondary); font-size:12px;">${c.customerId||''}</span>
                             </div>`;
                 });
@@ -3646,7 +3578,9 @@
 
             updatePreview();
 
-            showToast(`💰 Savings: ${savings.toFixed(2)} | Existing loans: ${existingExposure.toFixed(2)} | Available: ${available.toFixed(2)}`, 'warning');
+            showToast(
+                `💰 Savings: ${savings.toFixed(2)} | Existing loans: ${existingExposure.toFixed(2)} | Available: ${available.toFixed(2)}`,
+                'warning');
         }
 
         function updatePreview() {
@@ -3681,7 +3615,8 @@
                 if (filtered.length === 0) { suggestions.style.display = 'none'; return; }
                 let html = '';
                 filtered.forEach(c => {
-                    html += `<div onclick="selectEditCustomer('${c.id}', '${c.fullName} (${c.customerId||''})')" style="padding:8px 12px; cursor:pointer; border-bottom:1px solid var(--border-color);">
+                    html +=
+                        `<div onclick="selectEditCustomer('${c.id}', '${c.fullName} (${c.customerId||''})')" style="padding:8px 12px; cursor:pointer; border-bottom:1px solid var(--border-color);">
                                 ${c.fullName} <span style="color:var(--text-secondary); font-size:12px;">${c.customerId||''}</span>
                             </div>`;
                 });
@@ -3707,7 +3642,8 @@
             if (!container) return;
 
             if (guarantees.length === 0) {
-                container.innerHTML = `<p style="color:var(--text-secondary); font-size:14px; padding:8px 0;">No guarantees added yet.</p>`;
+                container.innerHTML =
+                    `<p style="color:var(--text-secondary); font-size:14px; padding:8px 0;">No guarantees added yet.</p>`;
                 return;
             }
 
@@ -3885,10 +3821,12 @@
         // ============================================================
         let pendingActionId = null;
         let pendingActionType = null;
+        let pendingLoanData = null;
 
-        function showConfirmModal(type, loanId) {
+        function showConfirmModal(type, loanId, loanData) {
             pendingActionId = loanId;
             pendingActionType = type;
+            pendingLoanData = loanData || null;
             const modalMap = {
                 'approve': 'approveConfirmModal',
                 'reject': 'rejectConfirmModal',
@@ -3918,6 +3856,7 @@
             }
             pendingActionId = null;
             pendingActionType = null;
+            pendingLoanData = null;
         }
 
         function hideAllConfirmModals() {
@@ -3928,6 +3867,7 @@
             });
             pendingActionId = null;
             pendingActionType = null;
+            pendingLoanData = null;
         }
 
         // ---- Setup confirm modal event listeners ----
@@ -3959,21 +3899,30 @@
                 }
             });
 
-            // Edit
+            // Edit - use the stored loan data directly
             document.getElementById('editCancel').addEventListener('click', () => hideConfirmModal('edit'));
             document.getElementById('editConfirm').addEventListener('click', () => {
                 if (pendingActionId) {
                     hideConfirmModal('edit');
-                    openEditModal(pendingActionId);
+                    // Use stored loan data or fetch from allLoans
+                    if (pendingLoanData) {
+                        openEditModalWithData(pendingLoanData);
+                    } else {
+                        openEditModal(pendingActionId);
+                    }
                 }
             });
 
-            // Print
+            // Print - use the stored loan data directly
             document.getElementById('printCancel').addEventListener('click', () => hideConfirmModal('print'));
             document.getElementById('printConfirm').addEventListener('click', async () => {
                 if (pendingActionId) {
                     hideConfirmModal('print');
-                    await printLoanAgreement(pendingActionId);
+                    if (pendingLoanData) {
+                        await printLoanAgreementWithData(pendingLoanData);
+                    } else {
+                        await printLoanAgreement(pendingActionId);
+                    }
                 }
             });
 
@@ -3993,6 +3942,7 @@
                         this.classList.remove('active');
                         pendingActionId = null;
                         pendingActionType = null;
+                        pendingLoanData = null;
                     }
                 });
             });
@@ -4126,20 +4076,17 @@
         // DELETE LOAN
         // ============================================================
         async function confirmDeleteLoan(loanId) {
-            const t = translations[currentLang];
             try {
                 const docRef = db.collection('transactions').doc(loanId);
                 const doc = await docRef.get();
                 const data = doc.exists ? doc.data() : {};
-
                 await docRef.delete();
-
-                // Remove from cache
                 delete loanCache[loanId];
-
+                Object.keys(loanIdMapping).forEach(key => {
+                    if (loanIdMapping[key] === loanId) delete loanIdMapping[key];
+                });
                 await logAudit('deleted', 'transactions', loanId, { deletedData: { old: null, new: data } },
                     `Loan deleted for ${customersList.find(c => c.id === data.customerId)?.fullName || 'Unknown'} (${data.amount || 0} ETB)`);
-
                 showToast('Loan deleted successfully.', 'success');
                 await loadLoans();
             } catch (error) {
@@ -4148,21 +4095,18 @@
         }
 
         // ============================================================
-        // EDIT LOAN (opens the edit modal) - Uses robust helper
+        // EDIT LOAN - with data passed directly
         // ============================================================
-        async function openEditModal(loanId) {
+        async function openEditModalWithData(loan) {
             if (!canEdit()) {
                 showToast(translations[currentLang].unauthorized, 'error');
                 return;
             }
-            // Get loan data using robust helper
-            const loan = await getLoanById(loanId);
             if (!loan) {
-                showToast('Loan not found. Please refresh and try again.', 'error');
+                showToast('Loan data not available.', 'error');
                 return;
             }
 
-            // Get customer using robust helper
             const customer = await getCustomerById(loan.customerId);
             if (!customer) {
                 showToast('Customer not found. Please refresh and try again.', 'error');
@@ -4188,6 +4132,19 @@
 
             document.getElementById('editLoanModal').classList.add('active');
             document.getElementById('editLoanModal').style.display = 'flex';
+        }
+
+        async function openEditModal(loanId) {
+            if (!canEdit()) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+            const loan = await getLoanById(loanId);
+            if (!loan) {
+                showToast('Loan not found. Please refresh and try again.', 'error');
+                return;
+            }
+            await openEditModalWithData(loan);
         }
 
         function closeEditModal() {
@@ -4281,9 +4238,12 @@
 
                 // Update cache
                 const cached = loanCache[loanId];
-                if (cached) {
-                    Object.assign(cached, updateData);
-                }
+                if (cached) Object.assign(cached, updateData);
+                Object.keys(loanCache).forEach(key => {
+                    if (loanCache[key] && loanCache[key].id === loanId) {
+                        Object.assign(loanCache[key], updateData);
+                    }
+                });
 
                 const changes = {};
                 const fieldsToCompare = ['customerId', 'amount', 'date', 'note', 'status', 'interestRate', 'repaymentPeriod',
@@ -4313,17 +4273,14 @@
         }
 
         // ============================================================
-        // PRINT AGREEMENT – Uses robust helper and customer fallback
+        // PRINT AGREEMENT - with data passed directly
         // ============================================================
-        async function printLoanAgreement(loanId) {
-            // Use helper to get loan (fallback to Firestore)
-            const loan = await getLoanById(loanId);
+        async function printLoanAgreementWithData(loan) {
             if (!loan) {
-                showToast('Loan not found. Please refresh and try again.', 'error');
+                showToast('Loan data not available.', 'error');
                 return;
             }
 
-            // Get customer using robust helper
             const customer = await getCustomerById(loan.customerId);
             if (!customer) {
                 showToast('Customer not found. Please refresh and try again.', 'error');
@@ -4336,31 +4293,22 @@
             const loanType = loan.loanType || 'simple';
             const totalPayable = loan.totalPayable ? Number(loan.totalPayable) : calculateTotalPayable(amount, interest,
                 period, loanType);
-            const monthlyPayment = calculateMonthlyPayment(amount, interest, period, loanType);
             const dateObj = loan.date ? (loan.date.toDate ? loan.date.toDate() : new Date(loan.date)) : new Date();
             const dateStr = dateObj.toLocaleDateString('en-GB', {
                 day: 'numeric',
                 month: 'long',
                 year: 'numeric'
             });
-
-            // Format amount in words
             const amountWords = numberToWords(amount);
-
-            // Guarantees - use exactly the number of guarantees (no padding)
             const gList = loan.guarantees || [];
-
-            // Get recorded by and approved by
             const recordedByName = loan.createdByName || loan.createdBy || loan.createdByEmail || 'System';
             const approvedByName = loan.approvedBy || 'Not Approved Yet';
-
             const today = new Date().toLocaleDateString('en-GB', {
                 day: 'numeric',
                 month: 'long',
                 year: 'numeric'
             });
 
-            // Build the guarantor list HTML
             let guarantorListHtml = '';
             if (gList.length === 0) {
                 guarantorListHtml = '<li><span class="field-line">No guarantors listed</span></li>';
@@ -4370,7 +4318,6 @@
                 });
             }
 
-            // Build the signature table rows for guarantors
             let guarantorRowsHtml = '';
             if (gList.length === 0) {
                 guarantorRowsHtml = `
@@ -4392,76 +4339,54 @@
                 });
             }
 
-            // Build the agreement HTML in English format
             const content = document.getElementById('printAgreementContent');
             content.innerHTML = `
                 <div class="loan-agreement" id="loanAgreementContent">
-                    <!-- HEADER -->
                     <div class="agreement-header">
                         <h1>WALDA LIQII FI QUSANNAA GARASUU DHUKII</h1>
                         <div class="sub-title">GERESU DHUKI SAVINGS AND CREDIT COOPERATIVE</div>
                         <div class="header-date">Date: ${today}</div>
                     </div>
-
                     <div class="agreement-title">LOAN AGREEMENT NOTE</div>
-
                     <div class="agreement-body">
-
                         <p><strong>Subject: Loan Grant and Repayment Agreement</strong></p>
-
                         <p>
                             I, Mr./Ms. <span class="field-line">${customer.fullName}</span>, a member of Geresu Dhuki Savings and Credit Cooperative,
                             residing in <span class="field-line">${customer.address || '________'}, ${customer.city || '________'}</span>, Ethiopia,
                             hereby acknowledge that I have received a loan of:
                         </p>
-
                         <p>
                             <strong>ETB <span class="field-line">${amount.toLocaleString()}</span> (<span class="field-line">${amountWords}</span>)</strong>
                         </p>
-
                         <p>
                             from Geresu Dhuki Savings and Credit Cooperative for my personal financial need, in accordance with the applicable
                             Cooperative rules and the relevant references <span class="legal-ref">S/H/H/L/ 1679, 1721, 1731, 2005/2006</span>.
                         </p>
-
                         <p>
                             I undertake to repay the loan together with applicable interest and charges in accordance with the Cooperative's approved
                             repayment terms.
                         </p>
-
                         <p>
                             The following members have agreed to stand as guarantors for the above-mentioned loan:
                         </p>
-
                         <ul style="list-style: none; padding-left: 20px; margin: 6px 0;">
                             ${guarantorListHtml}
                         </ul>
-
                         <p>
                             The Guarantors confirm that, should the Borrower fail to fulfill the repayment obligation, they shall assume
                             responsibility for the outstanding amount in accordance with <span class="legal-ref">S/H/H/L 1920</span>,
                             the Cooperative's rules, and applicable law.
                         </p>
-
                         <p>
                             Any breach of this agreement shall be subject to the applicable penalties and recovery procedures, including the
                             provisions referred to under <span class="legal-ref">S/H/H/L 1790 and 1791</span>.
                         </p>
-
                         <p>
                             By signing below, the Borrower and Guarantors confirm that they have read, understood, and voluntarily accepted
                             the terms of this agreement.
                         </p>
-
-                        <!-- Signature Tables -->
                         <table class="signature-table">
-                            <thead>
-                                <tr>
-                                    <th style="width:35%;">BORROWER</th>
-                                    <th style="width:30%;">Signature</th>
-                                    <th style="width:35%;">Date</th>
-                                </tr>
-                            </thead>
+                            <thead><tr><th style="width:35%;">BORROWER</th><th style="width:30%;">Signature</th><th style="width:35%;">Date</th></tr></thead>
                             <tbody>
                                 <tr>
                                     <td>Name: <span class="field-line">${customer.fullName}</span></td>
@@ -4470,28 +4395,12 @@
                                 </tr>
                             </tbody>
                         </table>
-
                         <table class="signature-table">
-                            <thead>
-                                <tr>
-                                    <th style="width:35%;">GUARANTORS</th>
-                                    <th style="width:30%;">Signature</th>
-                                    <th style="width:35%;">Date</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${guarantorRowsHtml}
-                            </tbody>
+                            <thead><tr><th style="width:35%;">GUARANTORS</th><th style="width:30%;">Signature</th><th style="width:35%;">Date</th></tr></thead>
+                            <tbody>${guarantorRowsHtml}</tbody>
                         </table>
-
                         <table class="signature-table">
-                            <thead>
-                                <tr>
-                                    <th style="width:35%;">COOPERATIVE APPROVAL</th>
-                                    <th style="width:30%;">Signature</th>
-                                    <th style="width:35%;">Date</th>
-                                </tr>
-                            </thead>
+                            <thead><tr><th style="width:35%;">COOPERATIVE APPROVAL</th><th style="width:30%;">Signature</th><th style="width:35%;">Date</th></tr></thead>
                             <tbody>
                                 <tr>
                                     <td>Approved By: <span class="field-line">${approvedByName}</span></td>
@@ -4505,13 +4414,9 @@
                                 </tr>
                             </tbody>
                         </table>
-
-                        <!-- Official Stamp -->
                         <div style="margin-top: 10px; text-align: center;">
                             <p><strong>Official Stamp: __________________________</strong></p>
                         </div>
-
-                        <!-- Minimal Footer -->
                         <div class="agreement-footer">
                             <div class="footer-left">
                                 <strong>GERESU DHUKI SACCO</strong> | Tel: +251-91028-5252
@@ -4524,9 +4429,17 @@
                 </div>
             `;
 
-            // Show the print modal
             document.getElementById('printModal').classList.add('active');
             document.getElementById('printModal').style.display = 'flex';
+        }
+
+        async function printLoanAgreement(loanId) {
+            const loan = await getLoanById(loanId);
+            if (!loan) {
+                showToast('Loan not found. Please refresh and try again.', 'error');
+                return;
+            }
+            await printLoanAgreementWithData(loan);
         }
 
         // ---- Simple number to words ----
@@ -4593,87 +4506,21 @@
                         ${styles}
                         body { background: #fff; margin: 0; padding: 20px; font-family: 'Times New Roman', serif; }
                         .loan-agreement { max-width: 100%; padding: 20px 30px; margin: 0 auto; }
-                        .loan-agreement .field-line {
-                            display: inline-block;
-                            min-width: 80px;
-                            margin: 0 4px;
-                            padding: 0 8px;
-                            font-weight: 600;
-                            color: #1a3a2a;
-                            border-bottom: none !important;
-                        }
+                        .loan-agreement .field-line { display: inline-block; min-width: 80px; margin: 0 4px; padding: 0 8px; font-weight: 600; color: #1a3a2a; border-bottom: none !important; }
                         .loan-agreement .field-line-lg { min-width: 180px; }
                         .loan-agreement .signature-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-                        .loan-agreement .signature-table th {
-                            border-bottom: 2px solid #000;
-                            padding: 6px 8px;
-                            text-align: left;
-                            font-weight: 700;
-                            background: #f0f5f0;
-                        }
-                        .loan-agreement .signature-table td {
-                            border-bottom: 1px solid #ccc;
-                            padding: 6px 8px;
-                            vertical-align: top;
-                        }
-                        /* Removed underlines from signature and date cells */
-                        .loan-agreement .signature-table .sig-line {
-                            display: inline-block;
-                            min-width: 100px;
-                            margin-left: 6px;
-                            padding: 0 6px;
-                            font-weight: 500;
-                            border-bottom: none !important;
-                        }
-                        .loan-agreement .agreement-header {
-                            text-align: center;
-                            border-bottom: 2px solid #000;
-                            padding-bottom: 8px;
-                            margin-bottom: 16px;
-                        }
-                        .loan-agreement .agreement-header h1 {
-                            font-size: 26px;
-                            font-weight: 800;
-                            margin: 0;
-                            color: #1a3a2a;
-                        }
-                        .loan-agreement .agreement-header .sub-title {
-                            font-size: 14px;
-                            font-weight: 600;
-                            margin-top: 2px;
-                            color: #1a3a2a;
-                        }
-                        .loan-agreement .agreement-header .header-date {
-                            text-align: right;
-                            font-size: 14px;
-                            font-weight: 500;
-                            margin-top: 4px;
-                        }
-                        .loan-agreement .agreement-title {
-                            text-align: center;
-                            font-size: 18px;
-                            font-weight: 700;
-                            margin: 12px 0 14px;
-                            text-decoration: underline;
-                            color: #1a3a2a;
-                        }
-                        .loan-agreement .agreement-body {
-                            font-size: 14px;
-                            line-height: 1.7;
-                            text-align: justify;
-                        }
+                        .loan-agreement .signature-table th { border-bottom: 2px solid #000; padding: 6px 8px; text-align: left; font-weight: 700; background: #f0f5f0; }
+                        .loan-agreement .signature-table td { border-bottom: 1px solid #ccc; padding: 6px 8px; vertical-align: top; }
+                        .loan-agreement .signature-table .sig-line { display: inline-block; min-width: 100px; margin-left: 6px; padding: 0 6px; font-weight: 500; border-bottom: none !important; }
+                        .loan-agreement .agreement-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 16px; }
+                        .loan-agreement .agreement-header h1 { font-size: 26px; font-weight: 800; margin: 0; color: #1a3a2a; }
+                        .loan-agreement .agreement-header .sub-title { font-size: 14px; font-weight: 600; margin-top: 2px; color: #1a3a2a; }
+                        .loan-agreement .agreement-header .header-date { text-align: right; font-size: 14px; font-weight: 500; margin-top: 4px; }
+                        .loan-agreement .agreement-title { text-align: center; font-size: 18px; font-weight: 700; margin: 12px 0 14px; text-decoration: underline; color: #1a3a2a; }
+                        .loan-agreement .agreement-body { font-size: 14px; line-height: 1.7; text-align: justify; }
                         .loan-agreement .agreement-body p { margin: 6px 0; }
                         .loan-agreement .agreement-body .legal-ref { font-weight: 700; font-style: normal; }
-                        .loan-agreement .agreement-footer {
-                            display: flex;
-                            justify-content: space-between;
-                            align-items: center;
-                            margin-top: 12px;
-                            padding-top: 8px;
-                            border-top: 2px solid #000;
-                            font-size: 12px;
-                            color: #333;
-                        }
+                        .loan-agreement .agreement-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 8px; border-top: 2px solid #000; font-size: 12px; color: #333; }
                         .loan-agreement .agreement-footer .footer-left { text-align: left; }
                         .loan-agreement .agreement-footer .footer-right { text-align: right; font-style: italic; font-weight: 500; color: var(--primary); }
                         @media print {
@@ -4693,9 +4540,7 @@
                     <script>
                         window.onload = function() {
                             window.print();
-                            setTimeout(function() {
-                                window.close();
-                            }, 1000);
+                            setTimeout(function() { window.close(); }, 1000);
                         };
                     <\/script>
                 </body>
@@ -4707,7 +4552,7 @@
         }
 
         // ============================================================
-        // RENDER TABLE (with confirmation modals for all actions)
+        // RENDER TABLE
         // ============================================================
         function renderTable(items) {
             const tbody = document.getElementById('loansBody');
@@ -4764,14 +4609,17 @@
                     guaranteeHtml = '<span style="color:var(--text-secondary); font-size:12px;">None</span>';
                 }
 
-                // Loan Progress
-                const loanProgress = loan.loanProgress || 'agreement_on_progress';
-                let progressLabel = 'Agreement On Progress';
-                let progressClass = 'agreement';
+                // Loan Progress with translations
+                const loanProgress = loan.loanProgress || (loan.status === 'active' ? 'agreement_on_progress' : '');
+                let progressLabel = '';
+                let progressClass = '';
                 if (loanProgress === 'loan_payment_done') {
-                    progressLabel = 'Loan Payment is Done';
+                    progressLabel = t.loanPaymentDone || 'Loan Payment is Done';
                     progressClass = 'loan_payment_done';
-                } else if (loan.status !== 'active') {
+                } else if (loanProgress === 'agreement_on_progress' || (loan.status === 'active' && !loanProgress)) {
+                    progressLabel = t.agreementOnProgress || 'Agreement On Progress';
+                    progressClass = 'agreement';
+                } else {
                     progressLabel = '—';
                     progressClass = '';
                 }
@@ -4782,10 +4630,11 @@
                         </button>
                     `;
 
-                // Print button with confirmation modal
+                // Print button with confirmation modal - pass loan data
                 if (loan.status === 'active' && loanProgress !== 'loan_payment_done') {
+                    const loanDataAttr = encodeURIComponent(JSON.stringify(loan));
                     actionsHtml += `
-                            <button class="action-btn print-btn" onclick="showConfirmModal('print', '${loan.id}')" title="${t.printAgreement || 'Print Agreement'}">
+                            <button class="action-btn print-btn" onclick="showConfirmModal('print', '${loan.id}', ${loanDataAttr})" title="${t.printAgreement || 'Print Agreement'}">
                                 <i class="fas fa-print"></i>
                             </button>
                         `;
@@ -4800,10 +4649,11 @@
                         `;
                 }
 
-                // Edit button with confirmation modal
+                // Edit button with confirmation modal - pass loan data
                 if (canEdit()) {
+                    const loanDataAttr = encodeURIComponent(JSON.stringify(loan));
                     actionsHtml += `
-                            <button class="action-btn edit-btn" onclick="showConfirmModal('edit', '${loan.id}')" title="${t.edit}">
+                            <button class="action-btn edit-btn" onclick="showConfirmModal('edit', '${loan.id}', ${loanDataAttr})" title="${t.edit}">
                                 <i class="fas fa-edit"></i>
                             </button>
                         `;
@@ -4948,21 +4798,20 @@
             const overlay = document.getElementById('loadingOverlay');
             overlay.classList.add('active');
             try {
-                const snapshot = await db.collection('transactions')
-                    .where('type', '==', 'loan')
-                    .get();
+                const snapshot = await db.collection('transactions').where('type', '==', 'loan').get();
                 allLoans = [];
-                // Clear cache entries that might be stale
-                // We'll keep cache but will update with fresh data
+                loanCache = {};
+                loanIdMapping = {};
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     const loan = { id: doc.id, ...data };
                     allLoans.push(loan);
-                    // Update cache
                     loanCache[doc.id] = loan;
-                    if (data.loanId && data.loanId !== doc.id) {
+                    if (data.loanId) {
                         loanCache[data.loanId] = loan;
+                        loanIdMapping[data.loanId] = doc.id;
                     }
+                    loanIdMapping[doc.id] = doc.id;
                 });
                 allLoans.sort((a, b) => {
                     const da = a.date && a.date.toDate ? a.date.toDate() : new Date(a.date);
@@ -5535,7 +5384,6 @@
                     document.getElementById('loanHistoryPreview').classList.remove('show');
                 });
 
-                // Setup confirmation modals
                 setupConfirmModals();
 
                 await loadLoans();
@@ -5575,7 +5423,6 @@
                 document.getElementById('repaymentPeriod').addEventListener('input', updatePreview);
                 document.getElementById('loanType').addEventListener('change', updatePreview);
 
-                // Print modal events
                 document.getElementById('closePrintModal').addEventListener('click', closePrintModal);
                 document.getElementById('btnClosePrint').addEventListener('click', closePrintModal);
                 document.getElementById('printModal').addEventListener('click', function(e) {
@@ -5593,12 +5440,14 @@
                 window.openApplyModal = openApplyModal;
                 window.closeApplyModal = closeApplyModal;
                 window.printLoanAgreement = printLoanAgreement;
+                window.printLoanAgreementWithData = printLoanAgreementWithData;
                 window.closePrintModal = closePrintModal;
                 window.printAgreement = printAgreement;
                 window.payLoan = payLoan;
                 window.showConfirmModal = showConfirmModal;
                 window.hideConfirmModal = hideConfirmModal;
                 window.hideAllConfirmModals = hideAllConfirmModals;
+                window.openEditModalWithData = openEditModalWithData;
             });
         });
 
@@ -5609,6 +5458,7 @@
         window.closeDeleteModal = closeDeleteModal;
         window.confirmDeleteLoan = confirmDeleteLoan;
         window.openEditModal = openEditModal;
+        window.openEditModalWithData = openEditModalWithData;
         window.closeEditModal = closeEditModal;
         window.goToPage = goToPage;
         window.toggleSidebar = toggleSidebar;
@@ -5620,6 +5470,7 @@
         window.openApplyModal = openApplyModal;
         window.closeApplyModal = closeApplyModal;
         window.printLoanAgreement = printLoanAgreement;
+        window.printLoanAgreementWithData = printLoanAgreementWithData;
         window.closePrintModal = closePrintModal;
         window.printAgreement = printAgreement;
         window.payLoan = payLoan;
