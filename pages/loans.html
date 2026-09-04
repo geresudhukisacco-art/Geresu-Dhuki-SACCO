@@ -3067,20 +3067,57 @@
         let currentUserDisplayName = 'Admin';
 
         // ============================================================
-        // ROBUST HELPER: Get loan by ID with fallback to Firestore
+        // CACHE for fetched loans (to avoid repeated Firestore calls)
+        // ============================================================
+        let loanCache = {};
+
+        // ============================================================
+        // ROBUST HELPER: Get loan by ID with multiple fallback strategies
         // ============================================================
         async function getLoanById(loanId) {
-            // First try to find in allLoans
-            let loan = allLoans.find(l => l.id === loanId);
-            if (loan) return loan;
+            if (!loanId) return null;
 
-            // If not found, fetch from Firestore by doc ID
+            // Strategy 1: Check cache
+            if (loanCache[loanId]) {
+                return loanCache[loanId];
+            }
+
+            // Strategy 2: Find in allLoans by id
+            let loan = allLoans.find(l => l.id === loanId);
+            if (loan) {
+                loanCache[loanId] = loan;
+                return loan;
+            }
+
+            // Strategy 3: Find in allLoans by loanId field
+            loan = allLoans.find(l => l.loanId === loanId);
+            if (loan) {
+                loanCache[loanId] = loan;
+                return loan;
+            }
+
+            // Strategy 4: Fetch from Firestore by document ID
             try {
                 const doc = await db.collection('transactions').doc(loanId).get();
                 if (doc.exists) {
-                    return { id: doc.id, ...doc.data() };
+                    const data = doc.data();
+                    // Only return if it's a loan transaction
+                    if (data.type === 'loan') {
+                        loan = { id: doc.id, ...data };
+                        loanCache[loanId] = loan;
+                        // Also add to allLoans if not already there
+                        if (!allLoans.find(l => l.id === loan.id)) {
+                            allLoans.push(loan);
+                        }
+                        return loan;
+                    }
                 }
-                // If not found by doc ID, try querying by loanId field
+            } catch (error) {
+                console.warn('Firestore doc fetch failed:', error);
+            }
+
+            // Strategy 5: Query Firestore by loanId field
+            try {
                 const querySnapshot = await db.collection('transactions')
                     .where('loanId', '==', loanId)
                     .where('type', '==', 'loan')
@@ -3088,19 +3125,76 @@
                     .get();
                 if (!querySnapshot.empty) {
                     const doc = querySnapshot.docs[0];
-                    return { id: doc.id, ...doc.data() };
+                    loan = { id: doc.id, ...doc.data() };
+                    loanCache[loanId] = loan;
+                    if (!allLoans.find(l => l.id === loan.id)) {
+                        allLoans.push(loan);
+                    }
+                    return loan;
                 }
-                return null;
             } catch (error) {
-                console.error('Error fetching loan from Firestore:', error);
-                return null;
+                console.warn('Firestore query by loanId failed:', error);
             }
+
+            // Strategy 6: Try to find by searching all transactions (without type filter)
+            try {
+                const querySnapshot = await db.collection('transactions')
+                    .where('loanId', '==', loanId)
+                    .limit(1)
+                    .get();
+                if (!querySnapshot.empty) {
+                    const doc = querySnapshot.docs[0];
+                    const data = doc.data();
+                    if (data.type === 'loan') {
+                        loan = { id: doc.id, ...data };
+                        loanCache[loanId] = loan;
+                        if (!allLoans.find(l => l.id === loan.id)) {
+                            allLoans.push(loan);
+                        }
+                        return loan;
+                    }
+                }
+            } catch (error) {
+                console.warn('Firestore broad query failed:', error);
+            }
+
+            // Strategy 7: Try to find by customerId and amount (last resort)
+            // This is a fallback for loans that might have been created with a different ID
+            try {
+                // Look for loans with the given ID as a string in any field
+                // This is a bit of a hack but can work for some cases
+                const allDocs = await db.collection('transactions')
+                    .where('type', '==', 'loan')
+                    .limit(50)
+                    .get();
+                for (const doc of allDocs.docs) {
+                    const data = doc.data();
+                    // Check if any field contains the loanId as a substring
+                    const stringFields = ['loanId', 'id', 'transactionId', 'reference'];
+                    for (const field of stringFields) {
+                        if (data[field] && String(data[field]) === String(loanId)) {
+                            loan = { id: doc.id, ...data };
+                            loanCache[loanId] = loan;
+                            if (!allLoans.find(l => l.id === loan.id)) {
+                                allLoans.push(loan);
+                            }
+                            return loan;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn('Firestore broad search failed:', error);
+            }
+
+            return null;
         }
 
         // ============================================================
-        // ROBUST HELPER: Get customer by ID (with fallback to Firestore)
+        // ROBUST HELPER: Get customer by ID with fallback
         // ============================================================
         async function getCustomerById(customerId) {
+            if (!customerId) return null;
+
             // First try from local list
             let customer = customersList.find(c => c.id === customerId);
             if (customer) return customer;
@@ -3110,7 +3204,12 @@
                 const doc = await db.collection('customers').doc(customerId).get();
                 if (doc.exists) {
                     const data = doc.data();
-                    return { id: doc.id, ...data };
+                    customer = { id: doc.id, ...data };
+                    // Add to local list for future use
+                    if (!customersList.find(c => c.id === customer.id)) {
+                        customersList.push(customer);
+                    }
+                    return customer;
                 }
                 return null;
             } catch (error) {
@@ -4035,6 +4134,9 @@
 
                 await docRef.delete();
 
+                // Remove from cache
+                delete loanCache[loanId];
+
                 await logAudit('deleted', 'transactions', loanId, { deletedData: { old: null, new: data } },
                     `Loan deleted for ${customersList.find(c => c.id === data.customerId)?.fullName || 'Unknown'} (${data.amount || 0} ETB)`);
 
@@ -4056,14 +4158,14 @@
             // Get loan data using robust helper
             const loan = await getLoanById(loanId);
             if (!loan) {
-                showToast('Loan not found.', 'error');
+                showToast('Loan not found. Please refresh and try again.', 'error');
                 return;
             }
 
             // Get customer using robust helper
             const customer = await getCustomerById(loan.customerId);
             if (!customer) {
-                showToast('Customer not found.', 'error');
+                showToast('Customer not found. Please refresh and try again.', 'error');
                 return;
             }
 
@@ -4177,6 +4279,12 @@
 
                 await db.collection('transactions').doc(loanId).update(updateData);
 
+                // Update cache
+                const cached = loanCache[loanId];
+                if (cached) {
+                    Object.assign(cached, updateData);
+                }
+
                 const changes = {};
                 const fieldsToCompare = ['customerId', 'amount', 'date', 'note', 'status', 'interestRate', 'repaymentPeriod',
                     'loanType', 'totalPayable', 'guarantees'
@@ -4211,14 +4319,14 @@
             // Use helper to get loan (fallback to Firestore)
             const loan = await getLoanById(loanId);
             if (!loan) {
-                showToast('Loan not found.', 'error');
+                showToast('Loan not found. Please refresh and try again.', 'error');
                 return;
             }
 
             // Get customer using robust helper
             const customer = await getCustomerById(loan.customerId);
             if (!customer) {
-                showToast('Customer not found.', 'error');
+                showToast('Customer not found. Please refresh and try again.', 'error');
                 return;
             }
 
@@ -4844,8 +4952,17 @@
                     .where('type', '==', 'loan')
                     .get();
                 allLoans = [];
+                // Clear cache entries that might be stale
+                // We'll keep cache but will update with fresh data
                 snapshot.forEach(doc => {
-                    allLoans.push({ id: doc.id, ...doc.data() });
+                    const data = doc.data();
+                    const loan = { id: doc.id, ...data };
+                    allLoans.push(loan);
+                    // Update cache
+                    loanCache[doc.id] = loan;
+                    if (data.loanId && data.loanId !== doc.id) {
+                        loanCache[data.loanId] = loan;
+                    }
                 });
                 allLoans.sort((a, b) => {
                     const da = a.date && a.date.toDate ? a.date.toDate() : new Date(a.date);
