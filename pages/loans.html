@@ -3066,6 +3066,27 @@
         let currentUserRole = 'viewer';
         let currentUserDisplayName = 'Admin';
 
+        // ============================================================
+        // HELPER: Get loan by ID (fallback to Firestore if not in allLoans)
+        // ============================================================
+        async function getLoanById(loanId) {
+            // First try to find in allLoans
+            let loan = allLoans.find(l => l.id === loanId);
+            if (loan) return loan;
+
+            // If not found, fetch from Firestore
+            try {
+                const doc = await db.collection('transactions').doc(loanId).get();
+                if (doc.exists) {
+                    return { id: doc.id, ...doc.data() };
+                }
+                return null;
+            } catch (error) {
+                console.error('Error fetching loan from Firestore:', error);
+                return null;
+            }
+        }
+
         function setLanguage(lang) {
             if (!translations[lang]) return;
             currentLang = lang;
@@ -3782,27 +3803,27 @@
         function setupConfirmModals() {
             // Approve
             document.getElementById('approveCancel').addEventListener('click', () => hideConfirmModal('approve'));
-            document.getElementById('approveConfirm').addEventListener('click', () => {
+            document.getElementById('approveConfirm').addEventListener('click', async () => {
                 if (pendingActionId) {
-                    executeApproveLoan(pendingActionId);
+                    await executeApproveLoan(pendingActionId);
                     hideConfirmModal('approve');
                 }
             });
 
             // Reject
             document.getElementById('rejectCancel').addEventListener('click', () => hideConfirmModal('reject'));
-            document.getElementById('rejectConfirm').addEventListener('click', () => {
+            document.getElementById('rejectConfirm').addEventListener('click', async () => {
                 if (pendingActionId) {
-                    executeRejectLoan(pendingActionId);
+                    await executeRejectLoan(pendingActionId);
                     hideConfirmModal('reject');
                 }
             });
 
             // Pay Loan
             document.getElementById('payLoanCancel').addEventListener('click', () => hideConfirmModal('payLoan'));
-            document.getElementById('payLoanConfirm').addEventListener('click', () => {
+            document.getElementById('payLoanConfirm').addEventListener('click', async () => {
                 if (pendingActionId) {
-                    executePayLoan(pendingActionId);
+                    await executePayLoan(pendingActionId);
                     hideConfirmModal('payLoan');
                 }
             });
@@ -3818,18 +3839,18 @@
 
             // Print
             document.getElementById('printCancel').addEventListener('click', () => hideConfirmModal('print'));
-            document.getElementById('printConfirm').addEventListener('click', () => {
+            document.getElementById('printConfirm').addEventListener('click', async () => {
                 if (pendingActionId) {
                     hideConfirmModal('print');
-                    printLoanAgreement(pendingActionId);
+                    await printLoanAgreement(pendingActionId);
                 }
             });
 
             // Delete
             document.getElementById('deleteCancel').addEventListener('click', () => hideConfirmModal('delete'));
-            document.getElementById('deleteConfirmBtn').addEventListener('click', () => {
+            document.getElementById('deleteConfirmBtn').addEventListener('click', async () => {
                 if (pendingActionId) {
-                    executeDeleteLoan(pendingActionId);
+                    await executeDeleteLoan(pendingActionId);
                     hideConfirmModal('delete');
                 }
             });
@@ -3856,36 +3877,36 @@
         // ============================================================
         // ACTION EXECUTORS
         // ============================================================
-        function executeApproveLoan(loanId) {
+        async function executeApproveLoan(loanId) {
             if (!canApproveReject()) {
                 showToast(translations[currentLang].unauthorized, 'error');
                 return;
             }
-            approveLoan(loanId);
+            await approveLoan(loanId);
         }
 
-        function executeRejectLoan(loanId) {
+        async function executeRejectLoan(loanId) {
             if (!canApproveReject()) {
                 showToast(translations[currentLang].unauthorized, 'error');
                 return;
             }
-            rejectLoan(loanId);
+            await rejectLoan(loanId);
         }
 
-        function executePayLoan(loanId) {
+        async function executePayLoan(loanId) {
             if (!canEdit()) {
                 showToast(translations[currentLang].unauthorized, 'error');
                 return;
             }
-            payLoan(loanId);
+            await payLoan(loanId);
         }
 
-        function executeDeleteLoan(loanId) {
+        async function executeDeleteLoan(loanId) {
             if (!canDelete()) {
                 showToast(translations[currentLang].unauthorized, 'error');
                 return;
             }
-            confirmDeleteLoan(loanId);
+            await confirmDeleteLoan(loanId);
         }
 
         // ============================================================
@@ -3995,12 +4016,13 @@
         // ============================================================
         // EDIT LOAN (opens the edit modal)
         // ============================================================
-        function openEditModal(loanId) {
+        async function openEditModal(loanId) {
             if (!canEdit()) {
                 showToast(translations[currentLang].unauthorized, 'error');
                 return;
             }
-            const loan = allLoans.find(l => l.id === loanId);
+            // Get loan data (use helper)
+            const loan = await getLoanById(loanId);
             if (!loan) {
                 showToast('Loan not found.', 'error');
                 return;
@@ -4150,10 +4172,11 @@
         }
 
         // ============================================================
-        // PRINT AGREEMENT – English format (like provided file)
+        // PRINT AGREEMENT – English format (like provided file) with fallback
         // ============================================================
-        function printLoanAgreement(loanId) {
-            const loan = allLoans.find(l => l.id === loanId);
+        async function printLoanAgreement(loanId) {
+            // Use helper to get loan (fallback to Firestore)
+            const loan = await getLoanById(loanId);
             if (!loan) {
                 showToast('Loan not found.', 'error');
                 return;
