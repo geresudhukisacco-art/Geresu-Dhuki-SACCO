@@ -3067,22 +3067,54 @@
         let currentUserDisplayName = 'Admin';
 
         // ============================================================
-        // HELPER: Get loan by ID (fallback to Firestore if not in allLoans)
+        // ROBUST HELPER: Get loan by ID with fallback to Firestore
         // ============================================================
         async function getLoanById(loanId) {
             // First try to find in allLoans
             let loan = allLoans.find(l => l.id === loanId);
             if (loan) return loan;
 
-            // If not found, fetch from Firestore
+            // If not found, fetch from Firestore by doc ID
             try {
                 const doc = await db.collection('transactions').doc(loanId).get();
                 if (doc.exists) {
                     return { id: doc.id, ...doc.data() };
                 }
+                // If not found by doc ID, try querying by loanId field
+                const querySnapshot = await db.collection('transactions')
+                    .where('loanId', '==', loanId)
+                    .where('type', '==', 'loan')
+                    .limit(1)
+                    .get();
+                if (!querySnapshot.empty) {
+                    const doc = querySnapshot.docs[0];
+                    return { id: doc.id, ...doc.data() };
+                }
                 return null;
             } catch (error) {
                 console.error('Error fetching loan from Firestore:', error);
+                return null;
+            }
+        }
+
+        // ============================================================
+        // ROBUST HELPER: Get customer by ID (with fallback to Firestore)
+        // ============================================================
+        async function getCustomerById(customerId) {
+            // First try from local list
+            let customer = customersList.find(c => c.id === customerId);
+            if (customer) return customer;
+
+            // If not found, fetch from Firestore
+            try {
+                const doc = await db.collection('customers').doc(customerId).get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    return { id: doc.id, ...data };
+                }
+                return null;
+            } catch (error) {
+                console.error('Error fetching customer from Firestore:', error);
                 return null;
             }
         }
@@ -4014,17 +4046,24 @@
         }
 
         // ============================================================
-        // EDIT LOAN (opens the edit modal)
+        // EDIT LOAN (opens the edit modal) - Uses robust helper
         // ============================================================
         async function openEditModal(loanId) {
             if (!canEdit()) {
                 showToast(translations[currentLang].unauthorized, 'error');
                 return;
             }
-            // Get loan data (use helper)
+            // Get loan data using robust helper
             const loan = await getLoanById(loanId);
             if (!loan) {
                 showToast('Loan not found.', 'error');
+                return;
+            }
+
+            // Get customer using robust helper
+            const customer = await getCustomerById(loan.customerId);
+            if (!customer) {
+                showToast('Customer not found.', 'error');
                 return;
             }
 
@@ -4038,14 +4077,8 @@
             document.getElementById('editStatus').value = loan.status || 'pending';
             document.getElementById('editNote').value = loan.note || '';
 
-            const customer = customersList.find(c => c.id === loan.customerId);
-            if (customer) {
-                document.getElementById('editCustomerSearch').value = customer.fullName + ' (' + (customer.customerId || '') + ')';
-                document.getElementById('editCustomerId').value = customer.id;
-            } else {
-                document.getElementById('editCustomerSearch').value = '';
-                document.getElementById('editCustomerId').value = '';
-            }
+            document.getElementById('editCustomerSearch').value = customer.fullName + ' (' + (customer.customerId || '') + ')';
+            document.getElementById('editCustomerId').value = customer.id;
 
             const gList = loan.guarantees || [];
             const gText = gList.map(g => `${g.type}: ${g.name}`).join(', ');
@@ -4172,7 +4205,7 @@
         }
 
         // ============================================================
-        // PRINT AGREEMENT – English format (like provided file) with fallback
+        // PRINT AGREEMENT – Uses robust helper and customer fallback
         // ============================================================
         async function printLoanAgreement(loanId) {
             // Use helper to get loan (fallback to Firestore)
@@ -4182,7 +4215,8 @@
                 return;
             }
 
-            const customer = customersList.find(c => c.id === loan.customerId);
+            // Get customer using robust helper
+            const customer = await getCustomerById(loan.customerId);
             if (!customer) {
                 showToast('Customer not found.', 'error');
                 return;
