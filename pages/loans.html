@@ -560,7 +560,7 @@
         }
 
         /* ============================================================
-           LOAN SUMMARY CARDS (Like Savings Summary)
+           LOAN SUMMARY CARDS
            ============================================================ */
         .loan-summary {
             display: grid;
@@ -3762,12 +3762,10 @@
         // ============================================================
         let pendingActionId = null;
         let pendingActionType = null;
-        let pendingLoanData = null;
 
-        function showConfirmModal(type, loanId, loanData) {
+        function showConfirmModal(type, loanId) {
             pendingActionId = loanId;
             pendingActionType = type;
-            pendingLoanData = loanData || null;
             const modalMap = {
                 'approve': 'approveConfirmModal',
                 'reject': 'rejectConfirmModal',
@@ -3793,7 +3791,6 @@
             }
             pendingActionId = null;
             pendingActionType = null;
-            pendingLoanData = null;
         }
 
         function hideAllConfirmModals() {
@@ -3802,7 +3799,6 @@
             });
             pendingActionId = null;
             pendingActionType = null;
-            pendingLoanData = null;
         }
 
         // ---- Setup confirm modal event listeners ----
@@ -3850,7 +3846,6 @@
                         this.classList.remove('active');
                         pendingActionId = null;
                         pendingActionType = null;
-                        pendingLoanData = null;
                     }
                 });
             });
@@ -4005,13 +4000,14 @@
         // ============================================================
         // EDIT LOAN - directly opens modal (no confirmation)
         // ============================================================
-        async function openEditModalWithData(loan) {
+        async function openEditModal(loanId) {
             if (!canEdit()) {
                 showToast(translations[currentLang].unauthorized, 'error');
                 return;
             }
+            const loan = await getLoanById(loanId);
             if (!loan) {
-                showToast('Loan data not available.', 'error');
+                showToast('Loan not found. Please refresh and try again.', 'error');
                 return;
             }
 
@@ -4040,19 +4036,6 @@
 
             document.getElementById('editLoanModal').classList.add('active');
             document.getElementById('editLoanModal').style.display = 'flex';
-        }
-
-        async function openEditModal(loanId) {
-            if (!canEdit()) {
-                showToast(translations[currentLang].unauthorized, 'error');
-                return;
-            }
-            const loan = await getLoanById(loanId);
-            if (!loan) {
-                showToast('Loan not found. Please refresh and try again.', 'error');
-                return;
-            }
-            await openEditModalWithData(loan);
         }
 
         function closeEditModal() {
@@ -4183,9 +4166,10 @@
         // ============================================================
         // PRINT AGREEMENT - directly opens print preview (no confirmation)
         // ============================================================
-        async function printLoanAgreementWithData(loan) {
+        async function printLoanAgreement(loanId) {
+            const loan = await getLoanById(loanId);
             if (!loan) {
-                showToast('Loan data not available.', 'error');
+                showToast('Loan not found. Please refresh and try again.', 'error');
                 return;
             }
 
@@ -4339,15 +4323,6 @@
 
             document.getElementById('printModal').classList.add('active');
             document.getElementById('printModal').style.display = 'flex';
-        }
-
-        async function printLoanAgreement(loanId) {
-            const loan = await getLoanById(loanId);
-            if (!loan) {
-                showToast('Loan not found. Please refresh and try again.', 'error');
-                return;
-            }
-            await printLoanAgreementWithData(loan);
         }
 
         // ---- Simple number to words ----
@@ -4540,9 +4515,8 @@
 
                 // Print button - directly opens print preview (no confirmation)
                 if (loan.status === 'active' && loanProgress !== 'loan_payment_done') {
-                    const loanDataAttr = encodeURIComponent(JSON.stringify(loan));
                     actionsHtml += `
-                            <button class="action-btn print-btn" onclick="printLoanAgreementWithData(${loanDataAttr})" title="${t.printAgreement || 'Print Agreement'}">
+                            <button class="action-btn print-btn" onclick="printLoanAgreement('${loan.id}')" title="${t.printAgreement || 'Print Agreement'}">
                                 <i class="fas fa-print"></i>
                             </button>
                         `;
@@ -4559,9 +4533,8 @@
 
                 // Edit button - directly opens edit modal (no confirmation)
                 if (canEdit()) {
-                    const loanDataAttr = encodeURIComponent(JSON.stringify(loan));
                     actionsHtml += `
-                            <button class="action-btn edit-btn" onclick="openEditModalWithData(${loanDataAttr})" title="${t.edit}">
+                            <button class="action-btn edit-btn" onclick="openEditModal('${loan.id}')" title="${t.edit}">
                                 <i class="fas fa-edit"></i>
                             </button>
                         `;
@@ -4790,7 +4763,7 @@
             let totalApproved = 0;
             let totalPenalties = 0;
             let totalUnpaid = 0;
-            let totalPaid = 0;
+            let totalRepayments = 0;
 
             const approvedLoans = allLoans.filter(loan =>
                 loan.status === 'active' || loan.status === 'paid' || loan.status === 'approved'
@@ -4809,9 +4782,8 @@
                 );
                 const remaining = Math.max(0, totalPayable - repay.total);
 
-                if (loan.status === 'paid') {
-                    totalPaid += amount;
-                }
+                // Total repayments across all loans
+                totalRepayments += repay.total;
 
                 let penaltyAmount = 0;
                 if (loan.status === 'active') {
@@ -4828,12 +4800,12 @@
 
             totalPenaltiesSum = totalPenalties;
             unpaidLoansSum = totalUnpaid;
-            paidLoansSum = totalPaid;
+            paidLoansSum = totalRepayments;
 
             document.getElementById('totalApprovedValue').textContent = totalApproved.toLocaleString();
             document.getElementById('totalPenaltiesValue').textContent = totalPenalties.toFixed(2);
             document.getElementById('unpaidLoansValue').textContent = totalUnpaid.toFixed(2);
-            document.getElementById('paidLoansValue').textContent = totalPaid.toLocaleString();
+            document.getElementById('paidLoansValue').textContent = totalRepayments.toFixed(2);
         }
 
         function applySearch() {
@@ -5351,25 +5323,19 @@
                 window.openApplyModal = openApplyModal;
                 window.closeApplyModal = closeApplyModal;
                 window.printLoanAgreement = printLoanAgreement;
-                window.printLoanAgreementWithData = printLoanAgreementWithData;
                 window.closePrintModal = closePrintModal;
                 window.printAgreement = printAgreement;
                 window.payLoan = payLoan;
                 window.showConfirmModal = showConfirmModal;
                 window.hideConfirmModal = hideConfirmModal;
                 window.hideAllConfirmModals = hideAllConfirmModals;
-                window.openEditModalWithData = openEditModalWithData;
             });
         });
 
         window.approveLoan = approveLoan;
         window.rejectLoan = rejectLoan;
         window.viewLoan = viewLoan;
-        window.showDeleteModal = showDeleteModal;
-        window.closeDeleteModal = closeDeleteModal;
-        window.confirmDeleteLoan = confirmDeleteLoan;
         window.openEditModal = openEditModal;
-        window.openEditModalWithData = openEditModalWithData;
         window.closeEditModal = closeEditModal;
         window.goToPage = goToPage;
         window.toggleSidebar = toggleSidebar;
@@ -5381,7 +5347,6 @@
         window.openApplyModal = openApplyModal;
         window.closeApplyModal = closeApplyModal;
         window.printLoanAgreement = printLoanAgreement;
-        window.printLoanAgreementWithData = printLoanAgreementWithData;
         window.closePrintModal = closePrintModal;
         window.printAgreement = printAgreement;
         window.payLoan = payLoan;
