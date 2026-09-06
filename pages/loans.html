@@ -1105,7 +1105,6 @@
             box-shadow: 0 6px 24px rgba(231, 76, 60, 0.4);
         }
 
-        /* PAY LOAN BUTTON – only admin sees this */
         .action-btn.payloan-btn {
             background: linear-gradient(135deg, #ff9800, #f57c00);
             color: #fff;
@@ -1536,7 +1535,6 @@
             display: inline-block;
         }
 
-        /* LOGOUT MODAL */
         .logout-modal-overlay {
             display: none;
             position: fixed;
@@ -1743,7 +1741,7 @@
         }
 
         /* ============================================================
-           LOAN AGREEMENT PRINT STYLES
+           LOAN AGREEMENT PRINT STYLES (Updated for meta info in body)
            ============================================================ */
         .loan-agreement {
             font-family: 'Times New Roman', 'Inter', serif;
@@ -1754,11 +1752,10 @@
         .loan-agreement .agreement-header {
             border-bottom: 2px solid #000;
             padding-bottom: 8px;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
             display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            flex-wrap: wrap;
+            justify-content: flex-start;
+            align-items: center;
         }
         .loan-agreement .agreement-header .header-left {
             text-align: left;
@@ -1768,34 +1765,46 @@
             font-weight: 700;
             color: #1a3a2a;
             margin-bottom: 2px;
+            display: block;
         }
         .loan-agreement .agreement-header .header-left .coop-name {
             font-size: 20px;
             font-weight: 700;
             color: #1a3a2a;
-        }
-        .loan-agreement .agreement-header .header-right {
-            text-align: right;
-            font-size: 14px;
-            font-weight: 500;
-            line-height: 1.8;
-            color: #1a3a2a;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-        }
-        .loan-agreement .agreement-header .header-right div {
             display: block;
-            width: auto;
         }
+        /* Remove header-right completely */
+        .loan-agreement .agreement-header .header-right {
+            display: none;
+        }
+
         .loan-agreement .agreement-title {
             text-align: center;
             font-size: 18px;
             font-weight: 700;
-            margin: 12px 0 14px;
+            margin: 8px 0 10px;
             text-decoration: underline;
             color: #1a3a2a;
         }
+
+        /* NEW: Meta info block (Serial, Letter, Date) inside body */
+        .loan-agreement .agreement-meta {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 6px 20px;
+            padding: 8px 0;
+            margin: 4px 0 12px 0;
+            border-top: 1px solid #ccc;
+            border-bottom: 1px solid #ccc;
+            font-size: 14px;
+            font-weight: 500;
+            color: #1a3a2a;
+        }
+        .loan-agreement .agreement-meta div {
+            display: inline-block;
+        }
+
         .loan-agreement .agreement-body {
             font-size: 14px;
             line-height: 1.7;
@@ -1866,8 +1875,17 @@
             color: var(--primary);
         }
 
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .loan-agreement .agreement-meta {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 2px;
+            }
+        }
+
         /* ============================================================
-           RESPONSIVE
+           RESPONSIVE (Main App)
            ============================================================ */
         @media (max-width: 992px) {
             .form-row { grid-template-columns: 1fr 1fr; }
@@ -2387,7 +2405,7 @@
         </div>
     </div>
 
-    <!-- Pay Loan – only admin sees this modal trigger -->
+    <!-- Pay Loan -->
     <div class="confirm-modal-overlay" id="payLoanConfirmModal">
         <div class="confirm-modal">
             <div class="modal-icon warning"><i class="fas fa-hand-holding-usd"></i></div>
@@ -2952,7 +2970,7 @@
         function canApproveReject() { return ['admin', 'manager'].includes(currentUserRole); }
         function canEdit() { return currentUserRole === 'admin'; }
         function canDelete() { return currentUserRole === 'admin'; }
-        function canPayLoan() { return currentUserRole === 'admin'; }  // <-- NEW: only admin can pay loan
+        function canPayLoan() { return currentUserRole === 'admin'; }
 
         function updateUserInfo() {
             const roleMap = { admin: 'ADMIN', manager: 'MANAGER', teller: 'TELLER', accountant: 'ACCOUNTANT', viewer: 'VIEWER' };
@@ -3510,7 +3528,7 @@
         }
 
         async function executePayLoan(loanId) {
-            if (!canPayLoan()) { showToast(translations[currentLang].unauthorized, 'error'); return; }  // <-- only admin
+            if (!canPayLoan()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
             await payLoan(loanId);
         }
 
@@ -3579,7 +3597,7 @@
         }
 
         // ============================================================
-        // PAY LOAN – only admin can call this
+        // PAY LOAN
         // ============================================================
         async function payLoan(loanId) {
             try {
@@ -3765,7 +3783,7 @@
         }
 
         // ============================================================
-        // PRINT AGREEMENT
+        // PRINT AGREEMENT (UPDATED: Serial, Letter, Date moved to body)
         // ============================================================
         async function printLoanAgreement(loanId) {
             const loan = await getLoanById(loanId);
@@ -3826,13 +3844,16 @@
                             <div class="oromo-title">WALDAA LIQII FI QUSANNAA GARASUU DHUKII</div>
                             <div class="coop-name">GERESU DHUKI SACCO</div>
                         </div>
-                        <div class="header-right">
-                            <div><strong>Serial No :</strong> ${serialNumber}</div>
-                            <div><strong>Letter No :</strong> _________</div>
-                            <div><strong>Date :</strong> ${dateStr}</div>
-                        </div>
                     </div>
                     <div class="agreement-title">LOAN AGREEMENT FORM</div>
+                    
+                    <!-- Serial, Letter, Date moved here, inside the body -->
+                    <div class="agreement-meta">
+                        <div><strong>Serial No :</strong> ${serialNumber}</div>
+                        <div><strong>Letter No :</strong> _________</div>
+                        <div><strong>Date :</strong> ${dateStr}</div>
+                    </div>
+
                     <div class="agreement-body">
                         <p><strong>Subject: Loan Grant and Repayment Agreement</strong></p>
                         <p>
@@ -3978,19 +3999,34 @@
                         .loan-agreement .signature-table th { border-bottom: 2px solid #000; padding: 6px 8px; text-align: left; font-weight: 700; background: #f0f5f0; }
                         .loan-agreement .signature-table td { border-bottom: 1px solid #ccc; padding: 6px 8px; vertical-align: top; }
                         .loan-agreement .signature-table .sig-line { display: inline-block; min-width: 100px; margin-left: 6px; padding: 0 6px; font-weight: 500; border-bottom: none !important; }
-                        .loan-agreement .agreement-header { border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; }
+                        .loan-agreement .agreement-header { border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px; display: flex; justify-content: flex-start; align-items: center; }
                         .loan-agreement .agreement-header .header-left { text-align: left; }
-                        .loan-agreement .agreement-header .header-left .oromo-title { font-size: 13px; font-weight: 700; color: #1a3a2a; margin-bottom: 2px; }
-                        .loan-agreement .agreement-header .header-left .coop-name { font-size: 20px; font-weight: 700; color: #1a3a2a; }
-                        .loan-agreement .agreement-header .header-right { text-align: right; font-size: 14px; font-weight: 500; line-height: 1.8; color: #1a3a2a; display: flex; flex-direction: column; align-items: flex-end; }
-                        .loan-agreement .agreement-header .header-right div { display: block; width: auto; }
-                        .loan-agreement .agreement-title { text-align: center; font-size: 18px; font-weight: 700; margin: 12px 0 14px; text-decoration: underline; color: #1a3a2a; }
+                        .loan-agreement .agreement-header .header-left .oromo-title { font-size: 13px; font-weight: 700; color: #1a3a2a; margin-bottom: 2px; display: block; }
+                        .loan-agreement .agreement-header .header-left .coop-name { font-size: 20px; font-weight: 700; color: #1a3a2a; display: block; }
+                        .loan-agreement .agreement-title { text-align: center; font-size: 18px; font-weight: 700; margin: 8px 0 10px; text-decoration: underline; color: #1a3a2a; }
+                        .loan-agreement .agreement-meta {
+                            display: flex;
+                            flex-wrap: wrap;
+                            justify-content: space-between;
+                            gap: 6px 20px;
+                            padding: 8px 0;
+                            margin: 4px 0 12px 0;
+                            border-top: 1px solid #ccc;
+                            border-bottom: 1px solid #ccc;
+                            font-size: 14px;
+                            font-weight: 500;
+                            color: #1a3a2a;
+                        }
+                        .loan-agreement .agreement-meta div { display: inline-block; }
                         .loan-agreement .agreement-body { font-size: 14px; line-height: 1.7; text-align: justify; }
                         .loan-agreement .agreement-body p { margin: 6px 0; }
                         .loan-agreement .agreement-body .legal-ref { font-weight: 700; font-style: normal; }
                         .loan-agreement .agreement-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 8px; border-top: 2px solid #000; font-size: 12px; color: #333; }
                         .loan-agreement .agreement-footer .footer-left { text-align: left; }
                         .loan-agreement .agreement-footer .footer-right { text-align: right; font-style: italic; font-weight: 500; color: var(--primary); }
+                        @media (max-width: 600px) {
+                            .loan-agreement .agreement-meta { flex-direction: column; align-items: flex-start; gap: 2px; }
+                        }
                         @media print {
                             body { padding: 10px 20px; }
                             .loan-agreement { padding: 10px 20px; }
@@ -4021,7 +4057,7 @@
         }
 
         // ============================================================
-        // RENDER TABLE – Pay Loan button is only shown to admin via canPayLoan()
+        // RENDER TABLE
         // ============================================================
         function renderTable(items) {
             const tbody = document.getElementById('loansBody');
@@ -4094,7 +4130,6 @@
                         </button>
                     `;
 
-                // Print button
                 if (loan.status === 'active' && loanProgress !== 'loan_payment_done') {
                     actionsHtml += `
                             <button class="action-btn print-btn" onclick="printLoanAgreement('${loan.id}')" title="${t.printAgreement || 'Print Agreement'}">
@@ -4103,7 +4138,7 @@
                         `;
                 }
 
-                // PAY LOAN BUTTON – ONLY ADMIN (canPayLoan() is true only for admin)
+                // PAY LOAN BUTTON – only admin
                 if (loan.status === 'active' && loanProgress === 'agreement_on_progress' && canPayLoan()) {
                     actionsHtml += `
                             <button class="action-btn payloan-btn" onclick="showConfirmModal('payLoan', '${loan.id}')" title="${t.payLoan || 'Pay Loan'}">
@@ -4112,7 +4147,6 @@
                         `;
                 }
 
-                // Edit button – admin only
                 if (canEdit()) {
                     actionsHtml += `
                             <button class="action-btn edit-btn" onclick="openEditModal('${loan.id}')" title="${t.edit}">
@@ -4121,7 +4155,6 @@
                         `;
                 }
 
-                // Delete button – admin only
                 if (canDelete()) {
                     actionsHtml += `
                             <button class="action-btn delete-btn" onclick="showConfirmModal('delete', '${loan.id}')" title="${t.delete}">
@@ -4130,7 +4163,6 @@
                         `;
                 }
 
-                // Approve / Reject – manager/admin
                 if (loan.status === 'pending' && canApproveReject()) {
                     actionsHtml = `
                             <button class="action-btn approve-btn" onclick="showConfirmModal('approve', '${loan.id}')" title="${t.approve}">
