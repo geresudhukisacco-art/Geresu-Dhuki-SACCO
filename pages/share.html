@@ -1,0 +1,3099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shares – GERESU DHUKI SACCO</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js">
+    </script>
+
+    <style>
+        :root {
+            --primary: #1a6e3a;
+            --primary-dark: #0f4f28;
+            --primary-light: #2e8b4a;
+            --gold: #d4a845;
+            --gold-light: #f0d68a;
+            --gold-dark: #b8922f;
+            --bg-primary: #f5f7f6;
+            --bg-card: #ffffff;
+            --bg-sidebar: #1a6e3a;
+            --text-primary: #1a2e1f;
+            --text-secondary: #6c7d70;
+            --text-muted: #8a9e92;
+            --border-color: #e8ede9;
+            --shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+            --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.1);
+            --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.3);
+            --radius: 16px;
+            --radius-sm: 10px;
+            --success: #2d7a3d;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #2196f3;
+            --input-bg: #ffffff;
+            --input-border: #d0d7d2;
+            --input-focus: rgba(45, 122, 61, 0.1);
+            --transition: 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+            --sidebar-width: 260px;
+            --sidebar-collapsed-width: 72px;
+        }
+        [data-theme="dark"] {
+            --bg-primary: #1a1a2e;
+            --bg-card: #16213e;
+            --bg-sidebar: #0f4f28;
+            --text-primary: #e8f0ea;
+            --text-secondary: #a0aec0;
+            --text-muted: #6b7d82;
+            --border-color: #2d3748;
+            --shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+            --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.4);
+            --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.5);
+            --input-bg: #2d3748;
+            --input-border: #4a5568;
+            --input-focus: rgba(45, 122, 61, 0.2);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-image: url('../images/background.jpg');
+            background-size: cover;
+            background-attachment: fixed;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.7); z-index: 9999;
+            align-items: center; justify-content: center; flex-direction: column; gap: 16px;
+        }
+        .loading-overlay.active { display: flex; }
+        .loading-overlay .spinner {
+            width: 48px; height: 48px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-overlay p { color: var(--text-secondary); font-weight: 500; }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-sidebar);
+            color: #e8f0ea;
+            height: 100vh;
+            position: fixed; top: 0; left: 0; z-index: 1000;
+            display: flex; flex-direction: column;
+            transition: width 0.3s ease, transform 0.3s ease;
+            box-shadow: 2px 0 16px rgba(0,0,0,0.15);
+            overflow: hidden;
+        }
+        .sidebar.collapsed { width: var(--sidebar-collapsed-width); }
+        .sidebar.collapsed .brand-text,
+        .sidebar.collapsed .sidebar-nav li a span,
+        .sidebar.collapsed .logout-btn span,
+        .sidebar.collapsed .sidebar-brand .brand-sub { display: none; }
+        .sidebar.collapsed .sidebar-brand { padding: 16px 8px; }
+        .sidebar.collapsed .brand-icon { width: 48px; height: 48px; }
+        .sidebar.collapsed .sidebar-nav li a { justify-content: center; padding: 12px 0; }
+        .sidebar.collapsed .sidebar-nav li a i { font-size: 20px; width: auto; }
+        .sidebar.collapsed .logout-btn { justify-content: center; padding: 10px 0; }
+        .sidebar.collapsed .logout-btn i { font-size: 20px; }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: var(--gold-light); border-radius: 4px; }
+
+        .sidebar-brand {
+            padding: 20px 20px 16px;
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.12);
+            text-align: center; transition: padding 0.3s ease; position: relative;
+        }
+        .sidebar-toggle-btn {
+            position: absolute; top: 12px; right: 12px;
+            background: rgba(255,255,255,0.15); border: none; border-radius: 50%;
+            width: 32px; height: 32px; color: #fff; font-size: 14px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: background 0.2s, transform 0.3s ease;
+        }
+        .sidebar-toggle-btn:hover { background: rgba(255,255,255,0.25); }
+        .sidebar.collapsed .sidebar-toggle-btn { transform: rotate(180deg); top: 8px; right: 6px; }
+
+        .brand-icon {
+            width: 72px; height: 72px; border-radius: 50%; overflow: hidden;
+            flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,0.12); border: 2px solid var(--gold-light); padding: 4px;
+            transition: width 0.3s ease, height 0.3s ease;
+        }
+        .brand-logo-img { width: 100%; height: 100%; object-fit: contain; display: block; }
+        .brand-text .brand-name { font-size: 20px; font-weight: 800; display: block; line-height: 1.2; color: #fff; letter-spacing: 0.5px; }
+        .brand-text .brand-name span { color: var(--gold-light); }
+        .brand-text .brand-sub { font-size: 11px; opacity: 0.8; font-weight: 400; letter-spacing: 0.5px; color: rgba(255,255,255,0.85); }
+
+        .sidebar-nav { flex: 1; padding: 16px 12px; overflow-y: auto; overflow-x: hidden; }
+        .sidebar-nav ul { list-style: none; padding: 0; margin: 0; }
+        .sidebar-nav li { margin-bottom: 2px; }
+        .sidebar-nav li a {
+            display: flex; align-items: center; gap: 14px;
+            padding: 10px 16px; border-radius: 10px;
+            color: rgba(255,255,255,0.9); text-decoration: none;
+            font-weight: 500; font-size: 14px;
+            transition: 0.2s; white-space: nowrap; overflow: hidden;
+        }
+        .sidebar-nav li a i { width: 22px; text-align: center; font-size: 17px; color: rgba(255,255,255,0.75); flex-shrink: 0; }
+        .sidebar-nav li a:hover { background: rgba(255,255,255,0.12); color: #fff; }
+        .sidebar-nav li a:hover i { color: var(--gold-light); }
+        .sidebar-nav li.active a { background: rgba(212,168,69,0.25); color: var(--gold-light); }
+        .sidebar-nav li.active a i { color: var(--gold-light); }
+
+        .sidebar-footer { padding: 16px 20px 20px; border-top: 1px solid rgba(255,255,255,0.12); }
+        .logout-btn {
+            width: 100%; padding: 10px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 10px;
+            color: rgba(255,255,255,0.85);
+            font-size: 14px; font-weight: 500;
+            display: flex; align-items: center; gap: 12px;
+            cursor: pointer; transition: 0.2s; font-family: inherit;
+            white-space: nowrap; overflow: hidden;
+        }
+        .logout-btn i { color: rgba(255,255,255,0.7); flex-shrink: 0; }
+        .logout-btn:hover { background: rgba(231,76,60,0.25); border-color: var(--danger); color: #ff6b6b; }
+
+        .sidebar-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.4); z-index:999; }
+        .sidebar-overlay.active { display: block; }
+
+        /* MAIN */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            flex: 1; min-height: 100vh;
+            display: flex; flex-direction: column;
+            transition: margin-left 0.3s ease;
+            background: rgba(245,247,246,0.92);
+        }
+        .sidebar.collapsed~.main-content { margin-left: var(--sidebar-collapsed-width); }
+
+        .top-header {
+            background: var(--bg-card); padding: 16px 30px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky; top: 0; z-index: 999;
+            box-shadow: var(--shadow);
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .header-left .mini-logo { height: 36px; width: auto; border-radius: 4px; }
+        .menu-toggle { background: none; border: none; font-size: 22px; color: var(--text-primary); cursor: pointer; display: none; }
+        .page-title h1 { font-size: 20px; font-weight: 700; color: var(--text-primary); margin: 0; }
+        .breadcrumb { font-size: 13px; color: var(--text-secondary); margin-left: 8px; }
+        .header-right { display: flex; align-items: center; gap: 16px; }
+        .lang-switcher { display: flex; gap: 4px; }
+        .lang-btn {
+            background: transparent; border: 1px solid var(--input-border); border-radius: 6px;
+            padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+            color: var(--text-secondary); transition: 0.2s;
+        }
+        .lang-btn:hover { background: var(--border-color); }
+        .lang-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .test-conn-btn {
+            background: transparent; border: 1px solid var(--border-color); border-radius: 6px;
+            padding: 4px 12px; font-size: 11px; font-weight: 600; cursor: pointer;
+            color: var(--text-secondary); transition: 0.2s;
+            display: inline-flex; align-items: center; gap: 5px;
+        }
+        .test-conn-btn:hover { background: var(--border-color); color: var(--text-primary); }
+        .user-profile { display: flex; align-items: center; gap: 10px; }
+        .user-profile img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); background: #f5f7f6; }
+        .user-name { font-weight: 600; font-size: 14px; color: var(--text-primary); }
+
+        .dashboard-content { padding: 24px 30px 30px; flex: 1; }
+
+        .page-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 24px; flex-wrap: wrap; gap: 16px;
+        }
+        .page-header-left h2 { font-size: 22px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+        .page-header-left p { color: var(--text-secondary); font-size: 14px; }
+
+        .btn-primary {
+            background: #2d7a3d; color: #fff; border: none;
+            padding: 10px 20px; border-radius: 12px;
+            font-size: 14px; font-weight: 600;
+            display: inline-flex; align-items: center; gap: 8px;
+            cursor: pointer; transition: 0.2s;
+        }
+        .btn-primary:hover { background: #1f5e2c; transform: scale(1.02); }
+        .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+        .btn-secondary {
+            background: var(--border-color); color: var(--text-primary); border: none;
+            padding: 10px 20px; border-radius: 12px;
+            font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s;
+        }
+        .btn-secondary:hover { background: var(--input-border); }
+        .btn-danger {
+            background: var(--danger); color: #fff; border: none;
+            padding: 10px 20px; border-radius: 12px;
+            font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s;
+        }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-success {
+            background: var(--success); color: #fff; border: none;
+            padding: 10px 20px; border-radius: 12px;
+            font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s;
+        }
+        .btn-success:hover { background: #1f5e2c; }
+        .btn-warning {
+            background: var(--warning); color: #fff; border: none;
+            padding: 10px 20px; border-radius: 12px;
+            font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s;
+        }
+        .btn-warning:hover { background: #d68910; }
+
+        /* STATS */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px; margin-bottom: 28px;
+        }
+        .stat-card {
+            background: var(--bg-card); border-radius: var(--radius-sm);
+            padding: 16px 18px; border: 1px solid var(--border-color);
+            box-shadow: var(--shadow); transition: all 0.3s;
+            display: flex; align-items: center; gap: 14px;
+        }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); }
+        .stat-card .stat-icon {
+            width: 44px; height: 44px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; color: #fff; flex-shrink: 0;
+        }
+        .stat-card .stat-icon.green { background: linear-gradient(135deg, #1a6e3a, #2e8b4a); }
+        .stat-card .stat-icon.blue { background: linear-gradient(135deg, #0d47a1, #1976d2); }
+        .stat-card .stat-icon.orange { background: linear-gradient(135deg, #e65100, #f57c00); }
+        .stat-card .stat-icon.purple { background: linear-gradient(135deg, #6a1b9a, #9c27b0); }
+        .stat-card .stat-icon.teal { background: linear-gradient(135deg, #00695c, #00897b); }
+        .stat-card .stat-icon.gold { background: linear-gradient(135deg, #b8860b, #d4a845); }
+        .stat-card .stat-icon.red { background: linear-gradient(135deg, #c62828, #e53935); }
+        .stat-card .stat-info { flex: 1; min-width: 0; }
+        .stat-card .stat-label { font-size: 11px; font-weight: 500; color: var(--text-secondary); display: block; margin-bottom: 2px; }
+        .stat-card .stat-value { font-size: 18px; font-weight: 700; color: var(--text-primary); display: block; }
+
+        /* ACTION BUTTONS (Buy/Sell/Transfer) */
+        .action-group {
+            display: flex; gap: 8px; flex-wrap: wrap;
+        }
+        .action-btn-sm {
+            padding: 4px 10px; border-radius: 6px; border: none;
+            font-size: 12px; font-weight: 600; cursor: pointer;
+            transition: all 0.2s; display: inline-flex; align-items: center; gap: 4px;
+        }
+        .action-btn-sm:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .action-btn-sm.buy { background: var(--success); color: #fff; }
+        .action-btn-sm.sell { background: var(--danger); color: #fff; }
+        .action-btn-sm.transfer { background: var(--info); color: #fff; }
+        .action-btn-sm.approve { background: var(--success); color: #fff; }
+        .action-btn-sm.reject { background: var(--danger); color: #fff; }
+        .action-btn-sm.view { background: var(--info); color: #fff; }
+        .action-btn-sm.edit { background: var(--warning); color: #fff; }
+        .action-btn-sm.delete { background: var(--danger); color: #fff; }
+
+        /* FORMS */
+        .form-section {
+            background: var(--bg-card); border-radius: 16px;
+            border: 1px solid var(--border-color); padding: 24px;
+            margin-bottom: 24px; box-shadow: var(--shadow);
+            transition: all 0.3s;
+        }
+        .form-section h3 { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: var(--text-primary); }
+        .form-group { position: relative; }
+        .form-row {
+            display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px;
+        }
+        .form-row.two { grid-template-columns: 1fr 1fr; }
+        .form-row.four { grid-template-columns: 1fr 1fr 1fr 1fr; }
+        .form-group label { font-weight: 500; font-size: 14px; color: var(--text-primary); display: block; margin-bottom: 4px; }
+        .form-group label .required { color: var(--danger); margin-left: 2px; }
+        .form-group input, .form-group select, .form-group textarea {
+            padding: 10px 14px; border: 1px solid var(--input-border); border-radius: 10px;
+            font-size: 14px; font-family: inherit; background: var(--input-bg); color: var(--text-primary);
+            transition: all 0.2s; width: 100%;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--input-focus);
+        }
+        .form-group input:disabled, .form-group select:disabled { opacity: 0.6; cursor: not-allowed; }
+        .form-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; }
+
+        .customer-info-display {
+            background: var(--bg-primary); border-radius: 12px;
+            padding: 12px 16px; border: 1px solid var(--border-color);
+            margin-bottom: 12px; display: none; transition: all 0.3s;
+        }
+        .customer-info-display.active { display: block; }
+        .customer-info-display .info-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px;
+        }
+        .customer-info-display .info-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 4px 0; font-size: 13px; border-bottom: 1px solid var(--border-color);
+        }
+        .customer-info-display .info-row:last-child { border-bottom: none; }
+        .customer-info-display .info-row .label { color: var(--text-secondary); font-weight: 500; }
+        .customer-info-display .info-row .value { font-weight: 600; color: var(--text-primary); }
+        .customer-info-display .info-row .value.positive { color: var(--success); }
+        .customer-info-display .info-row .value.warning { color: var(--danger); }
+
+        .min-max-banner {
+            background: linear-gradient(135deg, #1a6e3a, #2e8b4a); color: #fff;
+            border-radius: 12px; padding: 12px 20px; margin-bottom: 18px;
+            display: flex; align-items: center; justify-content: space-between;
+            flex-wrap: wrap; gap: 12px;
+            border: 2px solid var(--gold-light);
+            box-shadow: 0 4px 16px rgba(26,110,58,0.2);
+        }
+        .min-max-banner .banner-icon { font-size: 24px; margin-right: 8px; color: var(--gold-light); }
+        .min-max-banner .banner-text { font-weight: 500; font-size: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .min-max-banner .banner-text .settings-source { font-size: 11px; opacity: 0.7; font-weight: 400; background: rgba(255,255,255,0.15); padding: 2px 10px; border-radius: 12px; }
+        .min-max-banner .banner-amount { background: rgba(255,255,255,0.2); padding: 4px 16px; border-radius: 20px; font-weight: 700; font-size: 16px; border: 1px solid rgba(255,255,255,0.3); }
+        .min-max-banner .banner-warning { color: #ffd700; font-weight: 600; font-size: 13px; margin-left: 8px; }
+
+        .conditional-fields { display: none; border-top: 1px dashed var(--border-color); padding-top: 12px; margin-top: 4px; }
+        .conditional-fields.show { display: block; }
+
+        #customerSuggestions {
+            position: absolute; background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 10px; max-height: 200px; overflow-y: auto; z-index: 10;
+            width: 100%; box-shadow: var(--shadow-md); top: 100%; left: 0;
+        }
+        #customerSuggestions div { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--border-color); color: var(--text-primary); }
+        #customerSuggestions div:hover { background: var(--bg-primary); }
+        #customerSuggestions div:last-child { border-bottom: none; }
+
+        .search-bar {
+            display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;
+        }
+        .search-wrapper { flex: 1; min-width: 200px; position: relative; }
+        .search-wrapper i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); }
+        .search-wrapper input {
+            width: 100%; padding: 12px 16px 12px 44px;
+            border: 1px solid var(--input-border); border-radius: 12px;
+            font-size: 14px; background: var(--input-bg); color: var(--text-primary);
+            transition: all 0.2s;
+        }
+        .search-wrapper input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--input-focus); }
+        .filter-wrapper select {
+            padding: 12px 16px; border: 1px solid var(--input-border); border-radius: 12px;
+            font-size: 14px; background: var(--input-bg); color: var(--text-primary);
+            cursor: pointer; min-width: 140px; transition: all 0.2s;
+        }
+        .filter-wrapper select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--input-focus); }
+
+        .table-container {
+            background: var(--bg-card); border-radius: 16px;
+            border: 1px solid var(--border-color); overflow: hidden;
+            box-shadow: var(--shadow); transition: all 0.3s;
+        }
+        .table-header {
+            padding: 16px 20px; border-bottom: 1px solid var(--border-color);
+            font-size: 14px; color: var(--text-primary);
+            background: var(--bg-primary);
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+        }
+        .table-wrapper { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        thead { background: var(--bg-primary); }
+        thead th {
+            padding: 12px 16px; text-align: left; font-weight: 600;
+            color: var(--text-primary); border-bottom: 2px solid var(--border-color);
+            white-space: nowrap; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        tbody td { padding: 12px 16px; border-bottom: 1px solid var(--border-color); color: var(--text-primary); vertical-align: middle; }
+        tbody tr:hover { background: var(--bg-primary); }
+        tbody tr:last-child td { border-bottom: none; }
+
+        .status-badge {
+            padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block;
+        }
+        .status-badge.pending { background: #fff3cd; color: #856404; }
+        .status-badge.approved { background: #d4edda; color: #155724; }
+        .status-badge.rejected { background: #f8d7da; color: #721c24; }
+
+        .pagination-container {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 20px; background: var(--bg-primary);
+            border-top: 1px solid var(--border-color);
+            flex-wrap: wrap; gap: 12px;
+        }
+        .pagination-info { font-size: 14px; color: var(--text-secondary); }
+        .pagination-info strong { color: var(--text-primary); }
+        .pagination-buttons { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        .pagination-btn {
+            padding: 6px 14px; border: 1px solid var(--border-color); border-radius: 8px;
+            background: var(--bg-card); cursor: pointer; font-size: 13px; font-weight: 500;
+            color: var(--text-primary); transition: all 0.2s; min-width: 36px; text-align: center;
+        }
+        .pagination-btn:hover:not(:disabled) { background: var(--border-color); border-color: var(--primary); }
+        .pagination-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            z-index: 10001; align-items: center; justify-content: center; padding: 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-content {
+            background: var(--bg-card); border-radius: 20px;
+            max-width: 750px; width: 100%; max-height: 92vh; overflow-y: auto;
+            padding: 0; box-shadow: 0 30px 80px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.05);
+            transition: background 0.3s; position: relative;
+        }
+        .modal-content::-webkit-scrollbar { width: 6px; }
+        .modal-content::-webkit-scrollbar-track { background: var(--bg-primary); border-radius: 0 0 20px 20px; }
+        .modal-content::-webkit-scrollbar-thumb { background: var(--primary-light); border-radius: 3px; }
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 20px 28px 16px 28px; border-bottom: 1px solid var(--border-color);
+            background: var(--bg-card); border-radius: 20px 20px 0 0;
+            position: sticky; top: 0; z-index: 5;
+        }
+        .modal-header h3 { font-size: 22px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 12px; }
+        .modal-header h3 i { color: var(--primary); font-size: 22px; background: rgba(26,110,58,0.1); padding: 8px; border-radius: 12px; }
+        .modal-header .modal-close {
+            background: var(--bg-primary); border: none; width: 40px; height: 40px;
+            border-radius: 50%; font-size: 20px; cursor: pointer;
+            color: var(--text-secondary); transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; line-height: 1;
+        }
+        .modal-header .modal-close:hover { background: #fee2e2; color: var(--danger); transform: rotate(90deg); }
+        .modal-body { padding: 24px 28px 20px; }
+
+        .view-detail-row {
+            display: flex; padding: 6px 0; border-bottom: 1px solid var(--border-color); font-size: 14px;
+        }
+        .view-detail-row .label { font-weight: 600; width: 140px; flex-shrink: 0; color: var(--text-secondary); }
+        .view-detail-row .value { flex: 1; color: var(--text-primary); }
+        .view-detail-row .value .status-badge { display: inline-block; }
+
+        .logout-modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(6px); z-index: 99999;
+            align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.3s ease;
+        }
+        .logout-modal-overlay.active { display: flex; }
+        .logout-modal {
+            background: var(--bg-card); border-radius: var(--radius);
+            max-width: 420px; width: 100%; padding: 32px 28px 24px;
+            box-shadow: var(--shadow-modal); animation: slideUp 0.3s ease;
+            text-align: center; border: 1px solid var(--border-color);
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(20px) scale(0.95); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+        .logout-modal .modal-icon {
+            width: 72px; height: 72px; border-radius: 50%;
+            background: rgba(231,76,60,0.12);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 16px; font-size: 32px; color: var(--danger);
+        }
+        .logout-modal h3 { font-size: 22px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
+        .logout-modal p { font-size: 15px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.6; }
+        .logout-modal .modal-actions { display: flex; gap: 12px; justify-content: center; }
+        .logout-modal .modal-actions .btn {
+            padding: 10px 28px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600;
+            border: none; cursor: pointer; transition: all 0.2s; font-family: inherit; min-width: 100px;
+        }
+        .logout-modal .modal-actions .btn-cancel { background: var(--border-color); color: var(--text-primary); }
+        .logout-modal .modal-actions .btn-cancel:hover { background: #d0d7d2; transform: translateY(-2px); }
+        .logout-modal .modal-actions .btn-logout { background: var(--danger); color: #fff; display: inline-flex; align-items: center; gap: 8px; }
+        .logout-modal .modal-actions .btn-logout:hover { background: #c0392b; transform: translateY(-2px); box-shadow: 0 4px 16px rgba(231,76,60,0.3); }
+        .logout-modal .modal-actions .btn-logout i { font-size: 16px; }
+
+        .delete-modal-overlay {
+            display: none; position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(6px); z-index: 99998;
+            align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.3s ease;
+        }
+        .delete-modal-overlay.active { display: flex; }
+        .delete-modal {
+            background: var(--bg-card); border-radius: var(--radius);
+            max-width: 420px; width: 100%; padding: 32px 28px 24px;
+            box-shadow: var(--shadow-modal); animation: slideUp 0.3s ease;
+            text-align: center; border: 1px solid var(--border-color);
+        }
+        .delete-modal .modal-icon {
+            width: 72px; height: 72px; border-radius: 50%;
+            background: rgba(231,76,60,0.12);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 16px; font-size: 32px; color: var(--danger);
+        }
+        .delete-modal h3 { font-size: 22px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
+        .delete-modal p { font-size: 15px; color: var(--text-secondary); margin-bottom: 8px; line-height: 1.6; }
+        .delete-modal .delete-warning { font-weight: 600; color: var(--danger); font-size: 14px; margin-bottom: 20px; }
+        .delete-modal .modal-actions { display: flex; gap: 12px; justify-content: center; }
+        .delete-modal .modal-actions .btn {
+            padding: 10px 28px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600;
+            border: none; cursor: pointer; transition: all 0.2s; font-family: inherit; min-width: 100px;
+        }
+        .delete-modal .modal-actions .btn-cancel { background: var(--border-color); color: var(--text-primary); }
+        .delete-modal .modal-actions .btn-cancel:hover { background: #d0d7d2; transform: translateY(-2px); }
+        .delete-modal .modal-actions .btn-delete { background: var(--danger); color: #fff; display: inline-flex; align-items: center; gap: 8px; }
+        .delete-modal .modal-actions .btn-delete:hover { background: #c0392b; transform: translateY(-2px); box-shadow: 0 4px 16px rgba(231,76,60,0.3); }
+        .delete-modal .modal-actions .btn-delete i { font-size: 16px; }
+
+        .toast-container {
+            position: fixed; top: 20px; right: 20px; z-index: 99999;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .toast {
+            padding: 14px 24px; border-radius: 12px; color: #fff; font-weight: 500;
+            font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            animation: slideIn 0.3s ease; min-width: 280px; max-width: 400px;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .toast i { font-size: 18px; }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        .toast.warning { background: var(--warning); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast.fade-out { opacity: 0; transition: opacity 0.3s ease; }
+
+        .app-footer {
+            background: var(--bg-card); border-top: 1px solid var(--border-color);
+            padding: 16px 30px; text-align: center; font-size: 14px;
+            color: var(--text-secondary); margin-top: auto;
+            transition: all 0.3s; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+        }
+        .app-footer .footer-left { text-align: left; }
+        .app-footer .footer-right { text-align: right; font-style: italic; font-weight: 500; color: var(--primary); }
+
+        .duplicate-warning {
+            display: none; background: #fff3e0; border: 1px solid #ff9800;
+            border-radius: 8px; padding: 10px 14px; color: #e65100; font-size: 13px; margin-bottom: 12px;
+        }
+        .duplicate-warning.show { display: block; }
+        .duplicate-warning i { margin-right: 8px; }
+
+        @media (max-width: 992px) {
+            .form-row { grid-template-columns: 1fr 1fr; }
+            .form-row.four { grid-template-columns: 1fr 1fr; }
+            .customer-info-display .info-grid { grid-template-columns: 1fr; }
+            .min-max-banner { flex-direction: column; text-align: center; }
+        }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); width: 280px; }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar.collapsed { width: 280px; }
+            .sidebar.collapsed .brand-text,
+            .sidebar.collapsed .sidebar-nav li a span,
+            .sidebar.collapsed .logout-btn span,
+            .sidebar.collapsed .sidebar-brand .brand-sub { display: inline; }
+            .sidebar.collapsed .brand-icon { width: 72px; height: 72px; }
+            .sidebar.collapsed .sidebar-nav li a { justify-content: flex-start; padding: 10px 16px; }
+            .sidebar.collapsed .sidebar-nav li a i { font-size: 17px; width: 22px; }
+            .sidebar.collapsed .logout-btn { justify-content: flex-start; padding: 10px; }
+            .sidebar.collapsed .logout-btn i { font-size: 17px; }
+            .sidebar.collapsed .sidebar-toggle-btn { transform: none; }
+            .main-content { margin-left: 0; }
+            .sidebar.collapsed~.main-content { margin-left: 0; }
+            .menu-toggle { display: block; }
+            .top-header { padding: 12px 16px; }
+            .dashboard-content { padding: 16px; }
+            .form-row, .form-row.two, .form-row.four { grid-template-columns: 1fr; }
+            .customer-info-display .info-grid { grid-template-columns: 1fr; }
+            .page-header { flex-direction: column; align-items: stretch; }
+            .search-bar { flex-direction: column; }
+            .pagination-container { flex-direction: column; align-items: stretch; gap: 8px; }
+            .pagination-buttons { justify-content: center; }
+            .toast-container { top: 10px; right: 10px; left: 10px; }
+            .toast { min-width: unset; width: 100%; }
+            .user-name { display: none; }
+            .sidebar-brand { padding: 16px 16px 12px; }
+            .brand-icon { width: 60px; height: 60px; }
+            .brand-text .brand-name { font-size: 16px; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .logout-modal .modal-actions,
+            .delete-modal .modal-actions { flex-direction: column; }
+            .logout-modal .modal-actions .btn,
+            .delete-modal .modal-actions .btn { width: 100%; }
+        }
+        @media (max-width: 480px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .pagination-btn { padding: 4px 10px; font-size: 12px; min-width: 30px; }
+            .pagination-info { font-size: 12px; text-align: center; }
+            table { font-size: 12px; }
+            thead th, tbody td { padding: 8px 10px; }
+            .form-section { padding: 12px 16px; }
+            .brand-icon { width: 50px; height: 50px; }
+            .brand-text .brand-name { font-size: 14px; }
+            .min-max-banner .banner-amount { font-size: 14px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p data-i18n="loading">Loading share data...</p>
+    </div>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <button class="sidebar-toggle-btn" id="sidebarToggleBtn" title="Toggle Sidebar">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <div class="brand-icon">
+                <img src="../images/sacco-logo.png" alt="SACCO Logo" class="brand-logo-img" />
+            </div>
+            <div class="brand-text">
+                <span class="brand-name">GERESU DHUKI <span>SACCO</span></span>
+                <span class="brand-sub" data-i18n="brandSub">SACCO Banking</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <ul>
+                <li><a href="dashboard.html"><i class="fas fa-th-large"></i> <span data-i18n="navDashboard">Dashboard</span></a></li>
+                <li><a href="customers.html"><i class="fas fa-users"></i> <span data-i18n="navCustomers">Customers</span></a></li>
+                <li><a href="savings.html"><i class="fas fa-piggy-bank"></i> <span data-i18n="navSavings">Savings</span></a></li>
+                <li><a href="deposits.html"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="navDeposits">Deposits</span></a></li>
+                <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="navLoans">Loans</span></a></li>
+                <li><a href="repayments.html"><i class="fas fa-undo-alt"></i> <span data-i18n="navRepayments">Repayments</span></a></li>
+                <li><a href="withdrawals.html"><i class="fas fa-money-bill-wave"></i> <span data-i18n="navWithdrawals">Withdrawals</span></a></li>
+                <li><a href="dividends.html"><i class="fas fa-gift"></i> <span data-i18n="navDividends">Dividends</span></a></li>
+                <li class="active"><a href="share.html"><i class="fas fa-chart-pie"></i> <span data-i18n="navShares">Shares</span></a></li>
+                <li><a href="reports.html"><i class="fas fa-chart-bar"></i> <span data-i18n="navReports">Reports</span></a></li>
+                <li><a href="penalties.html"><i class="fas fa-exclamation-triangle" style="color:#e67e22;"></i> <span data-i18n="navPenalties">Penalties</span></a></li>
+                <li id="auditNavItem" style="display:none;"><a href="audit.html"><i class="fas fa-clipboard-list"></i> <span data-i18n="navAudit">Audit Trail</span></a></li>
+                <li id="usersNavItem" style="display:none;"><a href="users.html"><i class="fas fa-user-cog"></i> <span data-i18n="navUsers">Users</span></a></li>
+                <li><a href="settings.html"><i class="fas fa-cog"></i> <span data-i18n="navSettings">Settings</span></a></li>
+            </ul>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> <span data-i18n="logout">Logout</span></button>
+        </div>
+    </aside>
+
+    <main class="main-content">
+
+        <header class="top-header">
+            <div class="header-left">
+                <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+                <img src="../images/sacco-logo.png" alt="SACCO Logo" class="mini-logo" />
+                <div class="page-title">
+                    <h1 data-i18n="pageTitle">Share Management</h1>
+                    <span class="breadcrumb" data-i18n="breadcrumb">Home / Shares</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="lang-switcher">
+                    <button class="lang-btn active" data-lang="en">EN</button>
+                    <button class="lang-btn" data-lang="am">አማ</button>
+                    <button class="lang-btn" data-lang="om">OM</button>
+                </div>
+                <button class="test-conn-btn" id="testConnectionBtn" data-i18n="testConnection">
+                    <i class="fas fa-plug"></i> <span>Test Connection</span>
+                </button>
+                <div class="user-profile">
+                    <img id="userAvatar" src="../assets/images/avatar.png" alt="User" onerror="this.src='https://ui-avatars.com/api/?name=Admin&background=2d7a3d&color=fff'" />
+                    <span class="user-name" id="userDisplayName">Admin</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="dashboard-content">
+
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h2 data-i18n="sharesTitle">Share Management</h2>
+                    <p data-i18n="sharesSub">Buy, sell, or transfer shares between members</p>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button class="btn-primary" id="buyShareBtn">
+                        <i class="fas fa-plus-circle"></i> <span data-i18n="buyShares">Buy Shares</span>
+                    </button>
+                    <button class="btn-danger" id="sellShareBtn">
+                        <i class="fas fa-minus-circle"></i> <span data-i18n="sellShares">Sell Shares</span>
+                    </button>
+                    <button class="btn-warning" id="transferShareBtn">
+                        <i class="fas fa-exchange-alt"></i> <span data-i18n="transferShares">Transfer Shares</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon green"><i class="fas fa-coins"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label" data-i18n="totalShares">Total Shares</span>
+                        <span class="stat-value" id="totalShares">ETB 0.00</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon blue"><i class="fas fa-check-circle"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label" data-i18n="approvedShares">Approved</span>
+                        <span class="stat-value" id="approvedShares">ETB 0.00</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon orange"><i class="fas fa-hourglass-half"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label" data-i18n="pendingShares">Pending</span>
+                        <span class="stat-value" id="pendingShares">ETB 0.00</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon red"><i class="fas fa-times-circle"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label" data-i18n="rejectedShares">Rejected</span>
+                        <span class="stat-value" id="rejectedShares">ETB 0.00</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon gold"><i class="fas fa-users"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label" data-i18n="memberCount">Members</span>
+                        <span class="stat-value" id="memberCount">0</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon teal"><i class="fas fa-chart-line"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label" data-i18n="avgShares">Avg per Member</span>
+                        <span class="stat-value" id="avgShares">ETB 0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search -->
+            <div class="search-bar">
+                <div class="search-wrapper">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" data-i18n="searchPlaceholder" placeholder="Search by customer name or TT number..." />
+                </div>
+                <div class="filter-wrapper">
+                    <select id="statusFilter">
+                        <option value="all" data-i18n="allStatus">All Status</option>
+                        <option value="pending" data-i18n="pendingStatus">Pending</option>
+                        <option value="approved" data-i18n="approvedStatus">Approved</option>
+                        <option value="rejected" data-i18n="rejectedStatus">Rejected</option>
+                    </select>
+                </div>
+                <div class="filter-wrapper">
+                    <select id="transactionTypeFilter">
+                        <option value="all" data-i18n="allTypes">All Types</option>
+                        <option value="buy" data-i18n="buy">Buy</option>
+                        <option value="sell" data-i18n="sell">Sell</option>
+                        <option value="transfer" data-i18n="transfer">Transfer</option>
+                    </select>
+                </div>
+                <div class="filter-wrapper">
+                    <select id="yearFilter">
+                        <option value="all" data-i18n="allYears">All Years</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="table-container">
+                <div class="table-header">
+                    <span data-i18n="totalShareRecords">Total Share Transactions: </span>
+                    <strong id="totalCount">0</strong>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th data-i18n="customer">Customer</th>
+                                <th data-i18n="type">Type</th>
+                                <th data-i18n="amount">Amount</th>
+                                <th data-i18n="shareCount">Shares</th>
+                                <th data-i18n="paymentMethod">Payment Method</th>
+                                <th data-i18n="ttNumber">TT Number</th>
+                                <th data-i18n="status">Status</th>
+                                <th data-i18n="recordedBy">Recorded By</th>
+                                <th data-i18n="date">Date</th>
+                                <th data-i18n="actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sharesBody">
+                            <tr><td colspan="11" style="text-align:center; padding:40px; color:var(--text-secondary);" data-i18n="noShares">No share transactions found.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        <span data-i18n="showing">Showing</span> <strong id="pageStart">0</strong> - <strong id="pageEnd">0</strong>
+                        <span data-i18n="of">of</span> <strong id="totalSharesCount">0</strong>
+                    </div>
+                    <div class="pagination-buttons">
+                        <button class="pagination-btn" id="prevPage" disabled><i class="fas fa-chevron-left"></i></button>
+                        <div id="pageNumbers"></div>
+                        <button class="pagination-btn" id="nextPage"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <footer class="app-footer">
+            <div class="footer-left">
+                <span>© 2026 GERESU DHUKI SACCO. All rights reserved. Designed by: Eng. Abdi.F Software</span>
+            </div>
+            <div class="footer-right">
+                <span>If We Work Together, We Grow Together!</span>
+            </div>
+        </footer>
+    </main>
+
+    <!-- ============================================================
+       SHARE MODAL (Buy/Sell/Transfer)
+       ============================================================ -->
+    <div class="modal-overlay" id="shareModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-chart-pie" id="modalIcon"></i> <span id="modalTitle">Share Transaction</span></h3>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="shareForm" novalidate>
+                    <input type="hidden" id="editId" />
+                    <input type="hidden" id="transactionType" value="buy" />
+
+                    <div class="min-max-banner" id="minMaxBanner">
+                        <div class="banner-text">
+                            <span class="banner-icon">📊</span>
+                            <span data-i18n="shareRange">Share Value Range:</span>
+                            <span class="settings-source" data-i18n="fromSettings">from System Settings</span>
+                        </div>
+                        <div>
+                            <span class="banner-amount" id="minShareDisplay">Min: ETB 0.00</span>
+                            <span class="banner-amount" id="maxShareDisplay" style="margin-left:8px;">Max: ETB 0.00</span>
+                            <span class="banner-warning" id="shareRangeWarning">
+                                <i class="fas fa-exclamation-circle"></i> <span data-i18n="amountMustBeInRange">Amount must be within range</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Transfer fields (hidden by default) -->
+                    <div id="transferFields" style="display:none;">
+                        <div class="form-row two">
+                            <div class="form-group">
+                                <label data-i18n="fromCustomer">From Customer <span class="required">*</span></label>
+                                <input type="text" id="fromCustomerSearch" placeholder="Search from customer..." autocomplete="off" required />
+                                <input type="hidden" id="fromCustomerId" />
+                                <div id="fromCustomerSuggestions"></div>
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="toCustomer">To Customer <span class="required">*</span></label>
+                                <input type="text" id="toCustomerSearch" placeholder="Search to customer..." autocomplete="off" required />
+                                <input type="hidden" id="toCustomerId" />
+                                <div id="toCustomerSuggestions"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Normal customer field (for buy/sell) -->
+                    <div id="singleCustomerFields">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label data-i18n="searchCustomer">Customer <span class="required">*</span></label>
+                                <input type="text" id="customerSearch" placeholder="Search by name or ID..." autocomplete="off" required />
+                                <input type="hidden" id="customerId" />
+                                <div id="customerSuggestions"></div>
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="amount">Amount (ETB) <span class="required">*</span></label>
+                                <input type="number" id="amountInput" required placeholder="0.00" step="0.01" min="0.01" />
+                                <small id="shareRangeHint" style="color:var(--text-secondary); font-size:11px; display:none;"></small>
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="date">Date <span class="required">*</span></label>
+                                <input type="date" id="dateInput" required />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="customer-info-display" id="customerInfoDisplay">
+                        <div class="info-grid">
+                            <div class="info-row">
+                                <span class="label" data-i18n="customer">Customer:</span>
+                                <span class="value" id="customerNameDisplay">—</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label" data-i18n="customerId">Customer ID:</span>
+                                <span class="value" id="customerIdDisplay">—</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label" data-i18n="currentShares">Current Shares:</span>
+                                <span class="value positive" id="currentSharesDisplay">ETB 0.00</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label" data-i18n="availableSavings">Available Savings:</span>
+                                <span class="value positive" id="availableSavingsDisplay">ETB 0.00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row two">
+                        <div class="form-group">
+                            <label data-i18n="shareCount">Number of Shares <span class="required">*</span></label>
+                            <input type="number" id="shareCount" required placeholder="1" step="1" min="1" />
+                            <small style="color:var(--text-secondary); font-size:11px;" data-i18n="shareCountHint">Auto-calculated based on share price</small>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="paymentMethod">Payment Method <span class="required">*</span></label>
+                            <select id="paymentMethod" required>
+                                <option value="savings" data-i18n="savings">From Savings</option>
+                                <option value="cash" data-i18n="cash">Cash</option>
+                                <option value="mobile" data-i18n="mobileBanking">Mobile Banking</option>
+                                <option value="bank" data-i18n="bankDeposit">Bank Deposit</option>
+                            </select>
+                            <small id="paymentMethodInfo" style="color:var(--text-secondary); font-size:11px;" data-i18n="paymentMethodInfo">Cash available for Admin/Manager only</small>
+                        </div>
+                    </div>
+
+                    <div class="conditional-fields" id="conditionalFields">
+                        <div class="form-row two">
+                            <div class="form-group">
+                                <label data-i18n="ttNumber">TT Number <span class="required" id="ttRequired">*</span></label>
+                                <input type="text" id="ttNumber" placeholder="Enter TT number" />
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="transferDate">Transfer Date <span class="required" id="transferDateRequired">*</span></label>
+                                <input type="date" id="transferDate" />
+                            </div>
+                        </div>
+                        <div class="form-row two">
+                            <div class="form-group">
+                                <label data-i18n="bankName">Bank / Provider Name <span class="required" id="bankRequired">*</span></label>
+                                <input type="text" id="bankName" placeholder="Enter bank or provider name" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label data-i18n="note">Note (optional)</label>
+                        <input type="text" id="noteInput" placeholder="Optional note..." />
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" id="resetFormBtn"><span data-i18n="clear">Clear</span></button>
+                        <button type="submit" class="btn-primary" id="saveBtn">
+                            <i class="fas fa-save"></i> <span data-i18n="save">Submit</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEW SHARE MODAL -->
+    <div class="modal-overlay" id="viewShareModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-eye"></i> <span data-i18n="shareDetails">Share Transaction Details</span></h3>
+                <button class="modal-close" id="closeViewModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="viewShareContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOGOUT MODAL -->
+    <div class="logout-modal-overlay" id="logoutModal">
+        <div class="logout-modal">
+            <div class="modal-icon"><i class="fas fa-sign-out-alt"></i></div>
+            <h3 data-i18n="logoutConfirm">Logout Confirmation</h3>
+            <p data-i18n="logoutMessage">Are you sure you want to log out? You will need to sign in again to access your account.</p>
+            <div class="modal-actions">
+                <button class="btn btn-cancel" id="logoutCancel"><span data-i18n="cancel">Cancel</span></button>
+                <button class="btn btn-logout" id="logoutConfirm"><i class="fas fa-sign-out-alt"></i> <span data-i18n="logout">Logout</span></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DELETE MODAL -->
+    <div class="delete-modal-overlay" id="deleteModal">
+        <div class="delete-modal">
+            <div class="modal-icon"><i class="fas fa-trash-alt"></i></div>
+            <h3 data-i18n="deleteTitle">Delete Share Record</h3>
+            <p data-i18n="deleteConfirm">Are you sure you want to permanently delete this share transaction record?</p>
+            <p class="delete-warning" data-i18n="deleteWarning">⚠️ This action cannot be undone. All associated data will be removed.</p>
+            <div class="modal-actions">
+                <button class="btn btn-cancel" id="deleteCancel"><span data-i18n="cancel">Cancel</span></button>
+                <button class="btn btn-delete" id="deleteConfirm"><i class="fas fa-trash-alt"></i> <span data-i18n="delete">Delete</span></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+
+    <script>
+        // ============================================================
+        // FIREBASE CONFIG
+        // ============================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBeQv8YLNfFFaTEZ6pxXaAy_K8n3u8V5X4",
+            authDomain: "geresu-dhuki-sacco-75329.firebaseapp.com",
+            projectId: "geresu-dhuki-sacco-75329",
+            storageBucket: "geresu-dhuki-sacco-75329.firebasestorage.app",
+            messagingSenderId: "431325504753",
+            appId: "1:431325504753:web:f7289fb88d74b82eb0b550",
+            measurementId: "G-3SN99DFJXD"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+
+        // ============================================================
+        // MULTI-LANGUAGE TRANSLATIONS
+        // ============================================================
+        const translations = {
+            en: {
+                brandSub: 'SACCO Banking', navDashboard: 'Dashboard', navCustomers: 'Customers',
+                navSavings: 'Savings', navDeposits: 'Deposits', navLoans: 'Loans',
+                navRepayments: 'Repayments', navWithdrawals: 'Withdrawals', navDividends: 'Dividends',
+                navShares: 'Shares', navReports: 'Reports', navPenalties: 'Penalties',
+                navAudit: 'Audit Trail', navUsers: 'Users', navSettings: 'Settings',
+                logout: 'Logout', pageTitle: 'Share Management', breadcrumb: 'Home / Shares',
+                sharesTitle: 'Share Management', sharesSub: 'Buy, sell, or transfer shares between members',
+                buyShares: 'Buy Shares', sellShares: 'Sell Shares', transferShares: 'Transfer Shares',
+                totalShares: 'Total Shares', approvedShares: 'Approved', pendingShares: 'Pending',
+                rejectedShares: 'Rejected', memberCount: 'Members', avgShares: 'Avg per Member',
+                searchPlaceholder: 'Search by customer name or TT number...',
+                allStatus: 'All Status', pendingStatus: 'Pending', approvedStatus: 'Approved',
+                rejectedStatus: 'Rejected', allTypes: 'All Types', buy: 'Buy', sell: 'Sell',
+                transfer: 'Transfer', allYears: 'All Years',
+                totalShareRecords: 'Total Share Transactions: ', noShares: 'No share transactions found.',
+                showing: 'Showing', of: 'of', customer: 'Customer', type: 'Type',
+                amount: 'Amount', shareCount: 'Shares', paymentMethod: 'Payment Method',
+                ttNumber: 'TT Number', status: 'Status', recordedBy: 'Recorded By',
+                date: 'Date', actions: 'Actions', searchCustomer: 'Search Customer',
+                fromCustomer: 'From Customer', toCustomer: 'To Customer',
+                currentShares: 'Current Shares', availableSavings: 'Available Savings',
+                savings: 'Savings', cash: 'Cash', mobileBanking: 'Mobile Banking',
+                bankDeposit: 'Bank Deposit', clear: 'Clear', save: 'Submit',
+                view: 'View', edit: 'Edit', delete: 'Delete', approve: 'Approve', reject: 'Reject',
+                approved: 'Approved', pending: 'Pending', rejected: 'Rejected',
+                recordSaved: 'Share transaction saved successfully!',
+                saveError: 'Error saving record: ', loadError: 'Error loading data: ',
+                deleteSuccess: 'Share transaction deleted successfully.',
+                deleteError: 'Error deleting record: ',
+                approveSuccess: 'Share transaction approved successfully.',
+                rejectSuccess: 'Share transaction rejected.',
+                duplicateWarning: 'This TT number and transfer date combination already exists.',
+                duplicateError: 'Duplicate TT number and transfer date found!',
+                amountMustBeInRange: 'Amount must be within range',
+                insufficientSavings: 'Insufficient savings balance. Available: ETB {available}',
+                transferTypeRestricted: 'Cash payments are restricted to Admin and Manager only.',
+                cannotEditApproved: 'Cannot edit an approved or rejected share transaction.',
+                unauthorized: 'You are not authorized to perform this action.',
+                testConnection: 'Test Connection',
+                connectionSuccess: '✅ Connection successful!',
+                connectionFailed: '❌ Connection failed: ',
+                note: 'Note (optional)',
+                shareRange: 'Share Value Range:',
+                fromSettings: 'from System Settings',
+                shareCountHint: 'Auto-calculated based on share price',
+                paymentMethodInfo: 'Cash available for Admin/Manager only',
+                loading: 'Loading share data...',
+                logoutConfirm: 'Logout Confirmation',
+                logoutMessage: 'Are you sure you want to log out? You will need to sign in again to access your account.',
+                cancel: 'Cancel',
+                deleteTitle: 'Delete Share Record',
+                deleteConfirm: 'Are you sure you want to permanently delete this share transaction record?',
+                deleteWarning: '⚠️ This action cannot be undone. All associated data will be removed.',
+                shareDetails: 'Share Transaction Details',
+                sharePurchase: 'Share Purchase',
+                shareSale: 'Share Sale',
+                shareTransfer: 'Share Transfer',
+                from: 'From',
+                to: 'To',
+                transferFrom: 'Transfer From',
+                transferTo: 'Transfer To',
+                sharePrice: 'Share Price',
+                insufficientShares: 'Insufficient shares to sell. Available: {available} shares',
+                cannotSellToSelf: 'Cannot transfer shares to yourself.',
+                shareTransferSuccess: 'Shares transferred successfully!',
+                shareSaleSuccess: 'Shares sold successfully!',
+                sharePurchaseSuccess: 'Shares purchased successfully!',
+                sellNotEnoughShares: 'You do not have enough shares to sell. Available: {available} shares.',
+                transferNotEnoughShares: 'The from customer does not have enough shares to transfer. Available: {available} shares.',
+                statusUpdated: 'Status updated successfully!',
+                errorUpdatingStatus: 'Error updating status: ',
+                shareNotFound: 'Share transaction not found.',
+            },
+            am: {
+                brandSub: 'ባንክ ስርዓት', navDashboard: 'ዳሽቦርድ', navCustomers: 'ደንበኞች',
+                navSavings: 'ቁጠባዎች', navDeposits: 'ተቀማጭ', navLoans: 'ብድር',
+                navRepayments: 'ክፍያዎች', navWithdrawals: 'መውጫዎች', navDividends: 'ክፍፍል',
+                navShares: 'አክሲዮን', navReports: 'ሪፖርቶች', navPenalties: 'ቅጣቶች',
+                navAudit: 'የምዝግብ ታሪክ', navUsers: 'ተጠቃሚዎች', navSettings: 'ቅንብሮች',
+                logout: 'ውጣ', pageTitle: 'የአክሲዮን አስተዳደር', breadcrumb: 'ዋና ገጽ / አክሲዮን',
+                sharesTitle: 'የአክሲዮን አስተዳደር', sharesSub: 'አክሲዮን ይግዙ፣ ይሽጡ ወይም ያዛውሩ',
+                buyShares: 'አክሲዮን ግዛ', sellShares: 'አክሲዮን ሽጥ', transferShares: 'አክሲዮን አዛውር',
+                totalShares: 'ጠቅላላ አክሲዮን', approvedShares: 'የፀደቀ', pendingShares: 'በመጠበቅ ላይ',
+                rejectedShares: 'ውድቅ የተደረገ', memberCount: 'አባላት', avgShares: 'አማካይ በአባል',
+                searchPlaceholder: 'በደንበኛ ስም ወይም በቲቲ ቁጥር ይፈልጉ...',
+                allStatus: 'ሁሉም ሁኔታ', pendingStatus: 'በመጠበቅ ላይ', approvedStatus: 'የፀደቀ',
+                rejectedStatus: 'ውድቅ የተደረገ', allTypes: 'ሁሉም ዓይነቶች', buy: 'ግዛ', sell: 'ሽጥ',
+                transfer: 'አዛውር', allYears: 'ሁሉም ዓመታት',
+                totalShareRecords: 'ጠቅላላ የአክሲዮን ግብይቶች: ', noShares: 'ምንም የአክሲዮን ግብይቶች አልተገኙም።',
+                showing: 'እያሳየ', of: 'ከ', customer: 'ደንበኛ', type: 'ዓይነት',
+                amount: 'መጠን', shareCount: 'አክሲዮኖች', paymentMethod: 'የክፍያ ዘዴ',
+                ttNumber: 'ቲቲ ቁጥር', status: 'ሁኔታ', recordedBy: 'የመዘገበው',
+                date: 'ቀን', actions: 'ተግባራት', searchCustomer: 'ደንበኛ ይፈልጉ',
+                fromCustomer: 'ከደንበኛ', toCustomer: 'ለደንበኛ',
+                currentShares: 'አሁን ያለው አክሲዮን', availableSavings: 'የሚገኝ ቁጠባ',
+                savings: 'ቁጠባ', cash: 'ጥሬ ገንዘብ', mobileBanking: 'የሞባይል ባንክ',
+                bankDeposit: 'የባንክ ተቀማጭ', clear: 'አጽዳ', save: 'አስገባ',
+                view: 'ይመልከቱ', edit: 'አስተካክል', delete: 'ሰርዝ', approve: 'ፀድቅ', reject: 'ውድቅ አድርግ',
+                approved: 'የፀደቀ', pending: 'በመጠበቅ ላይ', rejected: 'ውድቅ የተደረገ',
+                recordSaved: 'የአክሲዮን ግብይት በተሳካ ሁኔታ ተመዝግቧል!',
+                saveError: 'መረጃ በማስቀመጥ ላይ ስህተት: ',
+                loadError: 'መረጃ በማስገባት ላይ ስህተት: ',
+                deleteSuccess: 'የአክሲዮን ግብይት በተሳካ ሁኔታ ተሰርዟል።',
+                deleteError: 'መረጃ በማጥፋት ላይ ስህተት: ',
+                approveSuccess: 'የአክሲዮን ግብይት በተሳካ ሁኔታ ጸድቋል!',
+                rejectSuccess: 'የአክሲዮን ግብይት ውድቅ ተደርጓል!',
+                duplicateWarning: 'ይህ የቲቲ ቁጥር እና የዝውውር ቀን ቀድሞ አለ።',
+                duplicateError: 'ተመሳሳይ የቲቲ ቁጥር እና የዝውውር ቀን ተገኝቷል!',
+                amountMustBeInRange: 'መጠኑ በተወሰነው ገደብ ውስጥ መሆን አለበት',
+                insufficientSavings: 'የቁጠባ ቀሪ ሂሳብ በቂ አይደለም። የሚገኘው: ETB {available}',
+                transferTypeRestricted: 'የጥሬ ገንዘብ ክፍያ ለአስተዳዳሪ እና ለሥራ አስኪያጅ ብቻ ነው።',
+                cannotEditApproved: 'የፀደቀ ወይም ውድቅ የተደረገ የአክሲዮን ግብይት ማስተካከል አይቻልም።',
+                unauthorized: 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም።',
+                testConnection: 'ግንኙነት ሞክር',
+                connectionSuccess: '✅ ግንኙነቱ ተሳክቷል!',
+                connectionFailed: '❌ ግንኙነቱ አልተሳካም: ',
+                note: 'ማስታወሻ (አማራጭ)',
+                shareRange: 'የአክሲዮን ዋጋ ገደብ:',
+                fromSettings: 'ከስርዓት ቅንብሮች',
+                shareCountHint: 'በአክሲዮን ዋጋ መሰረት በራስ-ሰር ይሰላል',
+                paymentMethodInfo: 'የጥሬ ገንዘብ ክፍያ ለአስተዳዳሪ እና ለሥራ አስኪያጅ ብቻ',
+                loading: 'የአክሲዮን መረጃ በመጫን ላይ...',
+                logoutConfirm: 'የመውጣት ማረጋገጫ',
+                logoutMessage: 'እርግጠኛ ነዎት መውጣት ይፈልጋሉ? መለያዎን እንደገና ለመግባት እንደገና መግባት ያስፈልግዎታል።',
+                cancel: 'ሰርዝ',
+                deleteTitle: 'የአክሲዮን መዝገብ ሰርዝ',
+                deleteConfirm: 'እርግጠኛ ነዎት ይህንን የአክሲዮን ግብይት መዝገብ ለመሰረዝ ይፈልጋሉ?',
+                deleteWarning: '⚠️ ይህ ተግባር ሊቀለበስ አይችልም። ሁሉም ተያያዥ መረጃዎች ይወገዳሉ።',
+                shareDetails: 'የአክሲዮን ግብይት ዝርዝሮች',
+                sharePurchase: 'የአክሲዮን ግዢ',
+                shareSale: 'የአክሲዮን ሽያጭ',
+                shareTransfer: 'የአክሲዮን ዝውውር',
+                from: 'ከ',
+                to: 'ለ',
+                transferFrom: 'ከሚዛወረው',
+                transferTo: 'ወደሚዛወረው',
+                sharePrice: 'የአክሲዮን ዋጋ',
+                insufficientShares: 'ለመሸጥ በቂ አክሲዮን የለም። የሚገኘው: {available} አክሲዮን',
+                cannotSellToSelf: 'ለራስዎ አክሲዮን ማዛወር አይችሉም።',
+                shareTransferSuccess: 'አክሲዮኖች በተሳካ ሁኔታ ተዘዋውረዋል!',
+                shareSaleSuccess: 'አክሲዮኖች በተሳካ ሁኔታ ተሽጠዋል!',
+                sharePurchaseSuccess: 'አክሲዮኖች በተሳካ ሁኔታ ተገዝተዋል!',
+                sellNotEnoughShares: 'ለመሸጥ በቂ አክሲዮን የለዎትም። የሚገኘው: {available} አክሲዮን',
+                transferNotEnoughShares: 'ከሚዛወረው ደንበኛ ለማዛወር በቂ አክሲዮን የለም። የሚገኘው: {available} አክሲዮን',
+                statusUpdated: 'ሁኔታው በተሳካ ሁኔታ ተሻሽሏል!',
+                errorUpdatingStatus: 'ሁኔታውን በማሻሻል ላይ ስህተት: ',
+                shareNotFound: 'የአክሲዮን ግብይት አልተገኘም።',
+            },
+            om: {
+                brandSub: 'Sirna Baankii', navDashboard: 'Gabatee', navCustomers: 'Maamila',
+                navSavings: 'Kusaa', navDeposits: 'Kaasaa', navLoans: 'Liqii',
+                navRepayments: 'Kaffaltuu', navWithdrawals: 'Baasii', navDividends: 'Qooda',
+                navShares: 'Hirmaata', navReports: 'Odeeffannoo', navPenalties: 'Adaba',
+                navAudit: 'Seenaa Galmee', navUsers: 'Fayyadamtoota', navSettings: 'Qindeessaa',
+                logout: 'Baasi', pageTitle: 'Bulchiinsa Hirmaata', breadcrumb: 'Mana / Hirmaata',
+                sharesTitle: 'Bulchiinsa Hirmaata', sharesSub: 'Hirmaata biti, gurguri ykn jijjiirri',
+                buyShares: 'Hirmaata Biti', sellShares: 'Hirmaata Gurguri', transferShares: 'Hirmaata Jijjiirri',
+                totalShares: 'Hirmaata Waligalaa', approvedShares: 'Mirkanaa\'e', pendingShares: 'Eegamaa',
+                rejectedShares: 'Garfame', memberCount: 'Miseensota', avgShares: 'Giddugaleessa miseensa',
+                searchPlaceholder: 'Maqaa maamila ykn lakkoofsa TT-tiin barbaadi...',
+                allStatus: 'Haala Hunda', pendingStatus: 'Eegamaa', approvedStatus: 'Mirkanaa\'e',
+                rejectedStatus: 'Garfame', allTypes: 'Gosa Hunda', buy: 'Biti', sell: 'Gurguri',
+                transfer: 'Jijjiirri', allYears: 'Waggaa Hunda',
+                totalShareRecords: 'Daldala Hirmaata Waligalaa: ', noShares: 'Daldala Hirmaata hin argamne.',
+                showing: 'Agarsii', of: 'keessaa', customer: 'Maamila', type: 'Gosa',
+                amount: 'Qaba', shareCount: 'Hirmaata', paymentMethod: 'Haala Kaffaltii',
+                ttNumber: 'Lakkoofsa TT', status: 'Haala', recordedBy: 'Galmeesse',
+                date: 'Guyyaa', actions: 'Gochaa', searchCustomer: 'Maamila Barbaadi',
+                fromCustomer: 'Maamila Irraa', toCustomer: 'Maamilaaf',
+                currentShares: 'Hirmaata Ammaa', availableSavings: 'Kusaa Argamu',
+                savings: 'Kusaa', cash: 'Maallaqa Qara', mobileBanking: 'Baankii Mobayilaa',
+                bankDeposit: 'Kaasaa Baankii', clear: 'Haqi', save: 'Galmeessi',
+                view: 'Ilaali', edit: 'Jijjiiri', delete: 'Haqi', approve: 'Mirkaneessi', reject: 'Garfii',
+                approved: 'Mirkanaa\'e', pending: 'Eegamaa', rejected: 'Garfame',
+                recordSaved: 'Daldala Hirmaata sirriitti galmeeffame!',
+                saveError: 'Galmeessuuf dogoggora: ',
+                loadError: 'Datuu galmeessuuf dogoggora: ',
+                deleteSuccess: 'Daldala Hirmaata sirriitti haqame.',
+                deleteError: 'Haguuf dogoggora: ',
+                approveSuccess: 'Daldala Hirmaata sirriitti mirkanaa\'e!',
+                rejectSuccess: 'Daldala Hirmaata garfame!',
+                duplicateWarning: 'Lakkoofsa TT fi guyyaa jijjiirraa kana duraan jira.',
+                duplicateError: 'Lakkoofsa TT fi guyyaa jijjiirraa wal fakkaatu argame!',
+                amountMustBeInRange: 'Qabni daangaa keessatti ta\'uu qaba',
+                insufficientSavings: 'Hamma kusaa hin caalle. Argamu: ETB {available}',
+                transferTypeRestricted: 'Kaffaltiin qaraa Admin fi Manager qofaaf.',
+                cannotEditApproved: 'Daldala hirmaata mirkanaa\'e ykn garfame jijjiiruu hin dandeenye.',
+                unauthorized: 'Gochaa kana raawwachuuf hayyamamtee hin jirtu.',
+                testConnection: 'Qunnamtii Mirkaneessi',
+                connectionSuccess: '✅ Qunnamtii milkaa\'e!',
+                connectionFailed: '❌ Qunnamtii hin milkaanne: ',
+                note: 'Hubachi (Filannoo)',
+                shareRange: 'Daangaa Gatii Hirmaata:',
+                fromSettings: 'Qindeessaa Sirnaa irraa',
+                shareCountHint: 'Gatii hirmaataatiin ofumaan shallagama',
+                paymentMethodInfo: 'Kaffaltiin qaraa Admin fi Manager qofaaf',
+                loading: 'Datuu hirmaata feʼuu...',
+                logoutConfirm: 'Mirkaneessa Baasuu',
+                logoutMessage: 'Baasuu barbaaddaa? Akkaataa galmaan deebi\'uuf deebi\'uu qabdu.',
+                cancel: 'Haqi',
+                deleteTitle: 'Galmee Hirmaata Haqi',
+                deleteConfirm: 'Daldala hirmaata kana haquu barbaaddaa?',
+                deleteWarning: '⚠️ Gochaan kun deebi\'uu hin danda\'u. Datuun hundi ni haqama.',
+                shareDetails: 'Ibsa Daldala Hirmaata',
+                sharePurchase: 'Bituu Hirmaata',
+                shareSale: 'Gurguruu Hirmaata',
+                shareTransfer: 'Jijjiirraa Hirmaata',
+                from: 'Irraa',
+                to: 'If',
+                transferFrom: 'Irraa Jijjiirrama',
+                transferTo: 'If Jijjiirrama',
+                sharePrice: 'Gatii Hirmaata',
+                insufficientShares: 'Gurguruuf hirmaata hin caalle. Argamu: {available} hirmaata',
+                cannotSellToSelf: 'Hirmaata ofif jijjiiruu hin dandeenye.',
+                shareTransferSuccess: 'Hirmaata sirriitti jijjiirrame!',
+                shareSaleSuccess: 'Hirmaata sirriitti gurgurame!',
+                sharePurchaseSuccess: 'Hirmaata sirriitti bitame!',
+                sellNotEnoughShares: 'Gurguruuf hirmaata hin qabdu. Argamu: {available} hirmaata',
+                transferNotEnoughShares: 'Maamila irraa jijjiirruuf hirmaata hin caalle. Argamu: {available} hirmaata',
+                statusUpdated: 'Haalli sirriitti fooyya\'e!',
+                errorUpdatingStatus: 'Haala fooyyessuuf dogoggora: ',
+                shareNotFound: 'Daldala hirmaata hin argamne.',
+            }
+        };
+
+        let currentLang = 'en';
+        let currentUserRole = 'viewer';
+        let currentUserDisplayName = 'Admin';
+
+        // ============================================================
+        // GLOBALS
+        // ============================================================
+        let allShares = [];
+        let filteredShares = [];
+        let customersMap = {};
+        let currentPage = 1;
+        const pageSize = 10;
+        let searchQuery = '';
+        let filterStatus = 'all';
+        let filterType = 'all';
+        let filterYear = 'all';
+        let minShareValue = 0;
+        let maxShareValue = 100000;
+        let sharePrice = 1000;
+        let isAdmin = false;
+        let currentTransactionType = 'buy';
+        let selectedCustomerId = null;
+        let selectedFromCustomerId = null;
+        let selectedToCustomerId = null;
+
+        // ============================================================
+        // TOAST SYSTEM
+        // ============================================================
+        function showToast(message, type = 'success') {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'toast-container';
+                document.body.appendChild(container);
+            }
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icon = document.createElement('i');
+            if (type === 'success') icon.className = 'fas fa-check-circle';
+            else if (type === 'error') icon.className = 'fas fa-exclamation-circle';
+            else icon.className = 'fas fa-exclamation-triangle';
+            toast.appendChild(icon);
+            const text = document.createElement('span');
+            text.textContent = message;
+            toast.appendChild(text);
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('fade-out');
+                setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
+            }, 4500);
+        }
+
+        // ============================================================
+        // LANGUAGE FUNCTIONS
+        // ============================================================
+        function setLanguage(lang) {
+            if (!translations[lang]) return;
+            currentLang = lang;
+            const t = translations[lang];
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key] !== undefined) {
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+                        if (el.type !== 'file') el.placeholder = t[key];
+                    } else {
+                        el.innerHTML = t[key];
+                    }
+                }
+            });
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.lang === lang);
+            });
+            try { localStorage.setItem('waciti-lang', lang); } catch (e) {}
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) searchInput.placeholder = t.searchPlaceholder || 'Search...';
+            updatePaginationInfo();
+            renderPageButtons();
+            updateMinMaxBanner();
+            const testBtn = document.getElementById('testConnectionBtn');
+            if (testBtn) {
+                const span = testBtn.querySelector('span');
+                if (span) span.textContent = t.testConnection || 'Test Connection';
+            }
+            // Update the Buy/Sell/Transfer buttons text
+            document.querySelectorAll('#buyShareBtn span, #sellShareBtn span, #transferShareBtn span').forEach(el => {
+                const key = el.getAttribute('data-i18n') || el.textContent.trim().replace(/\s/g, '');
+                if (key === 'BuyShares') el.textContent = t.buyShares || 'Buy Shares';
+                else if (key === 'SellShares') el.textContent = t.sellShares || 'Sell Shares';
+                else if (key === 'TransferShares') el.textContent = t.transferShares || 'Transfer Shares';
+            });
+            // Update modal title based on transaction type
+            updateModalTitle();
+            const currentItems = filteredShares.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+            renderTable(currentItems);
+        }
+
+        function initLanguage() {
+            const saved = localStorage.getItem('waciti-lang') || navigator.language.split('-')[0];
+            const valid = ['en', 'am', 'om'];
+            setLanguage(valid.includes(saved) ? saved : 'en');
+        }
+
+        // ============================================================
+        // TEST CONNECTION
+        // ============================================================
+        async function testConnection() {
+            try {
+                await db.collection('customers').limit(1).get();
+                const t = translations[currentLang];
+                showToast(t.connectionSuccess || '✅ Connection successful!', 'success');
+                return true;
+            } catch (error) {
+                console.error('Connection test failed:', error);
+                const t = translations[currentLang];
+                showToast((t.connectionFailed || '❌ Connection failed: ') + error.message, 'error');
+                return false;
+            }
+        }
+        document.getElementById('testConnectionBtn')?.addEventListener('click', testConnection);
+
+        // ============================================================
+        // SIDEBAR
+        // ============================================================
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+
+        function toggleSidebarCollapse() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+            localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed') ? 'true' : 'false');
+        }
+
+        function loadSidebarState() {
+            const sidebar = document.getElementById('sidebar');
+            const isCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+            if (isCollapsed) sidebar.classList.add('collapsed');
+            else sidebar.classList.remove('collapsed');
+        }
+
+        // ============================================================
+        // USER INFO
+        // ============================================================
+        function updateUserInfo() {
+            const roleMap = { admin: 'ADMIN', manager: 'MANAGER', teller: 'TELLER', accountant: 'ACCOUNTANT', viewer: 'VIEWER' };
+            const roleLabel = roleMap[currentUserRole] || 'VIEWER';
+            const displayName = currentUserDisplayName || 'User';
+            document.getElementById('userDisplayName').textContent = displayName + ' (' + roleLabel + ')';
+            isAdmin = currentUserRole === 'admin';
+            const isAdminManager = ['admin', 'manager'].includes(currentUserRole);
+            const auditNav = document.getElementById('auditNavItem');
+            if (auditNav) auditNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
+            const usersNav = document.getElementById('usersNavItem');
+            if (usersNav) usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
+            // Update payment method options
+            updatePaymentMethodOptions();
+        }
+
+        function updatePaymentMethodOptions() {
+            const paymentMethod = document.getElementById('paymentMethod');
+            if (!paymentMethod) return;
+            const isAdminManager = ['admin', 'manager'].includes(currentUserRole);
+            const t = translations[currentLang];
+            const currentVal = paymentMethod.value;
+            paymentMethod.innerHTML = '';
+            // Always show savings
+            const savingsOpt = document.createElement('option');
+            savingsOpt.value = 'savings';
+            savingsOpt.textContent = t.savings || 'Savings';
+            paymentMethod.appendChild(savingsOpt);
+            // Cash only for admin/manager
+            if (isAdminManager) {
+                const cashOpt = document.createElement('option');
+                cashOpt.value = 'cash';
+                cashOpt.textContent = t.cash || 'Cash';
+                paymentMethod.appendChild(cashOpt);
+            }
+            const mobileOpt = document.createElement('option');
+            mobileOpt.value = 'mobile';
+            mobileOpt.textContent = t.mobileBanking || 'Mobile Banking';
+            paymentMethod.appendChild(mobileOpt);
+            const bankOpt = document.createElement('option');
+            bankOpt.value = 'bank';
+            bankOpt.textContent = t.bankDeposit || 'Bank Deposit';
+            paymentMethod.appendChild(bankOpt);
+            if ([...paymentMethod.options].some(o => o.value === currentVal)) paymentMethod.value = currentVal;
+            else paymentMethod.value = 'savings';
+            const infoEl = document.getElementById('paymentMethodInfo');
+            if (infoEl) {
+                infoEl.textContent = isAdminManager ?
+                    (t.paymentMethodInfo || 'Cash available for Admin/Manager only') :
+                    (t.savings + ', ' + t.mobileBanking + ', ' + t.bankDeposit);
+            }
+            toggleConditionalFields();
+        }
+
+        // ============================================================
+        // LOGGING
+        // ============================================================
+        async function logAudit(action, collection, documentId, changes = {}, details = '') {
+            try {
+                const user = auth.currentUser;
+                const userEmail = user?.email || 'system';
+                const userName = user?.displayName || user?.email || 'System';
+                const userDisplayName = user?.displayName || 'System';
+                await db.collection('audit').add({
+                    action, collection, documentId, changes,
+                    details: details || `${action} ${collection} document ${documentId}`,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    userEmail, userName, userDisplayName
+                });
+            } catch (error) {
+                console.error('Error writing to audit log:', error);
+            }
+        }
+
+        // ============================================================
+        // PERMISSIONS
+        // ============================================================
+        function canApproveReject() { return ['admin', 'manager'].includes(currentUserRole); }
+        function canEdit() { return currentUserRole === 'admin'; }
+        function canDelete() { return currentUserRole === 'admin'; }
+
+        // ============================================================
+        // LOAD SETTINGS
+        // ============================================================
+        async function loadSettings() {
+            try {
+                const doc = await db.collection('settings').doc('system').get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    minShareValue = data.minShareValue || data.minShares || 0;
+                    maxShareValue = data.maxShareValue || data.maxShares || 100000;
+                    sharePrice = data.sharePrice || 1000;
+                }
+                updateMinMaxBanner();
+                return { minShareValue, maxShareValue, sharePrice };
+            } catch (error) {
+                console.error('Error loading settings:', error);
+                return { minShareValue: 0, maxShareValue: 100000, sharePrice: 1000 };
+            }
+        }
+
+        function updateMinMaxBanner() {
+            const t = translations[currentLang];
+            const minDisplay = document.getElementById('minShareDisplay');
+            const maxDisplay = document.getElementById('maxShareDisplay');
+            const hint = document.getElementById('shareRangeHint');
+            const amountInput = document.getElementById('amountInput');
+            const warning = document.getElementById('shareRangeWarning');
+
+            const minStr = minShareValue.toFixed(2);
+            const maxStr = maxShareValue.toFixed(2);
+
+            if (minDisplay) minDisplay.textContent = `Min: ETB ${minStr}`;
+            if (maxDisplay) maxDisplay.textContent = `Max: ETB ${maxStr}`;
+            if (hint) {
+                hint.style.display = (minShareValue > 0 || maxShareValue > 0) ? 'block' : 'none';
+                hint.textContent = `Min: ${minStr} | Max: ${maxStr} ETB`;
+            }
+            if (amountInput) {
+                amountInput.min = minShareValue;
+                amountInput.max = maxShareValue;
+                amountInput.placeholder = minShareValue > 0 ? `Min: ${minStr}` : '0.00';
+            }
+            if (warning) {
+                warning.style.display = (minShareValue > 0 || maxShareValue > 0) ? 'inline' : 'none';
+                warning.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${t.amountMustBeInRange || 'Amount must be within range'}`;
+            }
+            const banner = document.getElementById('minMaxBanner');
+            if (banner) {
+                banner.style.display = (minShareValue > 0 || maxShareValue > 0) ? 'flex' : 'none';
+            }
+        }
+
+        // ============================================================
+        // LOAD CUSTOMERS
+        // ============================================================
+        async function loadCustomers() {
+            try {
+                const snapshot = await db.collection('customers').get();
+                customersMap = {};
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    customersMap[doc.id] = {
+                        fullName: data.fullName || data.name || 'Unknown',
+                        customerId: data.customerId || doc.id,
+                        email: data.email || '',
+                        phone: data.phone || ''
+                    };
+                });
+                console.log('✅ Customers loaded:', Object.keys(customersMap).length);
+                // Update member count in stats
+                document.getElementById('memberCount').textContent = Object.keys(customersMap).length;
+                return true;
+            } catch (error) {
+                console.error('Error loading customers:', error);
+                showToast('Error loading customers: ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        function getCustomerName(customerId) {
+            if (!customerId) return 'Unknown';
+            const customer = customersMap[customerId];
+            return customer ? customer.fullName : 'Unknown';
+        }
+
+        function getCustomer(customerId) {
+            return customersMap[customerId] || null;
+        }
+
+        // ============================================================
+        // GET CUSTOMER SHARES
+        // ============================================================
+        async function getCustomerShares(customerId) {
+            try {
+                const snapshot = await db.collection('transactions')
+                    .where('customerId', '==', customerId)
+                    .where('type', 'in', ['share_buy', 'share_transfer_in'])
+                    .where('status', '==', 'approved')
+                    .get();
+                let total = 0;
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    total += Number(data.shares) || Number(data.amount) / sharePrice || 0;
+                });
+                // Subtract sells and transfers out
+                const sellSnapshot = await db.collection('transactions')
+                    .where('customerId', '==', customerId)
+                    .where('type', 'in', ['share_sell', 'share_transfer_out'])
+                    .where('status', '==', 'approved')
+                    .get();
+                sellSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    total -= Number(data.shares) || Number(data.amount) / sharePrice || 0;
+                });
+                return Math.max(0, Math.round(total * 100) / 100);
+            } catch (error) {
+                console.error('Error getting customer shares:', error);
+                return 0;
+            }
+        }
+
+        async function getCustomerSavingsBalance(customerId) {
+            try {
+                const snapshot = await db.collection('transactions')
+                    .where('customerId', '==', customerId)
+                    .where('type', '==', 'savings')
+                    .where('status', '==', 'approved')
+                    .get();
+                let total = 0;
+                snapshot.forEach(doc => {
+                    total += Number(doc.data().amount) || 0;
+                });
+                return Math.round(total * 100) / 100;
+            } catch (error) {
+                console.error('Error getting savings balance:', error);
+                return 0;
+            }
+        }
+
+        // ============================================================
+        // CHECK DUPLICATE
+        // ============================================================
+        async function checkDuplicate(customerId, ttNumber, transferDate, excludeId = null) {
+            try {
+                if (!customerId || !ttNumber || !transferDate) return false;
+                const parts = transferDate.split('-').map(Number);
+                const start = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 0, 0, 0));
+                const end = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999));
+                let query = db.collection('transactions')
+                    .where('customerId', '==', customerId)
+                    .where('ttNumber', '==', ttNumber)
+                    .where('transferDate', '>=', start)
+                    .where('transferDate', '<=', end)
+                    .where('type', 'in', ['share_buy', 'share_sell', 'share_transfer_in', 'share_transfer_out']);
+                const snapshot = await query.get();
+                if (excludeId) {
+                    return snapshot.docs.some(d => d.id !== excludeId);
+                }
+                return !snapshot.empty;
+            } catch (error) {
+                console.error('Duplicate check error:', error);
+                return false;
+            }
+        }
+
+        // ============================================================
+        // LOAD SHARES
+        // ============================================================
+        async function loadShares() {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.add('active');
+            try {
+                const snapshot = await db.collection('transactions')
+                    .where('type', 'in', ['share_buy', 'share_sell', 'share_transfer_in', 'share_transfer_out'])
+                    .get();
+                allShares = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const type = data.type || 'share_buy';
+                    // Normalize: ensure shares field exists
+                    const shares = data.shares || (data.amount ? Math.round(data.amount / sharePrice) : 0);
+                    allShares.push({
+                        id: doc.id,
+                        ...data,
+                        shares: shares,
+                        customerName: getCustomerName(data.customerId),
+                        fromCustomerName: data.fromCustomerId ? getCustomerName(data.fromCustomerId) : null,
+                        toCustomerName: data.toCustomerId ? getCustomerName(data.toCustomerId) : null,
+                        displayType: type === 'share_buy' ? 'Buy' :
+                            type === 'share_sell' ? 'Sell' :
+                            type === 'share_transfer_in' ? 'Transfer In' :
+                            type === 'share_transfer_out' ? 'Transfer Out' : 'Buy'
+                    });
+                });
+                console.log('✅ Shares loaded:', allShares.length);
+                allShares.sort((a, b) => {
+                    const da = a.date && a.date.toDate ? a.date.toDate() : new Date(a.date);
+                    const db = b.date && b.date.toDate ? b.date.toDate() : new Date(b.date);
+                    return db - da;
+                });
+                populateYearFilter();
+                applySearch();
+                updateStats();
+                overlay.classList.remove('active');
+            } catch (error) {
+                console.error('Error loading shares:', error);
+                showToast(translations[currentLang].loadError + error.message, 'error');
+                overlay.classList.remove('active');
+            }
+        }
+
+        // ============================================================
+        // POPULATE YEAR FILTER
+        // ============================================================
+        function populateYearFilter() {
+            const yearFilter = document.getElementById('yearFilter');
+            const years = new Set();
+            allShares.forEach(s => {
+                const date = s.date ? (s.date.toDate ? s.date.toDate() : new Date(s.date)) : null;
+                if (date && !isNaN(date.getFullYear())) years.add(date.getFullYear());
+            });
+            const currentYear = new Date().getFullYear();
+            years.add(currentYear);
+            const currentVal = yearFilter.value;
+            yearFilter.innerHTML = '';
+            const allOpt = document.createElement('option');
+            allOpt.value = 'all';
+            allOpt.setAttribute('data-i18n', 'allYears');
+            allOpt.textContent = translations[currentLang].allYears || 'All Years';
+            yearFilter.appendChild(allOpt);
+            const sortedYears = Array.from(years).sort((a, b) => b - a);
+            sortedYears.forEach(y => {
+                const opt = document.createElement('option');
+                opt.value = y;
+                opt.textContent = y;
+                yearFilter.appendChild(opt);
+            });
+            if (sortedYears.includes(Number(currentVal)) && currentVal !== 'all') yearFilter.value = currentVal;
+            else yearFilter.value = 'all';
+            filterYear = yearFilter.value;
+        }
+
+        // ============================================================
+        // APPLY SEARCH
+        // ============================================================
+        function applySearch() {
+            searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
+            filterStatus = document.getElementById('statusFilter').value;
+            filterType = document.getElementById('transactionTypeFilter').value;
+            filterYear = document.getElementById('yearFilter').value;
+
+            let filtered = [...allShares];
+
+            if (searchQuery) {
+                filtered = filtered.filter(s =>
+                    s.customerName.toLowerCase().includes(searchQuery) ||
+                    (s.fromCustomerName && s.fromCustomerName.toLowerCase().includes(searchQuery)) ||
+                    (s.toCustomerName && s.toCustomerName.toLowerCase().includes(searchQuery)) ||
+                    (s.ttNumber && s.ttNumber.toLowerCase().includes(searchQuery))
+                );
+            }
+
+            if (filterStatus !== 'all') {
+                filtered = filtered.filter(s => s.status === filterStatus);
+            }
+
+            if (filterType !== 'all') {
+                if (filterType === 'buy') filtered = filtered.filter(s => s.type === 'share_buy');
+                else if (filterType === 'sell') filtered = filtered.filter(s => s.type === 'share_sell');
+                else if (filterType === 'transfer') filtered = filtered.filter(s => s.type === 'share_transfer_in' || s.type === 'share_transfer_out');
+            }
+
+            if (filterYear !== 'all') {
+                const yearNum = Number(filterYear);
+                filtered = filtered.filter(s => {
+                    const date = s.date ? (s.date.toDate ? s.date.toDate() : new Date(s.date)) : null;
+                    return date && date.getFullYear() === yearNum;
+                });
+            }
+
+            filteredShares = filtered;
+            currentPage = 1;
+            paginateShares();
+            updateStats();
+        }
+
+        // ============================================================
+        // PAGINATE
+        // ============================================================
+        function paginateShares() {
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageItems = filteredShares.slice(start, end);
+            renderTable(pageItems);
+            updatePaginationInfo();
+            renderPageButtons();
+        }
+
+        // ============================================================
+        // RENDER TABLE
+        // ============================================================
+        function renderTable(items) {
+            const tbody = document.getElementById('sharesBody');
+            const t = translations[currentLang];
+            if (!items || items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:40px; color:var(--text-secondary);">${t.noShares}</td></tr>`;
+                return;
+            }
+
+            let html = '';
+            items.forEach((s, i) => {
+                let statusClass = 'pending', statusLabel = t.pending;
+                if (s.status === 'approved') { statusClass = 'approved'; statusLabel = t.approved; }
+                else if (s.status === 'rejected') { statusClass = 'rejected'; statusLabel = t.rejected; }
+
+                const dateStr = s.date ? (s.date.toDate ? s.date.toDate().toLocaleDateString() : new Date(s.date).toLocaleDateString()) : '—';
+                let byUser = s.createdByName || s.createdBy || s.createdByEmail || 'Admin';
+                if (byUser.includes('@')) byUser = byUser.split('@')[0];
+
+                const typeMap = {
+                    'share_buy': t.buy || 'Buy',
+                    'share_sell': t.sell || 'Sell',
+                    'share_transfer_in': t.transfer || 'Transfer',
+                    'share_transfer_out': t.transfer || 'Transfer'
+                };
+                const typeLabel = typeMap[s.type] || s.type || '—';
+
+                const paymentMethodMap = {
+                    'savings': t.savings || 'Savings',
+                    'cash': t.cash || 'Cash',
+                    'mobile': t.mobileBanking || 'Mobile Banking',
+                    'bank': t.bankDeposit || 'Bank Deposit'
+                };
+                const paymentLabel = paymentMethodMap[s.paymentMethod] || s.paymentMethod || '—';
+
+                let customerDisplay = s.customerName || 'Unknown';
+                if (s.type === 'share_transfer_in' && s.fromCustomerName) {
+                    customerDisplay = `${s.fromCustomerName} → ${s.toCustomerName || s.customerName}`;
+                } else if (s.type === 'share_transfer_out' && s.toCustomerName) {
+                    customerDisplay = `${s.customerName} → ${s.toCustomerName}`;
+                }
+
+                let actionsHtml = `
+                        <button class="action-btn-sm view" onclick="viewShare('${s.id}')" title="${t.view}"><i class="fas fa-eye"></i></button>
+                    `;
+
+                if (canApproveReject() && s.status === 'pending') {
+                    actionsHtml += `
+                            <button class="action-btn-sm approve" onclick="approveShare('${s.id}')" title="${t.approve}"><i class="fas fa-check"></i></button>
+                            <button class="action-btn-sm reject" onclick="rejectShare('${s.id}')" title="${t.reject}"><i class="fas fa-times"></i></button>
+                        `;
+                }
+
+                if (canEdit() || (currentUserRole === 'manager' && s.status === 'pending')) {
+                    actionsHtml += `<button class="action-btn-sm edit" onclick="editShare('${s.id}')" title="${t.edit}"><i class="fas fa-edit"></i></button>`;
+                }
+
+                if (canDelete() || (currentUserRole === 'manager' && s.status === 'pending')) {
+                    actionsHtml += `<button class="action-btn-sm delete" onclick="showDeleteModal('${s.id}')" title="${t.delete}"><i class="fas fa-trash"></i></button>`;
+                }
+
+                const sharesDisplay = s.shares ? Number(s.shares).toFixed(2) : '—';
+
+                html += `
+                        <tr>
+                            <td>${(currentPage-1)*pageSize + i + 1}</td>
+                            <td><strong>${customerDisplay}</strong></td>
+                            <td><span style="font-size:11px; background:var(--border-color); padding:2px 8px; border-radius:12px;">${typeLabel}</span></td>
+                            <td>ETB ${Number(s.amount).toLocaleString()}</td>
+                            <td>${sharesDisplay}</td>
+                            <td><span style="font-size:11px; background:var(--border-color); padding:2px 8px; border-radius:12px;">${paymentLabel}</span></td>
+                            <td>${s.ttNumber ? `<code style="font-size:12px;">${s.ttNumber}</code>` : '—'}</td>
+                            <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+                            <td>${byUser}</td>
+                            <td>${dateStr}</td>
+                            <td>${actionsHtml}</td>
+                        </tr>
+                    `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        // ============================================================
+        // UPDATE STATS
+        // ============================================================
+        function updateStats() {
+            const total = allShares
+                .filter(s => s.status === 'approved')
+                .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+
+            const approved = allShares
+                .filter(s => s.status === 'approved')
+                .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+
+            const pending = allShares
+                .filter(s => s.status === 'pending')
+                .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+
+            const rejected = allShares
+                .filter(s => s.status === 'rejected')
+                .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+
+            const memberCount = Object.keys(customersMap).length;
+            const avg = memberCount > 0 ? total / memberCount : 0;
+
+            document.getElementById('totalShares').textContent = 'ETB ' + total.toFixed(2);
+            document.getElementById('approvedShares').textContent = 'ETB ' + approved.toFixed(2);
+            document.getElementById('pendingShares').textContent = 'ETB ' + pending.toFixed(2);
+            document.getElementById('rejectedShares').textContent = 'ETB ' + rejected.toFixed(2);
+            document.getElementById('memberCount').textContent = memberCount;
+            document.getElementById('avgShares').textContent = 'ETB ' + avg.toFixed(2);
+            document.getElementById('totalCount').textContent = allShares.length;
+        }
+
+        // ============================================================
+        // PAGINATION
+        // ============================================================
+        function updatePaginationInfo() {
+            const total = filteredShares.length;
+            const start = (currentPage - 1) * pageSize + 1;
+            const end = Math.min(currentPage * pageSize, total);
+            document.getElementById('pageStart').textContent = total > 0 ? start : 0;
+            document.getElementById('pageEnd').textContent = total > 0 ? end : 0;
+            document.getElementById('totalSharesCount').textContent = total;
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = currentPage >= Math.ceil(total / pageSize) || total === 0;
+        }
+
+        function renderPageButtons() {
+            const container = document.getElementById('pageNumbers');
+            const totalPages = Math.ceil(filteredShares.length / pageSize);
+            if (totalPages <= 1) { container.innerHTML = ''; return; }
+            let html = '';
+            const maxVisible = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+            if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
+            if (startPage > 1) {
+                html += `<button class="pagination-btn" onclick="goToPage(1)">1</button>`;
+                if (startPage > 2) html += `<button class="pagination-btn" disabled>...</button>`;
+            }
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) html += `<button class="pagination-btn" disabled>...</button>`;
+                html += `<button class="pagination-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function goToPage(page) {
+            const totalPages = Math.ceil(filteredShares.length / pageSize);
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            paginateShares();
+            document.querySelector('.table-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // ============================================================
+        // CUSTOMER SEARCH (Single)
+        // ============================================================
+        function setupCustomerSearch() {
+            const searchInput = document.getElementById('customerSearch');
+            const hiddenId = document.getElementById('customerId');
+            const suggestions = document.getElementById('customerSuggestions');
+            const infoDisplay = document.getElementById('customerInfoDisplay');
+
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                if (!query) { suggestions.style.display = 'none'; hiddenId.value = ''; infoDisplay.classList.remove('active'); return; }
+                const filtered = Object.entries(customersMap).filter(([id, data]) =>
+                    data.fullName.toLowerCase().includes(query) ||
+                    (data.customerId && data.customerId.toLowerCase().includes(query))
+                );
+                if (filtered.length === 0) { suggestions.style.display = 'none'; return; }
+                let html = '';
+                filtered.slice(0, 10).forEach(([id, data]) => {
+                    html += `<div onclick="selectCustomer('${id}')">
+                            ${data.fullName} <span style="color:var(--text-secondary); font-size:12px;">${data.customerId || ''}</span>
+                        </div>`;
+                });
+                suggestions.innerHTML = html;
+                suggestions.style.display = 'block';
+            });
+            searchInput.addEventListener('blur', function() {
+                setTimeout(() => { suggestions.style.display = 'none'; }, 200);
+            });
+        }
+
+        async function selectCustomer(id) {
+            const customer = customersMap[id];
+            if (!customer) return;
+
+            document.getElementById('customerSearch').value = customer.fullName + ' (' + (customer.customerId || '') + ')';
+            document.getElementById('customerId').value = id;
+            document.getElementById('customerSuggestions').style.display = 'none';
+            selectedCustomerId = id;
+
+            const infoDisplay = document.getElementById('customerInfoDisplay');
+            document.getElementById('customerNameDisplay').textContent = customer.fullName;
+            document.getElementById('customerIdDisplay').textContent = customer.customerId || id;
+
+            const shares = await getCustomerShares(id);
+            document.getElementById('currentSharesDisplay').textContent = 'ETB ' + shares.toFixed(2);
+
+            const savings = await getCustomerSavingsBalance(id);
+            document.getElementById('availableSavingsDisplay').textContent = 'ETB ' + savings.toFixed(2);
+
+            infoDisplay.classList.add('active');
+
+            // If selling, check if they have enough shares
+            if (currentTransactionType === 'sell') {
+                const amountInput = document.getElementById('amountInput');
+                const maxSellValue = shares * sharePrice;
+                amountInput.max = maxSellValue;
+                amountInput.placeholder = `Max: ${maxSellValue.toFixed(2)} (${shares.toFixed(2)} shares)`;
+            }
+
+            // Validate min/max
+            validateAmount();
+        }
+
+        // ============================================================
+        // CUSTOMER SEARCH (From & To for Transfer)
+        // ============================================================
+        function setupFromCustomerSearch() {
+            const searchInput = document.getElementById('fromCustomerSearch');
+            const hiddenId = document.getElementById('fromCustomerId');
+            const suggestions = document.getElementById('fromCustomerSuggestions');
+
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                if (!query) { suggestions.style.display = 'none'; hiddenId.value = ''; return; }
+                const filtered = Object.entries(customersMap).filter(([id, data]) =>
+                    data.fullName.toLowerCase().includes(query) ||
+                    (data.customerId && data.customerId.toLowerCase().includes(query))
+                );
+                if (filtered.length === 0) { suggestions.style.display = 'none'; return; }
+                let html = '';
+                filtered.slice(0, 10).forEach(([id, data]) => {
+                    html += `<div onclick="selectFromCustomer('${id}')">
+                            ${data.fullName} <span style="color:var(--text-secondary); font-size:12px;">${data.customerId || ''}</span>
+                        </div>`;
+                });
+                suggestions.innerHTML = html;
+                suggestions.style.display = 'block';
+            });
+            searchInput.addEventListener('blur', function() {
+                setTimeout(() => { suggestions.style.display = 'none'; }, 200);
+            });
+        }
+
+        function setupToCustomerSearch() {
+            const searchInput = document.getElementById('toCustomerSearch');
+            const hiddenId = document.getElementById('toCustomerId');
+            const suggestions = document.getElementById('toCustomerSuggestions');
+
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                if (!query) { suggestions.style.display = 'none'; hiddenId.value = ''; return; }
+                const filtered = Object.entries(customersMap).filter(([id, data]) =>
+                    data.fullName.toLowerCase().includes(query) ||
+                    (data.customerId && data.customerId.toLowerCase().includes(query))
+                );
+                if (filtered.length === 0) { suggestions.style.display = 'none'; return; }
+                let html = '';
+                filtered.slice(0, 10).forEach(([id, data]) => {
+                    html += `<div onclick="selectToCustomer('${id}')">
+                            ${data.fullName} <span style="color:var(--text-secondary); font-size:12px;">${data.customerId || ''}</span>
+                        </div>`;
+                });
+                suggestions.innerHTML = html;
+                suggestions.style.display = 'block';
+            });
+            searchInput.addEventListener('blur', function() {
+                setTimeout(() => { suggestions.style.display = 'none'; }, 200);
+            });
+        }
+
+        function selectFromCustomer(id) {
+            const customer = customersMap[id];
+            if (!customer) return;
+            document.getElementById('fromCustomerSearch').value = customer.fullName + ' (' + (customer.customerId || '') + ')';
+            document.getElementById('fromCustomerId').value = id;
+            document.getElementById('fromCustomerSuggestions').style.display = 'none';
+            selectedFromCustomerId = id;
+            validateTransfer();
+        }
+
+        function selectToCustomer(id) {
+            const customer = customersMap[id];
+            if (!customer) return;
+            document.getElementById('toCustomerSearch').value = customer.fullName + ' (' + (customer.customerId || '') + ')';
+            document.getElementById('toCustomerId').value = id;
+            document.getElementById('toCustomerSuggestions').style.display = 'none';
+            selectedToCustomerId = id;
+            validateTransfer();
+        }
+
+        // ============================================================
+        // TOGGLE CONDITIONAL FIELDS
+        // ============================================================
+        function toggleConditionalFields() {
+            const method = document.getElementById('paymentMethod')?.value;
+            const fields = document.getElementById('conditionalFields');
+            const ttRequired = document.getElementById('ttRequired');
+            const transferDateRequired = document.getElementById('transferDateRequired');
+            const bankRequired = document.getElementById('bankRequired');
+            const ttInput = document.getElementById('ttNumber');
+            const transferDateInput = document.getElementById('transferDate');
+            const bankInput = document.getElementById('bankName');
+
+            if (!fields || !ttInput || !transferDateInput || !bankInput) return;
+
+            if (method === 'savings' || method === 'cash') {
+                fields.style.display = 'none';
+                ttInput.removeAttribute('required');
+                transferDateInput.removeAttribute('required');
+                bankInput.removeAttribute('required');
+                if (ttRequired) ttRequired.textContent = '';
+                if (transferDateRequired) transferDateRequired.textContent = '';
+                if (bankRequired) bankRequired.textContent = '';
+            } else {
+                fields.style.display = 'block';
+                ttInput.setAttribute('required', 'required');
+                transferDateInput.setAttribute('required', 'required');
+                if (method === 'bank') {
+                    bankInput.setAttribute('required', 'required');
+                    if (bankRequired) bankRequired.textContent = '*';
+                } else {
+                    bankInput.removeAttribute('required');
+                    if (bankRequired) bankRequired.textContent = '';
+                }
+                if (ttRequired) ttRequired.textContent = '*';
+                if (transferDateRequired) transferDateRequired.textContent = '*';
+            }
+        }
+
+        // ============================================================
+        // VALIDATE AMOUNT
+        // ============================================================
+        function validateAmount() {
+            const amountInput = document.getElementById('amountInput');
+            const shareCountInput = document.getElementById('shareCount');
+            const val = parseFloat(amountInput.value) || 0;
+            const shares = val / sharePrice;
+
+            // Update share count
+            if (shareCountInput && val > 0) {
+                shareCountInput.value = shares.toFixed(2);
+            }
+
+            // Validate range
+            const warning = document.getElementById('shareRangeWarning');
+            if (warning) {
+                if (minShareValue > 0 && val > 0 && val < minShareValue) {
+                    warning.style.display = 'inline';
+                    warning.style.color = '#ffd700';
+                    amountInput.style.borderColor = 'var(--danger)';
+                } else if (maxShareValue > 0 && val > maxShareValue) {
+                    warning.style.display = 'inline';
+                    warning.style.color = '#ffd700';
+                    amountInput.style.borderColor = 'var(--danger)';
+                } else {
+                    warning.style.display = 'none';
+                    amountInput.style.borderColor = '';
+                }
+            }
+
+            // For sell: check if enough shares
+            if (currentTransactionType === 'sell' && selectedCustomerId) {
+                getCustomerShares(selectedCustomerId).then(available => {
+                    const sharesToSell = val / sharePrice;
+                    if (sharesToSell > available) {
+                        const t = translations[currentLang];
+                        showToast(t.sellNotEnoughShares.replace('{available}', available.toFixed(2)), 'warning');
+                        amountInput.style.borderColor = 'var(--danger)';
+                    }
+                });
+            }
+        }
+
+        function validateTransfer() {
+            if (currentTransactionType === 'transfer' && selectedFromCustomerId && selectedToCustomerId) {
+                if (selectedFromCustomerId === selectedToCustomerId) {
+                    const t = translations[currentLang];
+                    showToast(t.cannotSellToSelf || 'Cannot transfer to yourself.', 'warning');
+                    document.getElementById('toCustomerSearch').style.borderColor = 'var(--danger)';
+                    return false;
+                }
+                // Check if from customer has enough shares
+                getCustomerShares(selectedFromCustomerId).then(available => {
+                    const amountInput = document.getElementById('amountInput');
+                    const val = parseFloat(amountInput.value) || 0;
+                    const sharesToTransfer = val / sharePrice;
+                    if (sharesToTransfer > available) {
+                        const t = translations[currentLang];
+                        showToast(t.transferNotEnoughShares.replace('{available}', available.toFixed(2)), 'warning');
+                        amountInput.style.borderColor = 'var(--danger)';
+                    } else {
+                        amountInput.style.borderColor = '';
+                    }
+                });
+                return true;
+            }
+            return true;
+        }
+
+        // ============================================================
+        // UPDATE MODAL TITLE
+        // ============================================================
+        function updateModalTitle() {
+            const t = translations[currentLang];
+            const title = document.getElementById('modalTitle');
+            const icon = document.getElementById('modalIcon');
+            const saveBtn = document.getElementById('saveBtn');
+            const saveSpan = saveBtn?.querySelector('span');
+
+            if (currentTransactionType === 'buy') {
+                title.textContent = t.sharePurchase || 'Share Purchase';
+                if (icon) icon.className = 'fas fa-plus-circle';
+                if (saveSpan) saveSpan.textContent = t.buyShares || 'Buy Shares';
+                document.getElementById('shareCount').disabled = false;
+                document.getElementById('paymentMethod').disabled = false;
+                document.querySelector('.min-max-banner').style.display = 'flex';
+            } else if (currentTransactionType === 'sell') {
+                title.textContent = t.shareSale || 'Share Sale';
+                if (icon) icon.className = 'fas fa-minus-circle';
+                if (saveSpan) saveSpan.textContent = t.sellShares || 'Sell Shares';
+                document.getElementById('shareCount').disabled = false;
+                document.getElementById('paymentMethod').disabled = true;
+                document.getElementById('paymentMethod').value = 'savings';
+                document.querySelector('.min-max-banner').style.display = 'flex';
+            } else if (currentTransactionType === 'transfer') {
+                title.textContent = t.shareTransfer || 'Share Transfer';
+                if (icon) icon.className = 'fas fa-exchange-alt';
+                if (saveSpan) saveSpan.textContent = t.transferShares || 'Transfer Shares';
+                document.getElementById('shareCount').disabled = false;
+                document.getElementById('paymentMethod').disabled = true;
+                document.getElementById('paymentMethod').value = 'savings';
+                document.querySelector('.min-max-banner').style.display = 'none';
+            }
+        }
+
+        // ============================================================
+        // OPEN MODAL
+        // ============================================================
+        function openModal(type) {
+            currentTransactionType = type;
+            document.getElementById('transactionType').value = type;
+            document.getElementById('editId').value = '';
+            document.getElementById('shareForm').reset();
+
+            // Show/hide transfer fields
+            const transferFields = document.getElementById('transferFields');
+            const singleFields = document.getElementById('singleCustomerFields');
+            if (type === 'transfer') {
+                transferFields.style.display = 'block';
+                singleFields.style.display = 'none';
+                document.getElementById('fromCustomerSearch').required = true;
+                document.getElementById('toCustomerSearch').required = true;
+                document.getElementById('customerSearch').required = false;
+                document.getElementById('customerId').value = '';
+                // Hide customer info display
+                document.getElementById('customerInfoDisplay').classList.remove('active');
+            } else {
+                transferFields.style.display = 'none';
+                singleFields.style.display = 'block';
+                document.getElementById('fromCustomerSearch').required = false;
+                document.getElementById('toCustomerSearch').required = false;
+                document.getElementById('customerSearch').required = true;
+            }
+
+            document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+            document.getElementById('amountInput').min = minShareValue;
+            document.getElementById('amountInput').max = maxShareValue;
+            document.getElementById('amountInput').placeholder = minShareValue > 0 ? `Min: ${minShareValue.toFixed(2)}` : '0.00';
+
+            // Set payment method based on type
+            const isAdminManager = ['admin', 'manager'].includes(currentUserRole);
+            if (type === 'sell' || type === 'transfer') {
+                document.getElementById('paymentMethod').value = 'savings';
+                document.getElementById('paymentMethod').disabled = true;
+            } else {
+                document.getElementById('paymentMethod').disabled = false;
+                document.getElementById('paymentMethod').value = isAdminManager ? 'cash' : 'savings';
+            }
+
+            updatePaymentMethodOptions();
+            toggleConditionalFields();
+            updateModalTitle();
+            updateMinMaxBanner();
+
+            // Clear selections
+            selectedCustomerId = null;
+            selectedFromCustomerId = null;
+            selectedToCustomerId = null;
+
+            document.getElementById('shareModal').classList.add('active');
+            document.getElementById('shareModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('shareModal').classList.remove('active');
+            document.getElementById('shareModal').style.display = 'none';
+            document.getElementById('duplicateWarning')?.classList.remove('show');
+        }
+
+        // ============================================================
+        // VIEW SHARE
+        // ============================================================
+        function viewShare(id) {
+            const share = allShares.find(s => s.id === id);
+            if (!share) { showToast(translations[currentLang].shareNotFound || 'Share transaction not found.', 'error'); return; }
+
+            const t = translations[currentLang];
+            const dateStr = share.date ? (share.date.toDate ? share.date.toDate().toLocaleString() : new Date(share.date).toLocaleString()) : '—';
+            let statusLabel = t.pending, statusClass = 'pending';
+            if (share.status === 'approved') { statusLabel = t.approved; statusClass = 'approved'; }
+            else if (share.status === 'rejected') { statusLabel = t.rejected; statusClass = 'rejected'; }
+
+            let byUser = share.createdByName || share.createdBy || share.createdByEmail || 'Admin';
+            if (byUser.includes('@')) byUser = byUser.split('@')[0];
+
+            const typeMap = {
+                'share_buy': t.buy || 'Buy',
+                'share_sell': t.sell || 'Sell',
+                'share_transfer_in': t.transfer || 'Transfer',
+                'share_transfer_out': t.transfer || 'Transfer'
+            };
+            const typeLabel = typeMap[share.type] || share.type || '—';
+
+            const paymentMethodMap = {
+                'savings': t.savings || 'Savings',
+                'cash': t.cash || 'Cash',
+                'mobile': t.mobileBanking || 'Mobile Banking',
+                'bank': t.bankDeposit || 'Bank Deposit'
+            };
+            const paymentLabel = paymentMethodMap[share.paymentMethod] || share.paymentMethod || '—';
+
+            let customerDisplay = share.customerName || 'Unknown';
+            let extraRows = '';
+            if (share.type === 'share_transfer_in' || share.type === 'share_transfer_out') {
+                const fromName = share.fromCustomerName || share.fromCustomerId || '—';
+                const toName = share.toCustomerName || share.toCustomerId || '—';
+                extraRows = `
+                            <div class="view-detail-row"><span class="label">${t.from || 'From'}</span><span class="value">${fromName}</span></div>
+                            <div class="view-detail-row"><span class="label">${t.to || 'To'}</span><span class="value">${toName}</span></div>
+                        `;
+            }
+
+            let approvalRows = '';
+            if (share.status === 'approved') {
+                const approvedBy = share.approvedBy || '—';
+                let approvedAtStr = '—';
+                if (share.approvedAt) {
+                    approvedAtStr = share.approvedAt.toDate ? share.approvedAt.toDate().toLocaleString() : new Date(share.approvedAt).toLocaleString();
+                }
+                approvalRows = `
+                            <div class="view-detail-row"><span class="label">${t.approvedBy || 'Approved By'}</span><span class="value"><strong>${approvedBy}</strong></span></div>
+                            <div class="view-detail-row"><span class="label">${t.approvedAt || 'Approved At'}</span><span class="value">${approvedAtStr}</span></div>
+                        `;
+            } else if (share.status === 'rejected') {
+                const rejectedBy = share.rejectedBy || '—';
+                let rejectedAtStr = '—';
+                if (share.rejectedAt) {
+                    rejectedAtStr = share.rejectedAt.toDate ? share.rejectedAt.toDate().toLocaleString() : new Date(share.rejectedAt).toLocaleString();
+                }
+                approvalRows = `
+                            <div class="view-detail-row"><span class="label">${t.rejectedBy || 'Rejected By'}</span><span class="value"><strong>${rejectedBy}</strong></span></div>
+                            <div class="view-detail-row"><span class="label">${t.rejectedAt || 'Rejected At'}</span><span class="value">${rejectedAtStr}</span></div>
+                        `;
+            } else {
+                approvalRows = `<div class="view-detail-row" style="opacity:0.7;"><span class="label">${t.approvedBy || 'Approved By'}</span><span class="value"><em>${t.notYetApproved || 'Not yet approved'}</em></span></div>`;
+            }
+
+            let extraTransferFields = '';
+            if (share.transferType !== 'savings' && share.transferType !== 'cash') {
+                extraTransferFields = `
+                            <div class="view-detail-row"><span class="label">TT Number</span><span class="value">${share.ttNumber || '—'}</span></div>
+                            <div class="view-detail-row"><span class="label">Transfer Date</span><span class="value">${share.transferDate ? (share.transferDate.toDate ? share.transferDate.toDate().toLocaleDateString() : new Date(share.transferDate).toLocaleDateString()) : '—'}</span></div>
+                            <div class="view-detail-row"><span class="label">Bank / Provider</span><span class="value">${share.bankName || '—'}</span></div>
+                        `;
+            }
+
+            const content = document.getElementById('viewShareContent');
+            content.innerHTML = `
+                        <div class="view-detail-row"><span class="label">Transaction ID</span><span class="value">${share.id.slice(0,12)}</span></div>
+                        ${extraRows}
+                        <div class="view-detail-row"><span class="label">${t.type || 'Type'}</span><span class="value"><span style="font-size:12px; background:var(--border-color); padding:2px 8px; border-radius:12px;">${typeLabel}</span></span></div>
+                        <div class="view-detail-row"><span class="label">${t.amount || 'Amount'}</span><span class="value">ETB ${Number(share.amount).toLocaleString()}</span></div>
+                        <div class="view-detail-row"><span class="label">${t.shareCount || 'Shares'}</span><span class="value">${share.shares ? Number(share.shares).toFixed(2) : '—'}</span></div>
+                        <div class="view-detail-row"><span class="label">${t.paymentMethod || 'Payment Method'}</span><span class="value">${paymentLabel}</span></div>
+                        ${extraTransferFields}
+                        <div class="view-detail-row"><span class="label">${t.status || 'Status'}</span><span class="value"><span class="status-badge ${statusClass}">${statusLabel}</span></span></div>
+                        ${approvalRows}
+                        <div class="view-detail-row"><span class="label">${t.date || 'Date'}</span><span class="value">${dateStr}</span></div>
+                        <div class="view-detail-row"><span class="label">${t.recordedBy || 'Recorded By'}</span><span class="value">${byUser}</span></div>
+                        <div class="view-detail-row"><span class="label">${t.note || 'Note'}</span><span class="value">${share.note || '—'}</span></div>
+                    `;
+            document.getElementById('viewShareModal').classList.add('active');
+            document.getElementById('viewShareModal').style.display = 'flex';
+        }
+
+        function closeViewModal() {
+            document.getElementById('viewShareModal').classList.remove('active');
+            document.getElementById('viewShareModal').style.display = 'none';
+        }
+
+        // ============================================================
+        // EDIT SHARE
+        // ============================================================
+        function editShare(id) {
+            if (!canEdit()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
+            const share = allShares.find(s => s.id === id);
+            if (!share) { showToast('Share transaction not found.', 'error'); return; }
+            if (share.status !== 'pending') {
+                showToast(translations[currentLang].cannotEditApproved || 'Cannot edit an approved or rejected share transaction.', 'warning');
+                return;
+            }
+
+            // Determine type
+            let type = 'buy';
+            if (share.type === 'share_sell') type = 'sell';
+            else if (share.type === 'share_transfer_in' || share.type === 'share_transfer_out') type = 'transfer';
+
+            // Open modal with the type
+            openModal(type);
+            document.getElementById('editId').value = id;
+
+            // Fill data
+            if (type === 'transfer') {
+                document.getElementById('fromCustomerSearch').value = share.fromCustomerName || share.fromCustomerId || '';
+                document.getElementById('fromCustomerId').value = share.fromCustomerId || '';
+                document.getElementById('toCustomerSearch').value = share.toCustomerName || share.toCustomerId || '';
+                document.getElementById('toCustomerId').value = share.toCustomerId || '';
+                selectedFromCustomerId = share.fromCustomerId || null;
+                selectedToCustomerId = share.toCustomerId || null;
+            } else {
+                const customer = getCustomer(share.customerId);
+                if (customer) {
+                    document.getElementById('customerSearch').value = customer.fullName + ' (' + (customer.customerId || '') + ')';
+                    document.getElementById('customerId').value = share.customerId;
+                    selectedCustomerId = share.customerId;
+                    // Show customer info
+                    document.getElementById('customerNameDisplay').textContent = customer.fullName;
+                    document.getElementById('customerIdDisplay').textContent = customer.customerId || share.customerId;
+                    getCustomerShares(share.customerId).then(shares => {
+                        document.getElementById('currentSharesDisplay').textContent = 'ETB ' + shares.toFixed(2);
+                    });
+                    getCustomerSavingsBalance(share.customerId).then(savings => {
+                        document.getElementById('availableSavingsDisplay').textContent = 'ETB ' + savings.toFixed(2);
+                    });
+                    document.getElementById('customerInfoDisplay').classList.add('active');
+                }
+            }
+
+            document.getElementById('amountInput').value = share.amount || '';
+            const dateVal = share.date ? (share.date.toDate ? share.date.toDate() : new Date(share.date)) : new Date();
+            document.getElementById('dateInput').value = dateVal.toISOString().split('T')[0];
+            document.getElementById('shareCount').value = share.shares || '';
+            document.getElementById('paymentMethod').value = share.paymentMethod || 'savings';
+            document.getElementById('ttNumber').value = share.ttNumber || '';
+            if (share.transferDate) {
+                const td = share.transferDate.toDate ? share.transferDate.toDate() : new Date(share.transferDate);
+                document.getElementById('transferDate').value = td.toISOString().split('T')[0];
+            }
+            document.getElementById('bankName').value = share.bankName || '';
+            document.getElementById('noteInput').value = share.note || '';
+
+            toggleConditionalFields();
+            updateModalTitle();
+            document.getElementById('shareModal').classList.add('active');
+            document.getElementById('shareModal').style.display = 'flex';
+        }
+
+        // ============================================================
+        // APPROVE / REJECT SHARE
+        // ============================================================
+        async function approveShare(id) {
+            if (!canApproveReject()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
+            try {
+                const docRef = db.collection('transactions').doc(id);
+                const doc = await docRef.get();
+                if (!doc.exists) { showToast('Share transaction not found.', 'error'); return; }
+                const data = doc.data();
+                if (data.status !== 'pending') { showToast('This share transaction is already processed.', 'warning'); return; }
+
+                await docRef.update({
+                    status: 'approved',
+                    approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    approvedBy: getDisplayName(auth.currentUser)
+                });
+
+                await logAudit('approved', 'transactions', id, { previousStatus: { old: 'pending', new: 'approved' } },
+                    'Share transaction approved');
+                showToast(translations[currentLang].approveSuccess, 'success');
+                await loadShares();
+            } catch (error) {
+                showToast('Error approving share: ' + error.message, 'error');
+            }
+        }
+
+        async function rejectShare(id) {
+            if (!canApproveReject()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
+            if (!confirm('Are you sure you want to reject this share transaction?')) return;
+            try {
+                const docRef = db.collection('transactions').doc(id);
+                const doc = await docRef.get();
+                if (!doc.exists) { showToast('Share transaction not found.', 'error'); return; }
+                const data = doc.data();
+                if (data.status !== 'pending') { showToast('This share transaction is already processed.', 'warning'); return; }
+
+                await docRef.update({
+                    status: 'rejected',
+                    rejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    rejectedBy: getDisplayName(auth.currentUser)
+                });
+
+                await logAudit('rejected', 'transactions', id, { previousStatus: { old: 'pending', new: 'rejected' } },
+                    'Share transaction rejected');
+                showToast(translations[currentLang].rejectSuccess, 'success');
+                await loadShares();
+            } catch (error) {
+                showToast('Error rejecting share: ' + error.message, 'error');
+            }
+        }
+
+        // ============================================================
+        // DELETE SHARE
+        // ============================================================
+        let pendingDeleteId = null;
+
+        function showDeleteModal(id) {
+            if (!canDelete()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
+            const share = allShares.find(s => s.id === id);
+            if (!share) { showToast('Share transaction not found.', 'error'); return; }
+            if (share.status !== 'pending') {
+                showToast('Cannot delete an approved or rejected share transaction.', 'warning');
+                return;
+            }
+            pendingDeleteId = id;
+            document.getElementById('deleteModal').classList.add('active');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('active');
+            pendingDeleteId = null;
+        }
+
+        async function confirmDeleteShare() {
+            if (!pendingDeleteId) return;
+            const t = translations[currentLang];
+            try {
+                const docRef = db.collection('transactions').doc(pendingDeleteId);
+                const doc = await docRef.get();
+                const data = doc.exists ? doc.data() : {};
+                await docRef.delete();
+                await logAudit('deleted', 'transactions', pendingDeleteId, { deletedData: data }, 'Share transaction deleted');
+                showToast(t.deleteSuccess, 'success');
+                closeDeleteModal();
+                await loadShares();
+            } catch (error) {
+                showToast(t.deleteError + error.message, 'error');
+                closeDeleteModal();
+            }
+        }
+
+        // ============================================================
+        // SAVE SHARE
+        // ============================================================
+        async function saveShare(e) {
+            e.preventDefault();
+
+            const t = translations[currentLang];
+            const editId = document.getElementById('editId').value;
+            const transactionType = document.getElementById('transactionType').value;
+            const date = document.getElementById('dateInput').value;
+            const amount = parseFloat(document.getElementById('amountInput').value);
+            const shareCount = parseFloat(document.getElementById('shareCount').value);
+            const paymentMethod = document.getElementById('paymentMethod').value;
+            const ttNumber = document.getElementById('ttNumber').value.trim();
+            const transferDate = document.getElementById('transferDate').value;
+            const bankName = document.getElementById('bankName').value.trim();
+            const note = document.getElementById('noteInput').value.trim();
+
+            let customerId = document.getElementById('customerId').value;
+            let fromCustomerId = document.getElementById('fromCustomerId').value;
+            let toCustomerId = document.getElementById('toCustomerId').value;
+
+            // Validate based on type
+            if (transactionType === 'transfer') {
+                if (!fromCustomerId || !toCustomerId) {
+                    showToast('Please select both customers.', 'warning');
+                    return;
+                }
+                if (fromCustomerId === toCustomerId) {
+                    showToast(t.cannotSellToSelf || 'Cannot transfer to yourself.', 'warning');
+                    return;
+                }
+                // Check if from customer has enough shares
+                const availableShares = await getCustomerShares(fromCustomerId);
+                const sharesToTransfer = amount / sharePrice;
+                if (sharesToTransfer > availableShares) {
+                    showToast(t.transferNotEnoughShares.replace('{available}', availableShares.toFixed(2)), 'warning');
+                    return;
+                }
+                customerId = fromCustomerId; // For the main record
+            } else {
+                if (!customerId) {
+                    showToast('Please select a customer.', 'warning');
+                    return;
+                }
+                // For sell: check if customer has enough shares
+                if (transactionType === 'sell') {
+                    const availableShares = await getCustomerShares(customerId);
+                    const sharesToSell = amount / sharePrice;
+                    if (sharesToSell > availableShares) {
+                        showToast(t.sellNotEnoughShares.replace('{available}', availableShares.toFixed(2)), 'warning');
+                        return;
+                    }
+                }
+            }
+
+            if (!amount || amount <= 0) { showToast('Please enter a valid amount.', 'warning'); return; }
+
+            // Validate range
+            if (minShareValue > 0 && amount < minShareValue) {
+                showToast(`Amount must be at least ETB ${minShareValue.toFixed(2)}.`, 'warning');
+                document.getElementById('amountInput').focus();
+                return;
+            }
+            if (maxShareValue > 0 && amount > maxShareValue) {
+                showToast(`Amount cannot exceed ETB ${maxShareValue.toFixed(2)}.`, 'warning');
+                document.getElementById('amountInput').focus();
+                return;
+            }
+
+            if (!date) { showToast('Please select a date.', 'warning'); return; }
+
+            // Check payment method restrictions
+            const isAdminManager = ['admin', 'manager'].includes(currentUserRole);
+            if (paymentMethod === 'cash' && !isAdminManager) {
+                showToast(t.transferTypeRestricted || 'Cash payments are restricted to Admin and Manager only.', 'error');
+                return;
+            }
+
+            // For non-savings methods, validate TT fields
+            if (paymentMethod !== 'savings' && paymentMethod !== 'cash') {
+                if (!ttNumber) { showToast('TT number is required.', 'warning'); return; }
+                if (!transferDate) { showToast('Transfer date is required.', 'warning'); return; }
+                if (paymentMethod === 'bank' && !bankName) { showToast('Bank name is required.', 'warning'); return; }
+
+                const customerIdToCheck = transactionType === 'transfer' ? fromCustomerId : customerId;
+                const isDuplicate = await checkDuplicate(customerIdToCheck, ttNumber, transferDate, editId || null);
+                if (isDuplicate) {
+                    showToast(t.duplicateError || 'Duplicate TT number and transfer date found!', 'error');
+                    document.getElementById('duplicateWarning').classList.add('show');
+                    return;
+                }
+            }
+
+            // Check savings balance if using savings
+            if (paymentMethod === 'savings') {
+                const savingsBalance = await getCustomerSavingsBalance(customerId);
+                if (savingsBalance < amount) {
+                    showToast(t.insufficientSavings.replace('{available}', savingsBalance.toFixed(2)), 'warning');
+                    return;
+                }
+            }
+
+            const user = auth.currentUser;
+            const createdByName = getDisplayName(user);
+
+            // Determine transaction type for DB
+            let dbType = 'share_buy';
+            if (transactionType === 'sell') dbType = 'share_sell';
+            else if (transactionType === 'transfer') dbType = 'share_transfer_out';
+
+            const docData = {
+                customerId: customerId,
+                amount: amount,
+                shares: shareCount || (amount / sharePrice),
+                date: new Date(date),
+                paymentMethod: paymentMethod,
+                status: 'pending',
+                note: note,
+                type: dbType,
+                createdByName: createdByName,
+                createdBy: createdByName,
+                createdByEmail: user ? user.email : 'admin@geresu.com',
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            if (transactionType === 'transfer') {
+                docData.fromCustomerId = fromCustomerId;
+                docData.toCustomerId = toCustomerId;
+                docData.type = 'share_transfer_out';
+            }
+
+            if (paymentMethod !== 'savings' && paymentMethod !== 'cash') {
+                docData.ttNumber = ttNumber;
+                docData.transferDate = new Date(transferDate);
+                docData.bankName = bankName;
+            }
+
+            const btn = document.getElementById('saveBtn');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+            try {
+                let docRef;
+                if (editId) {
+                    await db.collection('transactions').doc(editId).update(docData);
+                    await logAudit('updated', 'transactions', editId, { changes: docData }, 'Share transaction updated');
+                    showToast(t.sharePurchaseUpdated || 'Share transaction updated successfully!', 'success');
+                } else {
+                    docData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                    docRef = await db.collection('transactions').add(docData);
+                    await logAudit('created', 'transactions', docRef.id, { data: docData }, 'Share transaction created');
+
+                    // If transfer, also create a corresponding entry for the receiver
+                    if (transactionType === 'transfer') {
+                        const transferInData = {
+                            customerId: toCustomerId,
+                            fromCustomerId: fromCustomerId,
+                            toCustomerId: toCustomerId,
+                            amount: amount,
+                            shares: shareCount || (amount / sharePrice),
+                            date: new Date(date),
+                            paymentMethod: paymentMethod,
+                            status: 'pending',
+                            note: note,
+                            type: 'share_transfer_in',
+                            createdByName: createdByName,
+                            createdBy: createdByName,
+                            createdByEmail: user ? user.email : 'admin@geresu.com',
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            relatedTransactionId: docRef.id,
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        };
+                        if (paymentMethod !== 'savings' && paymentMethod !== 'cash') {
+                            transferInData.ttNumber = ttNumber;
+                            transferInData.transferDate = new Date(transferDate);
+                            transferInData.bankName = bankName;
+                        }
+                        const transferInRef = await db.collection('transactions').add(transferInData);
+                        await logAudit('created', 'transactions', transferInRef.id, { data: transferInData },
+                            'Share transfer in created');
+                    }
+
+                    const msg = transactionType === 'buy' ? t.sharePurchaseSuccess :
+                        transactionType === 'sell' ? t.shareSaleSuccess :
+                        t.shareTransferSuccess;
+                    showToast(msg || t.recordSaved, 'success');
+                }
+
+                closeModal();
+                await loadShares();
+            } catch (error) {
+                showToast(t.saveError + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
+        function getDisplayName(user) {
+            if (!user) return 'Admin';
+            if (currentUserDisplayName) return currentUserDisplayName;
+            const name = user.displayName || user.email || 'Admin';
+            return name.includes('@') ? name.split('@')[0] : name;
+        }
+
+        // ============================================================
+        // LOGOUT
+        // ============================================================
+        function showLogoutModal() { document.getElementById('logoutModal').classList.add('active'); }
+
+        function hideLogoutModal() { document.getElementById('logoutModal').classList.remove('active'); }
+
+        async function performLogout() {
+            try { await auth.signOut();
+                window.location.href = '../login.html'; } catch (error) {
+                showToast('Error logging out: ' + error.message, 'error');
+                hideLogoutModal();
+            }
+        }
+
+        // ============================================================
+        // PAGE INIT
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', async function() {
+            auth.onAuthStateChanged(async (user) => {
+                if (!user) { window.location.href = '../login.html'; return; }
+
+                try {
+                    const doc = await db.collection('users').doc(user.uid).get();
+                    if (doc.exists) {
+                        const data = doc.data();
+                        currentUserRole = data.role || 'viewer';
+                        currentUserDisplayName = data.displayName || data.name || user.displayName || user.email?.split(
+                            '@')[0] || 'Admin';
+                    } else {
+                        currentUserRole = 'viewer';
+                        currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'Admin';
+                    }
+                } catch (err) {
+                    console.error('Error fetching user role:', err);
+                    currentUserRole = 'viewer';
+                    currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'Admin';
+                }
+
+                updateUserInfo();
+                await loadSettings();
+                initLanguage();
+                loadSidebarState();
+
+                // Sidebar events
+                document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
+                document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
+                document.getElementById('sidebarToggleBtn').addEventListener('click', toggleSidebarCollapse);
+
+                // Language buttons
+                document.querySelectorAll('.lang-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        setLanguage(this.dataset.lang);
+                        const currentItems = filteredShares.slice((currentPage - 1) * pageSize,
+                            currentPage * pageSize);
+                        renderTable(currentItems);
+                        updatePaginationInfo();
+                        renderPageButtons();
+                        const searchInput = document.getElementById('searchInput');
+                        const t = translations[currentLang];
+                        searchInput.placeholder = t.searchPlaceholder || 'Search...';
+                    });
+                });
+
+                // Logout
+                document.getElementById('logoutBtn').addEventListener('click', showLogoutModal);
+                document.getElementById('logoutCancel').addEventListener('click', hideLogoutModal);
+                document.getElementById('logoutConfirm').addEventListener('click', performLogout);
+                document.getElementById('logoutModal').addEventListener('click', function(e) {
+                    if (e.target === this) hideLogoutModal();
+                });
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') hideLogoutModal();
+                });
+
+                // Delete modal
+                document.getElementById('deleteCancel').addEventListener('click', closeDeleteModal);
+                document.getElementById('deleteConfirm').addEventListener('click', confirmDeleteShare);
+                document.getElementById('deleteModal').addEventListener('click', function(e) {
+                    if (e.target === this) closeDeleteModal();
+                });
+
+                // Load data
+                await loadCustomers();
+                setupCustomerSearch();
+                setupFromCustomerSearch();
+                setupToCustomerSearch();
+
+                // Payment method toggle
+                document.getElementById('paymentMethod').addEventListener('change', toggleConditionalFields);
+
+                // Amount validation
+                document.getElementById('amountInput').addEventListener('input', function() {
+                    validateAmount();
+                    const val = parseFloat(this.value);
+                    const shareCount = val / sharePrice;
+                    if (shareCount > 0) {
+                        document.getElementById('shareCount').value = shareCount.toFixed(2);
+                    }
+                });
+
+                document.getElementById('shareCount').addEventListener('input', function() {
+                    const val = parseFloat(this.value);
+                    if (val > 0) {
+                        document.getElementById('amountInput').value = (val * sharePrice).toFixed(2);
+                        validateAmount();
+                    }
+                });
+
+                // Duplicate check
+                document.getElementById('ttNumber').addEventListener('blur', async function() {
+                    const customerId = document.getElementById('customerId').value;
+                    const ttNumber = this.value.trim();
+                    const transferDate = document.getElementById('transferDate').value;
+                    const editId = document.getElementById('editId').value;
+                    if (customerId && ttNumber && transferDate) {
+                        const isDuplicate = await checkDuplicate(customerId, ttNumber, transferDate, editId || null);
+                        document.getElementById('duplicateWarning').classList.toggle('show', isDuplicate);
+                    }
+                });
+
+                document.getElementById('transferDate').addEventListener('change', async function() {
+                    const customerId = document.getElementById('customerId').value;
+                    const ttNumber = document.getElementById('ttNumber').value.trim();
+                    const transferDate = this.value;
+                    const editId = document.getElementById('editId').value;
+                    if (customerId && ttNumber && transferDate) {
+                        const isDuplicate = await checkDuplicate(customerId, ttNumber, transferDate, editId || null);
+                        document.getElementById('duplicateWarning').classList.toggle('show', isDuplicate);
+                    }
+                });
+
+                // Load shares
+                await loadShares();
+
+                // Modal events
+                document.getElementById('buyShareBtn').addEventListener('click', () => openModal('buy'));
+                document.getElementById('sellShareBtn').addEventListener('click', () => openModal('sell'));
+                document.getElementById('transferShareBtn').addEventListener('click', () => openModal('transfer'));
+
+                document.getElementById('modalClose').addEventListener('click', closeModal);
+                document.getElementById('shareModal').addEventListener('click', function(e) {
+                    if (e.target === this) closeModal();
+                });
+
+                document.getElementById('resetFormBtn').addEventListener('click', function() {
+                    document.getElementById('shareForm').reset();
+                    document.getElementById('customerInfoDisplay').classList.remove('active');
+                    document.getElementById('duplicateWarning').classList.remove('show');
+                    document.getElementById('customerSearch').value = '';
+                    document.getElementById('customerId').value = '';
+                    document.getElementById('fromCustomerSearch').value = '';
+                    document.getElementById('fromCustomerId').value = '';
+                    document.getElementById('toCustomerSearch').value = '';
+                    document.getElementById('toCustomerId').value = '';
+                    selectedCustomerId = null;
+                    selectedFromCustomerId = null;
+                    selectedToCustomerId = null;
+                    document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+                    toggleConditionalFields();
+                    updateMinMaxBanner();
+                    document.getElementById('amountInput').style.borderColor = '';
+                });
+
+                document.getElementById('shareForm').addEventListener('submit', saveShare);
+
+                // Search and filters
+                document.getElementById('searchInput').addEventListener('input', applySearch);
+                document.getElementById('statusFilter').addEventListener('change', applySearch);
+                document.getElementById('transactionTypeFilter').addEventListener('change', applySearch);
+                document.getElementById('yearFilter').addEventListener('change', applySearch);
+
+                // Pagination
+                document.getElementById('prevPage').addEventListener('click', function() {
+                    if (currentPage > 1) goToPage(currentPage - 1);
+                });
+                document.getElementById('nextPage').addEventListener('click', function() {
+                    const totalPages = Math.ceil(filteredShares.length / pageSize);
+                    if (currentPage < totalPages) goToPage(currentPage + 1);
+                });
+
+                // View modal
+                document.getElementById('closeViewModal').addEventListener('click', closeViewModal);
+                document.getElementById('viewShareModal').addEventListener('click', function(e) {
+                    if (e.target === this) closeViewModal();
+                });
+
+                const searchInput = document.getElementById('searchInput');
+                const t = translations[currentLang];
+                searchInput.placeholder = t.searchPlaceholder || 'Search...';
+            });
+        });
+
+        // Expose globals
+        window.viewShare = viewShare;
+        window.editShare = editShare;
+        window.approveShare = approveShare;
+        window.rejectShare = rejectShare;
+        window.showDeleteModal = showDeleteModal;
+        window.closeDeleteModal = closeDeleteModal;
+        window.confirmDeleteShare = confirmDeleteShare;
+        window.goToPage = goToPage;
+        window.toggleSidebar = toggleSidebar;
+        window.selectCustomer = selectCustomer;
+        window.selectFromCustomer = selectFromCustomer;
+        window.selectToCustomer = selectToCustomer;
+        window.testConnection = testConnection;
+        window.closeViewModal = closeViewModal;
+        window.closeModal = closeModal;
+        window.openModal = openModal;
+        window.validateAmount = validateAmount;
+        window.validateTransfer = validateTransfer;
+        window.getCustomerShares = getCustomerShares;
+        window.getCustomerSavingsBalance = getCustomerSavingsBalance;
+    </script>
+
+    <script>
+        // ============================================================
+        // SESSION TIMEOUT
+        // ============================================================
+        (function() {
+            const SESSION_TIMEOUT = 5 * 60 * 1000;
+            const WARNING_TIMEOUT = SESSION_TIMEOUT - 30 * 1000;
+            let timer = null,
+                warningTimer = null,
+                warningToast = null,
+                countdownInterval = null;
+
+            function resetTimer() {
+                clearTimeout(timer);
+                clearTimeout(warningTimer);
+                clearInterval(countdownInterval);
+                if (warningToast) { warningToast.remove();
+                    warningToast = null; }
+                warningTimer = setTimeout(showWarning, WARNING_TIMEOUT);
+                timer = setTimeout(forceLogout, SESSION_TIMEOUT);
+            }
+
+            function showWarning() {
+                const t = translations && translations[currentLang] ? translations[currentLang] : { sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.' };
+                const message = t.sessionTimeout || 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
+                let seconds = 30;
+                warningToast = document.createElement('div');
+                warningToast.style.cssText = `
+                            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+                            background: #f39c12; color: #fff; padding: 16px 24px; border-radius: 12px;
+                            font-size: 15px; font-weight: 500; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+                            z-index: 99999; max-width: 500px; text-align: center; display: flex;
+                            align-items: center; gap: 12px; animation: slideUp 0.3s ease;
+                        `;
+                warningToast.innerHTML =
+                    `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
+                const style = document.createElement('style');
+                style.textContent =
+                    `@keyframes slideUp { from { transform: translateX(-50%) translateY(20px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }`;
+                document.head.appendChild(style);
+                document.body.appendChild(warningToast);
+                countdownInterval = setInterval(() => {
+                    seconds--;
+                    const textEl = document.getElementById('sessionWarningText');
+                    if (textEl) textEl.textContent = message.replace('{seconds}', seconds);
+                    if (seconds <= 0) clearInterval(countdownInterval);
+                }, 1000);
+            }
+
+            function forceLogout() {
+                clearInterval(countdownInterval);
+                if (warningToast) { warningToast.remove();
+                    warningToast = null; }
+                if (typeof auth !== 'undefined' && auth) {
+                    auth.signOut().then(() => { window.location.href = '../login.html'; }).catch(() => { window.location
+                            .href = '../login.html'; });
+                } else {
+                    window.location.href = '../login.html';
+                }
+            }
+
+            const events = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
+
+            function handleActivity() { resetTimer(); }
+            events.forEach(evt => { document.addEventListener(evt, handleActivity); });
+            resetTimer();
+
+            window.addEventListener('beforeunload', function() {
+                clearTimeout(timer);
+                clearTimeout(warningTimer);
+                clearInterval(countdownInterval);
+                if (warningToast) warningToast.remove();
+                events.forEach(evt => { document.removeEventListener(evt, handleActivity); });
+            });
+        })();
+    </script>
+
+</body>
+</html>
