@@ -16,6 +16,7 @@
     </script>
 
     <style>
+        /* ===== STYLES (same as before, kept for brevity) ===== */
         :root {
             --primary: #1a6e3a;
             --primary-dark: #0f4f28;
@@ -298,7 +299,6 @@
         .stat-card .stat-label { font-size: 11px; font-weight: 500; color: var(--text-secondary); display: block; margin-bottom: 2px; }
         .stat-card .stat-value { font-size: 18px; font-weight: 700; color: var(--text-primary); display: block; }
 
-        /* ACTION BUTTONS (Buy/Sell/Transfer) */
         .action-group {
             display: flex; gap: 8px; flex-wrap: wrap;
         }
@@ -316,8 +316,8 @@
         .action-btn-sm.view { background: var(--info); color: #fff; }
         .action-btn-sm.edit { background: var(--warning); color: #fff; }
         .action-btn-sm.delete { background: var(--danger); color: #fff; }
+        .action-btn-sm:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-        /* FORMS */
         .form-section {
             background: var(--bg-card); border-radius: 16px;
             border: 1px solid var(--border-color); padding: 24px;
@@ -380,14 +380,20 @@
         .conditional-fields { display: none; border-top: 1px dashed var(--border-color); padding-top: 12px; margin-top: 4px; }
         .conditional-fields.show { display: block; }
 
-        #customerSuggestions {
+        #customerSuggestions, #fromCustomerSuggestions, #toCustomerSuggestions {
             position: absolute; background: var(--bg-card); border: 1px solid var(--border-color);
             border-radius: 10px; max-height: 200px; overflow-y: auto; z-index: 10;
             width: 100%; box-shadow: var(--shadow-md); top: 100%; left: 0;
         }
-        #customerSuggestions div { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--border-color); color: var(--text-primary); }
-        #customerSuggestions div:hover { background: var(--bg-primary); }
-        #customerSuggestions div:last-child { border-bottom: none; }
+        #customerSuggestions div, #fromCustomerSuggestions div, #toCustomerSuggestions div {
+            padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--border-color); color: var(--text-primary);
+        }
+        #customerSuggestions div:hover, #fromCustomerSuggestions div:hover, #toCustomerSuggestions div:hover {
+            background: var(--bg-primary);
+        }
+        #customerSuggestions div:last-child, #fromCustomerSuggestions div:last-child, #toCustomerSuggestions div:last-child {
+            border-bottom: none;
+        }
 
         .search-bar {
             display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;
@@ -495,13 +501,13 @@
         .view-detail-row .value { flex: 1; color: var(--text-primary); }
         .view-detail-row .value .status-badge { display: inline-block; }
 
-        .logout-modal-overlay {
+        .logout-modal-overlay, .delete-modal-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.5); backdrop-filter: blur(6px); z-index: 99999;
             align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.3s ease;
         }
-        .logout-modal-overlay.active { display: flex; }
-        .logout-modal {
+        .logout-modal-overlay.active, .delete-modal-overlay.active { display: flex; }
+        .logout-modal, .delete-modal {
             background: var(--bg-card); border-radius: var(--radius);
             max-width: 420px; width: 100%; padding: 32px 28px 24px;
             box-shadow: var(--shadow-modal); animation: slideUp 0.3s ease;
@@ -509,56 +515,37 @@
         }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideUp { from { transform: translateY(20px) scale(0.95); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
-        .logout-modal .modal-icon {
+        .logout-modal .modal-icon, .delete-modal .modal-icon {
             width: 72px; height: 72px; border-radius: 50%;
             background: rgba(231,76,60,0.12);
             display: flex; align-items: center; justify-content: center;
             margin: 0 auto 16px; font-size: 32px; color: var(--danger);
         }
-        .logout-modal h3 { font-size: 22px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
-        .logout-modal p { font-size: 15px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.6; }
-        .logout-modal .modal-actions { display: flex; gap: 12px; justify-content: center; }
-        .logout-modal .modal-actions .btn {
-            padding: 10px 28px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600;
-            border: none; cursor: pointer; transition: all 0.2s; font-family: inherit; min-width: 100px;
-        }
-        .logout-modal .modal-actions .btn-cancel { background: var(--border-color); color: var(--text-primary); }
-        .logout-modal .modal-actions .btn-cancel:hover { background: #d0d7d2; transform: translateY(-2px); }
-        .logout-modal .modal-actions .btn-logout { background: var(--danger); color: #fff; display: inline-flex; align-items: center; gap: 8px; }
-        .logout-modal .modal-actions .btn-logout:hover { background: #c0392b; transform: translateY(-2px); box-shadow: 0 4px 16px rgba(231,76,60,0.3); }
-        .logout-modal .modal-actions .btn-logout i { font-size: 16px; }
-
-        .delete-modal-overlay {
-            display: none; position: fixed; top:0; left:0; width:100%; height:100%;
-            background: rgba(0,0,0,0.5); backdrop-filter: blur(6px); z-index: 99998;
-            align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.3s ease;
-        }
-        .delete-modal-overlay.active { display: flex; }
-        .delete-modal {
-            background: var(--bg-card); border-radius: var(--radius);
-            max-width: 420px; width: 100%; padding: 32px 28px 24px;
-            box-shadow: var(--shadow-modal); animation: slideUp 0.3s ease;
-            text-align: center; border: 1px solid var(--border-color);
-        }
-        .delete-modal .modal-icon {
-            width: 72px; height: 72px; border-radius: 50%;
-            background: rgba(231,76,60,0.12);
-            display: flex; align-items: center; justify-content: center;
-            margin: 0 auto 16px; font-size: 32px; color: var(--danger);
-        }
-        .delete-modal h3 { font-size: 22px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
-        .delete-modal p { font-size: 15px; color: var(--text-secondary); margin-bottom: 8px; line-height: 1.6; }
+        .logout-modal h3, .delete-modal h3 { font-size: 22px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
+        .logout-modal p, .delete-modal p { font-size: 15px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.6; }
         .delete-modal .delete-warning { font-weight: 600; color: var(--danger); font-size: 14px; margin-bottom: 20px; }
-        .delete-modal .modal-actions { display: flex; gap: 12px; justify-content: center; }
-        .delete-modal .modal-actions .btn {
+        .logout-modal .modal-actions, .delete-modal .modal-actions {
+            display: flex; gap: 12px; justify-content: center;
+        }
+        .logout-modal .modal-actions .btn, .delete-modal .modal-actions .btn {
             padding: 10px 28px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600;
             border: none; cursor: pointer; transition: all 0.2s; font-family: inherit; min-width: 100px;
         }
-        .delete-modal .modal-actions .btn-cancel { background: var(--border-color); color: var(--text-primary); }
-        .delete-modal .modal-actions .btn-cancel:hover { background: #d0d7d2; transform: translateY(-2px); }
-        .delete-modal .modal-actions .btn-delete { background: var(--danger); color: #fff; display: inline-flex; align-items: center; gap: 8px; }
-        .delete-modal .modal-actions .btn-delete:hover { background: #c0392b; transform: translateY(-2px); box-shadow: 0 4px 16px rgba(231,76,60,0.3); }
-        .delete-modal .modal-actions .btn-delete i { font-size: 16px; }
+        .logout-modal .modal-actions .btn-cancel, .delete-modal .modal-actions .btn-cancel {
+            background: var(--border-color); color: var(--text-primary);
+        }
+        .logout-modal .modal-actions .btn-cancel:hover, .delete-modal .modal-actions .btn-cancel:hover {
+            background: #d0d7d2; transform: translateY(-2px);
+        }
+        .logout-modal .modal-actions .btn-logout, .delete-modal .modal-actions .btn-delete {
+            background: var(--danger); color: #fff; display: inline-flex; align-items: center; gap: 8px;
+        }
+        .logout-modal .modal-actions .btn-logout:hover, .delete-modal .modal-actions .btn-delete:hover {
+            background: #c0392b; transform: translateY(-2px); box-shadow: 0 4px 16px rgba(231,76,60,0.3);
+        }
+        .logout-modal .modal-actions .btn-logout i, .delete-modal .modal-actions .btn-delete i {
+            font-size: 16px;
+        }
 
         .toast-container {
             position: fixed; top: 20px; right: 20px; z-index: 99999;
@@ -814,6 +801,9 @@
                         <option value="all" data-i18n="allYears">All Years</option>
                     </select>
                 </div>
+                <button class="btn-secondary" id="clearFiltersBtn" style="padding: 8px 16px;">
+                    <i class="fas fa-times"></i> <span data-i18n="clearFilters">Clear Filters</span>
+                </button>
             </div>
 
             <!-- Table -->
@@ -961,7 +951,7 @@
                     <div class="form-row two">
                         <div class="form-group">
                             <label data-i18n="shareCount">Number of Shares <span class="required">*</span></label>
-                            <input type="number" id="shareCount" required placeholder="1" step="1" min="1" />
+                            <input type="number" id="shareCount" required placeholder="1" step="0.01" min="0.01" />
                             <small style="color:var(--text-secondary); font-size:11px;" data-i18n="shareCountHint">Auto-calculated based on share price</small>
                         </div>
                         <div class="form-group">
@@ -1089,7 +1079,7 @@
                 searchPlaceholder: 'Search by customer name or TT number...',
                 allStatus: 'All Status', pendingStatus: 'Pending', approvedStatus: 'Approved',
                 rejectedStatus: 'Rejected', allTypes: 'All Types', buy: 'Buy', sell: 'Sell',
-                transfer: 'Transfer', allYears: 'All Years',
+                transfer: 'Transfer', allYears: 'All Years', clearFilters: 'Clear Filters',
                 totalShareRecords: 'Total Share Transactions: ', noShares: 'No share transactions found.',
                 showing: 'Showing', of: 'of', customer: 'Customer', type: 'Type',
                 amount: 'Amount', shareCount: 'Shares', paymentMethod: 'Payment Method',
@@ -1148,6 +1138,14 @@
                 statusUpdated: 'Status updated successfully!',
                 errorUpdatingStatus: 'Error updating status: ',
                 shareNotFound: 'Share transaction not found.',
+                customerId: 'Customer ID',
+                approvedBy: 'Approved By',
+                approvedAt: 'Approved At',
+                rejectedBy: 'Rejected By',
+                rejectedAt: 'Rejected At',
+                notYetApproved: 'Not yet approved',
+                sharePurchaseUpdated: 'Share transaction updated successfully!',
+                transferDateFuture: 'Transfer date cannot be in the future.',
             },
             am: {
                 brandSub: 'ባንክ ስርዓት', navDashboard: 'ዳሽቦርድ', navCustomers: 'ደንበኞች',
@@ -1163,7 +1161,7 @@
                 searchPlaceholder: 'በደንበኛ ስም ወይም በቲቲ ቁጥር ይፈልጉ...',
                 allStatus: 'ሁሉም ሁኔታ', pendingStatus: 'በመጠበቅ ላይ', approvedStatus: 'የፀደቀ',
                 rejectedStatus: 'ውድቅ የተደረገ', allTypes: 'ሁሉም ዓይነቶች', buy: 'ግዛ', sell: 'ሽጥ',
-                transfer: 'አዛውር', allYears: 'ሁሉም ዓመታት',
+                transfer: 'አዛውር', allYears: 'ሁሉም ዓመታት', clearFilters: 'ማጣሪያዎችን አጽዳ',
                 totalShareRecords: 'ጠቅላላ የአክሲዮን ግብይቶች: ', noShares: 'ምንም የአክሲዮን ግብይቶች አልተገኙም።',
                 showing: 'እያሳየ', of: 'ከ', customer: 'ደንበኛ', type: 'ዓይነት',
                 amount: 'መጠን', shareCount: 'አክሲዮኖች', paymentMethod: 'የክፍያ ዘዴ',
@@ -1223,6 +1221,14 @@
                 statusUpdated: 'ሁኔታው በተሳካ ሁኔታ ተሻሽሏል!',
                 errorUpdatingStatus: 'ሁኔታውን በማሻሻል ላይ ስህተት: ',
                 shareNotFound: 'የአክሲዮን ግብይት አልተገኘም።',
+                customerId: 'የደንበኛ መታወቂያ',
+                approvedBy: 'የፀደቀው',
+                approvedAt: 'የፀደቀው ቀን',
+                rejectedBy: 'ውድቅ ያደረገው',
+                rejectedAt: 'ውድቅ የተደረገው ቀን',
+                notYetApproved: 'እስካሁን አልጸደቀም',
+                sharePurchaseUpdated: 'የአክሲዮን ግብይት በተሳካ ሁኔታ ተሻሽሏል!',
+                transferDateFuture: 'የዝውውር ቀን ከወቅቱ መሆን አይችልም።',
             },
             om: {
                 brandSub: 'Sirna Baankii', navDashboard: 'Gabatee', navCustomers: 'Maamila',
@@ -1238,7 +1244,7 @@
                 searchPlaceholder: 'Maqaa maamila ykn lakkoofsa TT-tiin barbaadi...',
                 allStatus: 'Haala Hunda', pendingStatus: 'Eegamaa', approvedStatus: 'Mirkanaa\'e',
                 rejectedStatus: 'Garfame', allTypes: 'Gosa Hunda', buy: 'Biti', sell: 'Gurguri',
-                transfer: 'Jijjiirri', allYears: 'Waggaa Hunda',
+                transfer: 'Jijjiirri', allYears: 'Waggaa Hunda', clearFilters: 'Qajeelfama Haqi',
                 totalShareRecords: 'Daldala Hirmaata Waligalaa: ', noShares: 'Daldala Hirmaata hin argamne.',
                 showing: 'Agarsii', of: 'keessaa', customer: 'Maamila', type: 'Gosa',
                 amount: 'Qaba', shareCount: 'Hirmaata', paymentMethod: 'Haala Kaffaltii',
@@ -1298,6 +1304,14 @@
                 statusUpdated: 'Haalli sirriitti fooyya\'e!',
                 errorUpdatingStatus: 'Haala fooyyessuuf dogoggora: ',
                 shareNotFound: 'Daldala hirmaata hin argamne.',
+                customerId: 'Lakkoofsa Maamila',
+                approvedBy: 'Mirkaneesse',
+                approvedAt: 'Yeroo Mirkanaa\'e',
+                rejectedBy: 'Garfise',
+                rejectedAt: 'Yeroo Garfame',
+                notYetApproved: 'Hanga ammaatti hin mirkanaa\'ne',
+                sharePurchaseUpdated: 'Daldala hirmaata sirriitti fooyya\'e!',
+                transferDateFuture: 'Guyyaan jijjiirraa fuulduraa ta\'uu hin danda\'u.',
             }
         };
 
@@ -1377,6 +1391,13 @@
             try { localStorage.setItem('waciti-lang', lang); } catch (e) {}
             const searchInput = document.getElementById('searchInput');
             if (searchInput) searchInput.placeholder = t.searchPlaceholder || 'Search...';
+            // Update modal if open
+            if (document.getElementById('shareModal').classList.contains('active')) {
+                updateModalTitle();
+            }
+            if (document.getElementById('viewShareModal').classList.contains('active')) {
+                // Re-render view content? We'll just keep the current view.
+            }
             updatePaginationInfo();
             renderPageButtons();
             updateMinMaxBanner();
@@ -1385,17 +1406,9 @@
                 const span = testBtn.querySelector('span');
                 if (span) span.textContent = t.testConnection || 'Test Connection';
             }
-            // Update the Buy/Sell/Transfer buttons text
-            document.querySelectorAll('#buyShareBtn span, #sellShareBtn span, #transferShareBtn span').forEach(el => {
-                const key = el.getAttribute('data-i18n') || el.textContent.trim().replace(/\s/g, '');
-                if (key === 'BuyShares') el.textContent = t.buyShares || 'Buy Shares';
-                else if (key === 'SellShares') el.textContent = t.sellShares || 'Sell Shares';
-                else if (key === 'TransferShares') el.textContent = t.transferShares || 'Transfer Shares';
-            });
-            // Update modal title based on transaction type
-            updateModalTitle();
             const currentItems = filteredShares.slice((currentPage - 1) * pageSize, currentPage * pageSize);
             renderTable(currentItems);
+            updateStats();
         }
 
         function initLanguage() {
@@ -1457,7 +1470,6 @@
             if (auditNav) auditNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
             const usersNav = document.getElementById('usersNavItem');
             if (usersNav) usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
-            // Update payment method options
             updatePaymentMethodOptions();
         }
 
@@ -1468,12 +1480,10 @@
             const t = translations[currentLang];
             const currentVal = paymentMethod.value;
             paymentMethod.innerHTML = '';
-            // Always show savings
             const savingsOpt = document.createElement('option');
             savingsOpt.value = 'savings';
             savingsOpt.textContent = t.savings || 'Savings';
             paymentMethod.appendChild(savingsOpt);
-            // Cash only for admin/manager
             if (isAdminManager) {
                 const cashOpt = document.createElement('option');
                 cashOpt.value = 'cash';
@@ -1527,22 +1537,22 @@
         function canDelete() { return currentUserRole === 'admin'; }
 
         // ============================================================
-        // LOAD SETTINGS
+        // LOAD SETTINGS (fixed to use sharePrice, minShares, maxShares)
         // ============================================================
         async function loadSettings() {
             try {
                 const doc = await db.collection('settings').doc('system').get();
                 if (doc.exists) {
                     const data = doc.data();
-                    minShareValue = data.minShareValue || data.minShares || 0;
-                    maxShareValue = data.maxShareValue || data.maxShares || 100000;
                     sharePrice = data.sharePrice || 1000;
+                    minShareValue = data.minShares || 0;
+                    maxShareValue = data.maxShares || 100000;
                 }
                 updateMinMaxBanner();
-                return { minShareValue, maxShareValue, sharePrice };
+                return { sharePrice, minShareValue, maxShareValue };
             } catch (error) {
                 console.error('Error loading settings:', error);
-                return { minShareValue: 0, maxShareValue: 100000, sharePrice: 1000 };
+                return { sharePrice: 1000, minShareValue: 0, maxShareValue: 100000 };
             }
         }
 
@@ -1595,7 +1605,6 @@
                     };
                 });
                 console.log('✅ Customers loaded:', Object.keys(customersMap).length);
-                // Update member count in stats
                 document.getElementById('memberCount').textContent = Object.keys(customersMap).length;
                 return true;
             } catch (error) {
@@ -1616,10 +1625,11 @@
         }
 
         // ============================================================
-        // GET CUSTOMER SHARES
+        // GET CUSTOMER SHARES (now returns both count and value)
         // ============================================================
-        async function getCustomerShares(customerId) {
+        async function getCustomerSharesCount(customerId) {
             try {
+                // Sum of approved buy and transfer_in minus sell and transfer_out
                 const snapshot = await db.collection('transactions')
                     .where('customerId', '==', customerId)
                     .where('type', 'in', ['share_buy', 'share_transfer_in'])
@@ -1628,9 +1638,8 @@
                 let total = 0;
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    total += Number(data.shares) || Number(data.amount) / sharePrice || 0;
+                    total += Number(data.shares) || 0;
                 });
-                // Subtract sells and transfers out
                 const sellSnapshot = await db.collection('transactions')
                     .where('customerId', '==', customerId)
                     .where('type', 'in', ['share_sell', 'share_transfer_out'])
@@ -1638,9 +1647,9 @@
                     .get();
                 sellSnapshot.forEach(doc => {
                     const data = doc.data();
-                    total -= Number(data.shares) || Number(data.amount) / sharePrice || 0;
+                    total -= Number(data.shares) || 0;
                 });
-                return Math.max(0, Math.round(total * 100) / 100);
+                return Math.max(0, Math.round(total * 10000) / 10000);
             } catch (error) {
                 console.error('Error getting customer shares:', error);
                 return 0;
@@ -1705,8 +1714,7 @@
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     const type = data.type || 'share_buy';
-                    // Normalize: ensure shares field exists
-                    const shares = data.shares || (data.amount ? Math.round(data.amount / sharePrice) : 0);
+                    const shares = data.shares || (data.amount ? (data.amount / sharePrice) : 0);
                     allShares.push({
                         id: doc.id,
                         ...data,
@@ -1879,11 +1887,11 @@
                         `;
                 }
 
-                if (canEdit() || (currentUserRole === 'manager' && s.status === 'pending')) {
+                if (canEdit() && s.status === 'pending') {
                     actionsHtml += `<button class="action-btn-sm edit" onclick="editShare('${s.id}')" title="${t.edit}"><i class="fas fa-edit"></i></button>`;
                 }
 
-                if (canDelete() || (currentUserRole === 'manager' && s.status === 'pending')) {
+                if (canDelete() && s.status === 'pending') {
                     actionsHtml += `<button class="action-btn-sm delete" onclick="showDeleteModal('${s.id}')" title="${t.delete}"><i class="fas fa-trash"></i></button>`;
                 }
 
@@ -2029,23 +2037,31 @@
             document.getElementById('customerNameDisplay').textContent = customer.fullName;
             document.getElementById('customerIdDisplay').textContent = customer.customerId || id;
 
-            const shares = await getCustomerShares(id);
-            document.getElementById('currentSharesDisplay').textContent = 'ETB ' + shares.toFixed(2);
+            const shares = await getCustomerSharesCount(id);
+            document.getElementById('currentSharesDisplay').textContent = shares.toFixed(2) + ' shares';
 
             const savings = await getCustomerSavingsBalance(id);
             document.getElementById('availableSavingsDisplay').textContent = 'ETB ' + savings.toFixed(2);
 
             infoDisplay.classList.add('active');
 
-            // If selling, check if they have enough shares
+            // Update share count and max amount for sell
             if (currentTransactionType === 'sell') {
+                const maxSellShares = shares;
+                const shareCountInput = document.getElementById('shareCount');
+                shareCountInput.max = maxSellShares;
+                shareCountInput.placeholder = `Max: ${maxSellShares.toFixed(2)}`;
                 const amountInput = document.getElementById('amountInput');
-                const maxSellValue = shares * sharePrice;
-                amountInput.max = maxSellValue;
-                amountInput.placeholder = `Max: ${maxSellValue.toFixed(2)} (${shares.toFixed(2)} shares)`;
+                amountInput.max = maxSellShares * sharePrice;
+                amountInput.placeholder = `Max: ${(maxSellShares * sharePrice).toFixed(2)} (${maxSellShares.toFixed(2)} shares)`;
+            } else if (currentTransactionType === 'buy') {
+                // Check savings
+                const savingsBalance = await getCustomerSavingsBalance(id);
+                const amountInput = document.getElementById('amountInput');
+                if (document.getElementById('paymentMethod').value === 'savings') {
+                    amountInput.max = savingsBalance;
+                }
             }
-
-            // Validate min/max
             validateAmount();
         }
 
@@ -2174,12 +2190,10 @@
             const val = parseFloat(amountInput.value) || 0;
             const shares = val / sharePrice;
 
-            // Update share count
             if (shareCountInput && val > 0) {
                 shareCountInput.value = shares.toFixed(2);
             }
 
-            // Validate range
             const warning = document.getElementById('shareRangeWarning');
             if (warning) {
                 if (minShareValue > 0 && val > 0 && val < minShareValue) {
@@ -2196,14 +2210,15 @@
                 }
             }
 
-            // For sell: check if enough shares
             if (currentTransactionType === 'sell' && selectedCustomerId) {
-                getCustomerShares(selectedCustomerId).then(available => {
+                getCustomerSharesCount(selectedCustomerId).then(available => {
                     const sharesToSell = val / sharePrice;
                     if (sharesToSell > available) {
                         const t = translations[currentLang];
                         showToast(t.sellNotEnoughShares.replace('{available}', available.toFixed(2)), 'warning');
                         amountInput.style.borderColor = 'var(--danger)';
+                    } else {
+                        amountInput.style.borderColor = '';
                     }
                 });
             }
@@ -2217,8 +2232,7 @@
                     document.getElementById('toCustomerSearch').style.borderColor = 'var(--danger)';
                     return false;
                 }
-                // Check if from customer has enough shares
-                getCustomerShares(selectedFromCustomerId).then(available => {
+                getCustomerSharesCount(selectedFromCustomerId).then(available => {
                     const amountInput = document.getElementById('amountInput');
                     const val = parseFloat(amountInput.value) || 0;
                     const sharesToTransfer = val / sharePrice;
@@ -2280,7 +2294,6 @@
             document.getElementById('editId').value = '';
             document.getElementById('shareForm').reset();
 
-            // Show/hide transfer fields
             const transferFields = document.getElementById('transferFields');
             const singleFields = document.getElementById('singleCustomerFields');
             if (type === 'transfer') {
@@ -2290,7 +2303,6 @@
                 document.getElementById('toCustomerSearch').required = true;
                 document.getElementById('customerSearch').required = false;
                 document.getElementById('customerId').value = '';
-                // Hide customer info display
                 document.getElementById('customerInfoDisplay').classList.remove('active');
             } else {
                 transferFields.style.display = 'none';
@@ -2305,7 +2317,6 @@
             document.getElementById('amountInput').max = maxShareValue;
             document.getElementById('amountInput').placeholder = minShareValue > 0 ? `Min: ${minShareValue.toFixed(2)}` : '0.00';
 
-            // Set payment method based on type
             const isAdminManager = ['admin', 'manager'].includes(currentUserRole);
             if (type === 'sell' || type === 'transfer') {
                 document.getElementById('paymentMethod').value = 'savings';
@@ -2320,7 +2331,6 @@
             updateModalTitle();
             updateMinMaxBanner();
 
-            // Clear selections
             selectedCustomerId = null;
             selectedFromCustomerId = null;
             selectedToCustomerId = null;
@@ -2404,7 +2414,7 @@
             }
 
             let extraTransferFields = '';
-            if (share.transferType !== 'savings' && share.transferType !== 'cash') {
+            if (share.paymentMethod !== 'savings' && share.paymentMethod !== 'cash') {
                 extraTransferFields = `
                             <div class="view-detail-row"><span class="label">TT Number</span><span class="value">${share.ttNumber || '—'}</span></div>
                             <div class="view-detail-row"><span class="label">Transfer Date</span><span class="value">${share.transferDate ? (share.transferDate.toDate ? share.transferDate.toDate().toLocaleDateString() : new Date(share.transferDate).toLocaleDateString()) : '—'}</span></div>
@@ -2448,16 +2458,13 @@
                 return;
             }
 
-            // Determine type
             let type = 'buy';
             if (share.type === 'share_sell') type = 'sell';
             else if (share.type === 'share_transfer_in' || share.type === 'share_transfer_out') type = 'transfer';
 
-            // Open modal with the type
             openModal(type);
             document.getElementById('editId').value = id;
 
-            // Fill data
             if (type === 'transfer') {
                 document.getElementById('fromCustomerSearch').value = share.fromCustomerName || share.fromCustomerId || '';
                 document.getElementById('fromCustomerId').value = share.fromCustomerId || '';
@@ -2471,11 +2478,10 @@
                     document.getElementById('customerSearch').value = customer.fullName + ' (' + (customer.customerId || '') + ')';
                     document.getElementById('customerId').value = share.customerId;
                     selectedCustomerId = share.customerId;
-                    // Show customer info
                     document.getElementById('customerNameDisplay').textContent = customer.fullName;
                     document.getElementById('customerIdDisplay').textContent = customer.customerId || share.customerId;
-                    getCustomerShares(share.customerId).then(shares => {
-                        document.getElementById('currentSharesDisplay').textContent = 'ETB ' + shares.toFixed(2);
+                    getCustomerSharesCount(share.customerId).then(shares => {
+                        document.getElementById('currentSharesDisplay').textContent = shares.toFixed(2) + ' shares';
                     });
                     getCustomerSavingsBalance(share.customerId).then(savings => {
                         document.getElementById('availableSavingsDisplay').textContent = 'ETB ' + savings.toFixed(2);
@@ -2504,10 +2510,12 @@
         }
 
         // ============================================================
-        // APPROVE / REJECT SHARE
+        // APPROVE / REJECT SHARE (with related transaction handling)
         // ============================================================
         async function approveShare(id) {
             if (!canApproveReject()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
+            const btn = document.querySelector(`button[onclick="approveShare('${id}')"]`);
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
             try {
                 const docRef = db.collection('transactions').doc(id);
                 const doc = await docRef.get();
@@ -2521,18 +2529,35 @@
                     approvedBy: getDisplayName(auth.currentUser)
                 });
 
+                // If it's a transfer_out, also approve the related transfer_in
+                if (data.type === 'share_transfer_out' && data.relatedTransactionId) {
+                    const inRef = db.collection('transactions').doc(data.relatedTransactionId);
+                    const inDoc = await inRef.get();
+                    if (inDoc.exists && inDoc.data().status === 'pending') {
+                        await inRef.update({
+                            status: 'approved',
+                            approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            approvedBy: getDisplayName(auth.currentUser)
+                        });
+                    }
+                }
+
                 await logAudit('approved', 'transactions', id, { previousStatus: { old: 'pending', new: 'approved' } },
                     'Share transaction approved');
                 showToast(translations[currentLang].approveSuccess, 'success');
                 await loadShares();
             } catch (error) {
                 showToast('Error approving share: ' + error.message, 'error');
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i>'; }
             }
         }
 
         async function rejectShare(id) {
             if (!canApproveReject()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
             if (!confirm('Are you sure you want to reject this share transaction?')) return;
+            const btn = document.querySelector(`button[onclick="rejectShare('${id}')"]`);
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
             try {
                 const docRef = db.collection('transactions').doc(id);
                 const doc = await docRef.get();
@@ -2546,12 +2571,27 @@
                     rejectedBy: getDisplayName(auth.currentUser)
                 });
 
+                // If it's a transfer_out, also reject the related transfer_in
+                if (data.type === 'share_transfer_out' && data.relatedTransactionId) {
+                    const inRef = db.collection('transactions').doc(data.relatedTransactionId);
+                    const inDoc = await inRef.get();
+                    if (inDoc.exists && inDoc.data().status === 'pending') {
+                        await inRef.update({
+                            status: 'rejected',
+                            rejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            rejectedBy: getDisplayName(auth.currentUser)
+                        });
+                    }
+                }
+
                 await logAudit('rejected', 'transactions', id, { previousStatus: { old: 'pending', new: 'rejected' } },
                     'Share transaction rejected');
                 showToast(translations[currentLang].rejectSuccess, 'success');
                 await loadShares();
             } catch (error) {
                 showToast('Error rejecting share: ' + error.message, 'error');
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-times"></i>'; }
             }
         }
 
@@ -2580,6 +2620,9 @@
         async function confirmDeleteShare() {
             if (!pendingDeleteId) return;
             const t = translations[currentLang];
+            const btn = document.getElementById('deleteConfirm');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
             try {
                 const docRef = db.collection('transactions').doc(pendingDeleteId);
                 const doc = await docRef.get();
@@ -2592,6 +2635,9 @@
             } catch (error) {
                 showToast(t.deleteError + error.message, 'error');
                 closeDeleteModal();
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-trash-alt"></i> ' + (t.delete || 'Delete');
             }
         }
 
@@ -2617,7 +2663,6 @@
             let fromCustomerId = document.getElementById('fromCustomerId').value;
             let toCustomerId = document.getElementById('toCustomerId').value;
 
-            // Validate based on type
             if (transactionType === 'transfer') {
                 if (!fromCustomerId || !toCustomerId) {
                     showToast('Please select both customers.', 'warning');
@@ -2627,22 +2672,20 @@
                     showToast(t.cannotSellToSelf || 'Cannot transfer to yourself.', 'warning');
                     return;
                 }
-                // Check if from customer has enough shares
-                const availableShares = await getCustomerShares(fromCustomerId);
+                const availableShares = await getCustomerSharesCount(fromCustomerId);
                 const sharesToTransfer = amount / sharePrice;
                 if (sharesToTransfer > availableShares) {
                     showToast(t.transferNotEnoughShares.replace('{available}', availableShares.toFixed(2)), 'warning');
                     return;
                 }
-                customerId = fromCustomerId; // For the main record
+                customerId = fromCustomerId;
             } else {
                 if (!customerId) {
                     showToast('Please select a customer.', 'warning');
                     return;
                 }
-                // For sell: check if customer has enough shares
                 if (transactionType === 'sell') {
-                    const availableShares = await getCustomerShares(customerId);
+                    const availableShares = await getCustomerSharesCount(customerId);
                     const sharesToSell = amount / sharePrice;
                     if (sharesToSell > availableShares) {
                         showToast(t.sellNotEnoughShares.replace('{available}', availableShares.toFixed(2)), 'warning');
@@ -2653,7 +2696,6 @@
 
             if (!amount || amount <= 0) { showToast('Please enter a valid amount.', 'warning'); return; }
 
-            // Validate range
             if (minShareValue > 0 && amount < minShareValue) {
                 showToast(`Amount must be at least ETB ${minShareValue.toFixed(2)}.`, 'warning');
                 document.getElementById('amountInput').focus();
@@ -2667,14 +2709,22 @@
 
             if (!date) { showToast('Please select a date.', 'warning'); return; }
 
-            // Check payment method restrictions
             const isAdminManager = ['admin', 'manager'].includes(currentUserRole);
             if (paymentMethod === 'cash' && !isAdminManager) {
                 showToast(t.transferTypeRestricted || 'Cash payments are restricted to Admin and Manager only.', 'error');
                 return;
             }
 
-            // For non-savings methods, validate TT fields
+            // Transfer date validation: cannot be in future
+            if (transferDate) {
+                const now = new Date();
+                const selected = new Date(transferDate);
+                if (selected > now) {
+                    showToast(t.transferDateFuture || 'Transfer date cannot be in the future.', 'warning');
+                    return;
+                }
+            }
+
             if (paymentMethod !== 'savings' && paymentMethod !== 'cash') {
                 if (!ttNumber) { showToast('TT number is required.', 'warning'); return; }
                 if (!transferDate) { showToast('Transfer date is required.', 'warning'); return; }
@@ -2689,7 +2739,6 @@
                 }
             }
 
-            // Check savings balance if using savings
             if (paymentMethod === 'savings') {
                 const savingsBalance = await getCustomerSavingsBalance(customerId);
                 if (savingsBalance < amount) {
@@ -2701,7 +2750,6 @@
             const user = auth.currentUser;
             const createdByName = getDisplayName(user);
 
-            // Determine transaction type for DB
             let dbType = 'share_buy';
             if (transactionType === 'sell') dbType = 'share_sell';
             else if (transactionType === 'transfer') dbType = 'share_transfer_out';
@@ -2749,7 +2797,6 @@
                     docRef = await db.collection('transactions').add(docData);
                     await logAudit('created', 'transactions', docRef.id, { data: docData }, 'Share transaction created');
 
-                    // If transfer, also create a corresponding entry for the receiver
                     if (transactionType === 'transfer') {
                         const transferInData = {
                             customerId: toCustomerId,
@@ -2846,12 +2893,10 @@
                 initLanguage();
                 loadSidebarState();
 
-                // Sidebar events
                 document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
                 document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
                 document.getElementById('sidebarToggleBtn').addEventListener('click', toggleSidebarCollapse);
 
-                // Language buttons
                 document.querySelectorAll('.lang-btn').forEach(btn => {
                     btn.addEventListener('click', function() {
                         setLanguage(this.dataset.lang);
@@ -2866,7 +2911,6 @@
                     });
                 });
 
-                // Logout
                 document.getElementById('logoutBtn').addEventListener('click', showLogoutModal);
                 document.getElementById('logoutCancel').addEventListener('click', hideLogoutModal);
                 document.getElementById('logoutConfirm').addEventListener('click', performLogout);
@@ -2877,23 +2921,19 @@
                     if (e.key === 'Escape') hideLogoutModal();
                 });
 
-                // Delete modal
                 document.getElementById('deleteCancel').addEventListener('click', closeDeleteModal);
                 document.getElementById('deleteConfirm').addEventListener('click', confirmDeleteShare);
                 document.getElementById('deleteModal').addEventListener('click', function(e) {
                     if (e.target === this) closeDeleteModal();
                 });
 
-                // Load data
                 await loadCustomers();
                 setupCustomerSearch();
                 setupFromCustomerSearch();
                 setupToCustomerSearch();
 
-                // Payment method toggle
                 document.getElementById('paymentMethod').addEventListener('change', toggleConditionalFields);
 
-                // Amount validation
                 document.getElementById('amountInput').addEventListener('input', function() {
                     validateAmount();
                     const val = parseFloat(this.value);
@@ -2911,7 +2951,6 @@
                     }
                 });
 
-                // Duplicate check
                 document.getElementById('ttNumber').addEventListener('blur', async function() {
                     const customerId = document.getElementById('customerId').value;
                     const ttNumber = this.value.trim();
@@ -2934,10 +2973,8 @@
                     }
                 });
 
-                // Load shares
                 await loadShares();
 
-                // Modal events
                 document.getElementById('buyShareBtn').addEventListener('click', () => openModal('buy'));
                 document.getElementById('sellShareBtn').addEventListener('click', () => openModal('sell'));
                 document.getElementById('transferShareBtn').addEventListener('click', () => openModal('transfer'));
@@ -2968,13 +3005,19 @@
 
                 document.getElementById('shareForm').addEventListener('submit', saveShare);
 
-                // Search and filters
                 document.getElementById('searchInput').addEventListener('input', applySearch);
                 document.getElementById('statusFilter').addEventListener('change', applySearch);
                 document.getElementById('transactionTypeFilter').addEventListener('change', applySearch);
                 document.getElementById('yearFilter').addEventListener('change', applySearch);
 
-                // Pagination
+                document.getElementById('clearFiltersBtn').addEventListener('click', function() {
+                    document.getElementById('searchInput').value = '';
+                    document.getElementById('statusFilter').value = 'all';
+                    document.getElementById('transactionTypeFilter').value = 'all';
+                    document.getElementById('yearFilter').value = 'all';
+                    applySearch();
+                });
+
                 document.getElementById('prevPage').addEventListener('click', function() {
                     if (currentPage > 1) goToPage(currentPage - 1);
                 });
@@ -2983,7 +3026,6 @@
                     if (currentPage < totalPages) goToPage(currentPage + 1);
                 });
 
-                // View modal
                 document.getElementById('closeViewModal').addEventListener('click', closeViewModal);
                 document.getElementById('viewShareModal').addEventListener('click', function(e) {
                     if (e.target === this) closeViewModal();
@@ -3014,7 +3056,7 @@
         window.openModal = openModal;
         window.validateAmount = validateAmount;
         window.validateTransfer = validateTransfer;
-        window.getCustomerShares = getCustomerShares;
+        window.getCustomerSharesCount = getCustomerSharesCount;
         window.getCustomerSavingsBalance = getCustomerSavingsBalance;
     </script>
 
