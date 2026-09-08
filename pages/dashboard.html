@@ -1530,10 +1530,11 @@
                             <span class="stat-change" id="penaltiesChange"></span>
                         </div>
                     </div>
+                    <!-- ===== SHARES CARD — now shows both shares & value ===== -->
                     <div class="stat-card shares">
                         <div class="stat-icon"><i class="fas fa-chart-pie"></i></div>
                         <div class="stat-info">
-                            <span class="stat-label" data-i18n="statShares">Total Shares (ETB)</span>
+                            <span class="stat-label" data-i18n="statShares">Total Shares</span>
                             <span class="stat-value" id="sharesValue">0</span>
                             <span class="stat-change" id="sharesChange"></span>
                         </div>
@@ -1705,7 +1706,7 @@
                 statTotalBalanceAll: 'Total Balance All Years (ETB)',
                 statTotalCapital: 'Total Capital All Years (ETB)',
                 statPenalties: 'Penalties Pending',
-                statShares: 'Total Shares (ETB)',
+                statShares: 'Total Shares',
                 chartLoansVsRepayments: 'Loans vs Repayments',
                 chartLoanSub: 'Loans Issued (ETB) · Repayments (ETB)',
                 chartMonthlyTrends: 'Monthly Trends',
@@ -1772,7 +1773,7 @@
                 statTotalBalanceAll: 'ጠቅላላ ሚዛን ሁሉም ዓመታት (ብር)',
                 statTotalCapital: 'ጠቅላላ ካፒታል ሁሉም ዓመታት (ብር)',
                 statPenalties: 'በመጠበቅ ላይ ያሉ ቅጣቶች',
-                statShares: 'ጠቅላላ አክሲዮን (ብር)',
+                statShares: 'ጠቅላላ አክሲዮን',
                 chartLoansVsRepayments: 'ብድር እና ክፍያዎች',
                 chartLoanSub: 'የተሰጠ ብድር (ብር) · ክፍያዎች (ብር)',
                 chartMonthlyTrends: 'ወርሃዊ አዝማሚያዎች',
@@ -1839,7 +1840,7 @@
                 statTotalBalanceAll: 'Iddoo Guutuu Waggaa Hundaa (ETB)',
                 statTotalCapital: 'Kaapitaala Guutuu Waggaa Hundaa (ETB)',
                 statPenalties: 'Adaboota Eegamaa',
-                statShares: 'Hirmaata Waliigalaa (ETB)',
+                statShares: 'Hirmaata Waliigalaa',
                 chartLoansVsRepayments: 'Liqii fi Kaffaltuu',
                 chartLoanSub: 'Liqii Kenname (ETB) · Kaffaltuu (ETB)',
                 chartMonthlyTrends: 'Adeemsa Ji\'aa',
@@ -2220,6 +2221,21 @@
             return `Customer (${customerId})`;
         }
 
+        // ---- Helper: detect if a share_buy came from savings ----
+        function isShareFromSavings(share) {
+            if (!share) return false;
+            // Check common field names used to mark "from savings"
+            if (share.fromSavings === true) return true;
+            if (share.source === 'savings') return true;
+            if (share.fundingSource === 'savings') return true;
+            if (share.fundedBy === 'savings') return true;
+            if (share.paymentMethod === 'savings') return true;
+            if (share.savingsDeducted === true) return true;
+            // If there's a savingsTxId reference, assume it came from savings
+            if (share.savingsTxId) return true;
+            return false;
+        }
+
         // ============================================================
         // MAIN LOAD FUNCTION
         // ============================================================
@@ -2286,9 +2302,22 @@
                 allPenalties = penaltiesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
                 allShares = sharesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-                // ---- Calculate Shares total (approved only) ----
-                const totalSharesApproved = allShares
-                    .filter(s => s.status === 'approved')
+                // ============================================================
+                // SHARE CALCULATIONS — count & value (ALL YEARS, approved)
+                // ============================================================
+                const approvedShares = allShares.filter(s => s.status === 'approved');
+
+                // Total number of shares (sum of 'shares' field)
+                const totalSharesCount = approvedShares
+                    .reduce((sum, s) => sum + (Number(s.shares) || 0), 0);
+
+                // Total value in ETB (sum of 'amount' field)
+                const totalSharesValue = approvedShares
+                    .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+
+                // ---- Share purchases FROM savings (approved) ----
+                const sharePurchasesFromSavings = approvedShares
+                    .filter(s => s.type === 'share_buy' && isShareFromSavings(s))
                     .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
 
                 // ============================================================
@@ -2350,23 +2379,49 @@
                     totalIncomeYearly = 0;
                 }
 
-                // ---- Yearly calculations ----
-                const totalSavings = savingsData.reduce((s, item) => s + (Number(item.amount) || 0), 0);
+                // ---- Yearly savings (NET of share purchases from savings) ----
+                // First: sum of all approved savings deposits in the selected year
+                const grossSavingsYearly = savingsData
+                    .reduce((s, item) => s + (Number(item.amount) || 0), 0);
+
+                // Second: share_buy transactions FROM savings in the selected year
+                const sharePurchasesFromSavingsYearly = allShares
+                    .filter(s =>
+                        s.type === 'share_buy' &&
+                        s.status === 'approved' &&
+                        isInYear(s.date || s.timestamp, year) &&
+                        isShareFromSavings(s)
+                    )
+                    .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+
+                // Net savings = gross savings - share purchases from savings
+                const netSavingsYearly = Math.round((grossSavingsYearly - sharePurchasesFromSavingsYearly) * 100) / 100;
+
+                // ---- Yearly loans ----
                 const totalLoans = loansData.filter(l => l.status === 'active' || l.status === 'paid')
                     .reduce((s, l) => s + (Number(l.amount) || 0), 0);
+
+                // ---- Yearly repayments ----
                 const totalRepayments = repaymentsData.reduce((s, r) => s + (Number(r.amount) || 0), 0);
-                const totalSharesYearly = sharesData.reduce((s, item) => s + (Number(item.amount) || 0), 0);
+
+                // ---- Yearly shares (count & value) ----
+                const yearlySharesCount = sharesData
+                    .reduce((sum, s) => sum + (Number(s.shares) || 0), 0);
+                const yearlySharesValue = sharesData
+                    .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
 
                 // ---- Total Balance (Yearly) ----
-                const totalBalanceYearly = Math.round((totalSavings + totalIncomeYearly) * 100) / 100;
+                const totalBalanceYearly = Math.round((netSavingsYearly + totalIncomeYearly) * 100) / 100;
 
                 // ---- TOTAL CAPITAL ALL YEARS ----
                 const totalSavingsAllYears = allSavings
                     .filter(s => s.status === 'approved')
                     .reduce((s, item) => s + (Number(item.amount) || 0), 0);
+
                 const totalDividendsAllYears = allProfitWithdrawal
                     .filter(w => w.reason === 'Dividend')
                     .reduce((s, w) => s + (Number(w.amount) || 0), 0);
+
                 const totalWithdrawalsAllYears = allWithdrawals.reduce((s, w) => s + (Number(w.amount) || 0), 0);
                 const totalLeavingWithdrawalsAllYears = allLeavingWithdrawals.reduce((s, w) => s + (Number(w.amount) || 0),
                     0);
@@ -2393,14 +2448,17 @@
                 // ---- Update UI ----
                 document.getElementById('totalCustomersValue').textContent = totalCustomers.toLocaleString();
                 document.getElementById('balanceValue').textContent = totalBalanceYearly.toLocaleString();
-                document.getElementById('savingsValue').textContent = totalSavings.toLocaleString();
+                document.getElementById('savingsValue').textContent = netSavingsYearly.toLocaleString();
                 document.getElementById('loansValue').textContent = totalLoans.toLocaleString();
                 document.getElementById('repaymentsValue').textContent = totalRepayments.toLocaleString();
                 document.getElementById('profitValue').textContent = totalIncomeYearly.toLocaleString();
                 document.getElementById('totalProfitValue').textContent = totalIncomeAllYears.toLocaleString();
                 document.getElementById('totalBalanceAllValue').textContent = totalBalanceAllYears.toLocaleString();
                 document.getElementById('totalCapitalValue').textContent = totalCapitalAllYears.toLocaleString();
-                document.getElementById('sharesValue').textContent = totalSharesApproved.toLocaleString();
+
+                // ---- SHARES CARD: show both count and value ----
+                const sharesDisplay = `${totalSharesCount.toLocaleString()} shares (ETB ${totalSharesValue.toLocaleString()})`;
+                document.getElementById('sharesValue').textContent = sharesDisplay;
 
                 // ---- Penalties ----
                 const penaltyDisplay = totalPenaltiesCount > 0 ?
@@ -2476,9 +2534,28 @@
                 document.getElementById('totalProfitChange').innerHTML = `<span class="neutral">—</span>`;
                 document.getElementById('totalBalanceAllChange').innerHTML = `<span class="neutral">—</span>`;
                 document.getElementById('totalCapitalChange').innerHTML = `<span class="neutral">—</span>`;
-                document.getElementById('sharesChange').innerHTML =
-                    totalSharesApproved > 0 ? `<span class="positive">${totalSharesApproved.toFixed(0)} shares</span>` :
-                    `<span class="neutral">No shares</span>`;
+
+                // ---- Shares change line: show count & value growth ----
+                const prevSharesCount = allShares
+                    .filter(s => s.status === 'approved' && isInYear(s.date || s.timestamp, prevYear))
+                    .reduce((sum, s) => sum + (Number(s.shares) || 0), 0);
+                if (totalSharesCount > 0 && prevSharesCount > 0) {
+                    const pct = ((totalSharesCount - prevSharesCount) / prevSharesCount * 100);
+                    if (pct > 0) {
+                        document.getElementById('sharesChange').innerHTML =
+                            `<span class="positive">+${pct.toFixed(1)}% shares</span>`;
+                    } else if (pct < 0) {
+                        document.getElementById('sharesChange').innerHTML =
+                            `<span class="negative">${pct.toFixed(1)}% shares</span>`;
+                    } else {
+                        document.getElementById('sharesChange').innerHTML = `<span class="neutral">0%</span>`;
+                    }
+                } else if (totalSharesCount > 0) {
+                    document.getElementById('sharesChange').innerHTML =
+                        `<span class="positive">${totalSharesCount.toFixed(0)} shares</span>`;
+                } else {
+                    document.getElementById('sharesChange').innerHTML = `<span class="neutral">No shares</span>`;
+                }
 
                 // ---- Charts ----
                 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -2530,8 +2607,9 @@
                 allShares.filter(s => s.type === 'share_buy' && s.status === 'approved' && isInYear(s.date || s.timestamp,
                     year)).slice(0, 2).forEach(s => {
                     const customerName = getCustomerName(s.customerId);
+                    const fromSavings = isShareFromSavings(s) ? ' (from savings)' : '';
                     activities.push({
-                        text: `📈 ${customerName} bought <strong>${Number(s.shares || (s.amount / 1000)).toFixed(2)} shares</strong> (ETB ${Number(s.amount).toLocaleString()})`,
+                        text: `📈 ${customerName} bought <strong>${Number(s.shares || (s.amount / 1000)).toFixed(2)} shares</strong> (ETB ${Number(s.amount).toLocaleString()})${fromSavings}`,
                         icon: 'fa-plus-circle',
                         color: 'purple',
                         date: s.date || s.timestamp
@@ -2657,7 +2735,7 @@
                 document.getElementById('totalProfitValue').textContent = '0';
                 document.getElementById('totalBalanceAllValue').textContent = '0';
                 document.getElementById('totalCapitalValue').textContent = '0';
-                document.getElementById('sharesValue').textContent = '0';
+                document.getElementById('sharesValue').textContent = '0 shares (ETB 0)';
                 document.getElementById('penaltiesValue').textContent = '0';
                 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 updateCharts(months, Array(12).fill(0), Array(12).fill(0), Array(12).fill(0));
