@@ -1607,7 +1607,7 @@
         let selectedFromCustomerId = null;
         let selectedToCustomerId = null;
         let currentTransactionType = 'buy';
-        let shareBuysFromSavings = []; // cache for net savings calculation
+        let shareBuysFromSavings = [];
 
         // ============================================================
         // TOAST SYSTEM
@@ -1876,7 +1876,6 @@
         // ============================================================
         async function getCustomerNetSavings(customerId) {
             try {
-                // Gross savings (approved)
                 const savingsSnap = await db.collection('transactions')
                     .where('customerId', '==', customerId)
                     .where('type', '==', 'savings')
@@ -1887,7 +1886,6 @@
                     grossSavings += Number(doc.data().amount) || 0;
                 });
 
-                // Share buys from savings (approved, paymentMethod = 'savings')
                 const shareBuySnap = await db.collection('transactions')
                     .where('customerId', '==', customerId)
                     .where('type', '==', 'share_buy')
@@ -1899,7 +1897,6 @@
                     shareDeductions += Number(doc.data().amount) || 0;
                 });
 
-                // Cache for quick lookup
                 shareBuysFromSavings = shareBuySnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
                 const netSavings = Math.max(0, grossSavings - shareDeductions);
@@ -2293,7 +2290,6 @@
             const shares = await getCustomerSharesCount(id);
             document.getElementById('currentSharesDisplay').textContent = shares.toFixed(2) + ' shares';
 
-            // Get net savings
             const netSavings = await getCustomerNetSavings(id);
             document.getElementById('availableSavingsDisplay').textContent = 'ETB ' + netSavings.toFixed(2);
 
@@ -2309,14 +2305,13 @@
                 amountInput.placeholder =
                 `Max: ${(maxSellShares * sharePrice).toFixed(2)} (${maxSellShares.toFixed(2)} shares)`;
             } else if (currentTransactionType === 'buy') {
-                // For buy, we need to check if paymentMethod is savings, then cap by net savings
                 const paymentMethod = document.getElementById('paymentMethod').value;
                 const amountInput = document.getElementById('amountInput');
                 if (paymentMethod === 'savings') {
                     amountInput.max = netSavings;
                     amountInput.placeholder = `Max: ${netSavings.toFixed(2)} (savings balance)`;
                 } else {
-                    amountInput.max = 999999999; // no limit for cash/mobile/bank
+                    amountInput.max = 999999999;
                 }
             }
             validateAmount();
@@ -2441,7 +2436,6 @@
                 if (transferDateRequired) transferDateRequired.textContent = '*';
             }
 
-            // If paymentMethod is savings, re-validate amount against net savings
             if (method === 'savings' && selectedCustomerId) {
                 getCustomerNetSavings(selectedCustomerId).then(net => {
                     const amountInput = document.getElementById('amountInput');
@@ -2458,7 +2452,7 @@
         }
 
         // ============================================================
-        // VALIDATE AMOUNT (checks savings balance for buy with savings)
+        // VALIDATE AMOUNT
         // ============================================================
         function validateAmount() {
             const amountInput = document.getElementById('amountInput');
@@ -2498,7 +2492,6 @@
                 }
             }
 
-            // If buy from savings, check against net savings
             const paymentMethod = document.getElementById('paymentMethod').value;
             if (currentTransactionType === 'buy' && paymentMethod === 'savings' && selectedCustomerId && val > 0) {
                 getCustomerNetSavings(selectedCustomerId).then(netSavings => {
@@ -2948,7 +2941,7 @@
         }
 
         // ============================================================
-        // SAVE SHARE (with net savings validation for buy from savings)
+        // SAVE SHARE
         // ============================================================
         async function saveShare(e) {
             e.preventDefault();
@@ -2999,7 +2992,6 @@
                         return;
                     }
                 }
-                // If buy from savings, validate net savings
                 if (transactionType === 'buy' && paymentMethod === 'savings') {
                     const netSavings = await getCustomerNetSavings(customerId);
                     if (amount > netSavings) {
@@ -3064,8 +3056,6 @@
                     return;
                 }
             }
-
-            // For savings payment method, we already validated net savings above.
 
             const user = auth.currentUser;
             const createdByName = getDisplayName(user);
@@ -3178,7 +3168,7 @@
         }
 
         // ============================================================
-        // IMPROVED PRINT CERTIFICATE (NEW WINDOW, AUTO PRINT, FULL WIDTH, JUSTIFIED)
+        // IMPROVED PRINT CERTIFICATE – WITH PARAGRAPH-FORMATTED RULES
         // ============================================================
         function printCertificate(id) {
             const share = allShares.find(s => s.id === id);
@@ -3199,7 +3189,9 @@
             const serialNumber = 'GD-SH' + String(Math.floor(1000000000000 + Math.random() * 9000000000000));
             const letterNumber = `GDS/_________/${new Date().getFullYear().toString().slice(-2)}`;
 
-            // Build certificate HTML – full width, justified text
+            // Get paragraph-formatted rules text
+            const rulesHTML = getEthiopiaRulesHTML();
+
             const certificateHTML = `
                 <div class="certificate-container active" style="font-family: 'Times New Roman', 'Inter', serif; padding: 20px 30px; background: white; color: #000; max-width: 100%; width: 100%;">
                     <div class="certificate-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #1a6e3a; padding-bottom:12px; margin-bottom:16px; width:100%;">
@@ -3258,7 +3250,7 @@
                         </div>
 
                         <div class="rules-text" style="margin:16px 0; padding:14px 20px; background:#f9f9f9; border-left:4px solid #1a6e3a; border-radius:4px; font-size:12px; text-align:justify; white-space:normal; width:100%;">
-                            ${getEthiopiaRulesText()}
+                            ${rulesHTML}
                         </div>
 
                         <div class="signature-section" style="margin-top:30px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; border-top:1px solid #ddd; padding-top:20px;">
@@ -3279,7 +3271,6 @@
                 </div>
             `;
 
-            // Open new window
             const printWindow = window.open('', '_blank', 'width=900,height=1100');
             if (!printWindow) { showToast('Please allow pop-ups to print.', 'warning'); return; }
 
@@ -3301,7 +3292,9 @@
                         .certificate-meta div { display: block; width: 100%; text-align: right; }
                         .certificate-body { font-size: 13px; line-height: 1.7; }
                         .certificate-body .rules-text { margin: 16px 0; padding: 14px 20px; background: #f9f9f9; border-left: 4px solid #1a6e3a; border-radius: 4px; font-size: 12px; text-align: justify; white-space: normal; width: 100%; }
-                        .certificate-body p { text-align: justify; }
+                        .certificate-body .rules-text h4 { margin: 0 0 4px 0; font-weight: 700; font-size: 13px; color: #1a3a2a; }
+                        .certificate-body .rules-text p { margin: 0 0 6px 0; text-indent: 0; }
+                        .certificate-body .rules-text .section { margin-bottom: 10px; }
                         .certificate-details { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 20px; margin: 16px 0; }
                         .certificate-details .detail-item { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding: 4px 0; }
                         .certificate-details .label { font-weight: 600; color: #333; }
@@ -3332,153 +3325,69 @@
             printWindow.document.close();
         }
 
-        function getEthiopiaRulesText() {
-            return `ETHIOPIA SHARES RULES AND REGULATIONS - FOR GERESU DHUKI SACCO
-================================================================
+        // ============================================================
+        // RULES TEXT AS HTML WITH PROPER PARAGRAPHS
+        // ============================================================
+        function getEthiopiaRulesHTML() {
+            return `
+                <div class="section">
+                    <h4>OVERVIEW</h4>
+                    <p>This document outlines the share rules and regulations applicable to our Sacco, Geresu Dhuki SACCO. Ethiopia's share rules are centered on the Capital Market Proclamation No. 1248/2021, which established a modern legal framework for the country's capital markets. The Ethiopian Securities Exchange (ESX) officially launched on January 10, 2025, marking the return of a functional stock market after five decades. As a regulated entity, our Sacco must comply with all applicable provisions.</p>
+                </div>
 
-OVERVIEW
---------
-This document outlines the share rules and regulations applicable to our Sacco, 
-Geresu Dhuki SACCO. Ethiopia's share rules are centered on the Capital Market 
-Proclamation No. 1248/2021, which established a modern legal framework for the 
-country's capital markets. The Ethiopian Securities Exchange (ESX) officially 
-launched on January 10, 2025, marking the return of a functional stock market 
-after five decades. As a regulated entity, our Sacco must comply with all 
-applicable provisions.
+                <div class="section">
+                    <h4>REGULATORY BODIES</h4>
+                    <p><strong>Ethiopian Capital Market Authority (ECMA):</strong> The apex regulator, autonomous and accountable to Parliament. Responsible for protecting investors, ensuring market integrity, and licensing all market participants (exchanges, brokers, investment advisors). Our Sacco (Geresu Dhuki SACCO) operates under the oversight of ECMA.</p>
+                    <p><strong>Ethiopian Securities Exchange (ESX):</strong> The licensed securities exchange platform. Operates as a Self-Regulatory Organization (SRO) and creates its own detailed operational rules via the ESX Rulebook. If our Sacco seeks to list its shares, it must comply with ESX rules.</p>
+                </div>
 
-REGULATORY BODIES
------------------
-Ethiopian Capital Market Authority (ECMA): The apex regulator, autonomous and 
-accountable to Parliament. Responsible for protecting investors, ensuring 
-market integrity, and licensing all market participants (exchanges, brokers, 
-investment advisors). Our Sacco (Geresu Dhuki SACCO) operates under the 
-oversight of ECMA.
+                <div class="section">
+                    <h4>CORE LEGAL FRAMEWORKS</h4>
+                    <p><strong>Capital Market Proclamation No. 1248/2021:</strong> The primary law establishing the legal basis for the capital market, creating the ECMA, and defining core concepts like "securities". This Proclamation directly governs our Sacco's share-related activities.</p>
+                    <p><strong>Directive on Public Offer and Trading of Securities (Directive No. 1030/2024):</strong> Operationalizes the Proclamation by detailing requirements for public offerings and the registration of securities. Our Sacco must follow this directive if it plans to offer shares to the public.</p>
+                    <p><strong>Commercial Code Proclamation No. 1243/2021:</strong> Governs general corporate law in Ethiopia, including the formation and operation of share companies. Our Sacco (Geresu Dhuki SACCO) is subject to these general corporate provisions.</p>
+                    <p><strong>ESX Rulebook (2024):</strong> A comprehensive 5‑volume rulebook covering general rules, membership, listing, trading, and dispute resolution. These rules apply if our Sacco becomes a listed entity or a trading member.</p>
+                </div>
 
-Ethiopian Securities Exchange (ESX): The licensed securities exchange platform. 
-Operates as a Self-Regulatory Organization (SRO) and creates its own detailed 
-operational rules via the ESX Rulebook. If our Sacco seeks to list its shares, 
-it must comply with ESX rules.
+                <div class="section">
+                    <h4>KEY RULES AND REGULATIONS APPLICABLE TO OUR SACCO</h4>
+                    <h5 style="margin: 4px 0 2px; font-size:13px;">3.1 Share Registration</h5>
+                    <p><strong>Mandatory Registration:</strong> All companies, including our Sacco (Geresu Dhuki SACCO), that have issued, are issuing, or wish to issue securities to the public must register those securities with the ECMA.</p>
+                    <p><strong>Scope:</strong> This requirement applies to our Sacco and all other entities, regardless of sector.</p>
+                    <p><strong>Thresholds:</strong> Registration is mandatory for our Sacco if it has more than 50 shareholders or capital exceeding 100 million Birr. We must monitor our shareholder count and capital to ensure compliance.</p>
+                    <p><strong>Penalties for Non-Compliance:</strong> If our Sacco sells unregistered shares, it is a criminal offense, with penalties including up to 15 years in prison for responsible individuals and fines between 150,000 and 300,000 Birr for our Sacco.</p>
 
-CORE LEGAL FRAMEWORKS
----------------------
-Capital Market Proclamation No. 1248/2021: The primary law establishing the 
-legal basis for the capital market, creating the ECMA, and defining core 
-concepts like "securities". This Proclamation directly governs our Sacco's 
-share-related activities.
+                    <h5 style="margin: 4px 0 2px; font-size:13px;">3.2 Public Offer and Listing</h5>
+                    <p><strong>Prospectus Requirement:</strong> If our Sacco (Geresu Dhuki SACCO) wishes to offer shares to the public, it must file a registration statement with the ECMA, which includes a detailed prospectus.</p>
+                    <p><strong>Investor Protection:</strong> The ECMA has introduced rules to protect shareholders, including "pre-emptive rights", which give existing shareholders of our Sacco priority to buy new shares to avoid dilution of their ownership. We must respect these rights.</p>
+                    <p><strong>Disclosure and Transparency:</strong> Our Sacco is required to provide annual audited financial statements and maintain regular communication with our shareholders once listed.</p>
+                    <p><strong>ESX Listing Requirements:</strong> If our Sacco seeks listing on the ESX, it must meet the requirements of either the Main Board or the Growth Board for smaller companies, each with its own minimum requirements for capitalization, shareholders' equity, and public float. Wegagen Bank became the first company to be listed on the ESX, and our Sacco may follow in the future.</p>
 
-Directive on Public Offer and Trading of Securities (Directive No. 1030/2024): 
-Operationalizes the Proclamation by detailing requirements for public offerings 
-and the registration of securities. Our Sacco must follow this directive if it 
-plans to offer shares to the public.
+                    <h5 style="margin: 4px 0 2px; font-size:13px;">3.3 Trading Rules</h5>
+                    <p><strong>Trading Hours:</strong> The trading day includes a Pre-Open Session (9:00 AM – 9:30 AM), Continuous Trading (9:30 AM – 3:00 PM), and a Closing Session (3:00 PM). Our Sacco's trades must occur within these hours.</p>
+                    <p><strong>Block Trades:</strong> Large, pre-negotiated transactions can be executed outside the central order book. To qualify, a block trade involving our Sacco's shares must be for a single order worth 5% or more of the issuer's total market capitalization. These trades are restricted to a pricing band of plus/minus 30% of the 30-day Volume-Weighted Average Price (VWAP) for liquid securities.</p>
+                    <p><strong>Trade Cancellation:</strong> Rules exist for canceling trades, primarily in cases of technical system malfunctions in the Automated Trading System (ATS) or Central Securities Depository (CSD). Our Sacco must be aware of these provisions.</p>
+                </div>
 
-Commercial Code Proclamation No. 1243/2021: Governs general corporate law in 
-Ethiopia, including the formation and operation of share companies. Our Sacco 
-(Geresu Dhuki SACCO) is subject to these general corporate provisions.
+                <div class="section">
+                    <h4>COMPLIANCE REQUIREMENTS FOR OUR SACCO</h4>
+                    <p><strong>For Our Sacco (Geresu Dhuki SACCO):</strong> Beyond registering shares, our Sacco has new obligations under the Commercial Code, such as the requirement to create and maintain a website to provide information to our shareholders and the public.</p>
+                    <p><strong>For Trading Members:</strong> If our Sacco wishes to become a trading member of the ESX, it must be a Private Limited Company or a Share Company licensed by ECMA. The application process involves receiving an Approval in Principle (AIP) first.</p>
+                    <p><strong>For Our Investors:</strong> Our Sacco currently operates with about 2,000 investment accounts (as a general market reference). Infrastructure is still developing, including the rollout of mobile trading platforms, which our Sacco may leverage in the future.</p>
+                </div>
 
-ESX Rulebook (2024): A comprehensive 5-volume rulebook covering general rules, 
-membership, listing, trading, and dispute resolution. These rules apply if our 
-Sacco becomes a listed entity or a trading member.
+                <div class="section">
+                    <h4>CURRENT CHALLENGES AND DEVELOPMENTS RELEVANT TO OUR SACCO</h4>
+                    <p><strong>High Compliance Costs:</strong> Advisory fees for share registration have been reported as high as 11 million Birr, creating a financial burden for entities like our Sacco (Geresu Dhuki SACCO). We must budget carefully.</p>
+                    <p><strong>Infrastructure:</strong> The market is still nascent, with ongoing constraints in market readiness, education, and infrastructure. Our Sacco should invest in building internal capacity to navigate these challenges.</p>
+                    <p><strong>Flexible Enforcement:</strong> The ECMA has shown a willingness to evaluate cases individually, offering exemptions to newly formed companies or those facing financial difficulty. Our Sacco may request such exemptions if we face genuine hardship.</p>
+                </div>
 
-KEY RULES AND REGULATIONS APPLICABLE TO OUR SACCO
--------------------------------------------------
-
-3.1 Share Registration
-----------------------
-Mandatory Registration: All companies, including our Sacco (Geresu Dhuki SACCO), 
-that have issued, are issuing, or wish to issue securities to the public must 
-register those securities with the ECMA.
-
-Scope: This requirement applies to our Sacco and all other entities, regardless 
-of sector.
-
-Thresholds: Registration is mandatory for our Sacco if it has more than 50 
-shareholders or capital exceeding 100 million Birr. We must monitor our 
-shareholder count and capital to ensure compliance.
-
-Penalties for Non-Compliance: If our Sacco sells unregistered shares, it is a 
-criminal offense, with penalties including up to 15 years in prison for 
-responsible individuals and fines between 150,000 and 300,000 Birr for our 
-Sacco.
-
-3.2 Public Offer and Listing
-----------------------------
-Prospectus Requirement: If our Sacco (Geresu Dhuki SACCO) wishes to offer 
-shares to the public, it must file a registration statement with the ECMA, 
-which includes a detailed prospectus.
-
-Investor Protection: The ECMA has introduced rules to protect shareholders, 
-including "pre-emptive rights", which give existing shareholders of our Sacco 
-priority to buy new shares to avoid dilution of their ownership. We must 
-respect these rights.
-
-Disclosure and Transparency: Our Sacco is required to provide annual audited 
-financial statements and maintain regular communication with our shareholders 
-once listed.
-
-ESX Listing Requirements: If our Sacco seeks listing on the ESX, it must meet 
-the requirements of either the Main Board or the Growth Board for smaller 
-companies, each with its own minimum requirements for capitalization, 
-shareholders' equity, and public float. Wegagen Bank became the first company 
-to be listed on the ESX, and our Sacco may follow in the future.
-
-3.3 Trading Rules
------------------
-The ESX has established detailed trading rules that would apply to our Sacco's 
-trading activities if we participate:
-
-Trading Hours: The trading day includes a Pre-Open Session (9:00 AM – 9:30 AM), 
-Continuous Trading (9:30 AM – 3:00 PM), and a Closing Session (3:00 PM). Our 
-Sacco's trades must occur within these hours.
-
-Block Trades: Large, pre-negotiated transactions can be executed outside the 
-central order book. To qualify, a block trade involving our Sacco's shares must 
-be for a single order worth 5% or more of the issuer's total market 
-capitalization. These trades are restricted to a pricing band of plus/minus 30% 
-of the 30-day Volume-Weighted Average Price (VWAP) for liquid securities.
-
-Trade Cancellation: Rules exist for canceling trades, primarily in cases of 
-technical system malfunctions in the Automated Trading System (ATS) or Central 
-Securities Depository (CSD). Our Sacco must be aware of these provisions.
-
-COMPLIANCE REQUIREMENTS FOR OUR SACCO
--------------------------------------
-For Our Sacco (Geresu Dhuki SACCO): Beyond registering shares, our Sacco has 
-new obligations under the Commercial Code, such as the requirement to create 
-and maintain a website to provide information to our shareholders and the 
-public.
-
-For Trading Members: If our Sacco wishes to become a trading member of the ESX, 
-it must be a Private Limited Company or a Share Company licensed by ECMA. The 
-application process involves receiving an Approval in Principle (AIP) first.
-
-For Our Investors: Our Sacco currently operates with about 2,000 investment 
-accounts (as a general market reference). Infrastructure is still developing, 
-including the rollout of mobile trading platforms, which our Sacco may leverage 
-in the future.
-
-CURRENT CHALLENGES AND DEVELOPMENTS RELEVANT TO OUR SACCO
----------------------------------------------------------
-High Compliance Costs: Advisory fees for share registration have been reported 
-as high as 11 million Birr, creating a financial burden for entities like our 
-Sacco (Geresu Dhuki SACCO). We must budget carefully.
-
-Infrastructure: The market is still nascent, with ongoing constraints in market 
-readiness, education, and infrastructure. Our Sacco should invest in building 
-internal capacity to navigate these challenges.
-
-Flexible Enforcement: The ECMA has shown a willingness to evaluate cases 
-individually, offering exemptions to newly formed companies or those facing 
-financial difficulty. Our Sacco may request such exemptions if we face genuine 
-hardship.
-
-FINAL NOTE
-----------
-Ethiopia is building its share market regulations from the ground up, with a 
-strong focus on transparency, investor protection, and a clear legal structure. 
-As Geresu Dhuki SACCO, we must stay informed and compliant with all evolving 
-rules. If our Sacco is considering investing or listing, it is highly 
-recommended to consult with a legal or financial advisor who specializes in the 
-Ethiopian capital market.`;
+                <div class="section">
+                    <h4>FINAL NOTE</h4>
+                    <p>Ethiopia is building its share market regulations from the ground up, with a strong focus on transparency, investor protection, and a clear legal structure. As Geresu Dhuki SACCO, we must stay informed and compliant with all evolving rules. If our Sacco is considering investing or listing, it is highly recommended to consult with a legal or financial advisor who specializes in the Ethiopian capital market.</p>
+                </div>
+            `;
         }
 
         // ============================================================
@@ -3530,11 +3439,9 @@ Ethiopian capital market.`;
 
                 document.querySelectorAll('.lang-btn').forEach(btn => {
                     btn.addEventListener('click', function() {
-                        // Simple language switching
                         const lang = this.dataset.lang;
                         document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
                         this.classList.add('active');
-                        // Update static labels (simplified)
                     });
                 });
 
@@ -3696,7 +3603,6 @@ Ethiopian capital market.`;
 
     <!-- ===== SESSION TIMEOUT ===== -->
     <script>
-        // Simple session timeout (keeps user logged in as Firebase handles it)
         (function() {
             const SESSION_TIMEOUT = 5 * 60 * 1000;
             const WARNING_TIMEOUT = SESSION_TIMEOUT - 30 * 1000;
