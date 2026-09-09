@@ -17,7 +17,7 @@
 
     <style>
         /* ============================================================
-           ROOT VARIABLES
+           ROOT VARIABLES (unchanged)
            ============================================================ */
         :root {
             --primary: #1a6e3a;
@@ -117,6 +117,7 @@
             font-weight: 500;
         }
 
+        /* ===== SIDEBAR (unchanged) ===== */
         .sidebar {
             width: var(--sidebar-width);
             background: var(--bg-sidebar);
@@ -349,6 +350,7 @@
             display: block;
         }
 
+        /* ===== MAIN CONTENT ===== */
         .main-content {
             margin-left: var(--sidebar-width);
             flex: 1;
@@ -1902,19 +1904,19 @@
                 </div>
             </div>
 
-            <!-- Stats Cards -->
+            <!-- Stats Cards (now net of share purchases from savings) -->
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-icon green"><i class="fas fa-coins"></i></div>
                     <div class="stat-info">
-                        <span class="stat-label" data-i18n="totalSavings">Total Savings</span>
+                        <span class="stat-label" data-i18n="totalSavings">Total Savings (Net)</span>
                         <span class="stat-value" id="totalSavings">ETB 0.00</span>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon blue"><i class="fas fa-check-circle"></i></div>
                     <div class="stat-info">
-                        <span class="stat-label" data-i18n="approvedSavings">Approved</span>
+                        <span class="stat-label" data-i18n="approvedSavings">Approved (Gross)</span>
                         <span class="stat-value" id="approvedSavings">ETB 0.00</span>
                     </div>
                 </div>
@@ -1935,14 +1937,14 @@
                 <div class="stat-card">
                     <div class="stat-icon teal"><i class="fas fa-calendar-month"></i></div>
                     <div class="stat-info">
-                        <span class="stat-label" data-i18n="monthlySavings">This Month</span>
+                        <span class="stat-label" data-i18n="monthlySavings">This Month (Gross)</span>
                         <span class="stat-value" id="monthlySavings">ETB 0.00</span>
                     </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon gold"><i class="fas fa-user"></i></div>
                     <div class="stat-info">
-                        <span class="stat-label" data-i18n="avgSavings">Avg per Customer</span>
+                        <span class="stat-label" data-i18n="avgSavings">Avg Net per Customer</span>
                         <span class="stat-value" id="avgSavings">ETB 0.00</span>
                     </div>
                 </div>
@@ -2118,11 +2120,11 @@
                             <span class="value" id="customerIdDisplay">—</span>
                         </div>
                         <div class="info-row">
-                            <span class="label" data-i18n="currentBalance">Current Balance:</span>
+                            <span class="label" data-i18n="currentBalance">Current Balance (Net):</span>
                             <span class="value positive" id="currentBalanceDisplay">ETB 0.00</span>
                         </div>
                         <div class="info-row">
-                            <span class="label" data-i18n="totalSavings">Total Savings:</span>
+                            <span class="label" data-i18n="totalSavings">Total Savings (Gross):</span>
                             <span class="value" id="totalSavingsDisplay">ETB 0.00</span>
                         </div>
                         <div class="info-row">
@@ -2254,10 +2256,12 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // TRANSLATIONS
+        // TRANSLATIONS (minimal – full set in original)
         // ============================================================
         const translations = {
             en: {
+                // ... all translations from original ...
+                // (for brevity, we keep only essential ones, but full set is assumed)
                 brandSub: 'SACCO Banking',
                 navDashboard: 'Dashboard',
                 navCustomers: 'Customers',
@@ -2278,12 +2282,12 @@
                 savingsTitle: 'Savings Management',
                 savingsSub: 'Record and manage customer savings',
                 addSavings: 'Add Savings',
-                totalSavings: 'Total Savings',
-                approvedSavings: 'Approved',
+                totalSavings: 'Total Savings (Net)',
+                approvedSavings: 'Approved (Gross)',
                 pendingSavings: 'Pending',
                 rejectedSavings: 'Rejected',
-                monthlySavings: 'This Month',
-                avgSavings: 'Avg per Customer',
+                monthlySavings: 'This Month (Gross)',
+                avgSavings: 'Avg Net per Customer',
                 searchPlaceholder: 'Search by customer name or TT number...',
                 allStatus: 'All Status',
                 pendingStatus: 'Pending',
@@ -2306,8 +2310,8 @@
                 date: 'Date',
                 actions: 'Actions',
                 searchCustomer: 'Search Customer',
-                currentBalance: 'Current Balance',
-                totalSavingsDisplay: 'Total Savings',
+                currentBalance: 'Current Balance (Net)',
+                totalSavingsDisplay: 'Total Savings (Gross)',
                 pendingSavingsLabel: 'Pending Savings',
                 unpaidSavings: 'Unpaid Previous',
                 regular: 'Regular Savings',
@@ -2682,24 +2686,30 @@
         }
 
         // ============================================================
-        // GET CUSTOMER BALANCE
+        // NET SAVINGS CALCULATION (Gross Savings - Share Buys from Savings)
+        // ============================================================
+        function getNetSavings(customerId) {
+            // Gross savings: sum of approved savings
+            const gross = allSavings
+                .filter(s => s.customerId === customerId && s.status === 'approved')
+                .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+
+            // Share buys from savings (paymentMethod === 'savings' and status 'approved')
+            // We need to fetch share transactions – we'll store them globally
+            // For now, we'll assume we have a global shareBuys array populated in loadSavings
+            const shareBuys = window.shareBuys || [];
+            const shareDeduction = shareBuys
+                .filter(sb => sb.customerId === customerId && sb.status === 'approved' && sb.paymentMethod === 'savings')
+                .reduce((sum, sb) => sum + (Number(sb.amount) || 0), 0);
+
+            return Math.max(0, gross - shareDeduction);
+        }
+
+        // ============================================================
+        // GET CUSTOMER BALANCE (Net)
         // ============================================================
         async function getCustomerBalance(customerId) {
-            try {
-                const snapshot = await db.collection('transactions')
-                    .where('customerId', '==', customerId)
-                    .where('type', '==', 'savings')
-                    .where('status', '==', 'approved')
-                    .get();
-                let total = 0;
-                snapshot.forEach(doc => {
-                    total += Number(doc.data().amount) || 0;
-                });
-                return total;
-            } catch (error) {
-                console.error('Error getting balance:', error);
-                return 0;
-            }
+            return getNetSavings(customerId);
         }
 
         // ============================================================
@@ -2715,7 +2725,7 @@
         }
 
         // ============================================================
-        // GET UNPAID PREVIOUS SAVINGS & NEXT DUE DATE
+        // GET UNPAID PREVIOUS SAVINGS & NEXT DUE DATE (based on gross savings)
         // ============================================================
         function getUnpaidPreviousSavings(customerId) {
             const customerSavings = allSavings.filter(s =>
@@ -2771,14 +2781,10 @@
 
             const actualMonths = monthsWithSavings.size;
 
-            // If the due date has passed and there's no savings record for the current month,
-            // count the current month as unpaid
             let unpaidMonths = Math.max(0, monthsDiff - actualMonths);
             if (daysLeft < 0) {
-                // Check if there's a savings record for the current month
                 const currentMonth = `${now.getFullYear()}-${now.getMonth()}`;
                 if (!monthsWithSavings.has(currentMonth)) {
-                    // Add 1 for the current month if not already counted
                     const monthsSinceFirst = (now.getFullYear() - firstDate.getFullYear()) * 12 +
                         (now.getMonth() - firstDate.getMonth());
                     const actualWithCurrent = actualMonths;
@@ -2831,7 +2837,7 @@
         }
 
         // ============================================================
-        // CHECK AND CREATE SAVINGS PENALTY
+        // CHECK AND CREATE SAVINGS PENALTY (based on gross savings)
         // ============================================================
         async function checkAndCreateSavingsPenalty(customerId, savingsAmount) {
             console.log('🔍 Checking penalty for savings customer:', customerId);
@@ -2956,7 +2962,6 @@
                             `⚠️ ${penaltyCount} new savings penalty(ies) generated totaling ETB ${totalPenaltyAmount.toFixed(2)}.`,
                             'warning'
                         );
-                        // Reload savings to reflect changes
                         await loadSavings();
                     } else {
                         showToast(t.noPenaltiesFound || '✅ No penalties found. All customers are up to date.', 'success');
@@ -3034,13 +3039,15 @@
             document.getElementById('customerNameDisplay').textContent = customer.fullName;
             document.getElementById('customerIdDisplay').textContent = customer.customerId || id;
 
-            const balance = await getCustomerBalance(id);
-            document.getElementById('currentBalanceDisplay').textContent = 'ETB ' + balance.toFixed(2);
+            // Net balance
+            const netBalance = getNetSavings(id);
+            document.getElementById('currentBalanceDisplay').textContent = 'ETB ' + netBalance.toFixed(2);
 
-            const approvedSavings = allSavings
+            // Gross savings
+            const grossSavings = allSavings
                 .filter(s => s.customerId === id && s.status === 'approved')
                 .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
-            document.getElementById('totalSavingsDisplay').textContent = 'ETB ' + approvedSavings.toFixed(2);
+            document.getElementById('totalSavingsDisplay').textContent = 'ETB ' + grossSavings.toFixed(2);
 
             const pendingData = getPendingSavings(id);
             document.getElementById('pendingSavingsDisplay').textContent = 'ETB ' + pendingData.total.toFixed(2);
@@ -3217,18 +3224,19 @@
         }
 
         // ============================================================
-        // LOAD SAVINGS
+        // LOAD SAVINGS (and share buys from savings)
         // ============================================================
         async function loadSavings() {
             const overlay = document.getElementById('loadingOverlay');
             overlay.classList.add('active');
             try {
-                const snapshot = await db.collection('transactions')
+                // Load savings
+                const savingsSnap = await db.collection('transactions')
                     .where('type', '==', 'savings')
                     .get();
 
                 allSavings = [];
-                snapshot.forEach(doc => {
+                savingsSnap.forEach(doc => {
                     const data = doc.data();
                     allSavings.push({
                         id: doc.id,
@@ -3237,7 +3245,30 @@
                     });
                 });
 
+                // Load share_buy transactions with paymentMethod 'savings' and status 'approved'
+                const shareBuySnap = await db.collection('transactions')
+                    .where('type', '==', 'share_buy')
+                    .where('paymentMethod', '==', 'savings')
+                    .where('status', '==', 'approved')
+                    .get();
+
+                const shareBuys = [];
+                shareBuySnap.forEach(doc => {
+                    const data = doc.data();
+                    shareBuys.push({
+                        id: doc.id,
+                        ...data,
+                        customerId: data.customerId,
+                        amount: data.amount || 0,
+                        status: data.status
+                    });
+                });
+
+                // Store globally for net calculation
+                window.shareBuys = shareBuys;
+
                 console.log('✅ Savings loaded:', allSavings.length);
+                console.log('✅ Share buys from savings:', shareBuys.length);
 
                 allSavings.sort((a, b) => {
                     const da = a.date && a.date.toDate ? a.date.toDate() : new Date(a.date);
@@ -3421,16 +3452,21 @@
         }
 
         // ============================================================
-        // UPDATE STATS
+        // UPDATE STATS (with Net calculations)
         // ============================================================
         function updateStats() {
-            const total = allSavings
+            // Gross savings (approved)
+            const grossApproved = allSavings
                 .filter(s => s.status === 'approved')
                 .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
 
-            const approved = allSavings
-                .filter(s => s.status === 'approved')
-                .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+            // Net savings: gross minus share buys from savings
+            const shareBuys = window.shareBuys || [];
+            const totalShareDeductions = shareBuys
+                .filter(sb => sb.status === 'approved' && sb.paymentMethod === 'savings')
+                .reduce((sum, sb) => sum + (Number(sb.amount) || 0), 0);
+
+            const netSavings = Math.max(0, grossApproved - totalShareDeductions);
 
             const pending = allSavings
                 .filter(s => s.status === 'pending')
@@ -3441,7 +3477,7 @@
                 .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
 
             const now = new Date();
-            const monthly = allSavings
+            const monthlyGross = allSavings
                 .filter(s => {
                     const d = s.date ? (s.date.toDate ? s.date.toDate() : new Date(s.date)) : null;
                     return d && s.status === 'approved' &&
@@ -3451,14 +3487,14 @@
                 .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
 
             const customerCount = Object.keys(customersMap).length;
-            const avg = customerCount > 0 ? total / customerCount : 0;
+            const avgNet = customerCount > 0 ? netSavings / customerCount : 0;
 
-            document.getElementById('totalSavings').textContent = 'ETB ' + total.toFixed(2);
-            document.getElementById('approvedSavings').textContent = 'ETB ' + approved.toFixed(2);
+            document.getElementById('totalSavings').textContent = 'ETB ' + netSavings.toFixed(2);
+            document.getElementById('approvedSavings').textContent = 'ETB ' + grossApproved.toFixed(2);
             document.getElementById('pendingSavings').textContent = 'ETB ' + pending.toFixed(2);
             document.getElementById('rejectedSavings').textContent = 'ETB ' + rejected.toFixed(2);
-            document.getElementById('monthlySavings').textContent = 'ETB ' + monthly.toFixed(2);
-            document.getElementById('avgSavings').textContent = 'ETB ' + avg.toFixed(2);
+            document.getElementById('monthlySavings').textContent = 'ETB ' + monthlyGross.toFixed(2);
+            document.getElementById('avgSavings').textContent = 'ETB ' + avgNet.toFixed(2);
 
             document.getElementById('totalCount').textContent = allSavings.length;
         }
@@ -3510,7 +3546,7 @@
         }
 
         // ============================================================
-        // VIEW SAVINGS — with "Approved By" & "Approved At" fields
+        // VIEW SAVINGS
         // ============================================================
         function viewSavings(id) {
             const savings = allSavings.find(s => s.id === id);
@@ -3731,7 +3767,7 @@
         }
 
         // ============================================================
-        // DELETE SAVINGS – using beautiful modal
+        // DELETE SAVINGS
         // ============================================================
         let pendingDeleteId = null;
 
@@ -3889,12 +3925,12 @@
                 closeModal();
                 await loadSavings();
                 if (selectedCustomerId) {
-                    const balance = await getCustomerBalance(selectedCustomerId);
-                    document.getElementById('currentBalanceDisplay').textContent = 'ETB ' + balance.toFixed(2);
-                    const approvedSavings = allSavings
+                    const netBalance = getNetSavings(selectedCustomerId);
+                    document.getElementById('currentBalanceDisplay').textContent = 'ETB ' + netBalance.toFixed(2);
+                    const grossSavings = allSavings
                         .filter(s => s.customerId === selectedCustomerId && s.status === 'approved')
                         .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
-                    document.getElementById('totalSavingsDisplay').textContent = 'ETB ' + approvedSavings.toFixed(2);
+                    document.getElementById('totalSavingsDisplay').textContent = 'ETB ' + grossSavings.toFixed(2);
                     const pendingData = getPendingSavings(selectedCustomerId);
                     document.getElementById('pendingSavingsDisplay').textContent = 'ETB ' + pendingData.total.toFixed(2);
                     const unpaidData = getUnpaidPreviousSavings(selectedCustomerId);
@@ -4114,7 +4150,6 @@
                 await loadSavings();
 
                 // ---- RUN GLOBAL PENALTY CHECK ON PAGE LOAD ----
-                // Wait a moment for everything to settle, then run the check
                 setTimeout(() => {
                     checkAllCustomersForSavingsPenalties(true);
                 }, 1000);
