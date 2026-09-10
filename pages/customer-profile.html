@@ -8,12 +8,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js">
-    </script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js">
-    </script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js">
-    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
     <style>
         /* ============================================================
@@ -44,6 +41,7 @@
             --warning: #f39c12;
             --info: #2196f3;
             --penalty-color: #e67e22;
+            --share-color: #00897b;
             --input-bg: #ffffff;
             --input-border: #d0d7d2;
             --input-focus: rgba(45, 122, 61, 0.1);
@@ -452,6 +450,10 @@
         .finance-card.penalty { border-left: 4px solid #e67e22; }
         .finance-card.penalty .icon { color: #e67e22; }
         .finance-card.penalty .amount { color: #e67e22; }
+        /* NEW: share cards */
+        .finance-card.share { border-left: 4px solid var(--share-color); }
+        .finance-card.share .icon { color: var(--share-color); }
+        .finance-card.share .amount { color: var(--share-color); }
 
         /* ===== PENALTY SECTION ===== */
         .penalty-section {
@@ -545,6 +547,42 @@
         }
         .no-active-loan i { color: var(--text-muted); margin-right: 8px; }
 
+        /* ===== SHARE SECTION ===== */
+        .share-section {
+            background: var(--bg-card); border-radius: var(--radius);
+            border: 1px solid var(--border-color); padding: 16px 20px;
+            margin-bottom: 24px; box-shadow: var(--shadow);
+            transition: background 0.3s, border-color 0.3s;
+        }
+        .share-section h3 {
+            font-size: 15px; font-weight: 600; color: var(--text-primary);
+            margin-bottom: 12px; display: flex; align-items: center; gap: 10px;
+            transition: color 0.3s;
+        }
+        .share-section h3 i { color: var(--share-color); }
+        .share-item {
+            display: flex; flex-wrap: wrap; gap: 12px 24px; padding: 10px 14px;
+            background: var(--bg-primary); border-radius: var(--radius-sm);
+            border-left: 4px solid var(--share-color); margin-bottom: 8px;
+            transition: background 0.3s; align-items: center;
+        }
+        .share-item:last-child { margin-bottom: 0; }
+        .share-item .share-field { display: flex; flex-direction: column; }
+        .share-item .share-field .share-label {
+            font-size: 11px; color: var(--text-secondary); font-weight: 500;
+            text-transform: uppercase; letter-spacing: 0.3px; transition: color 0.3s;
+        }
+        .share-item .share-field .share-value {
+            font-size: 14px; font-weight: 600; color: var(--text-primary);
+            transition: color 0.3s;
+        }
+        .share-item .share-field .share-value.amount { color: var(--share-color); }
+        .no-shares {
+            text-align: center; padding: 16px; color: var(--text-secondary);
+            font-size: 14px; transition: color 0.3s;
+        }
+        .no-shares i { color: var(--text-muted); margin-right: 8px; }
+
         /* ===== SEARCH & FILTER ===== */
         .search-bar {
             display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;
@@ -624,6 +662,13 @@
         .transaction-type.penalty {
             background: #fce4d6; color: #c0392b; border: 1px solid #e67e22;
         }
+        /* NEW: share transaction badges */
+        .transaction-type.share {
+            background: #d1f2eb; color: #00695c; border: 1px solid #00897b;
+        }
+        .transaction-type.share_withdrawal {
+            background: #fdecea; color: #b71c1c; border: 1px solid #e53935;
+        }
 
         .status-badge-table {
             padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
@@ -638,6 +683,7 @@
         .status-badge-table.penalty_pending { background: #fff3cd; color: #856404; }
         .status-badge-table.penalty_paid { background: #d4edda; color: #155724; }
         .status-badge-table.penalty_approval { background: #cce5ff; color: #004085; }
+        .status-badge-table.penalty_rejected { background: #f8d7da; color: #721c24; }
 
         .no-transactions {
             text-align: center; padding: 40px; color: var(--text-secondary);
@@ -868,7 +914,7 @@
             .user-name { display: none; }
             .toast-container { top: 10px; right: 10px; left: 10px; }
             .toast { min-width: unset; width: 100%; }
-            .active-loan-item, .penalty-item { flex-direction: column; gap: 8px; }
+            .active-loan-item, .penalty-item, .share-item { flex-direction: column; gap: 8px; }
             .sidebar-brand { padding: 16px 16px 12px; }
             .brand-icon { width: 60px; height: 60px; }
             .brand-text .brand-name { font-size: 16px; }
@@ -1076,6 +1122,17 @@
                         <span class="label" data-i18n="penalties">Penalties Pending</span>
                         <span class="amount" id="profilePenalties">0</span>
                     </div>
+                    <!-- ✅ NEW: SHARE CARDS -->
+                    <div class="finance-card share">
+                        <div class="icon"><i class="fas fa-chart-pie"></i></div>
+                        <span class="label" data-i18n="totalShares">Total Shares</span>
+                        <span class="amount" id="profileShares">0</span>
+                    </div>
+                    <div class="finance-card share">
+                        <div class="icon"><i class="fas fa-coins"></i></div>
+                        <span class="label" data-i18n="shareValue">Share Value</span>
+                        <span class="amount" id="profileShareValue">0</span>
+                    </div>
                 </div>
 
                 <!-- Penalty Section -->
@@ -1091,6 +1148,14 @@
                     <h3><i class="fas fa-exclamation-triangle"></i> <span data-i18n="activeLoans">Active Loans</span></h3>
                     <div id="activeLoanContainer">
                         <div class="no-active-loan"><i class="fas fa-check-circle"></i> <span data-i18n="noActiveLoan">No active loans</span></div>
+                    </div>
+                </div>
+
+                <!-- ✅ NEW: SHARE HISTORY SECTION -->
+                <div class="share-section">
+                    <h3><i class="fas fa-chart-pie"></i> <span data-i18n="shareHistory">Share History</span></h3>
+                    <div id="shareContainer">
+                        <div class="no-shares"><i class="fas fa-info-circle"></i> <span data-i18n="noShares">No share transactions</span></div>
                     </div>
                 </div>
 
@@ -1344,7 +1409,19 @@
                 penaltyDetails: 'Penalty Details',
                 confirmPay: 'Pay this penalty?',
                 goToPenalties: 'Go to Penalties',
-                cancel: 'Cancel'
+                cancel: 'Cancel',
+                note: 'Note',
+                customer: 'Customer',
+                loanId: 'Loan ID',
+                /* SHARES */
+                totalShares: 'Total Shares',
+                shareValue: 'Share Value',
+                shareHistory: 'Share History',
+                noShares: 'No share transactions',
+                sharesLabel: 'Shares',
+                pricePerShare: 'Price/Share',
+                sharePurchase: 'Share Purchase',
+                shareWithdrawal: 'Share Withdrawal'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -1430,7 +1507,19 @@
                 penaltyDetails: 'የቅጣት ዝርዝሮች',
                 confirmPay: 'ይህን ቅጣት ይክፈሉ?',
                 goToPenalties: 'ወደ ቅጣቶች ይሂዱ',
-                cancel: 'ሰርዝ'
+                cancel: 'ሰርዝ',
+                note: 'ማስታወሻ',
+                customer: 'ደንበኛ',
+                loanId: 'የብድር መታወቂያ',
+                /* SHARES */
+                totalShares: 'ጠቅላላ አክሲዮኖች',
+                shareValue: 'የአክሲዮን ዋጋ',
+                shareHistory: 'የአክሲዮን ታሪክ',
+                noShares: 'ምንም የአክሲዮን ግብይት የለም',
+                sharesLabel: 'አክሲዮኖች',
+                pricePerShare: 'የአንድ አክሲዮን ዋጋ',
+                sharePurchase: 'የአክሲዮን ግዢ',
+                shareWithdrawal: 'የአክሲዮን መውጫ'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1516,7 +1605,19 @@
                 penaltyDetails: 'Ibsa Adabaa',
                 confirmPay: 'Adaba kana kaffaltaa?',
                 goToPenalties: 'Gar gara Adaba',
-                cancel: 'Haqi'
+                cancel: 'Haqi',
+                note: 'Hubachiisa',
+                customer: 'Maamila',
+                loanId: 'ID Liqii',
+                /* SHARES */
+                totalShares: 'Hissa Waliigalaa',
+                shareValue: 'Gatii Hissaa',
+                shareHistory: 'Seenaa Hissaa',
+                noShares: 'Daldalli hissaa hin jiru',
+                sharesLabel: 'Hissa',
+                pricePerShare: 'Gatii Tokkoo',
+                sharePurchase: 'Bittaa Hissaa',
+                shareWithdrawal: 'Baasii Hissaa'
             }
         };
 
@@ -1705,25 +1806,175 @@
         let allTransactions = [];
         let activeLoans = [];
         let customerPenalties = [];
+        let shareTransactions = [];      // ✅ NEW
         let currentPage = 1;
         const pageSize = 10;
         let customerId = null;
 
         // ============================================================
+        // SHARE TYPE CONSTANTS  ✅ NEW
+        // ============================================================
+        const SHARE_BUY_TYPES = [
+            'share', 'shares', 'share_purchase', 'share_buy', 'share_deposit',
+            'share_subscription', 'share_buying', 'equity', 'capital_share', 'shares_purchase'
+        ];
+        const SHARE_SELL_TYPES = [
+            'share_withdrawal', 'share_sell', 'share_sale', 'share_refund',
+            'share_redeem', 'share_redemption', 'shares_withdrawal'
+        ];
+        const SHARE_BAD_STATUS = ['pending', 'review', 'approval', 'rejected',
+            'cancelled', 'canceled', 'failed', 'declined'];
+
+        // ============================================================
         // GET CUSTOMER NAME (uses currentCustomer if available)
         // ============================================================
         function getCustomerName(memberId) {
-            // If we have the current customer loaded and the id matches, use that name
             if (currentCustomer && (currentCustomer.id === memberId || currentCustomer.customerId === memberId)) {
                 return currentCustomer.fullName || 'Unknown';
             }
-
-            // Fallback: search in transactions
             const tx = allTransactions.find(t => t.customerId === memberId || t.memberId === memberId);
             if (tx && tx.customerName) return tx.customerName;
-
-            // Last resort: return "Unknown"
             return 'Unknown';
+        }
+
+        // ============================================================
+        // ✅ LOAN REPAYMENT MATCHING (FIXED – robust)
+        // ============================================================
+        const REPAYMENT_BAD_STATUS = ['pending', 'review', 'approval', 'rejected',
+            'cancelled', 'canceled', 'failed', 'declined'];
+
+        /**
+         * Collect every possible identifier a loan might be referenced by.
+         */
+        function getLoanRefIds(loan) {
+            return new Set(
+                [
+                    loan.id,
+                    loan.loanId,
+                    loan.loanDocId,
+                    loan.loan_id,
+                    loan.loanNumber,
+                    loan.loanCode,
+                    loan.reference,
+                    loan.referenceId,
+                    loan.code
+                ]
+                    .filter(v => v !== undefined && v !== null && String(v).trim() !== '')
+                    .map(v => String(v).trim().toUpperCase())
+            );
+        }
+
+        /**
+         * ✅ FIXED: find the total amount actually repaid against ONE loan.
+         * Matches on loanId / loanDocId / loan number, then on the note text,
+         * then (only when the customer has a single active loan) on memberId.
+         */
+        function getLoanRepaidAmount(loan) {
+            const refIds = getLoanRefIds(loan);
+            const memberRef = loan.memberId || loan.customerId || customerId;
+            const onlyOneActiveLoan = activeLoans.length === 1;
+
+            let total = 0;
+
+            allTransactions.forEach(tx => {
+                const type = String(tx.type || '').toLowerCase();
+                if (type !== 'repayment' && type !== 'loan_repayment' && type !== 'loan_repayment_received') {
+                    return;
+                }
+
+                // Skip repayments that are not finalised
+                const st = String(tx.status || '').toLowerCase();
+                if (REPAYMENT_BAD_STATUS.includes(st)) return;
+
+                // 1) Direct loan reference match
+                const txRefs = [
+                    tx.loanId, tx.loanDocId, tx.loan_id, tx.loanRef,
+                    tx.parentLoanId, tx.referenceId, tx.reference
+                ]
+                    .filter(v => v !== undefined && v !== null && String(v).trim() !== '')
+                    .map(v => String(v).trim().toUpperCase());
+
+                let matched = txRefs.some(r => refIds.has(r));
+
+                // 2) Loan number mentioned inside the note / details text
+                if (!matched) {
+                    const text = `${tx.note || ''} ${tx.details || ''} ${tx.description || ''} ${tx.reason || ''}`
+                        .toUpperCase();
+                    for (const r of refIds) {
+                        if (r.length >= 4 && text.includes(r)) { matched = true; break; }
+                    }
+                }
+
+                // 3) Fallback: the customer has exactly one active loan, so any
+                //    repayment belonging to this member must belong to that loan.
+                if (!matched && onlyOneActiveLoan && memberRef) {
+                    const txMember = tx.memberId || tx.customerId;
+                    if (txMember && String(txMember) === String(memberRef)) matched = true;
+                }
+
+                if (matched) total += Number(tx.amount) || 0;
+            });
+
+            return total;
+        }
+
+        /**
+         * Total payable on a loan = stored totalPayable, otherwise principal + interest.
+         * 👉 If your SACCO only tracks principal, change the return of this function
+         *    to `Number(loan.amount) || 0`.
+         */
+        function getLoanTotalPayable(loan) {
+            if (loan.totalPayable !== undefined && loan.totalPayable !== null &&
+                Number(loan.totalPayable) > 0) {
+                return Number(loan.totalPayable);
+            }
+            const amount = Number(loan.amount) || 0;
+            const interestRate = Number(loan.interestRate) || 0;
+            const period = Number(loan.repaymentPeriod) || 0;
+            const loanType = loan.loanType || 'simple';
+            return amount + calculateInterest(amount, interestRate, period, loanType);
+        }
+
+        /**
+         * ✅ Outstanding balance = total payable − amount already repaid.
+         */
+        function getLoanRemaining(loan) {
+            const totalPayable = getLoanTotalPayable(loan);
+            const repaid = getLoanRepaidAmount(loan);
+            return Math.max(0, Math.round((totalPayable - repaid) * 100) / 100);
+        }
+
+        // ============================================================
+        // ✅ SHARE HELPERS
+        // ============================================================
+        function getShareQty(tx) {
+            const raw = tx.shares ?? tx.quantity ?? tx.numberOfShares ?? tx.shareCount ??
+                tx.units ?? tx.numShares ?? tx.shareQuantity;
+            if (raw !== undefined && raw !== null && raw !== '') {
+                const n = Number(raw);
+                if (!isNaN(n)) return n;
+            }
+            // Derive from amount ÷ price per share
+            const amount = Number(tx.amount ?? tx.totalAmount ?? tx.totalValue ?? 0) || 0;
+            const price = Number(tx.pricePerShare ?? tx.shareValue ?? tx.rate ?? tx.unitPrice ?? 0) || 0;
+            if (price > 0 && amount > 0) return Math.round((amount / price) * 100) / 100;
+            return 0;
+        }
+
+        function getShareValue(tx) {
+            const amount = Number(tx.amount ?? tx.totalAmount ?? tx.totalValue ?? 0);
+            if (amount) return amount;
+            const qty = getShareQty(tx);
+            const price = Number(tx.pricePerShare ?? tx.shareValue ?? tx.rate ?? tx.unitPrice ?? 0) || 0;
+            return qty * price;
+        }
+
+        function getShareUnitPrice(tx) {
+            const explicit = Number(tx.pricePerShare ?? tx.shareValue ?? tx.rate ?? tx.unitPrice ?? 0);
+            if (explicit) return explicit;
+            const qty = getShareQty(tx);
+            if (qty > 0) return getShareValue(tx) / qty;
+            return 0;
         }
 
         // ============================================================
@@ -1742,7 +1993,7 @@
                 }
 
                 const customer = { id: customerDoc.id, ...customerDoc.data() };
-                currentCustomer = customer; // store globally
+                currentCustomer = customer;
 
                 const [snap1, snap2, penaltySnap] = await Promise.all([
                     db.collection('transactions').where('customerId', '==', customerId).get(),
@@ -1780,6 +2031,18 @@
 
                 activeLoans = allTransactions
                     .filter(tx => tx.type === 'loan' && tx.status === 'active')
+                    .sort((a, b) => {
+                        const da = toDate(a.date || a.timestamp);
+                        const db = toDate(b.date || b.timestamp);
+                        return db - da;
+                    });
+
+                // ✅ NEW: collect share transactions
+                shareTransactions = allTransactions
+                    .filter(tx => {
+                        const ty = String(tx.type || '').toLowerCase();
+                        return SHARE_BUY_TYPES.includes(ty) || SHARE_SELL_TYPES.includes(ty);
+                    })
                     .sort((a, b) => {
                         const da = toDate(a.date || a.timestamp);
                         const db = toDate(b.date || b.timestamp);
@@ -1875,12 +2138,14 @@
             filterYear = document.getElementById('yearFilter').value;
 
             filteredTransactions = allTransactions.filter(tx => {
+                const typeRaw = String(tx.type || '').toLowerCase();
                 let typeLabel = tx.type || '';
-                if (typeLabel === 'profit_withdrawal' && tx.reason === 'Dividend') typeLabel = 'Dividend';
-                else if (typeLabel === 'profit_income') typeLabel = 'Income';
-                else if (typeLabel === 'transfer_in') typeLabel = 'Transfer In';
-                else if (typeLabel === 'transfer_out') typeLabel = 'Transfer Out';
-                else if (typeLabel === 'loan') {
+
+                if (typeRaw === 'profit_withdrawal' && tx.reason === 'Dividend') typeLabel = 'Dividend';
+                else if (typeRaw === 'profit_income') typeLabel = 'Income';
+                else if (typeRaw === 'transfer_in') typeLabel = 'Transfer In';
+                else if (typeRaw === 'transfer_out') typeLabel = 'Transfer Out';
+                else if (typeRaw === 'loan') {
                     const statusMap = {
                         'approved': 'Approved',
                         'active': 'Active',
@@ -1889,7 +2154,7 @@
                         'paid': 'Paid'
                     };
                     typeLabel = `Loan (${statusMap[tx.status] || tx.status})`;
-                } else if (typeLabel === 'penalty') {
+                } else if (typeRaw === 'penalty') {
                     const statusMap = {
                         'pending': 'Penalty Pending',
                         'approval': 'Penalty Approval',
@@ -1897,12 +2162,16 @@
                         'rejected': 'Penalty Rejected'
                     };
                     typeLabel = `Penalty (${statusMap[tx.status] || tx.status})`;
-                } else if (typeLabel === 'withdrawal') {
+                } else if (typeRaw === 'withdrawal') {
                     typeLabel = 'Withdrawal';
-                } else if (typeLabel === 'savings') {
+                } else if (typeRaw === 'savings') {
                     typeLabel = 'Savings';
-                } else if (typeLabel === 'repayment') {
+                } else if (typeRaw === 'repayment') {
                     typeLabel = 'Repayment';
+                } else if (SHARE_BUY_TYPES.includes(typeRaw)) {
+                    typeLabel = translations[currentLang].sharePurchase || 'Share Purchase';
+                } else if (SHARE_SELL_TYPES.includes(typeRaw)) {
+                    typeLabel = translations[currentLang].shareWithdrawal || 'Share Withdrawal';
                 }
 
                 const searchText = (typeLabel + ' ' + (tx.reason || '') + ' ' + (tx.note || '') + ' ' + (tx.details || '') +
@@ -1924,7 +2193,7 @@
         }
 
         // ============================================================
-        // RENDER PROFILE (with Penalties)
+        // RENDER PROFILE (with Penalties + Shares)
         // ============================================================
         function renderProfile(customer) {
             const t = translations[currentLang];
@@ -2015,30 +2284,41 @@
                 }
             });
 
+            // ✅ FIXED: remaining = total payable − repaid (per loan, robustly matched)
             let remainingActive = 0;
             activeLoans.forEach(loan => {
-                const loanId = loan.id;
-                const amount = Number(loan.amount) || 0;
-                const interestRate = Number(loan.interestRate) || 0;
-                const period = Number(loan.repaymentPeriod) || 0;
-                const loanType = loan.loanType || 'simple';
-
-                const repayments = allTransactions
-                    .filter(tx => tx.loanId === loanId && tx.type === 'repayment' &&
-                        (tx.status === 'approved' || tx.status === 'paid' || tx.status === 'done'))
-                    .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
-
-                const totalPayable = loan.totalPayable ?
-                    Number(loan.totalPayable) :
-                    amount + calculateInterest(amount, interestRate, period, loanType);
-                const rem = Math.max(0, Math.round((totalPayable - repayments) * 100) / 100);
-                remainingActive += rem;
+                remainingActive += getLoanRemaining(loan);
             });
+            remainingActive = Math.round(remainingActive * 100) / 100;
 
+            // ✅ NEW: share totals
+            let totalShares = 0;
+            let totalShareValue = 0;
+            (shareTransactions || []).forEach(tx => {
+                const ty = String(tx.type || '').toLowerCase();
+                const st = String(tx.status || '').toLowerCase();
+                if (SHARE_BAD_STATUS.includes(st)) return;
+
+                const qty = getShareQty(tx);
+                const val = getShareValue(tx);
+
+                if (SHARE_SELL_TYPES.includes(ty)) {
+                    totalShares -= qty;
+                    totalShareValue -= val;
+                } else {
+                    totalShares += qty;
+                    totalShareValue += val;
+                }
+            });
+            totalShares = Math.round(totalShares * 100) / 100;
+            totalShareValue = Math.round(totalShareValue * 100) / 100;
+
+            // ✅ Shares now included in Individual Capital
             const individualCapital = Math.round((
                 totalApprovedSavings +
                 totalDividends +
-                totalTransfersIn -
+                totalTransfersIn +
+                totalShareValue -
                 totalWithdrawals -
                 totalTransfersOut
             ) * 100) / 100;
@@ -2051,10 +2331,18 @@
             document.getElementById('profileTransfersOut').textContent = totalTransfersOut.toLocaleString();
             document.getElementById('profileCapital').textContent = individualCapital.toLocaleString();
             document.getElementById('profilePenalties').textContent = totalPendingPenalties.toLocaleString();
+
+            // ✅ NEW: share cards
+            const sharesEl = document.getElementById('profileShares');
+            const shareValueEl = document.getElementById('profileShareValue');
+            if (sharesEl) sharesEl.textContent = totalShares.toLocaleString();
+            if (shareValueEl) shareValueEl.textContent = totalShareValue.toLocaleString();
+
             document.getElementById('transactionCount').textContent = allTransactions.length;
 
             renderActiveLoans();
             renderPenalties();
+            renderShares();     // ✅ NEW
         }
 
         // ============================================================
@@ -2070,9 +2358,6 @@
                 container.innerHTML = `<div class="no-penalty"><i class="fas fa-check-circle"></i> <span>${t.noPenalties}</span></div>`;
                 return;
             }
-
-            // Use currentCustomer name for all penalties
-            const customerName = currentCustomer ? currentCustomer.fullName : 'Unknown';
 
             let html = '';
             penalties.forEach(penalty => {
@@ -2131,6 +2416,80 @@
         }
 
         // ============================================================
+        // ✅ NEW: RENDER SHARE HISTORY
+        // ============================================================
+        function renderShares() {
+            const container = document.getElementById('shareContainer');
+            if (!container) return;
+            const t = translations[currentLang];
+
+            if (!shareTransactions || shareTransactions.length === 0) {
+                container.innerHTML = `<div class="no-shares"><i class="fas fa-info-circle"></i> <span>${t.noShares}</span></div>`;
+                return;
+            }
+
+            const sorted = [...shareTransactions].sort((a, b) =>
+                toDate(b.date || b.timestamp) - toDate(a.date || a.timestamp));
+
+            let html = '';
+            sorted.forEach(tx => {
+                const ty = String(tx.type || '').toLowerCase();
+                const isSell = SHARE_SELL_TYPES.includes(ty);
+
+                const qty = getShareQty(tx);
+                const price = getShareUnitPrice(tx);
+                const value = getShareValue(tx);
+                const dateStr = formatDate(tx.date || tx.timestamp);
+
+                const st = String(tx.status || '').toLowerCase();
+                let statusClass = 'done';
+                let statusLabel = t.done || 'Done';
+                if (['pending', 'review', 'approval'].includes(st)) {
+                    statusClass = 'pending';
+                    statusLabel = t.pending || 'Pending';
+                } else if (['rejected', 'cancelled', 'canceled', 'failed', 'declined'].includes(st)) {
+                    statusClass = 'rejected';
+                    statusLabel = t.rejected || 'Rejected';
+                }
+
+                html += `
+                    <div class="share-item">
+                        <div class="share-field">
+                            <span class="share-label">${t.type}</span>
+                            <span class="share-value">
+                                <span class="transaction-type ${isSell ? 'share_withdrawal' : 'share'}">
+                                    ${isSell ? (t.shareWithdrawal || 'Share Withdrawal') : (t.sharePurchase || 'Share Purchase')}
+                                </span>
+                            </span>
+                        </div>
+                        <div class="share-field">
+                            <span class="share-label">${t.sharesLabel || 'Shares'}</span>
+                            <span class="share-value">${qty.toLocaleString()}</span>
+                        </div>
+                        <div class="share-field">
+                            <span class="share-label">${t.pricePerShare || 'Price/Share'}</span>
+                            <span class="share-value">ETB ${price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                        </div>
+                        <div class="share-field">
+                            <span class="share-label">${t.amount}</span>
+                            <span class="share-value amount">ETB ${value.toLocaleString()}</span>
+                        </div>
+                        <div class="share-field">
+                            <span class="share-label">${t.date}</span>
+                            <span class="share-value">${dateStr}</span>
+                        </div>
+                        <div class="share-field">
+                            <span class="share-label">${t.status}</span>
+                            <span class="share-value"><span class="status-badge-table ${statusClass}">${statusLabel}</span></span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // ============================================================
         // VIEW PENALTY – Beautiful Modal
         // ============================================================
         function viewPenalty(penaltyId) {
@@ -2159,8 +2518,8 @@
             const note = penalty.note || '—';
             const loanId = penalty.loanId || '—';
 
-            // Use currentCustomer if available
-            const customerName = currentCustomer ? currentCustomer.fullName : getCustomerName(penalty.memberId || penalty.customerId);
+            const customerName = currentCustomer ? currentCustomer.fullName :
+                getCustomerName(penalty.memberId || penalty.customerId);
 
             const content = document.getElementById('viewPenaltyContent');
             content.innerHTML = `
@@ -2233,8 +2592,8 @@
             const note = penalty.note || '';
             const loanId = penalty.loanId || '—';
 
-            // Use currentCustomer if available
-            const customerName = currentCustomer ? currentCustomer.fullName : getCustomerName(penalty.memberId || penalty.customerId);
+            const customerName = currentCustomer ? currentCustomer.fullName :
+                getCustomerName(penalty.memberId || penalty.customerId);
 
             document.getElementById('payPenaltyId').value = penaltyId;
             document.getElementById('payPenaltyAmount').textContent = `ETB ${amount.toLocaleString()}`;
@@ -2267,12 +2626,11 @@
                 return;
             }
             closePayPenaltyModal();
-            // Redirect to penalties page with the penalty ID
             window.location.href = `penalties.html?pay=${penaltyId}`;
         }
 
         // ============================================================
-        // RENDER ACTIVE LOANS
+        // RENDER ACTIVE LOANS  (✅ FIXED repayment matching)
         // ============================================================
         function renderActiveLoans() {
             const container = document.getElementById('activeLoanContainer');
@@ -2285,20 +2643,14 @@
 
             let html = '';
             activeLoans.forEach(loan => {
-                const loanId = loan.id;
                 const amount = Number(loan.amount) || 0;
                 const interestRate = Number(loan.interestRate) || 0;
                 const period = Number(loan.repaymentPeriod) || 0;
                 const loanType = loan.loanType || 'simple';
 
-                const repayments = allTransactions
-                    .filter(tx => tx.loanId === loanId && tx.type === 'repayment' &&
-                        (tx.status === 'approved' || tx.status === 'paid' || tx.status === 'done'))
-                    .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
-
-                const totalPayable = loan.totalPayable ?
-                    Number(loan.totalPayable) :
-                    amount + calculateInterest(amount, interestRate, period, loanType);
+                // ✅ FIXED: use the robust helper
+                const repayments = getLoanRepaidAmount(loan);
+                const totalPayable = getLoanTotalPayable(loan);
                 const remainingBalance = Math.max(0, Math.round((totalPayable - repayments) * 100) / 100);
 
                 const monthlyPayment = calculateMonthlyPayment(amount, interestRate, period, loanType);
@@ -2362,12 +2714,14 @@
                 const isCredit = (type === 'savings') ||
                     (type === 'profit_withdrawal' && reason === 'Dividend') ||
                     (type === 'transfer_in') ||
-                    (type === 'repayment');
+                    (type === 'repayment') ||
+                    SHARE_SELL_TYPES.includes(String(type).toLowerCase());
 
                 const isDebit = (type === 'withdrawal') ||
                     (type === 'leaving_withdrawal') ||
                     (type === 'transfer_out') ||
-                    (type === 'loan');
+                    (type === 'loan') ||
+                    SHARE_BUY_TYPES.includes(String(type).toLowerCase());
 
                 runningBalanceMap[tx.id] = {
                     prevBalance: balance,
@@ -2406,7 +2760,8 @@
             let html = '';
             sorted.forEach(tx => {
                 const amount = Number(tx.amount) || 0;
-                const type = tx.type || '';
+                const typeRaw = tx.type || '';
+                const type = String(typeRaw).toLowerCase();
 
                 const balanceInfo = runningBalanceMap[tx.id] || { prevBalance: 0, totalBalance: 0 };
                 const prevBalance = balanceInfo.prevBalance;
@@ -2491,8 +2846,9 @@
                     }
                 }
 
-                let typeClass = type;
-                let typeLabel = type ? type.charAt(0).toUpperCase() + type.slice(1) : 'Savings';
+                let typeClass = typeRaw;
+                let typeLabel = typeRaw ? typeRaw.charAt(0).toUpperCase() + typeRaw.slice(1) : 'Savings';
+
                 if (type === 'profit_withdrawal' && tx.reason === 'Dividend') {
                     typeLabel = 'Dividend';
                     typeClass = 'dividend';
@@ -2519,6 +2875,12 @@
                 } else if (type === 'penalty') {
                     typeLabel = 'Penalty';
                     typeClass = 'penalty';
+                } else if (SHARE_BUY_TYPES.includes(type)) {
+                    typeLabel = t.sharePurchase || 'Share Purchase';
+                    typeClass = 'share';
+                } else if (SHARE_SELL_TYPES.includes(type)) {
+                    typeLabel = t.shareWithdrawal || 'Share Withdrawal';
+                    typeClass = 'share_withdrawal';
                 }
 
                 const dateStr = formatDate(tx.date || tx.timestamp);
@@ -2644,6 +3006,10 @@
                         renderTransactionsTable(pageItems);
                         updatePaginationInfo();
                         renderPageButtons();
+                        // ✅ re-render dynamic sections so their labels follow the language
+                        renderActiveLoans();
+                        renderPenalties();
+                        renderShares();
                         const searchInput = document.getElementById('searchInput');
                         const t = translations[currentLang];
                         searchInput.placeholder = t.searchPlaceholder || 'Search by type, details...';
