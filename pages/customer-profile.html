@@ -973,6 +973,8 @@
                 <li><a href="repayments.html"><i class="fas fa-undo-alt"></i> <span data-i18n="navRepayments">Repayments</span></a></li>
                 <li><a href="withdrawals.html"><i class="fas fa-money-bill-wave"></i> <span data-i18n="navWithdrawals">Withdrawals</span></a></li>
                 <li><a href="dividends.html"><i class="fas fa-gift"></i> <span data-i18n="navDividends">Dividends</span></a></li>
+                <!-- ✅ NEW: SHARES LINK -->
+                <li><a href="shares.html"><i class="fas fa-chart-pie" style="color:#00897b;"></i> <span data-i18n="navShares">Shares</span></a></li>
                 <li><a href="reports.html"><i class="fas fa-chart-bar"></i> <span data-i18n="navReports">Reports</span></a></li>
                 <li><a href="penalties.html"><i class="fas fa-exclamation-triangle" style="color:#e67e22;"></i> <span data-i18n="navPenalties">Penalties</span></a></li>
                 <li id="auditNavItem" style="display:none;">
@@ -1221,7 +1223,7 @@
     </main>
 
     <!-- ============================================================
-       VIEW PENALTY MODAL – Beautiful (Matches Savings/Deposits View)
+       VIEW PENALTY MODAL
        ============================================================ -->
     <div class="modal-overlay" id="viewPenaltyModal">
         <div class="modal-content">
@@ -1234,7 +1236,7 @@
     </div>
 
     <!-- ============================================================
-       PAY PENALTY MODAL – Beautiful Confirmation
+       PAY PENALTY MODAL
        ============================================================ -->
     <div class="modal-overlay" id="payPenaltyModal">
         <div class="modal-content pay-modal-content">
@@ -1336,6 +1338,7 @@
                 navRepayments: 'Repayments',
                 navWithdrawals: 'Withdrawals',
                 navDividends: 'Dividends',
+                navShares: 'Shares',
                 navReports: 'Reports',
                 navPenalties: 'Penalties',
                 navAudit: 'Audit Trail',
@@ -1434,6 +1437,7 @@
                 navRepayments: 'ክፍያዎች',
                 navWithdrawals: 'መውጫዎች',
                 navDividends: 'ክፍፍል',
+                navShares: 'አክሲዮኖች',
                 navReports: 'ሪፖርቶች',
                 navPenalties: 'ቅጣቶች',
                 navAudit: 'የምዝግብ ታሪክ',
@@ -1532,6 +1536,7 @@
                 navRepayments: 'Kaffaltuu',
                 navWithdrawals: 'Baasii',
                 navDividends: 'Qooda',
+                navShares: 'Hissa',
                 navReports: 'Odeeffannoo',
                 navPenalties: 'Adaba',
                 navAudit: 'Seenaa Galmee',
@@ -1806,13 +1811,13 @@
         let allTransactions = [];
         let activeLoans = [];
         let customerPenalties = [];
-        let shareTransactions = [];      // ✅ NEW
+        let shareTransactions = [];
         let currentPage = 1;
         const pageSize = 10;
         let customerId = null;
 
         // ============================================================
-        // SHARE TYPE CONSTANTS  ✅ NEW
+        // SHARE TYPE CONSTANTS
         // ============================================================
         const SHARE_BUY_TYPES = [
             'share', 'shares', 'share_purchase', 'share_buy', 'share_deposit',
@@ -1826,7 +1831,7 @@
             'cancelled', 'canceled', 'failed', 'declined'];
 
         // ============================================================
-        // GET CUSTOMER NAME (uses currentCustomer if available)
+        // GET CUSTOMER NAME
         // ============================================================
         function getCustomerName(memberId) {
             if (currentCustomer && (currentCustomer.id === memberId || currentCustomer.customerId === memberId)) {
@@ -1843,9 +1848,6 @@
         const REPAYMENT_BAD_STATUS = ['pending', 'review', 'approval', 'rejected',
             'cancelled', 'canceled', 'failed', 'declined'];
 
-        /**
-         * Collect every possible identifier a loan might be referenced by.
-         */
         function getLoanRefIds(loan) {
             return new Set(
                 [
@@ -1866,8 +1868,6 @@
 
         /**
          * ✅ FIXED: find the total amount actually repaid against ONE loan.
-         * Matches on loanId / loanDocId / loan number, then on the note text,
-         * then (only when the customer has a single active loan) on memberId.
          */
         function getLoanRepaidAmount(loan) {
             const refIds = getLoanRefIds(loan);
@@ -1882,11 +1882,9 @@
                     return;
                 }
 
-                // Skip repayments that are not finalised
                 const st = String(tx.status || '').toLowerCase();
                 if (REPAYMENT_BAD_STATUS.includes(st)) return;
 
-                // 1) Direct loan reference match
                 const txRefs = [
                     tx.loanId, tx.loanDocId, tx.loan_id, tx.loanRef,
                     tx.parentLoanId, tx.referenceId, tx.reference
@@ -1896,7 +1894,6 @@
 
                 let matched = txRefs.some(r => refIds.has(r));
 
-                // 2) Loan number mentioned inside the note / details text
                 if (!matched) {
                     const text = `${tx.note || ''} ${tx.details || ''} ${tx.description || ''} ${tx.reason || ''}`
                         .toUpperCase();
@@ -1905,8 +1902,6 @@
                     }
                 }
 
-                // 3) Fallback: the customer has exactly one active loan, so any
-                //    repayment belonging to this member must belong to that loan.
                 if (!matched && onlyOneActiveLoan && memberRef) {
                     const txMember = tx.memberId || tx.customerId;
                     if (txMember && String(txMember) === String(memberRef)) matched = true;
@@ -1918,11 +1913,6 @@
             return total;
         }
 
-        /**
-         * Total payable on a loan = stored totalPayable, otherwise principal + interest.
-         * 👉 If your SACCO only tracks principal, change the return of this function
-         *    to `Number(loan.amount) || 0`.
-         */
         function getLoanTotalPayable(loan) {
             if (loan.totalPayable !== undefined && loan.totalPayable !== null &&
                 Number(loan.totalPayable) > 0) {
@@ -1935,9 +1925,6 @@
             return amount + calculateInterest(amount, interestRate, period, loanType);
         }
 
-        /**
-         * ✅ Outstanding balance = total payable − amount already repaid.
-         */
         function getLoanRemaining(loan) {
             const totalPayable = getLoanTotalPayable(loan);
             const repaid = getLoanRepaidAmount(loan);
@@ -1954,7 +1941,6 @@
                 const n = Number(raw);
                 if (!isNaN(n)) return n;
             }
-            // Derive from amount ÷ price per share
             const amount = Number(tx.amount ?? tx.totalAmount ?? tx.totalValue ?? 0) || 0;
             const price = Number(tx.pricePerShare ?? tx.shareValue ?? tx.rate ?? tx.unitPrice ?? 0) || 0;
             if (price > 0 && amount > 0) return Math.round((amount / price) * 100) / 100;
@@ -2037,7 +2023,7 @@
                         return db - da;
                     });
 
-                // ✅ NEW: collect share transactions
+                // ✅ collect share transactions
                 shareTransactions = allTransactions
                     .filter(tx => {
                         const ty = String(tx.type || '').toLowerCase();
@@ -2291,7 +2277,7 @@
             });
             remainingActive = Math.round(remainingActive * 100) / 100;
 
-            // ✅ NEW: share totals
+            // ✅ share totals
             let totalShares = 0;
             let totalShareValue = 0;
             (shareTransactions || []).forEach(tx => {
@@ -2332,7 +2318,6 @@
             document.getElementById('profileCapital').textContent = individualCapital.toLocaleString();
             document.getElementById('profilePenalties').textContent = totalPendingPenalties.toLocaleString();
 
-            // ✅ NEW: share cards
             const sharesEl = document.getElementById('profileShares');
             const shareValueEl = document.getElementById('profileShareValue');
             if (sharesEl) sharesEl.textContent = totalShares.toLocaleString();
@@ -2342,7 +2327,7 @@
 
             renderActiveLoans();
             renderPenalties();
-            renderShares();     // ✅ NEW
+            renderShares();
         }
 
         // ============================================================
@@ -2416,7 +2401,7 @@
         }
 
         // ============================================================
-        // ✅ NEW: RENDER SHARE HISTORY
+        // ✅ RENDER SHARE HISTORY
         // ============================================================
         function renderShares() {
             const container = document.getElementById('shareContainer');
@@ -2567,7 +2552,7 @@
         }
 
         // ============================================================
-        // PAY PENALTY – Beautiful Modal (Redirects to Penalties Page)
+        // PAY PENALTY – Beautiful Modal
         // ============================================================
         function openPayPenaltyModal(penaltyId) {
             const penalty = allTransactions.find(tx => tx.id === penaltyId);
@@ -2648,7 +2633,6 @@
                 const period = Number(loan.repaymentPeriod) || 0;
                 const loanType = loan.loanType || 'simple';
 
-                // ✅ FIXED: use the robust helper
                 const repayments = getLoanRepaidAmount(loan);
                 const totalPayable = getLoanTotalPayable(loan);
                 const remainingBalance = Math.max(0, Math.round((totalPayable - repayments) * 100) / 100);
@@ -3006,7 +2990,6 @@
                         renderTransactionsTable(pageItems);
                         updatePaginationInfo();
                         renderPageButtons();
-                        // ✅ re-render dynamic sections so their labels follow the language
                         renderActiveLoans();
                         renderPenalties();
                         renderShares();
