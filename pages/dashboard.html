@@ -207,7 +207,6 @@
             display: inline-flex; align-items: center; gap: 5px;
         }
         .test-conn-btn:hover { background: var(--border-color); color: var(--text-primary); }
-        /* === NEW: Dashboard settings button === */
         .dash-settings-btn {
             background: transparent; border: 1px solid var(--border-color); border-radius: 6px;
             padding: 4px 12px; font-size: 11px; font-weight: 600; cursor: pointer;
@@ -494,11 +493,6 @@
         .ds-toggle-switch input:focus + .ds-slider { box-shadow: 0 0 0 3px rgba(45,122,61,0.15); }
         .ds-toggle-switch input:disabled + .ds-slider { opacity: 0.5; cursor: not-allowed; }
 
-        .ds-form-row {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
-            margin-bottom: 12px;
-        }
-        .ds-form-row.single { grid-template-columns: 1fr; }
         .ds-form-group { position: relative; }
         .ds-form-group label {
             display: block; font-size: 12.5px; font-weight: 600;
@@ -521,10 +515,6 @@
         .ds-form-group select:focus {
             outline: none; border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(45,122,61,0.1);
-        }
-        .ds-help-text {
-            font-size: 11px; color: var(--text-muted); margin-top: 4px;
-            display: block; line-height: 1.4;
         }
 
         .ds-summary-box {
@@ -673,7 +663,6 @@
             .year-status { margin-left: 0; }
             .logout-modal .modal-actions { flex-direction: column; }
             .logout-modal .modal-actions .btn { width: 100%; }
-            .ds-form-row { grid-template-columns: 1fr; }
             .dash-settings-modal { max-width: 100%; }
         }
         @media (max-width: 480px) {
@@ -689,6 +678,8 @@
             .top-header { padding: 10px 12px; }
             .page-title h1 { font-size: 17px; }
         }
+
+        .role-hidden { display: none !important; }
     </style>
 </head>
 <body>
@@ -754,7 +745,6 @@
                     <button class="lang-btn" data-lang="am">አማ</button>
                     <button class="lang-btn" data-lang="om">OM</button>
                 </div>
-                <!-- ✅ NEW: Dashboard calculation settings (admin only) -->
                 <button class="dash-settings-btn" id="dashSettingsBtn" title="Calculation Settings">
                     <i class="fas fa-calculator"></i> <span data-i18n="calcSettings">Calc Settings</span>
                 </button>
@@ -853,7 +843,8 @@
                 </div>
             </div>
 
-            <div class="performance-overview">
+            <!-- Performance Overview: admin & manager only -->
+            <div class="performance-overview" id="performanceOverview">
                 <h3 data-i18n="performanceOverview" style="font-size:16px; font-weight:600; color:var(--text-primary); margin-bottom:12px;">Performance Overview</h3>
                 <div class="stats-grid" id="statsGrid">
                     <div class="stat-card customers">
@@ -879,7 +870,7 @@
                         <div class="stat-info">
                             <span class="stat-label">Net Saving</span>
                             <span class="stat-value" id="netSavingsValue">0</span>
-                            <span class="stat-change" id="netSavingsChange">Savings – Withdrawals</span>
+                            <span class="stat-change" id="netSavingsChange">Savings – Withdrawals – Shares</span>
                         </div>
                     </div>
 
@@ -1019,7 +1010,7 @@
                     <i class="fas fa-info-circle"></i>
                     <div>
                         <strong>Admin only.</strong>
-                        Configure exactly which transactions count toward <strong>Total Profit</strong>, <strong>Net Profit</strong> and related cards. Saved globally to <code>settings/system.dashboard</code>.
+                        Configure which transactions count toward <strong>Net Profit</strong>, <strong>Repayments</strong>, and <strong>Net Saving</strong>. Saved globally to <code>settings/system.dashboard</code>.
                     </div>
                 </div>
 
@@ -1063,7 +1054,7 @@
                     <div class="ds-toggle-row">
                         <div class="ds-toggle-text">
                             <div class="ds-toggle-title">Deduct Service Withdrawals</div>
-                            <div class="ds-toggle-desc">Subtract SACCO service withdrawals (education, medical, etc.) from income → Net Profit.</div>
+                            <div class="ds-toggle-desc">Subtract SACCO service withdrawals from income → Net Profit.</div>
                         </div>
                         <label class="ds-toggle-switch">
                             <input type="checkbox" id="dsDeductServiceWithdrawals" />
@@ -1081,7 +1072,6 @@
                             <div class="ds-toggle-title">Exclude "Other" Deposits</div>
                             <div class="ds-toggle-desc">
                                 Skip deposits with <code>incomeType = "Other"</code> or <code>"Other Deposit"</code>.
-                                This matches the Deposits & Dividends pages.
                             </div>
                         </div>
                         <label class="ds-toggle-switch">
@@ -1106,7 +1096,7 @@
                     <div class="ds-toggle-row">
                         <div class="ds-toggle-text">
                             <div class="ds-toggle-title">Include only fully Paid Loans</div>
-                            <div class="ds-toggle-desc">If ON, interest is only counted for loans with status "paid" (realized income). If OFF, active loans are also counted (expected income).</div>
+                            <div class="ds-toggle-desc">If ON, interest is only counted for loans with status "paid". If OFF, active and approved loans are also counted.</div>
                         </div>
                         <label class="ds-toggle-switch">
                             <input type="checkbox" id="dsPaidLoansOnly" />
@@ -1135,13 +1125,75 @@
                     </div>
                 </div>
 
+                <!-- Repayment filters -->
+                <div class="ds-section">
+                    <h4><i class="fas fa-filter"></i> Repayment Filters</h4>
+                    <div class="ds-form-group">
+                        <label>
+                            Repayment Statuses to Count
+                            <span class="hint">
+                                Comma-separated. <strong>Must include <code>printed</code></strong> — otherwise printed repayments are ignored. Example: <code>approved, printed, paid, done</code>
+                            </span>
+                        </label>
+                        <input type="text" id="dsRepaymentStatuses" placeholder="approved, printed, paid, done" />
+                    </div>
+                </div>
+
+                <!-- Net Saving & Shares -->
+                <div class="ds-section">
+                    <h4><i class="fas fa-piggy-bank"></i> Net Saving & Shares</h4>
+
+                    <div class="ds-toggle-row">
+                        <div class="ds-toggle-text">
+                            <div class="ds-toggle-title">Deduct Share Buys from Net Saving</div>
+                            <div class="ds-toggle-desc">When a customer buys shares from savings, their Net Saving decreases.</div>
+                        </div>
+                        <label class="ds-toggle-switch">
+                            <input type="checkbox" id="dsDeductShareBuys" />
+                            <span class="ds-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="ds-toggle-row">
+                        <div class="ds-toggle-text">
+                            <div class="ds-toggle-title">Add Share Sells back to Net Saving</div>
+                            <div class="ds-toggle-desc">When shares are sold, the money returns to savings — add it back to Net Saving.</div>
+                        </div>
+                        <label class="ds-toggle-switch">
+                            <input type="checkbox" id="dsAddShareSells" />
+                            <span class="ds-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="ds-toggle-row">
+                        <div class="ds-toggle-text">
+                            <div class="ds-toggle-title">Count Transfers too</div>
+                            <div class="ds-toggle-desc">Also treat <code>share_transfer_in</code> as a buy and <code>share_transfer_out</code> as a sell.</div>
+                        </div>
+                        <label class="ds-toggle-switch">
+                            <input type="checkbox" id="dsCountShareTransfers" />
+                            <span class="ds-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="ds-form-group" style="margin-top:12px;">
+                        <label>
+                            Share Statuses to Count
+                            <span class="hint">Comma-separated. Typically <code>approved</code>.</span>
+                        </label>
+                        <input type="text" id="dsShareStatuses" placeholder="approved" />
+                    </div>
+                </div>
+
                 <!-- Live preview -->
                 <div class="ds-summary-box" id="dsSummaryBox">
                     <div class="ds-summary-title"><i class="fas fa-eye"></i> Live Preview</div>
-                    <div class="ds-summary-line"><span>Deposit income statuses:</span> <strong id="dsPreviewDepositStatuses">—</strong></div>
+                    <div class="ds-summary-line"><span>Deposit statuses:</span> <strong id="dsPreviewDepositStatuses">—</strong></div>
                     <div class="ds-summary-line"><span>Exclude "Other":</span> <strong id="dsPreviewExcludeOther">—</strong></div>
                     <div class="ds-summary-line"><span>Loan interest statuses:</span> <strong id="dsPreviewLoanStatuses">—</strong></div>
                     <div class="ds-summary-line"><span>Penalty statuses:</span> <strong id="dsPreviewPenaltyStatuses">—</strong></div>
+                    <div class="ds-summary-line"><span>Repayment statuses:</span> <strong id="dsPreviewRepaymentStatuses">—</strong></div>
+                    <div class="ds-summary-line"><span>Share buys affect Net Saving:</span> <strong id="dsPreviewShareBuys">—</strong></div>
                 </div>
 
             </div>
@@ -1170,7 +1222,7 @@
 
     <script>
         // ============================================================
-        // FIREBASE CONFIG
+        // FIREBASE
         // ============================================================
         const firebaseConfig = {
             apiKey: "AIzaSyBeQv8YLNfFFaTEZ6pxXaAy_K8n3u8V5X4",
@@ -1187,20 +1239,23 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // ✅ DEFAULT DASHBOARD CALCULATION SETTINGS
+        // DEFAULT DASHBOARD SETTINGS
         // ============================================================
         const DEFAULT_DASHBOARD_SETTINGS = {
             includeDepositIncome: true,
             includeLoanInterestIncome: true,
             includePenaltyIncome: true,
             deductServiceWithdrawals: true,
-            // ✅ FIX #1 — exclude "Other" deposits by default (matches deposits page)
             excludeOtherDeposits: true,
             depositStatuses: ['approved', 'completed', 'paid'],
-            // ✅ FIX #2 — only realized interest (loans that are fully paid) OR all approved
             paidLoansOnly: false,
             loanInterestStatuses: ['active', 'paid', 'approved'],
-            penaltyStatuses: ['paid', 'done', 'approved']
+            penaltyStatuses: ['paid', 'done', 'approved'],
+            repaymentStatuses: ['approved', 'printed', 'paid', 'done'],
+            deductShareBuys: true,
+            addShareSells: true,
+            countShareTransfers: true,
+            shareStatuses: ['approved']
         };
 
         let dashboardSettings = { ...DEFAULT_DASHBOARD_SETTINGS };
@@ -1219,7 +1274,11 @@
                             loanInterestStatuses: Array.isArray(data.dashboard.loanInterestStatuses) ?
                                 data.dashboard.loanInterestStatuses : DEFAULT_DASHBOARD_SETTINGS.loanInterestStatuses,
                             penaltyStatuses: Array.isArray(data.dashboard.penaltyStatuses) ?
-                                data.dashboard.penaltyStatuses : DEFAULT_DASHBOARD_SETTINGS.penaltyStatuses
+                                data.dashboard.penaltyStatuses : DEFAULT_DASHBOARD_SETTINGS.penaltyStatuses,
+                            repaymentStatuses: Array.isArray(data.dashboard.repaymentStatuses) ?
+                                data.dashboard.repaymentStatuses : DEFAULT_DASHBOARD_SETTINGS.repaymentStatuses,
+                            shareStatuses: Array.isArray(data.dashboard.shareStatuses) ?
+                                data.dashboard.shareStatuses : DEFAULT_DASHBOARD_SETTINGS.shareStatuses
                         };
                     }
                 }
@@ -1242,7 +1301,7 @@
         }
 
         // ============================================================
-        // INTEREST CALCULATION
+        // INTEREST
         // ============================================================
         function calculateInterest(principal, rate, months, type) {
             const r = rate / 100;
@@ -1267,20 +1326,8 @@
             return calculateInterest(amount, rate, period, loanType);
         }
 
-        // ✅ Realized interest = proportional to repayments received
-        function getRealizedLoanInterest(loan, repaymentsData) {
-            const fullInterest = getLoanInterest(loan);
-            const principal = Number(loan.amount) || 0;
-            if (principal <= 0) return 0;
-            const repaid = repaymentsData
-                .filter(r => r.loanId === loan.id)
-                .reduce((s, r) => s + (Number(r.amount) || 0), 0);
-            const repaidRatio = Math.min(1, repaid / principal);
-            return fullInterest * repaidRatio;
-        }
-
         // ============================================================
-        // MULTI-LANGUAGE
+        // TRANSLATIONS
         // ============================================================
         const translations = {
             en: {
@@ -1329,7 +1376,6 @@
                 connectionSuccess: '✅ Connection successful!',
                 connectionFailed: '❌ Connection failed: ',
                 loadingData: 'Loading data...',
-                // New
                 calcSettings: 'Calc Settings',
                 calcSettingsTitle: 'Calculation Settings',
                 reset: 'Reset',
@@ -1541,6 +1587,19 @@
             if (localStorage.getItem('sidebar-collapsed') === 'true') sidebar.classList.add('collapsed');
             else sidebar.classList.remove('collapsed');
         }
+
+        // ★ Role-based visibility: Performance Overview → admin/manager only
+        function applyRoleVisibility() {
+            const canSeeStats = ['admin', 'manager'].includes(currentUserRole);
+            const perfSection = document.getElementById('performanceOverview');
+            if (perfSection) {
+                if (canSeeStats) perfSection.classList.remove('role-hidden');
+                else perfSection.classList.add('role-hidden');
+            }
+            const dsBtn = document.getElementById('dashSettingsBtn');
+            if (dsBtn) dsBtn.style.display = (currentUserRole === 'admin') ? 'inline-flex' : 'none';
+        }
+
         function updateUserInfo() {
             const roleMap = { admin: 'ADMIN', manager: 'MANAGER', teller: 'TELLER', accountant: 'ACCOUNTANT', viewer: 'VIEWER' };
             const roleLabel = roleMap[currentUserRole] || 'VIEWER';
@@ -1556,9 +1615,7 @@
             if (hour >= 12 && hour < 17) greeting = 'Good afternoon';
             else if (hour >= 17) greeting = 'Good evening';
             document.getElementById('greetingText').textContent = greeting + ',';
-            // Show dashboard calc settings button only for admin
-            const dsBtn = document.getElementById('dashSettingsBtn');
-            if (dsBtn) dsBtn.style.display = (currentUserRole === 'admin') ? 'inline-flex' : 'none';
+            applyRoleVisibility();
         }
         function updateDateTime() {
             const now = new Date();
@@ -1726,7 +1783,7 @@
         }
 
         // ============================================================
-        // ✅ MAIN LOAD FUNCTION — uses dashboardSettings
+        // MAIN LOAD
         // ============================================================
         async function loadDashboardData() {
             const overlay = document.getElementById('loadingOverlay');
@@ -1779,19 +1836,19 @@
                 allServiceWithdrawals = serviceWithdrawalSnap.docs.map(d => ({ id: d.id, ...d.data() }));
                 allShares = sharesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-                // ============================================================
-                // SHARE CALCULATIONS
-                // ============================================================
+                // SHARES: net count & value + bought/sold amounts
                 let totalSharesNet = 0;
                 let netShareValue = 0;
+
                 allShares.forEach(s => {
-                    if (s.status !== 'approved') return;
+                    if (!dashboardSettings.shareStatuses.includes(s.status)) return;
                     const shares = Number(s.shares) || (Number(s.amount) ? (Number(s.amount) / 1000) : 0);
                     const amt = Number(s.amount) || 0;
-                    if (s.type === 'share_buy' || s.type === 'share_transfer_in') {
+                    const ty = String(s.type || '').toLowerCase();
+                    if (ty === 'share_buy' || (dashboardSettings.countShareTransfers && ty === 'share_transfer_in')) {
                         totalSharesNet += shares;
                         netShareValue += amt;
-                    } else if (s.type === 'share_sell' || s.type === 'share_transfer_out') {
+                    } else if (ty === 'share_sell' || (dashboardSettings.countShareTransfers && ty === 'share_transfer_out')) {
                         totalSharesNet -= shares;
                         netShareValue -= amt;
                     }
@@ -1799,11 +1856,7 @@
                 totalSharesNet = Math.max(0, Math.round(totalSharesNet * 10000) / 10000);
                 netShareValue = Math.max(0, Math.round(netShareValue * 100) / 100);
 
-                // ============================================================
-                // ✅ FIXED INCOME CALCULATIONS — driven by dashboardSettings
-                // ============================================================
-
-                // ---- PAID PENALTIES (always shown on card) ----
+                // PENALTIES: paid total
                 const paidPenaltiesAllYears = allPenalties.filter(p =>
                     dashboardSettings.penaltyStatuses.includes(p.status)
                 );
@@ -1811,13 +1864,12 @@
                 const paidPenaltiesAmount = paidPenaltiesAllYears
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-                // ---- PENALTY INCOME ----
+                // INCOME (all years)
                 let totalPenaltyIncomeAllYears = 0;
                 if (dashboardSettings.includePenaltyIncome) {
                     totalPenaltyIncomeAllYears = paidPenaltiesAmount;
                 }
 
-                // ---- DEPOSIT INCOME — FIX #1 applied ----
                 let totalDepositIncomeAllYears = 0;
                 if (dashboardSettings.includeDepositIncome) {
                     totalDepositIncomeAllYears = allProfitIncome
@@ -1830,25 +1882,19 @@
                         .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
                 }
 
-                // ---- LOAN INTEREST INCOME — FIX #2 applied ----
                 let totalInterestIncomeAllYears = 0;
                 if (dashboardSettings.includeLoanInterestIncome) {
                     if (dashboardSettings.paidLoansOnly) {
-                        // Realized: only fully paid loans count their full interest
-                        const paidLoans = allLoans.filter(l => l.status === 'paid');
-                        totalInterestIncomeAllYears = paidLoans
+                        totalInterestIncomeAllYears = allLoans
+                            .filter(l => l.status === 'paid')
                             .reduce((sum, loan) => sum + getLoanInterest(loan), 0);
                     } else {
-                        // Expected: approved + active + paid
-                        const qualifyingLoans = allLoans.filter(l =>
-                            dashboardSettings.loanInterestStatuses.includes(l.status)
-                        );
-                        totalInterestIncomeAllYears = qualifyingLoans
+                        totalInterestIncomeAllYears = allLoans
+                            .filter(l => dashboardSettings.loanInterestStatuses.includes(l.status))
                             .reduce((sum, loan) => sum + getLoanInterest(loan), 0);
                     }
                 }
 
-                // ---- SERVICE WITHDRAWALS (expense side) ----
                 let totalServiceWithdrawalsAllYears = 0;
                 if (dashboardSettings.deductServiceWithdrawals) {
                     totalServiceWithdrawalsAllYears = allServiceWithdrawals
@@ -1861,11 +1907,16 @@
                      totalInterestIncomeAllYears - totalServiceWithdrawalsAllYears) * 100
                 ) / 100;
 
-                // ---- YEARLY DATA ----
+                // YEARLY DATA
                 const savingsData = allSavings.filter(s => isInYear(s.date || s.timestamp, year) && s.status === 'approved');
                 const loansData = allLoans.filter(l => isInYear(l.date || l.timestamp, year));
-                const repaymentsData = allRepayments.filter(r => isInYear(r.date || r.timestamp, year) &&
-                    (r.status === 'approved' || r.status === 'paid' || r.status === 'done'));
+
+                // REPAYMENTS — includes printed
+                const repaymentsData = allRepayments.filter(r =>
+                    isInYear(r.date || r.timestamp, year) &&
+                    dashboardSettings.repaymentStatuses.includes(r.status)
+                );
+
                 const profitIncomeData = allProfitIncome.filter(p => isInYear(p.date || p.timestamp, year));
                 const profitWithdrawalData = allProfitWithdrawal.filter(w => isInYear(w.date || w.timestamp, year));
                 const penaltiesData = allPenalties.filter(p => isInYear(p.date || p.timestamp, year));
@@ -1875,12 +1926,27 @@
                 const leavingWithdrawalsData = allLeavingWithdrawals.filter(w => isInYear(w.date || w.timestamp, year) &&
                     (w.status === 'approved' || w.status === 'completed'));
 
+                // SHARES for current year
+                let yearlySharesBought = 0;
+                let yearlySharesSold = 0;
+                allShares.forEach(s => {
+                    if (!dashboardSettings.shareStatuses.includes(s.status)) return;
+                    if (!isInYear(s.date || s.timestamp, year)) return;
+                    const amt = Number(s.amount) || 0;
+                    const ty = String(s.type || '').toLowerCase();
+                    if (ty === 'share_buy' || (dashboardSettings.countShareTransfers && ty === 'share_transfer_in')) {
+                        yearlySharesBought += amt;
+                    } else if (ty === 'share_sell' || (dashboardSettings.countShareTransfers && ty === 'share_transfer_out')) {
+                        yearlySharesSold += amt;
+                    }
+                });
+
                 const approvedLoansYearly = allLoans.filter(l =>
                     isInYear(l.date || l.timestamp, year) &&
                     (l.status === 'active' || l.status === 'paid' || l.status === 'approved')
                 );
 
-                // ---- YEARLY INCOME — SAME RULES ----
+                // YEARLY INCOME
                 let yearlyPenaltyIncome = 0;
                 if (dashboardSettings.includePenaltyIncome) {
                     yearlyPenaltyIncome = penaltiesData
@@ -1931,7 +1997,12 @@
                 const totalSavings = savingsData.reduce((s, item) => s + (Number(item.amount) || 0), 0);
                 const totalWithdrawalsYearly = withdrawalsData.reduce((s, w) => s + (Number(w.amount) || 0), 0);
                 const totalLeavingWithdrawalsYearly = leavingWithdrawalsData.reduce((s, w) => s + (Number(w.amount) || 0), 0);
-                const netSavingYearly = Math.round((totalSavings - totalWithdrawalsYearly - totalLeavingWithdrawalsYearly) * 100) / 100;
+
+                // NET SAVING — with shares impact
+                let netSavingYearly = totalSavings - totalWithdrawalsYearly - totalLeavingWithdrawalsYearly;
+                if (dashboardSettings.deductShareBuys) netSavingYearly -= yearlySharesBought;
+                if (dashboardSettings.addShareSells) netSavingYearly += yearlySharesSold;
+                netSavingYearly = Math.round(netSavingYearly * 100) / 100;
 
                 const totalSavingsAllYears = allSavings
                     .filter(s => s.status === 'approved')
@@ -1948,7 +2019,8 @@
                 document.getElementById('totalCustomersValue').textContent = totalCustomers.toLocaleString();
                 document.getElementById('savingsValue').textContent = totalSavings.toLocaleString();
                 document.getElementById('netSavingsValue').textContent = netSavingYearly.toLocaleString();
-                document.getElementById('netSavingsChange').innerHTML = `<span class="neutral">Savings – Withdrawals</span>`;
+                document.getElementById('netSavingsChange').innerHTML =
+                    `<span class="neutral">Savings – Withdrawals – Shares</span>`;
                 document.getElementById('loansValue').textContent = totalLoans.toLocaleString();
                 document.getElementById('repaymentsValue').textContent = totalRepayments.toLocaleString();
                 document.getElementById('profitValue').textContent = totalIncomeYearly.toLocaleString();
@@ -1956,7 +2028,6 @@
                 document.getElementById('balanceValue').textContent = totalBalanceYearly.toLocaleString();
                 document.getElementById('totalBalanceAllValue').textContent = totalBalanceAllYears.toLocaleString();
 
-                // Paid Penalties card
                 const paidPenaltyDisplay = paidPenaltiesCount > 0 ?
                     `${paidPenaltiesCount} (ETB ${paidPenaltiesAmount.toLocaleString()})` : '0';
                 document.getElementById('penaltiesPaidValue').textContent = paidPenaltyDisplay;
@@ -1964,7 +2035,6 @@
                     `<span class="positive">✓ ${paidPenaltiesCount} settled</span>` :
                     `<span class="neutral">No settled penalties</span>`;
 
-                // Share cards
                 document.getElementById('totalSharesValue').textContent = totalSharesNet.toFixed(2) + ' shares';
                 document.getElementById('shareValueValue').textContent = 'ETB ' + netShareValue.toLocaleString();
                 document.getElementById('totalSharesChange').innerHTML =
@@ -1992,7 +2062,7 @@
                 const prevRepayments = getMonthlyTotal(allRepayments.map(r => ({ ...r, date: r.date || r.timestamp })), 'amount', prevYear, currentMonth);
                 updateChange('repaymentsChange', prevRepayments > 0 ? ((curRepayments - prevRepayments) / prevRepayments * 100) : 0);
 
-                // Previous year comparison — using same settings
+                // Previous year comparisons
                 const prevYearPenalties = allPenalties
                     .filter(p => isInYear(p.date || p.timestamp, prevYear) && dashboardSettings.penaltyStatuses.includes(p.status))
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
@@ -2039,57 +2109,75 @@
                 const savingsMonthly = months.map((_, i) => getMonthlyTotal(savingsData, 'amount', year, i));
                 updateCharts(months, loansMonthly, repaymentsMonthly, savingsMonthly);
 
-                // Notifications
+                // ============================================================
+                // NOTIFICATIONS — UP TO 10 LINES, BIG POOL
+                // ============================================================
                 const activities = [];
 
-                savingsData.slice(0, 3).forEach(s => {
-                    activities.push({
-                        text: `${getCustomerName(s.customerId)} made a savings deposit of ETB ${Number(s.amount).toLocaleString()}`,
-                        icon: 'fa-coins', color: 'blue', date: s.date || s.timestamp
+                // 1) Savings (up to 5)
+                savingsData.slice().sort((a, b) => (toDate(b.date || b.timestamp) || 0) - (toDate(a.date || a.timestamp) || 0))
+                    .slice(0, 5).forEach(s => {
+                        activities.push({
+                            text: `${getCustomerName(s.customerId)} saved ETB ${Number(s.amount).toLocaleString()}`,
+                            icon: 'fa-coins', color: 'blue', date: s.date || s.timestamp
+                        });
                     });
-                });
 
-                loansData.filter(l => l.status === 'active' || l.status === 'paid').slice(0, 3).forEach(l => {
-                    const interest = getLoanInterest(l);
-                    activities.push({
-                        text: `${getCustomerName(l.customerId)} received a loan of ETB ${Number(l.amount).toLocaleString()} (Interest: ETB ${interest.toFixed(2)})`,
-                        icon: 'fa-file-invoice', color: 'orange', date: l.date || l.timestamp
+                // 2) Loans (up to 5)
+                loansData.filter(l => l.status === 'active' || l.status === 'paid')
+                    .slice().sort((a, b) => (toDate(b.date || b.timestamp) || 0) - (toDate(a.date || a.timestamp) || 0))
+                    .slice(0, 5).forEach(l => {
+                        const interest = getLoanInterest(l);
+                        activities.push({
+                            text: `${getCustomerName(l.customerId)} received a loan of ETB ${Number(l.amount).toLocaleString()} (Interest: ETB ${interest.toFixed(2)})`,
+                            icon: 'fa-file-invoice', color: 'orange', date: l.date || l.timestamp
+                        });
                     });
-                });
 
-                repaymentsData.slice(0, 3).forEach(r => {
-                    activities.push({
-                        text: `${getCustomerName(r.customerId)} made a loan repayment of ETB ${Number(r.amount).toLocaleString()}`,
-                        icon: 'fa-undo-alt', color: 'teal', date: r.date || r.timestamp
+                // 3) Repayments (up to 5)
+                repaymentsData.slice()
+                    .sort((a, b) => (toDate(b.date || b.timestamp) || 0) - (toDate(a.date || a.timestamp) || 0))
+                    .slice(0, 5).forEach(r => {
+                        activities.push({
+                            text: `${getCustomerName(r.customerId)} repaid ETB ${Number(r.amount).toLocaleString()}`,
+                            icon: 'fa-undo-alt', color: 'teal', date: r.date || r.timestamp
+                        });
                     });
-                });
 
-                allShares.filter(s => s.status === 'approved').slice(0, 3).forEach(s => {
-                    const ty = String(s.type || '').toLowerCase();
-                    const isSell = ty === 'share_sell' || ty === 'share_transfer_out';
-                    activities.push({
-                        text: `${getCustomerName(s.customerId)} ${isSell ? 'sold' : 'bought'} ${Number(s.shares || 0).toFixed(2)} shares (ETB ${Number(s.amount).toLocaleString()})`,
-                        icon: isSell ? 'fa-arrow-up' : 'fa-chart-pie',
-                        color: isSell ? 'orange' : 'purple',
-                        date: s.date || s.timestamp
+                // 4) Shares (up to 5)
+                allShares.filter(s => dashboardSettings.shareStatuses.includes(s.status))
+                    .slice().sort((a, b) => (toDate(b.date || b.timestamp) || 0) - (toDate(a.date || a.timestamp) || 0))
+                    .slice(0, 5).forEach(s => {
+                        const ty = String(s.type || '').toLowerCase();
+                        const isSell = ty === 'share_sell' || ty === 'share_transfer_out';
+                        activities.push({
+                            text: `${getCustomerName(s.customerId)} ${isSell ? 'sold' : 'bought'} ${Number(s.shares || 0).toFixed(2)} shares (ETB ${Number(s.amount).toLocaleString()})`,
+                            icon: isSell ? 'fa-arrow-up' : 'fa-chart-pie',
+                            color: isSell ? 'orange' : 'purple',
+                            date: s.date || s.timestamp
+                        });
                     });
-                });
 
-                paidPenaltiesAllYears.slice(0, 3).forEach(p => {
-                    activities.push({
-                        text: `${getCustomerName(p.memberId)} paid a penalty of ETB ${Number(p.amount).toLocaleString()}`,
-                        icon: 'fa-check-circle', color: 'green', date: p.paidAt || p.createdAt || p.timestamp
+                // 5) Paid penalties (up to 5)
+                paidPenaltiesAllYears.slice()
+                    .sort((a, b) => (toDate(b.paidAt || b.createdAt || b.timestamp) || 0) - (toDate(a.paidAt || a.createdAt || a.timestamp) || 0))
+                    .slice(0, 5).forEach(p => {
+                        activities.push({
+                            text: `${getCustomerName(p.memberId)} paid a penalty of ETB ${Number(p.amount).toLocaleString()}`,
+                            icon: 'fa-check-circle', color: 'green',
+                            date: p.paidAt || p.createdAt || p.timestamp
+                        });
                     });
-                });
 
-                profitIncomeData
-                    .filter(p => dashboardSettings.depositStatuses.includes(p.status))
+                // 6) Deposit / profit income (up to 5)
+                profitIncomeData.filter(p => dashboardSettings.depositStatuses.includes(p.status))
                     .filter(p => {
                         if (!dashboardSettings.excludeOtherDeposits) return true;
                         const type = (p.incomeType || '').toLowerCase().trim();
                         return type !== 'other' && type !== 'other deposit';
                     })
-                    .slice(0, 2).forEach(p => {
+                    .slice().sort((a, b) => (toDate(b.date || b.timestamp) || 0) - (toDate(a.date || a.timestamp) || 0))
+                    .slice(0, 5).forEach(p => {
                         const type = p.incomeType || 'Deposit';
                         activities.push({
                             text: `Income (${type}) of ETB ${Number(p.amount).toLocaleString()}`,
@@ -2097,13 +2185,27 @@
                         });
                     });
 
-                dividendEntries.slice(0, 2).forEach(w => {
-                    activities.push({
-                        text: `Dividend of ETB ${Number(w.amount).toLocaleString()} distributed to ${getCustomerName(w.customerId)}`,
-                        icon: 'fa-gift', color: 'purple', date: w.date || w.timestamp
+                // 7) Dividends (up to 5)
+                dividendEntries.slice()
+                    .sort((a, b) => (toDate(b.date || b.timestamp) || 0) - (toDate(a.date || a.timestamp) || 0))
+                    .slice(0, 5).forEach(w => {
+                        activities.push({
+                            text: `Dividend of ETB ${Number(w.amount).toLocaleString()} to ${getCustomerName(w.customerId)}`,
+                            icon: 'fa-gift', color: 'purple', date: w.date || w.timestamp
+                        });
                     });
-                });
 
+                // 8) Withdrawals (up to 5)
+                withdrawalsData.slice()
+                    .sort((a, b) => (toDate(b.date || b.timestamp) || 0) - (toDate(a.date || a.timestamp) || 0))
+                    .slice(0, 5).forEach(w => {
+                        activities.push({
+                            text: `${getCustomerName(w.customerId)} withdrew ETB ${Number(w.amount).toLocaleString()}`,
+                            icon: 'fa-hand-holding-heart', color: 'orange', date: w.date || w.timestamp
+                        });
+                    });
+
+                // Sort newest first → keep up to 10
                 activities.sort((a, b) => {
                     const da = toDate(a.date);
                     const db2 = toDate(b.date);
@@ -2151,7 +2253,7 @@
         }
 
         // ============================================================
-        // ✅ DASHBOARD SETTINGS MODAL LOGIC
+        // DASHBOARD SETTINGS MODAL LOGIC
         // ============================================================
         function statusesArrayToString(arr) {
             return Array.isArray(arr) ? arr.join(', ') : '';
@@ -2165,16 +2267,20 @@
                 showToast(translations[currentLang].unauthorized || 'Only admins can change calculation settings.', 'warning');
                 return;
             }
-            // Fill form
             document.getElementById('dsIncludeDepositIncome').checked = !!dashboardSettings.includeDepositIncome;
             document.getElementById('dsIncludeLoanInterestIncome').checked = !!dashboardSettings.includeLoanInterestIncome;
             document.getElementById('dsIncludePenaltyIncome').checked = !!dashboardSettings.includePenaltyIncome;
             document.getElementById('dsDeductServiceWithdrawals').checked = !!dashboardSettings.deductServiceWithdrawals;
             document.getElementById('dsExcludeOtherDeposits').checked = !!dashboardSettings.excludeOtherDeposits;
             document.getElementById('dsPaidLoansOnly').checked = !!dashboardSettings.paidLoansOnly;
+            document.getElementById('dsDeductShareBuys').checked = !!dashboardSettings.deductShareBuys;
+            document.getElementById('dsAddShareSells').checked = !!dashboardSettings.addShareSells;
+            document.getElementById('dsCountShareTransfers').checked = !!dashboardSettings.countShareTransfers;
             document.getElementById('dsDepositStatuses').value = statusesArrayToString(dashboardSettings.depositStatuses);
             document.getElementById('dsLoanInterestStatuses').value = statusesArrayToString(dashboardSettings.loanInterestStatuses);
             document.getElementById('dsPenaltyStatuses').value = statusesArrayToString(dashboardSettings.penaltyStatuses);
+            document.getElementById('dsRepaymentStatuses').value = statusesArrayToString(dashboardSettings.repaymentStatuses);
+            document.getElementById('dsShareStatuses').value = statusesArrayToString(dashboardSettings.shareStatuses);
             updateDashSettingsPreview();
             document.getElementById('dashSettingsOverlay').classList.add('active');
         }
@@ -2182,15 +2288,19 @@
             document.getElementById('dashSettingsOverlay').classList.remove('active');
         }
         function updateDashSettingsPreview() {
-            const dep = document.getElementById('dsDepositStatuses').value || '—';
-            const exO = document.getElementById('dsExcludeOtherDeposits').checked ? 'Yes' : 'No';
-            const loan = document.getElementById('dsPaidLoansOnly').checked ? 'Paid Loans Only' :
+            document.getElementById('dsPreviewDepositStatuses').textContent =
+                document.getElementById('dsDepositStatuses').value || '—';
+            document.getElementById('dsPreviewExcludeOther').textContent =
+                document.getElementById('dsExcludeOtherDeposits').checked ? 'Yes' : 'No';
+            document.getElementById('dsPreviewLoanStatuses').textContent =
+                document.getElementById('dsPaidLoansOnly').checked ? 'Paid Loans Only' :
                 (document.getElementById('dsLoanInterestStatuses').value || '—');
-            const pen = document.getElementById('dsPenaltyStatuses').value || '—';
-            document.getElementById('dsPreviewDepositStatuses').textContent = dep;
-            document.getElementById('dsPreviewExcludeOther').textContent = exO;
-            document.getElementById('dsPreviewLoanStatuses').textContent = loan;
-            document.getElementById('dsPreviewPenaltyStatuses').textContent = pen;
+            document.getElementById('dsPreviewPenaltyStatuses').textContent =
+                document.getElementById('dsPenaltyStatuses').value || '—';
+            document.getElementById('dsPreviewRepaymentStatuses').textContent =
+                document.getElementById('dsRepaymentStatuses').value || '—';
+            document.getElementById('dsPreviewShareBuys').textContent =
+                document.getElementById('dsDeductShareBuys').checked ? 'Yes' : 'No';
         }
         function readDashSettingsForm() {
             return {
@@ -2200,9 +2310,14 @@
                 deductServiceWithdrawals: document.getElementById('dsDeductServiceWithdrawals').checked,
                 excludeOtherDeposits: document.getElementById('dsExcludeOtherDeposits').checked,
                 paidLoansOnly: document.getElementById('dsPaidLoansOnly').checked,
+                deductShareBuys: document.getElementById('dsDeductShareBuys').checked,
+                addShareSells: document.getElementById('dsAddShareSells').checked,
+                countShareTransfers: document.getElementById('dsCountShareTransfers').checked,
                 depositStatuses: stringToStatusesArray(document.getElementById('dsDepositStatuses').value),
                 loanInterestStatuses: stringToStatusesArray(document.getElementById('dsLoanInterestStatuses').value),
-                penaltyStatuses: stringToStatusesArray(document.getElementById('dsPenaltyStatuses').value)
+                penaltyStatuses: stringToStatusesArray(document.getElementById('dsPenaltyStatuses').value),
+                repaymentStatuses: stringToStatusesArray(document.getElementById('dsRepaymentStatuses').value),
+                shareStatuses: stringToStatusesArray(document.getElementById('dsShareStatuses').value)
             };
         }
         async function saveDashSettings() {
@@ -2220,16 +2335,20 @@
         }
         function resetDashSettingsForm() {
             dashboardSettings = { ...DEFAULT_DASHBOARD_SETTINGS };
-            // Fill form again
             document.getElementById('dsIncludeDepositIncome').checked = dashboardSettings.includeDepositIncome;
             document.getElementById('dsIncludeLoanInterestIncome').checked = dashboardSettings.includeLoanInterestIncome;
             document.getElementById('dsIncludePenaltyIncome').checked = dashboardSettings.includePenaltyIncome;
             document.getElementById('dsDeductServiceWithdrawals').checked = dashboardSettings.deductServiceWithdrawals;
             document.getElementById('dsExcludeOtherDeposits').checked = dashboardSettings.excludeOtherDeposits;
             document.getElementById('dsPaidLoansOnly').checked = dashboardSettings.paidLoansOnly;
+            document.getElementById('dsDeductShareBuys').checked = dashboardSettings.deductShareBuys;
+            document.getElementById('dsAddShareSells').checked = dashboardSettings.addShareSells;
+            document.getElementById('dsCountShareTransfers').checked = dashboardSettings.countShareTransfers;
             document.getElementById('dsDepositStatuses').value = statusesArrayToString(dashboardSettings.depositStatuses);
             document.getElementById('dsLoanInterestStatuses').value = statusesArrayToString(dashboardSettings.loanInterestStatuses);
             document.getElementById('dsPenaltyStatuses').value = statusesArrayToString(dashboardSettings.penaltyStatuses);
+            document.getElementById('dsRepaymentStatuses').value = statusesArrayToString(dashboardSettings.repaymentStatuses);
+            document.getElementById('dsShareStatuses').value = statusesArrayToString(dashboardSettings.shareStatuses);
             updateDashSettingsPreview();
             showToast(translations[currentLang].dsResetDone || 'Settings restored to defaults.', 'info');
         }
@@ -2313,7 +2432,6 @@
                 updateUserInfo();
                 initLanguage();
 
-                // ✅ Load dashboard calculation settings
                 await loadDashboardSettings();
 
                 document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
@@ -2332,7 +2450,7 @@
                 document.getElementById('logoutModal').addEventListener('click', function(e) { if (e.target === this) hideLogoutModal(); });
                 document.addEventListener('keydown', function(e) { if (e.key === 'Escape') hideLogoutModal(); });
 
-                // ✅ Wire dashboard calc settings modal
+                // Calc settings modal
                 document.getElementById('dashSettingsBtn').addEventListener('click', openDashSettings);
                 document.getElementById('dashSettingsClose').addEventListener('click', closeDashSettings);
                 document.getElementById('dashSettingsOverlay').addEventListener('click', function(e) {
@@ -2342,7 +2460,9 @@
                 document.getElementById('dsResetBtn').addEventListener('click', resetDashSettingsForm);
                 ['dsIncludeDepositIncome', 'dsIncludeLoanInterestIncome', 'dsIncludePenaltyIncome',
                  'dsDeductServiceWithdrawals', 'dsExcludeOtherDeposits', 'dsPaidLoansOnly',
-                 'dsDepositStatuses', 'dsLoanInterestStatuses', 'dsPenaltyStatuses'
+                 'dsDeductShareBuys', 'dsAddShareSells', 'dsCountShareTransfers',
+                 'dsDepositStatuses', 'dsLoanInterestStatuses', 'dsPenaltyStatuses',
+                 'dsRepaymentStatuses', 'dsShareStatuses'
                 ].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) {
