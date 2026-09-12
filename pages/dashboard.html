@@ -207,6 +207,14 @@
             display: inline-flex; align-items: center; gap: 5px;
         }
         .test-conn-btn:hover { background: var(--border-color); color: var(--text-primary); }
+        /* === NEW: Dashboard settings button === */
+        .dash-settings-btn {
+            background: transparent; border: 1px solid var(--border-color); border-radius: 6px;
+            padding: 4px 12px; font-size: 11px; font-weight: 600; cursor: pointer;
+            color: var(--text-secondary); transition: 0.2s;
+            display: inline-flex; align-items: center; gap: 5px;
+        }
+        .dash-settings-btn:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
         .user-profile { display: flex; align-items: center; gap: 10px; }
         .user-profile img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); background: #f5f7f6; }
         .user-name { font-weight: 600; font-size: 14px; color: var(--text-primary); }
@@ -329,7 +337,6 @@
         .stat-card.penalties { background: linear-gradient(135deg, #b45f06, #e67e22); }
         .stat-card.penaltiespaid { background: linear-gradient(135deg, #1b5e20, #43a047); }
         .stat-card.netsavings { background: linear-gradient(135deg, #004d40, #00695c); }
-        /* NEW: Share cards */
         .stat-card.shares { background: linear-gradient(135deg, #4a148c, #7b1fa2); }
         .stat-card.sharevalue { background: linear-gradient(135deg, #006064, #00838f); }
 
@@ -380,6 +387,195 @@
         .notification-item .notif-text strong { color: var(--primary); }
         .notification-item .notif-time { font-size: 11px; color: var(--text-secondary); display: block; }
 
+        /* ================ DASHBOARD SETTINGS MODAL ================ */
+        .dash-settings-overlay {
+            display: none;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(6px);
+            z-index: 100000;
+            align-items: center; justify-content: center;
+            padding: 20px;
+            animation: fadeIn 0.2s ease;
+        }
+        .dash-settings-overlay.active { display: flex; }
+        .dash-settings-modal {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            max-width: 640px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-modal);
+            border: 1px solid var(--border-color);
+            animation: slideUp 0.3s ease;
+        }
+        .dash-settings-header {
+            padding: 20px 24px 14px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; background: var(--bg-card); z-index: 2;
+            border-radius: var(--radius) var(--radius) 0 0;
+        }
+        .dash-settings-header h3 {
+            font-size: 18px; font-weight: 700; color: var(--text-primary);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .dash-settings-header h3 i { color: var(--primary); }
+        .dash-settings-close {
+            background: none; border: none; font-size: 26px;
+            color: var(--text-secondary); cursor: pointer; line-height: 1;
+        }
+        .dash-settings-close:hover { color: var(--danger); }
+        .dash-settings-body { padding: 20px 24px; }
+
+        .ds-info-banner {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, rgba(33,150,243,0.08), rgba(33,150,243,0.03));
+            border: 1px solid rgba(33,150,243,0.3);
+            border-radius: var(--radius-sm);
+            font-size: 12.5px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: 18px;
+        }
+        .ds-info-banner i { color: var(--info); font-size: 18px; flex-shrink: 0; }
+        .ds-info-banner strong { color: var(--text-primary); }
+
+        .ds-section {
+            margin-bottom: 20px;
+            padding: 14px 16px;
+            background: var(--bg-primary);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+        }
+        .ds-section h4 {
+            font-size: 13px; font-weight: 700; color: var(--text-primary);
+            margin-bottom: 10px;
+            display: flex; align-items: center; gap: 8px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .ds-section h4 i { color: var(--primary); }
+
+        .ds-toggle-row {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            gap: 16px; padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .ds-toggle-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .ds-toggle-row:first-of-type { padding-top: 0; }
+        .ds-toggle-text { flex: 1; min-width: 0; }
+        .ds-toggle-title {
+            font-size: 13px; font-weight: 600; color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+        .ds-toggle-desc {
+            font-size: 11.5px; color: var(--text-secondary); line-height: 1.4;
+        }
+        .ds-toggle-switch {
+            position: relative; display: inline-block;
+            width: 42px; height: 24px; flex-shrink: 0;
+        }
+        .ds-toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .ds-toggle-switch .ds-slider {
+            position: absolute; cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc; transition: 0.3s; border-radius: 24px;
+        }
+        .ds-toggle-switch .ds-slider:before {
+            position: absolute; content: "";
+            height: 18px; width: 18px; left: 3px; bottom: 3px;
+            background-color: white; transition: 0.3s;
+            border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .ds-toggle-switch input:checked + .ds-slider { background-color: var(--primary); }
+        .ds-toggle-switch input:checked + .ds-slider:before { transform: translateX(18px); }
+        .ds-toggle-switch input:focus + .ds-slider { box-shadow: 0 0 0 3px rgba(45,122,61,0.15); }
+        .ds-toggle-switch input:disabled + .ds-slider { opacity: 0.5; cursor: not-allowed; }
+
+        .ds-form-row {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+            margin-bottom: 12px;
+        }
+        .ds-form-row.single { grid-template-columns: 1fr; }
+        .ds-form-group { position: relative; }
+        .ds-form-group label {
+            display: block; font-size: 12.5px; font-weight: 600;
+            color: var(--text-primary); margin-bottom: 5px;
+        }
+        .ds-form-group label .hint {
+            display: block; font-weight: 400; font-size: 11px;
+            color: var(--text-muted); margin-top: 1px;
+        }
+        .ds-form-group input[type="text"],
+        .ds-form-group input[type="number"],
+        .ds-form-group select {
+            width: 100%; padding: 8px 12px;
+            border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+            font-size: 13px; font-family: inherit;
+            background: var(--bg-card); color: var(--text-primary);
+            transition: all 0.2s;
+        }
+        .ds-form-group input:focus,
+        .ds-form-group select:focus {
+            outline: none; border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(45,122,61,0.1);
+        }
+        .ds-help-text {
+            font-size: 11px; color: var(--text-muted); margin-top: 4px;
+            display: block; line-height: 1.4;
+        }
+
+        .ds-summary-box {
+            padding: 12px 16px;
+            background: linear-gradient(135deg, rgba(45,122,61,0.06), rgba(45,122,61,0.02));
+            border: 1px solid rgba(45,122,61,0.25);
+            border-radius: var(--radius-sm);
+            margin-top: 14px;
+            font-size: 12.5px;
+            color: var(--text-secondary);
+        }
+        .ds-summary-box .ds-summary-title {
+            font-weight: 700; color: var(--text-primary); margin-bottom: 6px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .ds-summary-box .ds-summary-line {
+            display: flex; justify-content: space-between;
+            padding: 3px 0;
+        }
+        .ds-summary-box .ds-summary-line strong {
+            color: var(--primary); font-weight: 700;
+        }
+
+        .dash-settings-actions {
+            display: flex; justify-content: flex-end; gap: 10px;
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-primary);
+            position: sticky; bottom: 0;
+            border-radius: 0 0 var(--radius) var(--radius);
+        }
+        .dash-settings-actions .btn {
+            padding: 9px 20px;
+            border-radius: var(--radius-sm);
+            font-size: 13.5px; font-weight: 600;
+            border: none; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 6px;
+            transition: all 0.2s; font-family: inherit;
+        }
+        .dash-settings-actions .btn-secondary {
+            background: var(--border-color); color: var(--text-primary);
+        }
+        .dash-settings-actions .btn-secondary:hover { background: #d0d7d2; }
+        .dash-settings-actions .btn-primary {
+            background: var(--primary); color: #fff;
+        }
+        .dash-settings-actions .btn-primary:hover {
+            background: #1f5e2c; transform: translateY(-1px);
+        }
+
+        /* Logout modal */
         .logout-modal-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(6px);
@@ -477,6 +673,8 @@
             .year-status { margin-left: 0; }
             .logout-modal .modal-actions { flex-direction: column; }
             .logout-modal .modal-actions .btn { width: 100%; }
+            .ds-form-row { grid-template-columns: 1fr; }
+            .dash-settings-modal { max-width: 100%; }
         }
         @media (max-width: 480px) {
             .stats-grid { grid-template-columns: 1fr; }
@@ -556,6 +754,10 @@
                     <button class="lang-btn" data-lang="am">አማ</button>
                     <button class="lang-btn" data-lang="om">OM</button>
                 </div>
+                <!-- ✅ NEW: Dashboard calculation settings (admin only) -->
+                <button class="dash-settings-btn" id="dashSettingsBtn" title="Calculation Settings">
+                    <i class="fas fa-calculator"></i> <span data-i18n="calcSettings">Calc Settings</span>
+                </button>
                 <button class="test-conn-btn" id="testConnectionBtn" data-i18n="testConnection">
                     <i class="fas fa-plug"></i> <span>Test Connection</span>
                 </button>
@@ -627,7 +829,6 @@
                             <span class="action-desc" data-i18n="actionRepaymentsDesc">Record loan repayments</span>
                         </div>
                     </div>
-                    <!-- NEW: Shares quick action -->
                     <div class="action-card" onclick="location.href='share.html'">
                         <div class="action-icon share"><i class="fas fa-chart-pie"></i></div>
                         <div class="action-info">
@@ -736,7 +937,6 @@
                         </div>
                     </div>
 
-                    <!-- ✅ CHANGED: Paid Penalties instead of Penalties Pending -->
                     <div class="stat-card penaltiespaid">
                         <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
                         <div class="stat-info">
@@ -746,7 +946,6 @@
                         </div>
                     </div>
 
-                    <!-- ✅ NEW: Total Shares card -->
                     <div class="stat-card shares">
                         <div class="stat-icon"><i class="fas fa-chart-pie"></i></div>
                         <div class="stat-info">
@@ -756,7 +955,6 @@
                         </div>
                     </div>
 
-                    <!-- ✅ NEW: Share Value card -->
                     <div class="stat-card sharevalue">
                         <div class="stat-icon"><i class="fas fa-coins"></i></div>
                         <div class="stat-info">
@@ -808,6 +1006,156 @@
         </footer>
     </main>
 
+    <!-- ========== DASHBOARD CALCULATION SETTINGS MODAL ========== -->
+    <div class="dash-settings-overlay" id="dashSettingsOverlay">
+        <div class="dash-settings-modal">
+            <div class="dash-settings-header">
+                <h3><i class="fas fa-calculator"></i> <span data-i18n="calcSettingsTitle">Calculation Settings</span></h3>
+                <button class="dash-settings-close" id="dashSettingsClose">&times;</button>
+            </div>
+            <div class="dash-settings-body">
+
+                <div class="ds-info-banner">
+                    <i class="fas fa-info-circle"></i>
+                    <div>
+                        <strong>Admin only.</strong>
+                        Configure exactly which transactions count toward <strong>Total Profit</strong>, <strong>Net Profit</strong> and related cards. Saved globally to <code>settings/system.dashboard</code>.
+                    </div>
+                </div>
+
+                <!-- Income Components -->
+                <div class="ds-section">
+                    <h4><i class="fas fa-list-check"></i> Income Components</h4>
+
+                    <div class="ds-toggle-row">
+                        <div class="ds-toggle-text">
+                            <div class="ds-toggle-title">Include Deposit Income</div>
+                            <div class="ds-toggle-desc">Count <code>profit_income</code> records (registration fees, service fees, etc.) as income.</div>
+                        </div>
+                        <label class="ds-toggle-switch">
+                            <input type="checkbox" id="dsIncludeDepositIncome" />
+                            <span class="ds-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="ds-toggle-row">
+                        <div class="ds-toggle-text">
+                            <div class="ds-toggle-title">Include Loan Interest Income</div>
+                            <div class="ds-toggle-desc">Count interest earned on approved loans as income.</div>
+                        </div>
+                        <label class="ds-toggle-switch">
+                            <input type="checkbox" id="dsIncludeLoanInterestIncome" />
+                            <span class="ds-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="ds-toggle-row">
+                        <div class="ds-toggle-text">
+                            <div class="ds-toggle-title">Include Penalty Income</div>
+                            <div class="ds-toggle-desc">Count paid/done/approved penalties as income.</div>
+                        </div>
+                        <label class="ds-toggle-switch">
+                            <input type="checkbox" id="dsIncludePenaltyIncome" />
+                            <span class="ds-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="ds-toggle-row">
+                        <div class="ds-toggle-text">
+                            <div class="ds-toggle-title">Deduct Service Withdrawals</div>
+                            <div class="ds-toggle-desc">Subtract SACCO service withdrawals (education, medical, etc.) from income → Net Profit.</div>
+                        </div>
+                        <label class="ds-toggle-switch">
+                            <input type="checkbox" id="dsDeductServiceWithdrawals" />
+                            <span class="ds-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Deposit filters -->
+                <div class="ds-section">
+                    <h4><i class="fas fa-filter"></i> Deposit Income Filters</h4>
+
+                    <div class="ds-toggle-row">
+                        <div class="ds-toggle-text">
+                            <div class="ds-toggle-title">Exclude "Other" Deposits</div>
+                            <div class="ds-toggle-desc">
+                                Skip deposits with <code>incomeType = "Other"</code> or <code>"Other Deposit"</code>.
+                                This matches the Deposits & Dividends pages.
+                            </div>
+                        </div>
+                        <label class="ds-toggle-switch">
+                            <input type="checkbox" id="dsExcludeOtherDeposits" />
+                            <span class="ds-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="ds-form-group" style="margin-top:12px;">
+                        <label>
+                            Deposit Statuses to Count
+                            <span class="hint">Comma-separated. Only <code>profit_income</code> records with these statuses count.</span>
+                        </label>
+                        <input type="text" id="dsDepositStatuses" placeholder="approved, completed, paid" />
+                    </div>
+                </div>
+
+                <!-- Loan filters -->
+                <div class="ds-section">
+                    <h4><i class="fas fa-filter"></i> Loan Interest Filters</h4>
+
+                    <div class="ds-toggle-row">
+                        <div class="ds-toggle-text">
+                            <div class="ds-toggle-title">Include only fully Paid Loans</div>
+                            <div class="ds-toggle-desc">If ON, interest is only counted for loans with status "paid" (realized income). If OFF, active loans are also counted (expected income).</div>
+                        </div>
+                        <label class="ds-toggle-switch">
+                            <input type="checkbox" id="dsPaidLoansOnly" />
+                            <span class="ds-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="ds-form-group" style="margin-top:12px;">
+                        <label>
+                            Loan Statuses to Count
+                            <span class="hint">Comma-separated. Ignored if "Paid Loans Only" is enabled.</span>
+                        </label>
+                        <input type="text" id="dsLoanInterestStatuses" placeholder="active, paid, approved" />
+                    </div>
+                </div>
+
+                <!-- Penalty filters -->
+                <div class="ds-section">
+                    <h4><i class="fas fa-filter"></i> Penalty Income Filters</h4>
+                    <div class="ds-form-group">
+                        <label>
+                            Penalty Statuses to Count
+                            <span class="hint">Comma-separated. Typically: <code>paid, done, approved</code>.</span>
+                        </label>
+                        <input type="text" id="dsPenaltyStatuses" placeholder="paid, done, approved" />
+                    </div>
+                </div>
+
+                <!-- Live preview -->
+                <div class="ds-summary-box" id="dsSummaryBox">
+                    <div class="ds-summary-title"><i class="fas fa-eye"></i> Live Preview</div>
+                    <div class="ds-summary-line"><span>Deposit income statuses:</span> <strong id="dsPreviewDepositStatuses">—</strong></div>
+                    <div class="ds-summary-line"><span>Exclude "Other":</span> <strong id="dsPreviewExcludeOther">—</strong></div>
+                    <div class="ds-summary-line"><span>Loan interest statuses:</span> <strong id="dsPreviewLoanStatuses">—</strong></div>
+                    <div class="ds-summary-line"><span>Penalty statuses:</span> <strong id="dsPreviewPenaltyStatuses">—</strong></div>
+                </div>
+
+            </div>
+            <div class="dash-settings-actions">
+                <button class="btn btn-secondary" id="dsResetBtn">
+                    <i class="fas fa-undo"></i> <span data-i18n="reset">Reset</span>
+                </button>
+                <button class="btn btn-primary" id="dsSaveBtn">
+                    <i class="fas fa-save"></i> <span data-i18n="saveApply">Save & Apply</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div class="logout-modal-overlay" id="logoutModal">
         <div class="logout-modal">
             <div class="modal-icon"><i class="fas fa-sign-out-alt"></i></div>
@@ -839,6 +1187,61 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
+        // ✅ DEFAULT DASHBOARD CALCULATION SETTINGS
+        // ============================================================
+        const DEFAULT_DASHBOARD_SETTINGS = {
+            includeDepositIncome: true,
+            includeLoanInterestIncome: true,
+            includePenaltyIncome: true,
+            deductServiceWithdrawals: true,
+            // ✅ FIX #1 — exclude "Other" deposits by default (matches deposits page)
+            excludeOtherDeposits: true,
+            depositStatuses: ['approved', 'completed', 'paid'],
+            // ✅ FIX #2 — only realized interest (loans that are fully paid) OR all approved
+            paidLoansOnly: false,
+            loanInterestStatuses: ['active', 'paid', 'approved'],
+            penaltyStatuses: ['paid', 'done', 'approved']
+        };
+
+        let dashboardSettings = { ...DEFAULT_DASHBOARD_SETTINGS };
+
+        async function loadDashboardSettings() {
+            try {
+                const doc = await db.collection('settings').doc('system').get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    if (data && data.dashboard && typeof data.dashboard === 'object') {
+                        dashboardSettings = {
+                            ...DEFAULT_DASHBOARD_SETTINGS,
+                            ...data.dashboard,
+                            depositStatuses: Array.isArray(data.dashboard.depositStatuses) ?
+                                data.dashboard.depositStatuses : DEFAULT_DASHBOARD_SETTINGS.depositStatuses,
+                            loanInterestStatuses: Array.isArray(data.dashboard.loanInterestStatuses) ?
+                                data.dashboard.loanInterestStatuses : DEFAULT_DASHBOARD_SETTINGS.loanInterestStatuses,
+                            penaltyStatuses: Array.isArray(data.dashboard.penaltyStatuses) ?
+                                data.dashboard.penaltyStatuses : DEFAULT_DASHBOARD_SETTINGS.penaltyStatuses
+                        };
+                    }
+                }
+            } catch (e) {
+                console.warn('Could not load dashboard settings — using defaults:', e.message);
+            }
+            return dashboardSettings;
+        }
+
+        async function saveDashboardSettings() {
+            try {
+                await db.collection('settings').doc('system').set({
+                    dashboard: dashboardSettings
+                }, { merge: true });
+                return true;
+            } catch (e) {
+                console.error('Save dashboard settings error:', e);
+                return false;
+            }
+        }
+
+        // ============================================================
         // INTEREST CALCULATION
         // ============================================================
         function calculateInterest(principal, rate, months, type) {
@@ -862,6 +1265,18 @@
             const period = Number(loan.repaymentPeriod) || 0;
             const loanType = loan.loanType || 'simple';
             return calculateInterest(amount, rate, period, loanType);
+        }
+
+        // ✅ Realized interest = proportional to repayments received
+        function getRealizedLoanInterest(loan, repaymentsData) {
+            const fullInterest = getLoanInterest(loan);
+            const principal = Number(loan.amount) || 0;
+            if (principal <= 0) return 0;
+            const repaid = repaymentsData
+                .filter(r => r.loanId === loan.id)
+                .reduce((s, r) => s + (Number(r.amount) || 0), 0);
+            const repaidRatio = Math.min(1, repaid / principal);
+            return fullInterest * repaidRatio;
         }
 
         // ============================================================
@@ -913,7 +1328,15 @@
                 testConnection: 'Test Connection',
                 connectionSuccess: '✅ Connection successful!',
                 connectionFailed: '❌ Connection failed: ',
-                loadingData: 'Loading data...'
+                loadingData: 'Loading data...',
+                // New
+                calcSettings: 'Calc Settings',
+                calcSettingsTitle: 'Calculation Settings',
+                reset: 'Reset',
+                saveApply: 'Save & Apply',
+                dsSavedOk: 'Calculation settings saved successfully!',
+                dsSaveError: 'Could not save settings: ',
+                dsResetDone: 'Settings restored to defaults.'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -959,7 +1382,14 @@
                 testConnection: 'ግንኙነት ሞክር',
                 connectionSuccess: '✅ ግንኙነቱ ተሳክቷል!',
                 connectionFailed: '❌ ግንኙነቱ አልተሳካም: ',
-                loadingData: 'ውሂብ በማስገባት ላይ...'
+                loadingData: 'ውሂብ በማስገባት ላይ...',
+                calcSettings: 'የስሌት ቅንብሮች',
+                calcSettingsTitle: 'የስሌት ቅንብሮች',
+                reset: 'ዳግም አስጀምር',
+                saveApply: 'አስቀምጥ እና ተግብር',
+                dsSavedOk: 'የስሌት ቅንብሮች በተሳካ ሁኔታ ተቀምጠዋል!',
+                dsSaveError: 'ቅንብሮችን ማስቀመጥ አልተሳካም: ',
+                dsResetDone: 'ቅንብሮች ወደ ነባሪዎች ተመልሰዋል።'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1005,7 +1435,14 @@
                 testConnection: 'Qunnamtii Mirkaneessi',
                 connectionSuccess: '✅ Qunnamtii milkaa\'e!',
                 connectionFailed: '❌ Qunnamtii hin milkaanne: ',
-                loadingData: 'Datuu galmeessuuf...'
+                loadingData: 'Datuu galmeessuuf...',
+                calcSettings: 'Qindeessaa Shallaggii',
+                calcSettingsTitle: 'Qindeessaa Shallaggii',
+                reset: 'Deebisi',
+                saveApply: 'Olkaasi fi Hojiirra Oolchi',
+                dsSavedOk: 'Qindeessaan shallaggii sirriitti olkaasame!',
+                dsSaveError: 'Qindeessaa olkaasuuf hin danda\'amne: ',
+                dsResetDone: 'Qindeessaan durtiitti deebi\'e.'
             }
         };
 
@@ -1119,6 +1556,9 @@
             if (hour >= 12 && hour < 17) greeting = 'Good afternoon';
             else if (hour >= 17) greeting = 'Good evening';
             document.getElementById('greetingText').textContent = greeting + ',';
+            // Show dashboard calc settings button only for admin
+            const dsBtn = document.getElementById('dashSettingsBtn');
+            if (dsBtn) dsBtn.style.display = (currentUserRole === 'admin') ? 'inline-flex' : 'none';
         }
         function updateDateTime() {
             const now = new Date();
@@ -1286,7 +1726,7 @@
         }
 
         // ============================================================
-        // ✅ MAIN LOAD FUNCTION — with Shares + Paid Penalties
+        // ✅ MAIN LOAD FUNCTION — uses dashboardSettings
         // ============================================================
         async function loadDashboardData() {
             const overlay = document.getElementById('loadingOverlay');
@@ -1294,7 +1734,6 @@
 
             try {
                 const year = selectedYear;
-                const t = translations[currentLang] || translations.en;
 
                 const customersSnap = await db.collection('customers').get();
                 const totalCustomers = customersSnap.size;
@@ -1306,7 +1745,6 @@
                     if (data.customerId) customersMap[data.customerId] = name;
                 });
 
-                // ✅ Load shares too
                 const [
                     savingsSnap, loansSnap, repaymentsSnap, profitIncomeSnap,
                     profitWithdrawalSnap, withdrawalSnap, leavingWithdrawalSnap,
@@ -1342,7 +1780,7 @@
                 allShares = sharesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
                 // ============================================================
-                // ✅ SHARE CALCULATIONS (Net — approved only)
+                // SHARE CALCULATIONS
                 // ============================================================
                 let totalSharesNet = 0;
                 let netShareValue = 0;
@@ -1362,33 +1800,61 @@
                 netShareValue = Math.max(0, Math.round(netShareValue * 100) / 100);
 
                 // ============================================================
-                // ✅ PAID PENALTIES (approved / paid / done)
+                // ✅ FIXED INCOME CALCULATIONS — driven by dashboardSettings
                 // ============================================================
+
+                // ---- PAID PENALTIES (always shown on card) ----
                 const paidPenaltiesAllYears = allPenalties.filter(p =>
-                    p.status === 'paid' || p.status === 'done' || p.status === 'approved'
+                    dashboardSettings.penaltyStatuses.includes(p.status)
                 );
                 const paidPenaltiesCount = paidPenaltiesAllYears.length;
                 const paidPenaltiesAmount = paidPenaltiesAllYears
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-                // ============================================================
-                // INCOME CALCULATIONS
-                // ============================================================
-                const totalPenaltyIncomeAllYears = paidPenaltiesAmount;
+                // ---- PENALTY INCOME ----
+                let totalPenaltyIncomeAllYears = 0;
+                if (dashboardSettings.includePenaltyIncome) {
+                    totalPenaltyIncomeAllYears = paidPenaltiesAmount;
+                }
 
-                const totalDepositIncomeAllYears = allProfitIncome
-                    .filter(p => p.status === 'approved' || p.status === 'completed' || p.status === 'paid')
-                    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+                // ---- DEPOSIT INCOME — FIX #1 applied ----
+                let totalDepositIncomeAllYears = 0;
+                if (dashboardSettings.includeDepositIncome) {
+                    totalDepositIncomeAllYears = allProfitIncome
+                        .filter(p => dashboardSettings.depositStatuses.includes(p.status))
+                        .filter(p => {
+                            if (!dashboardSettings.excludeOtherDeposits) return true;
+                            const type = (p.incomeType || '').toLowerCase().trim();
+                            return type !== 'other' && type !== 'other deposit';
+                        })
+                        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+                }
 
-                const approvedLoansAllYears = allLoans.filter(l =>
-                    l.status === 'active' || l.status === 'paid' || l.status === 'approved'
-                );
-                const totalInterestIncomeAllYears = approvedLoansAllYears
-                    .reduce((sum, loan) => sum + getLoanInterest(loan), 0);
+                // ---- LOAN INTEREST INCOME — FIX #2 applied ----
+                let totalInterestIncomeAllYears = 0;
+                if (dashboardSettings.includeLoanInterestIncome) {
+                    if (dashboardSettings.paidLoansOnly) {
+                        // Realized: only fully paid loans count their full interest
+                        const paidLoans = allLoans.filter(l => l.status === 'paid');
+                        totalInterestIncomeAllYears = paidLoans
+                            .reduce((sum, loan) => sum + getLoanInterest(loan), 0);
+                    } else {
+                        // Expected: approved + active + paid
+                        const qualifyingLoans = allLoans.filter(l =>
+                            dashboardSettings.loanInterestStatuses.includes(l.status)
+                        );
+                        totalInterestIncomeAllYears = qualifyingLoans
+                            .reduce((sum, loan) => sum + getLoanInterest(loan), 0);
+                    }
+                }
 
-                const totalServiceWithdrawalsAllYears = allServiceWithdrawals
-                    .filter(s => s.status === 'approved' || s.status === 'completed')
-                    .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+                // ---- SERVICE WITHDRAWALS (expense side) ----
+                let totalServiceWithdrawalsAllYears = 0;
+                if (dashboardSettings.deductServiceWithdrawals) {
+                    totalServiceWithdrawalsAllYears = allServiceWithdrawals
+                        .filter(s => s.status === 'approved' || s.status === 'completed')
+                        .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+                }
 
                 const totalIncomeAllYears = Math.round(
                     (totalPenaltyIncomeAllYears + totalDepositIncomeAllYears +
@@ -1414,20 +1880,46 @@
                     (l.status === 'active' || l.status === 'paid' || l.status === 'approved')
                 );
 
-                const yearlyPenaltyIncome = penaltiesData
-                    .filter(p => p.status === 'paid' || p.status === 'done' || p.status === 'approved')
-                    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+                // ---- YEARLY INCOME — SAME RULES ----
+                let yearlyPenaltyIncome = 0;
+                if (dashboardSettings.includePenaltyIncome) {
+                    yearlyPenaltyIncome = penaltiesData
+                        .filter(p => dashboardSettings.penaltyStatuses.includes(p.status))
+                        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+                }
 
-                const yearlyDepositIncome = profitIncomeData
-                    .filter(p => p.status === 'approved' || p.status === 'completed' || p.status === 'paid')
-                    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+                let yearlyDepositIncome = 0;
+                if (dashboardSettings.includeDepositIncome) {
+                    yearlyDepositIncome = profitIncomeData
+                        .filter(p => dashboardSettings.depositStatuses.includes(p.status))
+                        .filter(p => {
+                            if (!dashboardSettings.excludeOtherDeposits) return true;
+                            const type = (p.incomeType || '').toLowerCase().trim();
+                            return type !== 'other' && type !== 'other deposit';
+                        })
+                        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+                }
 
-                const yearlyInterestIncome = approvedLoansYearly
-                    .reduce((sum, loan) => sum + getLoanInterest(loan), 0);
+                let yearlyInterestIncome = 0;
+                if (dashboardSettings.includeLoanInterestIncome) {
+                    if (dashboardSettings.paidLoansOnly) {
+                        const paidLoansYearly = allLoans.filter(l =>
+                            isInYear(l.date || l.timestamp, year) && l.status === 'paid'
+                        );
+                        yearlyInterestIncome = paidLoansYearly
+                            .reduce((sum, loan) => sum + getLoanInterest(loan), 0);
+                    } else {
+                        yearlyInterestIncome = approvedLoansYearly
+                            .reduce((sum, loan) => sum + getLoanInterest(loan), 0);
+                    }
+                }
 
-                const yearlyServiceWithdrawals = serviceWithdrawalsData
-                    .filter(s => s.status === 'approved' || s.status === 'completed')
-                    .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+                let yearlyServiceWithdrawals = 0;
+                if (dashboardSettings.deductServiceWithdrawals) {
+                    yearlyServiceWithdrawals = serviceWithdrawalsData
+                        .filter(s => s.status === 'approved' || s.status === 'completed')
+                        .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+                }
 
                 let totalIncomeYearly = Math.round(
                     (yearlyPenaltyIncome + yearlyDepositIncome + yearlyInterestIncome - yearlyServiceWithdrawals) * 100
@@ -1452,9 +1944,7 @@
                     .reduce((s, l) => s + (Number(l.amount) || 0), 0);
                 const totalRepayments = repaymentsData.reduce((s, r) => s + (Number(r.amount) || 0), 0);
 
-                // ============================================================
                 // UPDATE UI
-                // ============================================================
                 document.getElementById('totalCustomersValue').textContent = totalCustomers.toLocaleString();
                 document.getElementById('savingsValue').textContent = totalSavings.toLocaleString();
                 document.getElementById('netSavingsValue').textContent = netSavingYearly.toLocaleString();
@@ -1466,7 +1956,7 @@
                 document.getElementById('balanceValue').textContent = totalBalanceYearly.toLocaleString();
                 document.getElementById('totalBalanceAllValue').textContent = totalBalanceAllYears.toLocaleString();
 
-                // ✅ Paid Penalties
+                // Paid Penalties card
                 const paidPenaltyDisplay = paidPenaltiesCount > 0 ?
                     `${paidPenaltiesCount} (ETB ${paidPenaltiesAmount.toLocaleString()})` : '0';
                 document.getElementById('penaltiesPaidValue').textContent = paidPenaltyDisplay;
@@ -1474,7 +1964,7 @@
                     `<span class="positive">✓ ${paidPenaltiesCount} settled</span>` :
                     `<span class="neutral">No settled penalties</span>`;
 
-                // ✅ Share cards
+                // Share cards
                 document.getElementById('totalSharesValue').textContent = totalSharesNet.toFixed(2) + ' shares';
                 document.getElementById('shareValueValue').textContent = 'ETB ' + netShareValue.toLocaleString();
                 document.getElementById('totalSharesChange').innerHTML =
@@ -1482,7 +1972,7 @@
                 document.getElementById('shareValueChange').innerHTML =
                     `<span class="neutral">Approved only</span>`;
 
-                // ---- Change percentages ----
+                // Change percentages
                 const currentMonth = new Date().getMonth();
                 const currentYear = year;
                 const prevYear = year - 1;
@@ -1502,21 +1992,33 @@
                 const prevRepayments = getMonthlyTotal(allRepayments.map(r => ({ ...r, date: r.date || r.timestamp })), 'amount', prevYear, currentMonth);
                 updateChange('repaymentsChange', prevRepayments > 0 ? ((curRepayments - prevRepayments) / prevRepayments * 100) : 0);
 
-                const prevApprovedLoans = allLoans.filter(l =>
+                // Previous year comparison — using same settings
+                const prevYearPenalties = allPenalties
+                    .filter(p => isInYear(p.date || p.timestamp, prevYear) && dashboardSettings.penaltyStatuses.includes(p.status))
+                    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+                const prevYearDeposits = allProfitIncome
+                    .filter(p => isInYear(p.date || p.timestamp, prevYear) && dashboardSettings.depositStatuses.includes(p.status))
+                    .filter(p => {
+                        if (!dashboardSettings.excludeOtherDeposits) return true;
+                        const type = (p.incomeType || '').toLowerCase().trim();
+                        return type !== 'other' && type !== 'other deposit';
+                    })
+                    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+                const prevYearLoans = allLoans.filter(l =>
                     isInYear(l.date || l.timestamp, prevYear) &&
                     (l.status === 'active' || l.status === 'paid' || l.status === 'approved')
                 );
-                const prevYearlyInterestIncome = prevApprovedLoans.reduce((sum, loan) => sum + getLoanInterest(loan), 0);
-                const prevYearlyPenaltyIncome = allPenalties
-                    .filter(p => isInYear(p.date || p.timestamp, prevYear) && (p.status === 'paid' || p.status === 'done' || p.status === 'approved'))
-                    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-                const prevYearlyDepositIncome = allProfitIncome
-                    .filter(p => isInYear(p.date || p.timestamp, prevYear) && (p.status === 'approved' || p.status === 'completed' || p.status === 'paid'))
-                    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-                const prevYearlyServiceWithdrawals = allServiceWithdrawals
+                const prevYearInterest = prevYearLoans.reduce((sum, loan) => sum + getLoanInterest(loan), 0);
+                const prevYearServiceW = allServiceWithdrawals
                     .filter(s => isInYear(s.date || s.timestamp, prevYear) && (s.status === 'approved' || s.status === 'completed'))
                     .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
-                let prevTotalIncome = prevYearlyPenaltyIncome + prevYearlyDepositIncome + prevYearlyInterestIncome - prevYearlyServiceWithdrawals;
+
+                let prevTotalIncome =
+                    (dashboardSettings.includePenaltyIncome ? prevYearPenalties : 0) +
+                    (dashboardSettings.includeDepositIncome ? prevYearDeposits : 0) +
+                    (dashboardSettings.includeLoanInterestIncome ? prevYearInterest : 0) -
+                    (dashboardSettings.deductServiceWithdrawals ? prevYearServiceW : 0);
+
                 const prevDividendEntries = allProfitWithdrawal.filter(w => isInYear(w.date || w.timestamp, prevYear) && w.reason === 'Dividend');
                 if (prevDividendEntries.length > 0) prevTotalIncome = 0;
                 const profitChange = prevTotalIncome > 0 ? ((totalIncomeYearly - prevTotalIncome) / prevTotalIncome * 100) : 0;
@@ -1530,16 +2032,14 @@
                 document.getElementById('totalProfitChange').innerHTML = `<span class="neutral">—</span>`;
                 document.getElementById('totalBalanceAllChange').innerHTML = `<span class="neutral">—</span>`;
 
-                // ---- Charts ----
+                // Charts
                 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 const loansMonthly = months.map((_, i) => getMonthlyTotal(loansData.filter(l => l.status === 'active' || l.status === 'paid'), 'amount', year, i));
                 const repaymentsMonthly = months.map((_, i) => getMonthlyTotal(repaymentsData, 'amount', year, i));
                 const savingsMonthly = months.map((_, i) => getMonthlyTotal(savingsData, 'amount', year, i));
                 updateCharts(months, loansMonthly, repaymentsMonthly, savingsMonthly);
 
-                // ============================================================
-                // ✅ NOTIFICATIONS — up to 10 lines
-                // ============================================================
+                // Notifications
                 const activities = [];
 
                 savingsData.slice(0, 3).forEach(s => {
@@ -1564,7 +2064,6 @@
                     });
                 });
 
-                // Share activities
                 allShares.filter(s => s.status === 'approved').slice(0, 3).forEach(s => {
                     const ty = String(s.type || '').toLowerCase();
                     const isSell = ty === 'share_sell' || ty === 'share_transfer_out';
@@ -1583,7 +2082,13 @@
                     });
                 });
 
-                profitIncomeData.filter(p => p.status === 'approved' || p.status === 'completed' || p.status === 'paid')
+                profitIncomeData
+                    .filter(p => dashboardSettings.depositStatuses.includes(p.status))
+                    .filter(p => {
+                        if (!dashboardSettings.excludeOtherDeposits) return true;
+                        const type = (p.incomeType || '').toLowerCase().trim();
+                        return type !== 'other' && type !== 'other deposit';
+                    })
                     .slice(0, 2).forEach(p => {
                         const type = p.incomeType || 'Deposit';
                         activities.push({
@@ -1608,7 +2113,6 @@
                     return db2 - da;
                 });
 
-                // ✅ Now show up to 10 notifications
                 const notifications = activities.slice(0, 10).map(a => {
                     const colorMap = {
                         'blue': 'blue', 'orange': 'orange', 'teal': 'green',
@@ -1646,6 +2150,93 @@
             }
         }
 
+        // ============================================================
+        // ✅ DASHBOARD SETTINGS MODAL LOGIC
+        // ============================================================
+        function statusesArrayToString(arr) {
+            return Array.isArray(arr) ? arr.join(', ') : '';
+        }
+        function stringToStatusesArray(str) {
+            return String(str || '').split(',').map(s => s.trim()).filter(s => s.length > 0);
+        }
+
+        function openDashSettings() {
+            if (currentUserRole !== 'admin') {
+                showToast(translations[currentLang].unauthorized || 'Only admins can change calculation settings.', 'warning');
+                return;
+            }
+            // Fill form
+            document.getElementById('dsIncludeDepositIncome').checked = !!dashboardSettings.includeDepositIncome;
+            document.getElementById('dsIncludeLoanInterestIncome').checked = !!dashboardSettings.includeLoanInterestIncome;
+            document.getElementById('dsIncludePenaltyIncome').checked = !!dashboardSettings.includePenaltyIncome;
+            document.getElementById('dsDeductServiceWithdrawals').checked = !!dashboardSettings.deductServiceWithdrawals;
+            document.getElementById('dsExcludeOtherDeposits').checked = !!dashboardSettings.excludeOtherDeposits;
+            document.getElementById('dsPaidLoansOnly').checked = !!dashboardSettings.paidLoansOnly;
+            document.getElementById('dsDepositStatuses').value = statusesArrayToString(dashboardSettings.depositStatuses);
+            document.getElementById('dsLoanInterestStatuses').value = statusesArrayToString(dashboardSettings.loanInterestStatuses);
+            document.getElementById('dsPenaltyStatuses').value = statusesArrayToString(dashboardSettings.penaltyStatuses);
+            updateDashSettingsPreview();
+            document.getElementById('dashSettingsOverlay').classList.add('active');
+        }
+        function closeDashSettings() {
+            document.getElementById('dashSettingsOverlay').classList.remove('active');
+        }
+        function updateDashSettingsPreview() {
+            const dep = document.getElementById('dsDepositStatuses').value || '—';
+            const exO = document.getElementById('dsExcludeOtherDeposits').checked ? 'Yes' : 'No';
+            const loan = document.getElementById('dsPaidLoansOnly').checked ? 'Paid Loans Only' :
+                (document.getElementById('dsLoanInterestStatuses').value || '—');
+            const pen = document.getElementById('dsPenaltyStatuses').value || '—';
+            document.getElementById('dsPreviewDepositStatuses').textContent = dep;
+            document.getElementById('dsPreviewExcludeOther').textContent = exO;
+            document.getElementById('dsPreviewLoanStatuses').textContent = loan;
+            document.getElementById('dsPreviewPenaltyStatuses').textContent = pen;
+        }
+        function readDashSettingsForm() {
+            return {
+                includeDepositIncome: document.getElementById('dsIncludeDepositIncome').checked,
+                includeLoanInterestIncome: document.getElementById('dsIncludeLoanInterestIncome').checked,
+                includePenaltyIncome: document.getElementById('dsIncludePenaltyIncome').checked,
+                deductServiceWithdrawals: document.getElementById('dsDeductServiceWithdrawals').checked,
+                excludeOtherDeposits: document.getElementById('dsExcludeOtherDeposits').checked,
+                paidLoansOnly: document.getElementById('dsPaidLoansOnly').checked,
+                depositStatuses: stringToStatusesArray(document.getElementById('dsDepositStatuses').value),
+                loanInterestStatuses: stringToStatusesArray(document.getElementById('dsLoanInterestStatuses').value),
+                penaltyStatuses: stringToStatusesArray(document.getElementById('dsPenaltyStatuses').value)
+            };
+        }
+        async function saveDashSettings() {
+            if (currentUserRole !== 'admin') return;
+            const newSettings = readDashSettingsForm();
+            dashboardSettings = { ...dashboardSettings, ...newSettings };
+            const ok = await saveDashboardSettings();
+            if (ok) {
+                showToast(translations[currentLang].dsSavedOk || 'Calculation settings saved!', 'success');
+                closeDashSettings();
+                await loadDashboardData();
+            } else {
+                showToast(translations[currentLang].dsSaveError + 'Unknown error', 'error');
+            }
+        }
+        function resetDashSettingsForm() {
+            dashboardSettings = { ...DEFAULT_DASHBOARD_SETTINGS };
+            // Fill form again
+            document.getElementById('dsIncludeDepositIncome').checked = dashboardSettings.includeDepositIncome;
+            document.getElementById('dsIncludeLoanInterestIncome').checked = dashboardSettings.includeLoanInterestIncome;
+            document.getElementById('dsIncludePenaltyIncome').checked = dashboardSettings.includePenaltyIncome;
+            document.getElementById('dsDeductServiceWithdrawals').checked = dashboardSettings.deductServiceWithdrawals;
+            document.getElementById('dsExcludeOtherDeposits').checked = dashboardSettings.excludeOtherDeposits;
+            document.getElementById('dsPaidLoansOnly').checked = dashboardSettings.paidLoansOnly;
+            document.getElementById('dsDepositStatuses').value = statusesArrayToString(dashboardSettings.depositStatuses);
+            document.getElementById('dsLoanInterestStatuses').value = statusesArrayToString(dashboardSettings.loanInterestStatuses);
+            document.getElementById('dsPenaltyStatuses').value = statusesArrayToString(dashboardSettings.penaltyStatuses);
+            updateDashSettingsPreview();
+            showToast(translations[currentLang].dsResetDone || 'Settings restored to defaults.', 'info');
+        }
+
+        // ============================================================
+        // LOGOUT
+        // ============================================================
         function showLogoutModal() { document.getElementById('logoutModal').classList.add('active'); }
         function hideLogoutModal() { document.getElementById('logoutModal').classList.remove('active'); }
         async function performLogout() {
@@ -1653,7 +2244,9 @@
             catch (error) { showToast('Error logging out: ' + error.message, 'error'); hideLogoutModal(); }
         }
 
+        // ============================================================
         // SESSION TIMEOUT
+        // ============================================================
         (function() {
             const SESSION_TIMEOUT = 5 * 60 * 1000;
             const WARNING_TIMEOUT = SESSION_TIMEOUT - 30 * 1000;
@@ -1719,6 +2312,10 @@
                 loadSidebarState();
                 updateUserInfo();
                 initLanguage();
+
+                // ✅ Load dashboard calculation settings
+                await loadDashboardSettings();
+
                 document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
                 document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
                 document.getElementById('sidebarToggleBtn').addEventListener('click', toggleSidebarCollapse);
@@ -1734,6 +2331,26 @@
                 document.getElementById('logoutConfirm').addEventListener('click', performLogout);
                 document.getElementById('logoutModal').addEventListener('click', function(e) { if (e.target === this) hideLogoutModal(); });
                 document.addEventListener('keydown', function(e) { if (e.key === 'Escape') hideLogoutModal(); });
+
+                // ✅ Wire dashboard calc settings modal
+                document.getElementById('dashSettingsBtn').addEventListener('click', openDashSettings);
+                document.getElementById('dashSettingsClose').addEventListener('click', closeDashSettings);
+                document.getElementById('dashSettingsOverlay').addEventListener('click', function(e) {
+                    if (e.target === this) closeDashSettings();
+                });
+                document.getElementById('dsSaveBtn').addEventListener('click', saveDashSettings);
+                document.getElementById('dsResetBtn').addEventListener('click', resetDashSettingsForm);
+                ['dsIncludeDepositIncome', 'dsIncludeLoanInterestIncome', 'dsIncludePenaltyIncome',
+                 'dsDeductServiceWithdrawals', 'dsExcludeOtherDeposits', 'dsPaidLoansOnly',
+                 'dsDepositStatuses', 'dsLoanInterestStatuses', 'dsPenaltyStatuses'
+                ].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.addEventListener('input', updateDashSettingsPreview);
+                        el.addEventListener('change', updateDashSettingsPreview);
+                    }
+                });
+
                 window.testConnection = testConnection;
                 updateDateTime();
                 setInterval(updateDateTime, 60000);
