@@ -485,7 +485,7 @@
         }
 
         /* ============================================================
-           REPORT SEARCH BAR (NEW)
+           REPORT SEARCH BAR
            ============================================================ */
         .report-search-bar {
             display: flex;
@@ -1063,7 +1063,7 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // MULTI-LANGUAGE — NEW KEYS ADDED: searchCustomer, allTransferTypes, searchBank
+        // MULTI-LANGUAGE
         // ============================================================
         const translations = {
             en: {
@@ -1468,10 +1468,149 @@
         let _debugLogged = false;
         let _debugCount = 0;
 
-        // ★★★ NEW: Store report row data for search/filter ★★★
+        // ============================================================
+        // ★★★ SESSION TIMEOUT (adjustable from Settings) ★★★
+        // Default = 5 minutes. Overridable via settings/system doc field:
+        //   sessionTimeout         (minutes)  ← preferred
+        //   sessionTimeoutMinutes  (minutes)
+        //   sessionTimeoutSeconds  (seconds, converted to minutes)
+        // ============================================================
+        let sessionTimeoutMinutes = 5;
+        let sessionTimeoutMs = sessionTimeoutMinutes * 60 * 1000;
+        let sessionTimeoutWarningMs = sessionTimeoutMs - 30 * 1000;
+
+        let sessionTimer = null;
+        let sessionWarningTimer = null;
+        let sessionWarningToast = null;
+        let sessionCountdownInterval = null;
+        let sessionTimerStarted = false;
+
+        // Storage of report row data for search/filter
         const reportRowsData = {};    // containerId -> array of allItems
         const reportTitleData = {};   // containerId -> { title, t }
         const reportSearchState = {}; // containerId -> { custQ, transferFilter, bankQ }
+
+        // ============================================================
+        // ★★★ LOAD SESSION SETTINGS FROM FIRESTORE ★★★
+        // ============================================================
+        async function loadSessionSettings() {
+            try {
+                const doc = await db.collection('settings').doc('system').get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    let mins = null;
+
+                    if (data.sessionTimeout !== undefined && data.sessionTimeout !== null && data.sessionTimeout !== '') {
+                        mins = Number(data.sessionTimeout);
+                    } else if (data.sessionTimeoutMinutes !== undefined && data.sessionTimeoutMinutes !== null && data.sessionTimeoutMinutes !== '') {
+                        mins = Number(data.sessionTimeoutMinutes);
+                    } else if (data.sessionTimeoutSeconds !== undefined && data.sessionTimeoutSeconds !== null && data.sessionTimeoutSeconds !== '') {
+                        mins = Number(data.sessionTimeoutSeconds) / 60;
+                    }
+
+                    if (mins && isFinite(mins) && mins > 0) {
+                        sessionTimeoutMinutes = mins;
+                    }
+                }
+            } catch (e) {
+                console.warn('Could not load session settings, using default:', e.message);
+            }
+
+            // Clamp: minimum 1 minute, maximum 24 hours
+            if (sessionTimeoutMinutes < 1) sessionTimeoutMinutes = 1;
+            if (sessionTimeoutMinutes > 24 * 60) sessionTimeoutMinutes = 24 * 60;
+
+            sessionTimeoutMs = sessionTimeoutMinutes * 60 * 1000;
+            sessionTimeoutWarningMs = Math.max(sessionTimeoutMs - 30 * 1000, sessionTimeoutMs * 0.9);
+
+            console.log(`⏱️ Session timeout set to ${sessionTimeoutMinutes} minute(s) (${sessionTimeoutMs} ms)`);
+            return sessionTimeoutMinutes;
+        }
+
+        // ============================================================
+        // ★★★ SESSION TIMER CONTROL ★★★
+        // ============================================================
+        function sessionResetTimer() {
+            if (sessionTimer) clearTimeout(sessionTimer);
+            if (sessionWarningTimer) clearTimeout(sessionWarningTimer);
+            if (sessionCountdownInterval) clearInterval(sessionCountdownInterval);
+
+            if (sessionWarningToast) {
+                sessionWarningToast.remove();
+                sessionWarningToast = null;
+            }
+
+            sessionWarningTimer = setTimeout(sessionShowWarning, sessionTimeoutWarningMs);
+            sessionTimer = setTimeout(sessionForceLogout, sessionTimeoutMs);
+        }
+
+        function sessionShowWarning() {
+            const t = translations[currentLang] || {};
+            const message = t.sessionTimeout ||
+                'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
+
+            let seconds = 30;
+            sessionWarningToast = document.createElement('div');
+            sessionWarningToast.style.cssText = `
+                position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+                background: #f39c12; color: #fff; padding: 16px 24px; border-radius: 12px;
+                font-size: 15px; font-weight: 500; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+                z-index: 99999; max-width: 500px; text-align: center; display: flex;
+                align-items: center; gap: 12px; animation: sessionSlideUp 0.3s ease;
+            `;
+            sessionWarningToast.innerHTML =
+                `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
+
+            if (!document.getElementById('sessionSlideUpStyle')) {
+                const style = document.createElement('style');
+                style.id = 'sessionSlideUpStyle';
+                style.textContent = `@keyframes sessionSlideUp { from { transform: translateX(-50%) translateY(20px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }`;
+                document.head.appendChild(style);
+            }
+
+            document.body.appendChild(sessionWarningToast);
+
+            sessionCountdownInterval = setInterval(() => {
+                seconds--;
+                const textEl = document.getElementById('sessionWarningText');
+                if (textEl) textEl.textContent = message.replace('{seconds}', seconds);
+                if (seconds <= 0) clearInterval(sessionCountdownInterval);
+            }, 1000);
+        }
+
+        function sessionForceLogout() {
+            if (sessionCountdownInterval) clearInterval(sessionCountdownInterval);
+            if (sessionWarningToast) { sessionWarningToast.remove(); sessionWarningToast = null; }
+            if (typeof auth !== 'undefined' && auth) {
+                auth.signOut()
+                    .then(() => { window.location.href = '../login.html'; })
+                    .catch(() => { window.location.href = '../login.html'; });
+            } else {
+                window.location.href = '../login.html';
+            }
+        }
+
+        function sessionHandleActivity() {
+            sessionResetTimer();
+        }
+
+        const SESSION_EVENTS = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
+
+        function startSessionTimer() {
+            if (sessionTimerStarted) return;
+            sessionTimerStarted = true;
+
+            SESSION_EVENTS.forEach(evt => document.addEventListener(evt, sessionHandleActivity));
+            sessionResetTimer();
+
+            window.addEventListener('beforeunload', function() {
+                if (sessionTimer) clearTimeout(sessionTimer);
+                if (sessionWarningTimer) clearTimeout(sessionWarningTimer);
+                if (sessionCountdownInterval) clearInterval(sessionCountdownInterval);
+                if (sessionWarningToast) sessionWarningToast.remove();
+                SESSION_EVENTS.forEach(evt => document.removeEventListener(evt, sessionHandleActivity));
+            });
+        }
 
         // ============================================================
         // LANGUAGE FUNCTIONS
@@ -1714,13 +1853,10 @@
             }
 
             let rawId = null;
-            let fieldName = 'unknown';
             if (transaction && transaction.customerId) {
                 rawId = transaction.customerId;
-                fieldName = 'customerId';
             } else if (transaction && transaction.memberId) {
                 rawId = transaction.memberId;
-                fieldName = 'memberId';
             } else {
                 return '—';
             }
@@ -1962,7 +2098,7 @@
         }
 
         // ============================================================
-        // BUILD ONE TABLE ROW (reusable — used by renderReport + filterReportTable)
+        // BUILD ONE TABLE ROW
         // ============================================================
         function buildReportRow(item, index, t) {
             const statusMap = {
@@ -1983,13 +2119,10 @@
                 'mobile': t.mobileBanking || 'Mobile',
                 'bank': t.bankDeposit || 'Bank'
             };
-            // Handles both transferType and paymentMethod (legacy field)
             const rawTransfer = item.transferType || item.paymentMethod || '';
             const transferType = transferTypeMap[rawTransfer] || rawTransfer || '—';
 
-            // Bank / Provider name
             const bankProvider = item.bankName || item.bankProvider || item.provider || '—';
-
             const status = statusMap[item.status] || statusMap['pending'];
 
             let recordedBy = item.createdByName || item.createdBy || item.createdByEmail || 'Admin';
@@ -2024,7 +2157,7 @@
         }
 
         // ============================================================
-        // ★★★ NEW: FILTER REPORT TABLE (search by customer, transfer type, bank)
+        // FILTER REPORT TABLE (search by customer, transfer type, bank)
         // ============================================================
         function filterReportTable(containerId) {
             const allItems = reportRowsData[containerId] || [];
@@ -2034,18 +2167,18 @@
             const transferFilter = document.getElementById('transferSearch_' + containerId)?.value || 'all';
             const bankQ = (document.getElementById('bankSearch_' + containerId)?.value || '').toLowerCase().trim();
 
+            // Persist state
+            reportSearchState[containerId] = { custQ, transferFilter, bankQ };
+
             const filtered = allItems.filter(item => {
-                // 1. Customer name filter
                 if (custQ) {
                     const name = (getCustomerName(item) || '').toLowerCase();
                     if (!name.includes(custQ)) return false;
                 }
-                // 2. Transfer type filter (handles both transferType and paymentMethod)
                 if (transferFilter !== 'all') {
                     const tt = (item.transferType || item.paymentMethod || '').toLowerCase();
                     if (tt !== transferFilter) return false;
                 }
-                // 3. Bank / provider filter
                 if (bankQ) {
                     const bn = (item.bankName || item.bankProvider || item.provider || '').toLowerCase();
                     if (!bn.includes(bankQ)) return false;
@@ -2077,7 +2210,7 @@
         }
 
         // ============================================================
-        // ★★★ NEW: CLEAR REPORT SEARCH
+        // CLEAR REPORT SEARCH
         // ============================================================
         function clearReportSearch(containerId) {
             const custInput = document.getElementById('custSearch_' + containerId);
@@ -2086,6 +2219,7 @@
             if (custInput) custInput.value = '';
             if (transSelect) transSelect.value = 'all';
             if (bankInput) bankInput.value = '';
+            reportSearchState[containerId] = { custQ: '', transferFilter: 'all', bankQ: '' };
             filterReportTable(containerId);
         }
 
@@ -2096,7 +2230,6 @@
             const container = document.getElementById(containerId);
             if (!container) return;
 
-            // Save search state from previous render (if any)
             const prevState = reportSearchState[containerId] || {};
 
             const { savings, loans, repayments, profitIncome, profitWithdrawal, withdrawals, penalties } = filtered;
@@ -2127,7 +2260,6 @@
                 <div class="summary-card"><span class="label">${t.netProfit}</span><span class="value ${netProfit >= 0 ? 'green' : 'red'}">${formatCurrency(netProfit)}</span></div>
             `;
 
-            // Build table data
             const allItems = [];
             savings.forEach(item => allItems.push({ ...item, _type: t.savings }));
             loans.forEach(item => allItems.push({ ...item, _type: t.totalLoans }));
@@ -2143,17 +2275,13 @@
                 return db - da;
             });
 
-            // Store data for search
             reportRowsData[containerId] = allItems;
             reportTitleData[containerId] = { title, t };
 
-            // Render initial table (all rows, or previously filtered if state saved)
             let tableRows = '';
             if (allItems.length === 0) {
                 tableRows = `<tr><td colspan="13" style="text-align:center; padding:30px;">${t.noData}</td></tr>`;
             } else {
-                _debugLogged = false;
-                _debugCount = 0;
                 allItems.slice(0, 50).forEach((item, i) => {
                     tableRows += buildReportRow(item, i, t);
                 });
@@ -2162,7 +2290,6 @@
                 }
             }
 
-            // Yearly breakdown
             const yearlyData = buildYearlyData(filtered);
             let yearlyHtml = '';
             if (yearlyData.length > 0) {
@@ -2211,7 +2338,6 @@
                 `;
             }
 
-            // Chart
             const chartData = buildChartDataFromFiltered(filtered);
             const chartId = 'chart_' + containerId.replace('#', '');
             const chartHtml = `
@@ -2221,7 +2347,6 @@
                 </div>
             `;
 
-            // Search bar HTML — with restored search state
             const custQVal = (prevState.custQ || '').replace(/"/g, '&quot;');
             const transferFilterVal = prevState.transferFilter || 'all';
             const bankQVal = (prevState.bankQ || '').replace(/"/g, '&quot;');
@@ -2287,7 +2412,6 @@
                 </div>
             `;
 
-            // Chart render
             setTimeout(() => {
                 const canvas = document.getElementById(chartId);
                 if (canvas && chartData.datasets.some(d => d.data.some(v => v > 0))) {
@@ -2310,7 +2434,6 @@
                 }
             }, 100);
 
-            // Re-apply search filter if there was a saved state
             if (prevState.custQ || (prevState.transferFilter && prevState.transferFilter !== 'all') || prevState.bankQ) {
                 filterReportTable(containerId);
             }
@@ -2629,11 +2752,14 @@
                 initLanguage();
                 loadSidebarState();
 
+                // ★★★ Load session timeout from Settings & start timer ★★★
+                await loadSessionSettings();
+                startSessionTimer();
+
                 document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
                 document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
                 document.getElementById('sidebarToggleBtn').addEventListener('click', toggleSidebarCollapse);
 
-                // Language change re-renders all tabs (search state is preserved via reportSearchState)
                 document.querySelectorAll('.lang-btn').forEach(btn => {
                     btn.addEventListener('click', async function() {
                         setLanguage(this.dataset.lang);
@@ -2681,73 +2807,7 @@
         });
 
         // ============================================================
-        // SESSION TIMEOUT
-        // ============================================================
-        (function() {
-            const SESSION_TIMEOUT = 5 * 60 * 1000;
-            const WARNING_TIMEOUT = SESSION_TIMEOUT - 30 * 1000;
-            let timer = null, warningTimer = null, warningToast = null, countdownInterval = null;
-
-            function resetTimer() {
-                clearTimeout(timer);
-                clearTimeout(warningTimer);
-                clearInterval(countdownInterval);
-                if (warningToast) { warningToast.remove(); warningToast = null; }
-                warningTimer = setTimeout(showWarning, WARNING_TIMEOUT);
-                timer = setTimeout(forceLogout, SESSION_TIMEOUT);
-            }
-
-            function showWarning() {
-                const t = translations[currentLang] || {};
-                const message = t.sessionTimeout || 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
-                let seconds = 30;
-                warningToast = document.createElement('div');
-                warningToast.style.cssText = `
-                    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-                    background: #f39c12; color: #fff; padding: 16px 24px; border-radius: 12px;
-                    font-size: 15px; font-weight: 500; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-                    z-index: 99999; max-width: 500px; text-align: center; display: flex;
-                    align-items: center; gap: 12px; animation: slideUp 0.3s ease;
-                `;
-                warningToast.innerHTML = `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
-                const style = document.createElement('style');
-                style.textContent = `@keyframes slideUp { from { transform: translateX(-50%) translateY(20px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }`;
-                document.head.appendChild(style);
-                document.body.appendChild(warningToast);
-                countdownInterval = setInterval(() => {
-                    seconds--;
-                    const textEl = document.getElementById('sessionWarningText');
-                    if (textEl) textEl.textContent = message.replace('{seconds}', seconds);
-                    if (seconds <= 0) clearInterval(countdownInterval);
-                }, 1000);
-            }
-
-            function forceLogout() {
-                clearInterval(countdownInterval);
-                if (warningToast) { warningToast.remove(); warningToast = null; }
-                if (typeof auth !== 'undefined' && auth) {
-                    auth.signOut().then(() => { window.location.href = '../login.html'; }).catch(() => { window.location.href = '../login.html'; });
-                } else {
-                    window.location.href = '../login.html';
-                }
-            }
-
-            const events = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
-            function handleActivity() { resetTimer(); }
-            events.forEach(evt => { document.addEventListener(evt, handleActivity); });
-            resetTimer();
-
-            window.addEventListener('beforeunload', function() {
-                clearTimeout(timer);
-                clearTimeout(warningTimer);
-                clearInterval(countdownInterval);
-                if (warningToast) warningToast.remove();
-                events.forEach(evt => { document.removeEventListener(evt, handleActivity); });
-            });
-        })();
-
-        // ============================================================
-        // EXPOSE GLOBALLY (for inline handlers)
+        // EXPOSE GLOBALLY
         // ============================================================
         window.viewTransaction = viewTransaction;
         window.closeViewModal = closeViewModal;
@@ -2755,7 +2815,6 @@
         window.toggleSidebar = toggleSidebar;
         window.testConnection = testConnection;
         window.loadYearlyReport = loadYearlyReport;
-        // ★★★ NEW
         window.filterReportTable = filterReportTable;
         window.clearReportSearch = clearReportSearch;
     </script>
