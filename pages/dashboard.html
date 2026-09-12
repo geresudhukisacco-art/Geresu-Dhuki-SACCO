@@ -88,7 +88,6 @@
             transition: background 0.3s, color 0.3s;
         }
 
-        /* ===== SIDEBAR ===== */
         .sidebar {
             width: var(--sidebar-width);
             background: var(--bg-sidebar);
@@ -171,7 +170,6 @@
         .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); z-index: 999; }
         .sidebar-overlay.active { display: block; }
 
-        /* ===== MAIN ===== */
         .main-content {
             margin-left: var(--sidebar-width);
             flex: 1; min-height: 100vh;
@@ -333,7 +331,6 @@
         .stat-card.profit { background: linear-gradient(135deg, #e65100, #f57c00); }
         .stat-card.totalprofit { background: linear-gradient(135deg, #6a1b9a, #9c27b0); }
         .stat-card.totalbalanceall { background: linear-gradient(135deg, #bf360c, #e64a19); }
-        .stat-card.penalties { background: linear-gradient(135deg, #b45f06, #e67e22); }
         .stat-card.penaltiespaid { background: linear-gradient(135deg, #1b5e20, #43a047); }
         .stat-card.netsavings { background: linear-gradient(135deg, #004d40, #00695c); }
         .stat-card.shares { background: linear-gradient(135deg, #4a148c, #7b1fa2); }
@@ -386,7 +383,6 @@
         .notification-item .notif-text strong { color: var(--primary); }
         .notification-item .notif-time { font-size: 11px; color: var(--text-secondary); display: block; }
 
-        /* ================ DASHBOARD SETTINGS MODAL ================ */
         .dash-settings-overlay {
             display: none;
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -565,7 +561,6 @@
             background: #1f5e2c; transform: translateY(-1px);
         }
 
-        /* Logout modal */
         .logout-modal-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(6px);
@@ -843,7 +838,6 @@
                 </div>
             </div>
 
-            <!-- Performance Overview: admin & manager only -->
             <div class="performance-overview" id="performanceOverview">
                 <h3 data-i18n="performanceOverview" style="font-size:16px; font-weight:600; color:var(--text-primary); margin-bottom:12px;">Performance Overview</h3>
                 <div class="stats-grid" id="statsGrid">
@@ -883,7 +877,7 @@
                         </div>
                     </div>
 
-                    <div class="stat-card repayments">
+                    <div class="stat-card repayments" title="Loan amount repaid + Paid interest">
                         <div class="stat-icon"><i class="fas fa-undo-alt"></i></div>
                         <div class="stat-info">
                             <span class="stat-label" data-i18n="statRepayments">Repayments (ETB)</span>
@@ -1015,48 +1009,37 @@
                 </div>
 
                 <div class="ds-section">
-                    <h4><i class="fas fa-list-check"></i> Income Components</h4>
+                    <h4><i class="fas fa-list-check"></i> Net Profit Components</h4>
 
                     <div class="ds-toggle-row">
                         <div class="ds-toggle-text">
-                            <div class="ds-toggle-title">Include Deposit Income</div>
-                            <div class="ds-toggle-desc">Count <code>profit_income</code> records (registration fees, service fees, etc.) as income.</div>
+                            <div class="ds-toggle-title">Include Registration Fee</div>
+                            <div class="ds-toggle-desc">Count deposits with <code>incomeType</code> containing "registration".</div>
                         </div>
                         <label class="ds-toggle-switch">
-                            <input type="checkbox" id="dsIncludeDepositIncome" />
+                            <input type="checkbox" id="dsIncludeRegistrationFee" />
                             <span class="ds-slider"></span>
                         </label>
                     </div>
 
                     <div class="ds-toggle-row">
                         <div class="ds-toggle-text">
-                            <div class="ds-toggle-title">Include Loan Interest Income</div>
-                            <div class="ds-toggle-desc">Count interest earned on approved loans as income.</div>
+                            <div class="ds-toggle-title">Include Other Income</div>
+                            <div class="ds-toggle-desc">Count deposits with <code>incomeType = "Other"</code> or <code>"Other Deposit"</code>.</div>
                         </div>
                         <label class="ds-toggle-switch">
-                            <input type="checkbox" id="dsIncludeLoanInterestIncome" />
+                            <input type="checkbox" id="dsIncludeOtherIncome" />
                             <span class="ds-slider"></span>
                         </label>
                     </div>
 
                     <div class="ds-toggle-row">
                         <div class="ds-toggle-text">
-                            <div class="ds-toggle-title">Include Penalty Income</div>
-                            <div class="ds-toggle-desc">Count paid/done/approved penalties as income.</div>
+                            <div class="ds-toggle-title">Include Paid Interest</div>
+                            <div class="ds-toggle-desc">Count <strong>realized interest</strong> from customer repayments (proportional split of each loan).</div>
                         </div>
                         <label class="ds-toggle-switch">
-                            <input type="checkbox" id="dsIncludePenaltyIncome" />
-                            <span class="ds-slider"></span>
-                        </label>
-                    </div>
-
-                    <div class="ds-toggle-row">
-                        <div class="ds-toggle-text">
-                            <div class="ds-toggle-title">Deduct Service Withdrawals</div>
-                            <div class="ds-toggle-desc">Subtract SACCO service withdrawals from income → Net Profit.</div>
-                        </div>
-                        <label class="ds-toggle-switch">
-                            <input type="checkbox" id="dsDeductServiceWithdrawals" />
+                            <input type="checkbox" id="dsIncludePaidInterest" />
                             <span class="ds-slider"></span>
                         </label>
                     </div>
@@ -1064,60 +1047,12 @@
 
                 <div class="ds-section">
                     <h4><i class="fas fa-filter"></i> Deposit Income Filters</h4>
-
-                    <div class="ds-toggle-row">
-                        <div class="ds-toggle-text">
-                            <div class="ds-toggle-title">Exclude "Other" Deposits</div>
-                            <div class="ds-toggle-desc">
-                                Skip deposits with <code>incomeType = "Other"</code> or <code>"Other Deposit"</code>.
-                            </div>
-                        </div>
-                        <label class="ds-toggle-switch">
-                            <input type="checkbox" id="dsExcludeOtherDeposits" />
-                            <span class="ds-slider"></span>
-                        </label>
-                    </div>
-
-                    <div class="ds-form-group" style="margin-top:12px;">
+                    <div class="ds-form-group">
                         <label>
                             Deposit Statuses to Count
                             <span class="hint">Comma-separated. Only <code>profit_income</code> records with these statuses count.</span>
                         </label>
                         <input type="text" id="dsDepositStatuses" placeholder="approved, completed, paid" />
-                    </div>
-                </div>
-
-                <div class="ds-section">
-                    <h4><i class="fas fa-filter"></i> Loan Interest Filters</h4>
-
-                    <div class="ds-toggle-row">
-                        <div class="ds-toggle-text">
-                            <div class="ds-toggle-title">Include only fully Paid Loans</div>
-                            <div class="ds-toggle-desc">If ON, interest is only counted for loans with status "paid". If OFF, active and approved loans are also counted.</div>
-                        </div>
-                        <label class="ds-toggle-switch">
-                            <input type="checkbox" id="dsPaidLoansOnly" />
-                            <span class="ds-slider"></span>
-                        </label>
-                    </div>
-
-                    <div class="ds-form-group" style="margin-top:12px;">
-                        <label>
-                            Loan Statuses to Count
-                            <span class="hint">Comma-separated. Ignored if "Paid Loans Only" is enabled.</span>
-                        </label>
-                        <input type="text" id="dsLoanInterestStatuses" placeholder="active, paid, approved" />
-                    </div>
-                </div>
-
-                <div class="ds-section">
-                    <h4><i class="fas fa-filter"></i> Penalty Income Filters</h4>
-                    <div class="ds-form-group">
-                        <label>
-                            Penalty Statuses to Count
-                            <span class="hint">Comma-separated. Typically: <code>paid, done, approved</code>.</span>
-                        </label>
-                        <input type="text" id="dsPenaltyStatuses" placeholder="paid, done, approved" />
                     </div>
                 </div>
 
@@ -1182,9 +1117,6 @@
                 <div class="ds-summary-box" id="dsSummaryBox">
                     <div class="ds-summary-title"><i class="fas fa-eye"></i> Live Preview</div>
                     <div class="ds-summary-line"><span>Deposit statuses:</span> <strong id="dsPreviewDepositStatuses">—</strong></div>
-                    <div class="ds-summary-line"><span>Exclude "Other":</span> <strong id="dsPreviewExcludeOther">—</strong></div>
-                    <div class="ds-summary-line"><span>Loan interest statuses:</span> <strong id="dsPreviewLoanStatuses">—</strong></div>
-                    <div class="ds-summary-line"><span>Penalty statuses:</span> <strong id="dsPreviewPenaltyStatuses">—</strong></div>
                     <div class="ds-summary-line"><span>Repayment statuses:</span> <strong id="dsPreviewRepaymentStatuses">—</strong></div>
                     <div class="ds-summary-line"><span>Share buys affect Net Saving:</span> <strong id="dsPreviewShareBuys">—</strong></div>
                 </div>
@@ -1235,16 +1167,15 @@
         // DEFAULT DASHBOARD SETTINGS
         // ============================================================
         const DEFAULT_DASHBOARD_SETTINGS = {
-            includeDepositIncome: true,
-            includeLoanInterestIncome: true,
-            includePenaltyIncome: true,
-            deductServiceWithdrawals: true,
-            excludeOtherDeposits: true,
+            // Net Profit = Registration Fee + Other + Paid Interest
+            includeRegistrationFee: true,
+            includeOtherIncome: true,
+            includePaidInterest: true,
+            // Deposit
             depositStatuses: ['approved', 'completed', 'paid'],
-            paidLoansOnly: false,
-            loanInterestStatuses: ['active', 'paid', 'approved'],
-            penaltyStatuses: ['paid', 'done', 'approved'],
+            // Repayment
             repaymentStatuses: ['approved', 'printed', 'paid', 'done'],
+            // Net Saving / Shares
             deductShareBuys: true,
             addShareSells: true,
             countShareTransfers: true,
@@ -1264,10 +1195,6 @@
                             ...data.dashboard,
                             depositStatuses: Array.isArray(data.dashboard.depositStatuses) ?
                                 data.dashboard.depositStatuses : DEFAULT_DASHBOARD_SETTINGS.depositStatuses,
-                            loanInterestStatuses: Array.isArray(data.dashboard.loanInterestStatuses) ?
-                                data.dashboard.loanInterestStatuses : DEFAULT_DASHBOARD_SETTINGS.loanInterestStatuses,
-                            penaltyStatuses: Array.isArray(data.dashboard.penaltyStatuses) ?
-                                data.dashboard.penaltyStatuses : DEFAULT_DASHBOARD_SETTINGS.penaltyStatuses,
                             repaymentStatuses: Array.isArray(data.dashboard.repaymentStatuses) ?
                                 data.dashboard.repaymentStatuses : DEFAULT_DASHBOARD_SETTINGS.repaymentStatuses,
                             shareStatuses: Array.isArray(data.dashboard.shareStatuses) ?
@@ -1319,6 +1246,32 @@
             return calculateInterest(amount, rate, period, loanType);
         }
 
+        // Split a repayment into principal + interest portions using the loan's overall ratio
+        function splitRepayment(amount, loan) {
+            const principal = Number(loan.amount) || 0;
+            const expectedInterest = getLoanInterest(loan);
+            const totalPayable = principal + expectedInterest;
+            if (totalPayable <= 0) return { principal: 0, interest: 0 };
+            const interestPart = amount * (expectedInterest / totalPayable);
+            const principalPart = amount - interestPart;
+            return { principal: principalPart, interest: interestPart };
+        }
+
+        // Check if an incomeType counts as registration fee
+        function isRegistrationFee(incomeType) {
+            const type = (incomeType || '').toLowerCase().trim();
+            return type.includes('registration') ||
+                   type === 'reg fee' ||
+                   type === 'regfee' ||
+                   type === 'membership fee';
+        }
+
+        // Check if an incomeType counts as "Other"
+        function isOtherIncome(incomeType) {
+            const type = (incomeType || '').toLowerCase().trim();
+            return type === 'other' || type === 'other deposit';
+        }
+
         // ============================================================
         // TRANSLATIONS
         // ============================================================
@@ -1351,8 +1304,6 @@
                 statProfit: 'Net Profit (ETB)',
                 statTotalProfit: 'Net Profit All Years (ETB)',
                 statTotalBalanceAll: 'Total Balance All Years (ETB)',
-                statTotalCapital: 'Total Capital All Years (ETB)',
-                statPenalties: 'Penalties Pending',
                 statPenaltiesPaid: 'Paid Penalties',
                 statTotalShares: 'Total Shares (In Circulation)',
                 statShareValue: 'Net Share Value (ETB)',
@@ -1405,8 +1356,6 @@
                 statProfit: 'የተጣራ ትርፍ (ብር)',
                 statTotalProfit: 'የተጣራ ትርፍ ሁሉም ዓመታት (ብር)',
                 statTotalBalanceAll: 'ጠቅላላ ሚዛን ሁሉም ዓመታት (ብር)',
-                statTotalCapital: 'ጠቅላላ ካፒታል ሁሉም ዓመታት (ብር)',
-                statPenalties: 'በመጠበቅ ላይ ያሉ ቅጣቶች',
                 statPenaltiesPaid: 'የተከፈሉ ቅጣቶች',
                 statTotalShares: 'ጠቅላላ አክሲዮን (በስርጭት ላይ)',
                 statShareValue: 'የተጣራ የአክሲዮን ዋጋ (ብር)',
@@ -1458,8 +1407,6 @@
                 statProfit: 'Bu’aa Qulqulluu (ETB)',
                 statTotalProfit: 'Bu’aa Qulqulluu Waggaa Hundaa (ETB)',
                 statTotalBalanceAll: 'Iddoo Guutuu Waggaa Hundaa (ETB)',
-                statTotalCapital: 'Kaapitaala Guutuu Waggaa Hundaa (ETB)',
-                statPenalties: 'Adaboota Eegamaa',
                 statPenaltiesPaid: 'Adaboota Kaffalame',
                 statTotalShares: 'Hirmaata Waliigalaa',
                 statShareValue: 'Gatii Hirmaata Net (ETB)',
@@ -1581,7 +1528,6 @@
             else sidebar.classList.remove('collapsed');
         }
 
-        // Role-based visibility: Performance Overview → admin/manager only
         function applyRoleVisibility() {
             const canSeeStats = ['admin', 'manager'].includes(currentUserRole);
             const perfSection = document.getElementById('performanceOverview');
@@ -1830,7 +1776,7 @@
                 allShares = sharesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
                 // ============================================================
-                // SHARES: net count & value
+                // SHARES
                 // ============================================================
                 let totalSharesNet = 0;
                 let netShareValue = 0;
@@ -1852,59 +1798,53 @@
                 netShareValue = Math.max(0, Math.round(netShareValue * 100) / 100);
 
                 // ============================================================
-                // PENALTIES: paid total
+                // PENALTIES: paid total (kept for the Paid Penalties card)
                 // ============================================================
                 const paidPenaltiesAllYears = allPenalties.filter(p =>
-                    dashboardSettings.penaltyStatuses.includes(p.status)
+                    p.status === 'paid' || p.status === 'done' || p.status === 'approved'
                 );
                 const paidPenaltiesCount = paidPenaltiesAllYears.length;
                 const paidPenaltiesAmount = paidPenaltiesAllYears
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-                // ---- INCOME (all years) ----
-                let totalPenaltyIncomeAllYears = 0;
-                if (dashboardSettings.includePenaltyIncome) {
-                    totalPenaltyIncomeAllYears = paidPenaltiesAmount;
-                }
-
-                let totalDepositIncomeAllYears = 0;
-                if (dashboardSettings.includeDepositIncome) {
-                    totalDepositIncomeAllYears = allProfitIncome
+                // ============================================================
+                // ALL-YEARS INCOME — Net Profit = Registration Fee + Other + Paid Interest
+                // ============================================================
+                let allYearsRegistrationFee = 0;
+                if (dashboardSettings.includeRegistrationFee) {
+                    allYearsRegistrationFee = allProfitIncome
                         .filter(p => dashboardSettings.depositStatuses.includes(p.status))
-                        .filter(p => {
-                            if (!dashboardSettings.excludeOtherDeposits) return true;
-                            const type = (p.incomeType || '').toLowerCase().trim();
-                            return type !== 'other' && type !== 'other deposit';
-                        })
+                        .filter(p => isRegistrationFee(p.incomeType))
                         .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
                 }
 
-                let totalInterestIncomeAllYears = 0;
-                if (dashboardSettings.includeLoanInterestIncome) {
-                    if (dashboardSettings.paidLoansOnly) {
-                        totalInterestIncomeAllYears = allLoans
-                            .filter(l => l.status === 'paid')
-                            .reduce((sum, loan) => sum + getLoanInterest(loan), 0);
-                    } else {
-                        totalInterestIncomeAllYears = allLoans
-                            .filter(l => dashboardSettings.loanInterestStatuses.includes(l.status))
-                            .reduce((sum, loan) => sum + getLoanInterest(loan), 0);
-                    }
+                let allYearsOtherIncome = 0;
+                if (dashboardSettings.includeOtherIncome) {
+                    allYearsOtherIncome = allProfitIncome
+                        .filter(p => dashboardSettings.depositStatuses.includes(p.status))
+                        .filter(p => isOtherIncome(p.incomeType))
+                        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
                 }
 
-                let totalServiceWithdrawalsAllYears = 0;
-                if (dashboardSettings.deductServiceWithdrawals) {
-                    totalServiceWithdrawalsAllYears = allServiceWithdrawals
-                        .filter(s => s.status === 'approved' || s.status === 'completed')
-                        .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+                let allYearsPaidInterest = 0;
+                if (dashboardSettings.includePaidInterest) {
+                    allRepayments.forEach(r => {
+                        if (!dashboardSettings.repaymentStatuses.includes(r.status)) return;
+                        const loan = allLoans.find(l => l.id === r.loanId);
+                        if (!loan) return;
+                        const split = splitRepayment(Number(r.amount) || 0, loan);
+                        allYearsPaidInterest += split.interest;
+                    });
+                    allYearsPaidInterest = Math.round(allYearsPaidInterest * 100) / 100;
                 }
 
                 const totalIncomeAllYears = Math.round(
-                    (totalPenaltyIncomeAllYears + totalDepositIncomeAllYears +
-                     totalInterestIncomeAllYears - totalServiceWithdrawalsAllYears) * 100
+                    (allYearsRegistrationFee + allYearsOtherIncome + allYearsPaidInterest) * 100
                 ) / 100;
 
-                // ---- YEARLY DATA ----
+                // ============================================================
+                // YEARLY DATA
+                // ============================================================
                 const savingsData = allSavings.filter(s => isInYear(s.date || s.timestamp, year) && s.status === 'approved');
                 const loansData = allLoans.filter(l => isInYear(l.date || l.timestamp, year));
 
@@ -1915,14 +1855,56 @@
 
                 const profitIncomeData = allProfitIncome.filter(p => isInYear(p.date || p.timestamp, year));
                 const profitWithdrawalData = allProfitWithdrawal.filter(w => isInYear(w.date || w.timestamp, year));
-                const penaltiesData = allPenalties.filter(p => isInYear(p.date || p.timestamp, year));
-                const serviceWithdrawalsData = allServiceWithdrawals.filter(s => isInYear(s.date || s.timestamp, year));
                 const withdrawalsData = allWithdrawals.filter(w => isInYear(w.date || w.timestamp, year) &&
                     (w.status === 'approved' || w.status === 'completed'));
                 const leavingWithdrawalsData = allLeavingWithdrawals.filter(w => isInYear(w.date || w.timestamp, year) &&
                     (w.status === 'approved' || w.status === 'completed'));
 
-                // Shares for current year
+                // ---- YEARLY Net Profit = Reg Fee + Other + Paid Interest ----
+                let yearlyRegistrationFee = 0;
+                if (dashboardSettings.includeRegistrationFee) {
+                    yearlyRegistrationFee = profitIncomeData
+                        .filter(p => dashboardSettings.depositStatuses.includes(p.status))
+                        .filter(p => isRegistrationFee(p.incomeType))
+                        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+                }
+
+                let yearlyOtherIncome = 0;
+                if (dashboardSettings.includeOtherIncome) {
+                    yearlyOtherIncome = profitIncomeData
+                        .filter(p => dashboardSettings.depositStatuses.includes(p.status))
+                        .filter(p => isOtherIncome(p.incomeType))
+                        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+                }
+
+                // ---- YEARLY Paid Interest + Paid Principal (from repayments) ----
+                let yearlyPaidInterest = 0;
+                let yearlyPaidPrincipal = 0;
+
+                repaymentsData.forEach(r => {
+                    const loan = allLoans.find(l => l.id === r.loanId);
+                    if (!loan) return;
+                    const split = splitRepayment(Number(r.amount) || 0, loan);
+                    yearlyPaidPrincipal += split.principal;
+                    if (dashboardSettings.includePaidInterest) {
+                        yearlyPaidInterest += split.interest;
+                    }
+                });
+
+                yearlyPaidPrincipal = Math.round(yearlyPaidPrincipal * 100) / 100;
+                yearlyPaidInterest = Math.round(yearlyPaidInterest * 100) / 100;
+
+                const totalIncomeYearly = Math.round(
+                    (yearlyRegistrationFee + yearlyOtherIncome + yearlyPaidInterest) * 100
+                ) / 100;
+
+                const dividendEntries = profitWithdrawalData.filter(w => w.reason === 'Dividend');
+
+                // ---- Savings / Withdrawals / Shares ----
+                const totalSavings = savingsData.reduce((s, item) => s + (Number(item.amount) || 0), 0);
+                const totalWithdrawalsYearly = withdrawalsData.reduce((s, w) => s + (Number(w.amount) || 0), 0);
+                const totalLeavingWithdrawalsYearly = leavingWithdrawalsData.reduce((s, w) => s + (Number(w.amount) || 0), 0);
+
                 let yearlySharesBought = 0;
                 let yearlySharesSold = 0;
                 allShares.forEach(s => {
@@ -1937,81 +1919,23 @@
                     }
                 });
 
-                const approvedLoansYearly = allLoans.filter(l =>
-                    isInYear(l.date || l.timestamp, year) &&
-                    (l.status === 'active' || l.status === 'paid' || l.status === 'approved')
-                );
-
-                // ---- YEARLY INCOME ----
-                let yearlyPenaltyIncome = 0;
-                if (dashboardSettings.includePenaltyIncome) {
-                    yearlyPenaltyIncome = penaltiesData
-                        .filter(p => dashboardSettings.penaltyStatuses.includes(p.status))
-                        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-                }
-
-                let yearlyDepositIncome = 0;
-                if (dashboardSettings.includeDepositIncome) {
-                    yearlyDepositIncome = profitIncomeData
-                        .filter(p => dashboardSettings.depositStatuses.includes(p.status))
-                        .filter(p => {
-                            if (!dashboardSettings.excludeOtherDeposits) return true;
-                            const type = (p.incomeType || '').toLowerCase().trim();
-                            return type !== 'other' && type !== 'other deposit';
-                        })
-                        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-                }
-
-                let yearlyInterestIncome = 0;
-                if (dashboardSettings.includeLoanInterestIncome) {
-                    if (dashboardSettings.paidLoansOnly) {
-                        const paidLoansYearly = allLoans.filter(l =>
-                            isInYear(l.date || l.timestamp, year) && l.status === 'paid'
-                        );
-                        yearlyInterestIncome = paidLoansYearly
-                            .reduce((sum, loan) => sum + getLoanInterest(loan), 0);
-                    } else {
-                        yearlyInterestIncome = approvedLoansYearly
-                            .reduce((sum, loan) => sum + getLoanInterest(loan), 0);
-                    }
-                }
-
-                let yearlyServiceWithdrawals = 0;
-                if (dashboardSettings.deductServiceWithdrawals) {
-                    yearlyServiceWithdrawals = serviceWithdrawalsData
-                        .filter(s => s.status === 'approved' || s.status === 'completed')
-                        .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
-                }
-
-                let totalIncomeYearly = Math.round(
-                    (yearlyPenaltyIncome + yearlyDepositIncome + yearlyInterestIncome - yearlyServiceWithdrawals) * 100
-                ) / 100;
-
-                const dividendEntries = profitWithdrawalData.filter(w => w.reason === 'Dividend');
-                if (dividendEntries.length > 0) totalIncomeYearly = 0;
-
-                const totalSavings = savingsData.reduce((s, item) => s + (Number(item.amount) || 0), 0);
-                const totalWithdrawalsYearly = withdrawalsData.reduce((s, w) => s + (Number(w.amount) || 0), 0);
-                const totalLeavingWithdrawalsYearly = leavingWithdrawalsData.reduce((s, w) => s + (Number(w.amount) || 0), 0);
-
-                // ---- NET SAVING — with shares impact ----
                 let netSavingYearly = totalSavings - totalWithdrawalsYearly - totalLeavingWithdrawalsYearly;
                 if (dashboardSettings.deductShareBuys) netSavingYearly -= yearlySharesBought;
                 if (dashboardSettings.addShareSells) netSavingYearly += yearlySharesSold;
                 netSavingYearly = Math.round(netSavingYearly * 100) / 100;
 
-                const totalSavingsAllYears = allSavings
-                    .filter(s => s.status === 'approved')
-                    .reduce((s, item) => s + (Number(item.amount) || 0), 0);
-
                 // ============================================================
-                // ✅ TOTAL BALANCE = Net Saving + Net Profit + Net Share Value
+                // TOTAL BALANCE = Net Saving + Net Profit + Net Share Value
                 // ============================================================
                 const totalBalanceYearly = Math.round(
                     (netSavingYearly + totalIncomeYearly + netShareValue) * 100
                 ) / 100;
 
-                // ---- All-years net saving ----
+                const totalSavingsAllYears = allSavings
+                    .filter(s => s.status === 'approved')
+                    .reduce((s, item) => s + (Number(item.amount) || 0), 0);
+
+                // All-years net saving
                 let netSavingAllYears = totalSavingsAllYears;
 
                 const totalWithdrawalsAllYears = allWithdrawals
@@ -2048,7 +1972,7 @@
                     .reduce((s, l) => s + (Number(l.amount) || 0), 0);
                 const totalRepayments = repaymentsData.reduce((s, r) => s + (Number(r.amount) || 0), 0);
 
-                // UPDATE UI
+                // ---- UPDATE UI ----
                 document.getElementById('totalCustomersValue').textContent = totalCustomers.toLocaleString();
                 document.getElementById('savingsValue').textContent = totalSavings.toLocaleString();
                 document.getElementById('netSavingsValue').textContent = netSavingYearly.toLocaleString();
@@ -2056,6 +1980,10 @@
                     `<span class="neutral">Savings – Withdrawals – Shares</span>`;
                 document.getElementById('loansValue').textContent = totalLoans.toLocaleString();
                 document.getElementById('repaymentsValue').textContent = totalRepayments.toLocaleString();
+                // ✅ Repayments card now shows the principal / interest split
+                document.getElementById('repaymentsChange').innerHTML =
+                    `<span class="neutral">Loan repaid: ${yearlyPaidPrincipal.toLocaleString()} · Interest: ${yearlyPaidInterest.toLocaleString()}</span>`;
+
                 document.getElementById('profitValue').textContent = totalIncomeYearly.toLocaleString();
                 document.getElementById('totalProfitValue').textContent = totalIncomeAllYears.toLocaleString();
                 document.getElementById('balanceValue').textContent = totalBalanceYearly.toLocaleString();
@@ -2095,40 +2023,32 @@
                 const prevRepayments = getMonthlyTotal(allRepayments.map(r => ({ ...r, date: r.date || r.timestamp })), 'amount', prevYear, currentMonth);
                 updateChange('repaymentsChange', prevRepayments > 0 ? ((curRepayments - prevRepayments) / prevRepayments * 100) : 0);
 
-                // Previous year comparison
-                const prevYearPenalties = allPenalties
-                    .filter(p => isInYear(p.date || p.timestamp, prevYear) && dashboardSettings.penaltyStatuses.includes(p.status))
-                    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-                const prevYearDeposits = allProfitIncome
-                    .filter(p => isInYear(p.date || p.timestamp, prevYear) && dashboardSettings.depositStatuses.includes(p.status))
-                    .filter(p => {
-                        if (!dashboardSettings.excludeOtherDeposits) return true;
-                        const type = (p.incomeType || '').toLowerCase().trim();
-                        return type !== 'other' && type !== 'other deposit';
-                    })
-                    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-                const prevYearLoans = allLoans.filter(l =>
-                    isInYear(l.date || l.timestamp, prevYear) &&
-                    (l.status === 'active' || l.status === 'paid' || l.status === 'approved')
-                );
-                const prevYearInterest = prevYearLoans.reduce((sum, loan) => sum + getLoanInterest(loan), 0);
-                const prevYearServiceW = allServiceWithdrawals
-                    .filter(s => isInYear(s.date || s.timestamp, prevYear) && (s.status === 'approved' || s.status === 'completed'))
-                    .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
-
-                let prevTotalIncome =
-                    (dashboardSettings.includePenaltyIncome ? prevYearPenalties : 0) +
-                    (dashboardSettings.includeDepositIncome ? prevYearDeposits : 0) +
-                    (dashboardSettings.includeLoanInterestIncome ? prevYearInterest : 0) -
-                    (dashboardSettings.deductServiceWithdrawals ? prevYearServiceW : 0);
-
-                const prevDividendEntries = allProfitWithdrawal.filter(w => isInYear(w.date || w.timestamp, prevYear) && w.reason === 'Dividend');
-                if (prevDividendEntries.length > 0) prevTotalIncome = 0;
+                // Previous year comparison for Net Profit using same rules
+                const prevProfitIncomeData = allProfitIncome.filter(p => isInYear(p.date || p.timestamp, prevYear));
+                const prevRegFee = dashboardSettings.includeRegistrationFee ? prevProfitIncomeData
+                    .filter(p => dashboardSettings.depositStatuses.includes(p.status))
+                    .filter(p => isRegistrationFee(p.incomeType))
+                    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0) : 0;
+                const prevOther = dashboardSettings.includeOtherIncome ? prevProfitIncomeData
+                    .filter(p => dashboardSettings.depositStatuses.includes(p.status))
+                    .filter(p => isOtherIncome(p.incomeType))
+                    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0) : 0;
+                const prevRepaymentsData = allRepayments.filter(r =>
+                    isInYear(r.date || r.timestamp, prevYear) && dashboardSettings.repaymentStatuses.includes(r.status));
+                let prevPaidInterest = 0;
+                if (dashboardSettings.includePaidInterest) {
+                    prevRepaymentsData.forEach(r => {
+                        const loan = allLoans.find(l => l.id === r.loanId);
+                        if (!loan) return;
+                        prevPaidInterest += splitRepayment(Number(r.amount) || 0, loan).interest;
+                    });
+                }
+                const prevTotalIncome = Math.round((prevRegFee + prevOther + prevPaidInterest) * 100) / 100;
                 const profitChange = prevTotalIncome > 0 ? ((totalIncomeYearly - prevTotalIncome) / prevTotalIncome * 100) : 0;
                 updateChange('profitChange', profitChange);
 
                 const curBalance = netSavingYearly + totalIncomeYearly + netShareValue;
-                const prevBalance = prevSavings + prevTotalIncome;
+                const prevBalance = prevTotalIncome + netShareValue;
                 updateChange('balanceChange', prevBalance !== 0 ? ((curBalance - prevBalance) / prevBalance * 100) : 0);
 
                 updateChange('customerChange', 0);
@@ -2168,8 +2088,14 @@
                 repaymentsData.slice()
                     .sort((a, b) => (toDate(b.date || b.timestamp) || 0) - (toDate(a.date || a.timestamp) || 0))
                     .slice(0, 5).forEach(r => {
+                        const loan = allLoans.find(l => l.id === r.loanId);
+                        let extra = '';
+                        if (loan) {
+                            const split = splitRepayment(Number(r.amount) || 0, loan);
+                            extra = ` (Principal ${split.principal.toFixed(2)} + Interest ${split.interest.toFixed(2)})`;
+                        }
                         activities.push({
-                            text: `${getCustomerName(r.customerId)} repaid ETB ${Number(r.amount).toLocaleString()}`,
+                            text: `${getCustomerName(r.customerId)} repaid ETB ${Number(r.amount).toLocaleString()}${extra}`,
                             icon: 'fa-undo-alt', color: 'teal', date: r.date || r.timestamp
                         });
                     });
@@ -2198,11 +2124,6 @@
                     });
 
                 profitIncomeData.filter(p => dashboardSettings.depositStatuses.includes(p.status))
-                    .filter(p => {
-                        if (!dashboardSettings.excludeOtherDeposits) return true;
-                        const type = (p.incomeType || '').toLowerCase().trim();
-                        return type !== 'other' && type !== 'other deposit';
-                    })
                     .slice().sort((a, b) => (toDate(b.date || b.timestamp) || 0) - (toDate(a.date || a.timestamp) || 0))
                     .slice(0, 5).forEach(p => {
                         const type = p.incomeType || 'Deposit';
@@ -2291,18 +2212,13 @@
                 showToast(translations[currentLang].unauthorized || 'Only admins can change calculation settings.', 'warning');
                 return;
             }
-            document.getElementById('dsIncludeDepositIncome').checked = !!dashboardSettings.includeDepositIncome;
-            document.getElementById('dsIncludeLoanInterestIncome').checked = !!dashboardSettings.includeLoanInterestIncome;
-            document.getElementById('dsIncludePenaltyIncome').checked = !!dashboardSettings.includePenaltyIncome;
-            document.getElementById('dsDeductServiceWithdrawals').checked = !!dashboardSettings.deductServiceWithdrawals;
-            document.getElementById('dsExcludeOtherDeposits').checked = !!dashboardSettings.excludeOtherDeposits;
-            document.getElementById('dsPaidLoansOnly').checked = !!dashboardSettings.paidLoansOnly;
+            document.getElementById('dsIncludeRegistrationFee').checked = !!dashboardSettings.includeRegistrationFee;
+            document.getElementById('dsIncludeOtherIncome').checked = !!dashboardSettings.includeOtherIncome;
+            document.getElementById('dsIncludePaidInterest').checked = !!dashboardSettings.includePaidInterest;
             document.getElementById('dsDeductShareBuys').checked = !!dashboardSettings.deductShareBuys;
             document.getElementById('dsAddShareSells').checked = !!dashboardSettings.addShareSells;
             document.getElementById('dsCountShareTransfers').checked = !!dashboardSettings.countShareTransfers;
             document.getElementById('dsDepositStatuses').value = statusesArrayToString(dashboardSettings.depositStatuses);
-            document.getElementById('dsLoanInterestStatuses').value = statusesArrayToString(dashboardSettings.loanInterestStatuses);
-            document.getElementById('dsPenaltyStatuses').value = statusesArrayToString(dashboardSettings.penaltyStatuses);
             document.getElementById('dsRepaymentStatuses').value = statusesArrayToString(dashboardSettings.repaymentStatuses);
             document.getElementById('dsShareStatuses').value = statusesArrayToString(dashboardSettings.shareStatuses);
             updateDashSettingsPreview();
@@ -2314,13 +2230,6 @@
         function updateDashSettingsPreview() {
             document.getElementById('dsPreviewDepositStatuses').textContent =
                 document.getElementById('dsDepositStatuses').value || '—';
-            document.getElementById('dsPreviewExcludeOther').textContent =
-                document.getElementById('dsExcludeOtherDeposits').checked ? 'Yes' : 'No';
-            document.getElementById('dsPreviewLoanStatuses').textContent =
-                document.getElementById('dsPaidLoansOnly').checked ? 'Paid Loans Only' :
-                (document.getElementById('dsLoanInterestStatuses').value || '—');
-            document.getElementById('dsPreviewPenaltyStatuses').textContent =
-                document.getElementById('dsPenaltyStatuses').value || '—';
             document.getElementById('dsPreviewRepaymentStatuses').textContent =
                 document.getElementById('dsRepaymentStatuses').value || '—';
             document.getElementById('dsPreviewShareBuys').textContent =
@@ -2328,18 +2237,13 @@
         }
         function readDashSettingsForm() {
             return {
-                includeDepositIncome: document.getElementById('dsIncludeDepositIncome').checked,
-                includeLoanInterestIncome: document.getElementById('dsIncludeLoanInterestIncome').checked,
-                includePenaltyIncome: document.getElementById('dsIncludePenaltyIncome').checked,
-                deductServiceWithdrawals: document.getElementById('dsDeductServiceWithdrawals').checked,
-                excludeOtherDeposits: document.getElementById('dsExcludeOtherDeposits').checked,
-                paidLoansOnly: document.getElementById('dsPaidLoansOnly').checked,
+                includeRegistrationFee: document.getElementById('dsIncludeRegistrationFee').checked,
+                includeOtherIncome: document.getElementById('dsIncludeOtherIncome').checked,
+                includePaidInterest: document.getElementById('dsIncludePaidInterest').checked,
                 deductShareBuys: document.getElementById('dsDeductShareBuys').checked,
                 addShareSells: document.getElementById('dsAddShareSells').checked,
                 countShareTransfers: document.getElementById('dsCountShareTransfers').checked,
                 depositStatuses: stringToStatusesArray(document.getElementById('dsDepositStatuses').value),
-                loanInterestStatuses: stringToStatusesArray(document.getElementById('dsLoanInterestStatuses').value),
-                penaltyStatuses: stringToStatusesArray(document.getElementById('dsPenaltyStatuses').value),
                 repaymentStatuses: stringToStatusesArray(document.getElementById('dsRepaymentStatuses').value),
                 shareStatuses: stringToStatusesArray(document.getElementById('dsShareStatuses').value)
             };
@@ -2359,18 +2263,13 @@
         }
         function resetDashSettingsForm() {
             dashboardSettings = { ...DEFAULT_DASHBOARD_SETTINGS };
-            document.getElementById('dsIncludeDepositIncome').checked = dashboardSettings.includeDepositIncome;
-            document.getElementById('dsIncludeLoanInterestIncome').checked = dashboardSettings.includeLoanInterestIncome;
-            document.getElementById('dsIncludePenaltyIncome').checked = dashboardSettings.includePenaltyIncome;
-            document.getElementById('dsDeductServiceWithdrawals').checked = dashboardSettings.deductServiceWithdrawals;
-            document.getElementById('dsExcludeOtherDeposits').checked = dashboardSettings.excludeOtherDeposits;
-            document.getElementById('dsPaidLoansOnly').checked = dashboardSettings.paidLoansOnly;
+            document.getElementById('dsIncludeRegistrationFee').checked = dashboardSettings.includeRegistrationFee;
+            document.getElementById('dsIncludeOtherIncome').checked = dashboardSettings.includeOtherIncome;
+            document.getElementById('dsIncludePaidInterest').checked = dashboardSettings.includePaidInterest;
             document.getElementById('dsDeductShareBuys').checked = dashboardSettings.deductShareBuys;
             document.getElementById('dsAddShareSells').checked = dashboardSettings.addShareSells;
             document.getElementById('dsCountShareTransfers').checked = dashboardSettings.countShareTransfers;
             document.getElementById('dsDepositStatuses').value = statusesArrayToString(dashboardSettings.depositStatuses);
-            document.getElementById('dsLoanInterestStatuses').value = statusesArrayToString(dashboardSettings.loanInterestStatuses);
-            document.getElementById('dsPenaltyStatuses').value = statusesArrayToString(dashboardSettings.penaltyStatuses);
             document.getElementById('dsRepaymentStatuses').value = statusesArrayToString(dashboardSettings.repaymentStatuses);
             document.getElementById('dsShareStatuses').value = statusesArrayToString(dashboardSettings.shareStatuses);
             updateDashSettingsPreview();
@@ -2482,11 +2381,9 @@
                 });
                 document.getElementById('dsSaveBtn').addEventListener('click', saveDashSettings);
                 document.getElementById('dsResetBtn').addEventListener('click', resetDashSettingsForm);
-                ['dsIncludeDepositIncome', 'dsIncludeLoanInterestIncome', 'dsIncludePenaltyIncome',
-                 'dsDeductServiceWithdrawals', 'dsExcludeOtherDeposits', 'dsPaidLoansOnly',
+                ['dsIncludeRegistrationFee', 'dsIncludeOtherIncome', 'dsIncludePaidInterest',
                  'dsDeductShareBuys', 'dsAddShareSells', 'dsCountShareTransfers',
-                 'dsDepositStatuses', 'dsLoanInterestStatuses', 'dsPenaltyStatuses',
-                 'dsRepaymentStatuses', 'dsShareStatuses'
+                 'dsDepositStatuses', 'dsRepaymentStatuses', 'dsShareStatuses'
                 ].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) {
