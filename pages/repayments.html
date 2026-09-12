@@ -35,6 +35,7 @@
             --shadow-modal: 0 20px 60px rgba(0,0,0,0.5);
             --input-bg: #2d3748; --input-border: #4a5568; --input-focus: rgba(45,122,61,0.2);
         }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; background: var(--bg-primary); color: var(--text-primary); display: flex; min-height: 100vh; transition: background 0.3s, color 0.3s; }
 
@@ -245,7 +246,7 @@
         .status-badge.rejected { background: #f8d7da; color: #721c24; }
         .status-badge.printed { background: #cce5ff; color: #004085; }
 
-        /* ========== ACTION BUTTONS (View / Print / Edit / Delete / Approve / Reject) ========== */
+        /* Action Buttons */
         .action-buttons { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 190px; }
         .action-btn { border: none; padding: 6px 9px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.25s ease; display: inline-flex; align-items: center; gap: 4px; position: relative; overflow: hidden; }
         .action-btn i { font-size: 13px; transition: transform 0.25s ease; }
@@ -523,6 +524,21 @@
                 <div class="stat-card">
                     <div class="stat-icon gold"><i class="fas fa-print"></i></div>
                     <div class="stat-info"><span class="stat-label" data-i18n="printedRepayments">Printed</span><span class="stat-value" id="printedRepayments">0</span></div>
+                </div>
+                <!-- NEW: Principal + Interest totals -->
+                <div class="stat-card">
+                    <div class="stat-icon purple"><i class="fas fa-landmark"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label" data-i18n="totalPrincipalPaidCard">Total Principal Paid</span>
+                        <span class="stat-value" id="totalPrincipalPaidCard">ETB 0.00</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon orange"><i class="fas fa-percent"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label" data-i18n="totalInterestPaidCard">Total Interest Paid</span>
+                        <span class="stat-value" id="totalInterestPaidCard">ETB 0.00</span>
+                    </div>
                 </div>
             </div>
 
@@ -856,7 +872,9 @@
                 paymentHistory: 'Payment History',
                 month: 'Month', principal: 'Principal', interest: 'Interest', total: 'Total',
                 totalPrincipalPaid: 'Total Principal Paid', totalInterestPaid: 'Total Interest Paid',
-                totalRepaid: 'Total Repaid', future: 'Future', waived: 'waived'
+                totalRepaid: 'Total Repaid', future: 'Future', waived: 'waived',
+                totalPrincipalPaidCard: 'Total Principal Paid',
+                totalInterestPaidCard: 'Total Interest Paid'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -910,7 +928,9 @@
                 paymentHistory: 'የክፍያ ታሪክ',
                 month: 'ወር', principal: 'ዋና ገንዘብ', interest: 'ወለድ', total: 'ጠቅላላ',
                 totalPrincipalPaid: 'ጠቅላላ የተከፈለ ዋና ገንዘብ', totalInterestPaid: 'ጠቅላላ የተከፈለ ወለድ',
-                totalRepaid: 'ጠቅላላ የተከፈለ', future: 'ወደፊት', waived: 'ተሰርዟል'
+                totalRepaid: 'ጠቅላላ የተከፈለ', future: 'ወደፊት', waived: 'ተሰርዟል',
+                totalPrincipalPaidCard: 'ጠቅላላ የተከፈለ ዋና ገንዘብ',
+                totalInterestPaidCard: 'ጠቅላላ የተከፈለ ወለድ'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -964,7 +984,9 @@
                 paymentHistory: 'Seenaa Kaffaltii',
                 month: 'Ji\'a', principal: 'Kaapitaala', interest: 'Dhala', total: 'Waliigala',
                 totalPrincipalPaid: 'Waliigala Kaapitaala Kaffalame', totalInterestPaid: 'Waliigala Dhala Kaffalame',
-                totalRepaid: 'Waliigala Kaffalame', future: 'Gara Fuulduraa', waived: 'Haqame'
+                totalRepaid: 'Waliigala Kaffalame', future: 'Gara Fuulduraa', waived: 'Haqame',
+                totalPrincipalPaidCard: 'Waliigala Kaapitaala Kaffalame',
+                totalInterestPaidCard: 'Waliigala Dhala Kaffalame'
             }
         };
 
@@ -997,13 +1019,13 @@
         // ============================================================
         // SESSION TIMEOUT (loaded from settings/system)
         // ============================================================
-        let SESSION_TIMEOUT_MINUTES = 5;                 // default until settings load
+        let SESSION_TIMEOUT_MINUTES = 5;
         let SESSION_TIMEOUT = SESSION_TIMEOUT_MINUTES * 60 * 1000;
         let SESSION_WARNING_TIMEOUT = SESSION_TIMEOUT - 30 * 1000;
         let sessionTimer = null, sessionWarningTimer = null,
             sessionWarningToast = null, sessionCountdownInterval = null;
         let sessionTimerStarted = false;
-        let SESSION_EVENTS = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
+        const SESSION_EVENTS = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
 
         // ============================================================
         // TOAST
@@ -1554,7 +1576,7 @@
                 );
 
                 const penaltyAmount = Math.round((monthlyPayment * unpaidMonths) * loansPenaltyRate * 100) / 100;
-                if (penaltyAmount <= 0) return { penaltyAmount: 0, unpaidMonths: unpaidMonths };
+                if (penaltyAmount <= 0) return { penaltyAmount: 0, unpaidMonths };
 
                 const existingPending = await db.collection('transactions')
                     .where('loanId', '==', loanId)
@@ -1635,13 +1657,11 @@
                 const totalMonths = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth()) + 1;
                 if (totalMonths <= 0) return '<p class="text-secondary">Loan just started – no history yet.</p>';
 
-                // Fetch all repayments + penalties
                 const txSnapshot = await db.collection('transactions')
                     .where('loanId', '==', loanId)
                     .where('type', 'in', ['repayment', 'penalty'])
                     .get();
 
-                // Compute the loan's fixed monthly interest (for legacy records without split)
                 const principal0 = Number(loan.amount) || 0;
                 const rate = Number(loan.interestRate) || 0;
                 const period = Number(loan.repaymentPeriod) || 0;
@@ -1649,7 +1669,6 @@
                 const totalInterestForLoan = calculateInterest(principal0, rate, period, loanType);
                 const fixedMonthlyInterest = period > 0 ? (totalInterestForLoan / period) : 0;
 
-                // Per monthIndex → { principal, interest, total, status }
                 const monthMap = {};
                 txSnapshot.forEach(doc => {
                     const data = doc.data();
@@ -1660,7 +1679,6 @@
                     if (data.type === 'repayment') {
                         const status = data.status || 'pending';
                         const amount = Number(data.amount) || 0;
-                        // Compute principal/interest per record
                         let principalPart, interestPart;
                         if (typeof data.principalPortion === 'number' && typeof data.interestPortion === 'number') {
                             principalPart = Number(data.principalPortion);
@@ -1713,7 +1731,6 @@
                 const t = translations[currentLang];
                 const fmt = (n) => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-                // Totals (only approved/printed)
                 let totalPrincipalPaid = 0;
                 let totalInterestPaid = 0;
                 let totalRepaid = 0;
@@ -1748,14 +1765,12 @@
                         default: statusLabel = t.pending || 'Pending'; statusClass = 'pending';
                     }
 
-                    // Only sum approved/printed rows into the totals
                     if (status === 'paid' || status === 'penalty-paid') {
                         totalPrincipalPaid += entry.principal;
                         totalInterestPaid += entry.interest;
                         totalRepaid += entry.total;
                     }
 
-                    // Show em-dash for months with no payments
                     const showAmounts = entry.total > 0;
                     const pText = showAmounts ? fmt(entry.principal) : '—';
                     const iText = showAmounts
@@ -1944,7 +1959,7 @@
         }
 
         // ============================================================
-        // LOAD SETTINGS
+        // LOAD SETTINGS (including session timeout)
         // ============================================================
         async function loadSettings() {
             try {
@@ -1955,13 +1970,12 @@
                     gracePeriod = data.gracePeriod || 7;
                     penaltyAutoGenerate = data.penaltyAutoGenerate !== undefined ? data.penaltyAutoGenerate : true;
 
-                    // NEW split-related settings
                     minMonthsForRepayAll = (data.minMonthsForRepayAll !== undefined && Number(data.minMonthsForRepayAll) >= 0)
                         ? Number(data.minMonthsForRepayAll) : 6;
                     allowInterestWaiver = data.allowInterestWaiver !== undefined ? !!data.allowInterestWaiver : true;
                     waiverRequiresMinMonths = data.waiverRequiresMinMonths !== undefined ? !!data.waiverRequiresMinMonths : true;
 
-                    // Session timeout (loaded from settings — this is the key change)
+                    // Session timeout
                     let mins = 5;
                     if (data.sessionTimeout !== undefined && data.sessionTimeout !== null) {
                         mins = Number(data.sessionTimeout);
@@ -2162,11 +2176,49 @@
             document.getElementById('rejectedRepayments').textContent = 'ETB ' + rejected.toFixed(2);
             document.getElementById('monthlyRepayments').textContent = 'ETB ' + monthly.toFixed(2);
             document.getElementById('printedRepayments').textContent = printed;
+
+            // Principal & Interest totals (approved/printed only)
+            const approvedOrPrinted = allRepayments.filter(r =>
+                r.status === 'approved' || r.status === 'printed' || r.printed === true
+            );
+
+            let totalPrincipalPaid = 0;
+            let totalInterestPaid = 0;
+
+            approvedOrPrinted.forEach(r => {
+                const amount = Number(r.amount) || 0;
+                const loan = allLoans.find(l => l.id === r.loanId);
+
+                if (typeof r.principalPortion === 'number' && typeof r.interestPortion === 'number') {
+                    totalPrincipalPaid += Number(r.principalPortion) || 0;
+                    totalInterestPaid += Number(r.interestPortion) || 0;
+                } else if (loan) {
+                    const p = Number(loan.amount) || 0;
+                    const rate = Number(loan.interestRate) || 0;
+                    const period = Number(loan.repaymentPeriod) || 0;
+                    const type = loan.loanType || 'simple';
+                    let monthlyInterest = 0;
+                    if (period > 0) {
+                        const totalInterest = calculateInterest(p, rate, period, type);
+                        monthlyInterest = totalInterest / period;
+                    }
+                    const interestPart = Math.min(amount, monthlyInterest);
+                    const principalPart = Math.max(0, amount - interestPart);
+                    totalPrincipalPaid += principalPart;
+                    totalInterestPaid += interestPart;
+                } else {
+                    totalPrincipalPaid += amount;
+                }
+            });
+
+            document.getElementById('totalPrincipalPaidCard').textContent = 'ETB ' + totalPrincipalPaid.toFixed(2);
+            document.getElementById('totalInterestPaidCard').textContent = 'ETB ' + totalInterestPaid.toFixed(2);
+
             document.getElementById('totalCount').textContent = allRepayments.length;
         }
 
         // ============================================================
-        // RENDER TABLE — Actions: View / Print / Approve / Reject / Edit / Delete
+        // RENDER TABLE
         // ============================================================
         function renderTable(items) {
             const tbody = document.getElementById('repaymentsBody');
@@ -2208,29 +2260,35 @@
                     ? 'color:var(--success); font-weight:600;'
                     : 'color:#b8860b; font-weight:600;';
 
-                // ====== ACTION BUTTONS ======
+                // Action buttons
                 let actionsHtml = `<div class="action-buttons">`;
 
-                // View (always)
                 actionsHtml += `<button class="action-btn view-btn" onclick="viewRepayment('${r.id}')" title="${t.view}"><i class="fas fa-eye"></i></button>`;
-
-                // Print (always)
                 actionsHtml += `<button class="action-btn print-btn" onclick="printRepaymentSlip('${r.id}')" title="${t.printSlip}"><i class="fas fa-print"></i></button>`;
 
-                // Approve / Reject (pending, admin/manager only)
                 if (canApproveReject() && r.status === 'pending') {
                     actionsHtml += `<button class="action-btn approve-btn" onclick="approveRepayment('${r.id}')" title="${t.approve}"><i class="fas fa-check"></i></button>`;
                     actionsHtml += `<button class="action-btn reject-btn" onclick="rejectRepayment('${r.id}')" title="${t.reject}"><i class="fas fa-times"></i></button>`;
                 }
 
-                // Edit (admin/manager, pending; admin for approved)
-                const canEditThis = canEdit() && (r.status === 'pending' || (r.status === 'approved' && currentUserRole === 'admin'));
+                // Edit — Manager for pending; Admin for pending, approved, and printed
+                const isPrintedRecord = (r.printed === true) || (r.status === 'printed');
+                const canEditThis =
+                    canEdit() && (
+                        r.status === 'pending' ||
+                        ((r.status === 'approved' || isPrintedRecord) && currentUserRole === 'admin')
+                    );
                 if (canEditThis) {
                     actionsHtml += `<button class="action-btn edit-btn" onclick="editRepayment('${r.id}')" title="${t.edit}"><i class="fas fa-edit"></i></button>`;
                 }
 
-                // Delete (admin only, pending; admin for approved)
-                const canDeleteThis = canDelete() && (r.status === 'pending' || (r.status === 'approved' && currentUserRole === 'admin'));
+                // Delete — Admin only for pending, approved, and printed
+                const canDeleteThis =
+                    canDelete() && (
+                        r.status === 'pending' ||
+                        r.status === 'approved' ||
+                        isPrintedRecord
+                    );
                 if (canDeleteThis) {
                     actionsHtml += `<button class="action-btn delete-btn" onclick="showDeleteModal('${r.id}')" title="${t.delete}"><i class="fas fa-trash"></i></button>`;
                 }
@@ -2302,7 +2360,7 @@
         }
 
         // ============================================================
-        // VIEW REPAYMENT
+        // VIEW
         // ============================================================
         function viewRepayment(id) {
             const repayment = allRepayments.find(r => r.id === id);
@@ -2470,7 +2528,11 @@
             const repayment = allRepayments.find(r => r.id === id);
             if (!repayment) { showToast('Repayment not found.', 'error'); return; }
 
-            if (repayment.status !== 'pending' && !(repayment.status === 'approved' && currentUserRole === 'admin')) {
+            const isPrintedRecord = (repayment.printed === true) || (repayment.status === 'printed');
+            const allowed =
+                repayment.status === 'pending' ||
+                ((repayment.status === 'approved' || isPrintedRecord) && currentUserRole === 'admin');
+            if (!allowed) {
                 showToast(translations[currentLang].cannotEditApproved, 'warning');
                 return;
             }
@@ -2534,8 +2596,13 @@
             const repayment = allRepayments.find(r => r.id === id);
             if (!repayment) { showToast('Repayment not found.', 'error'); return; }
 
-            if (repayment.status !== 'pending' && !(repayment.status === 'approved' && currentUserRole === 'admin')) {
-                showToast('Cannot delete an approved or rejected repayment.', 'warning');
+            const isPrintedRecord = (repayment.printed === true) || (repayment.status === 'printed');
+            const allowed =
+                repayment.status === 'pending' ||
+                repayment.status === 'approved' ||
+                isPrintedRecord;
+            if (!allowed) {
+                showToast('Cannot delete a rejected repayment.', 'warning');
                 return;
             }
             pendingDeleteId = id;
@@ -2804,14 +2871,13 @@
                 );
                 const repayCount = approvedRepays.length;
 
-                let nextDueDate = null;
                 const dueDateEl = document.getElementById('nextDueDateDisplay');
 
                 if (remaining <= 0) {
                     dueDateEl.textContent = '✅ Fully paid – no more payments';
                     dueDateEl.className = 'value due-date';
                 } else {
-                    nextDueDate = new Date(loanStartDate);
+                    const nextDueDate = new Date(loanStartDate);
                     nextDueDate.setMonth(nextDueDate.getMonth() + repayCount + 1);
                     const now = new Date();
                     const daysLeft = Math.ceil((nextDueDate - now) / (1000 * 60 * 60 * 24));
@@ -3266,7 +3332,6 @@
             sessionResetTimer();
         }
 
-        // Recalculate session timer with new settings (called after settings load)
         function applySessionSettings() {
             SESSION_TIMEOUT = SESSION_TIMEOUT_MINUTES * 60 * 1000;
             SESSION_WARNING_TIMEOUT = Math.max(SESSION_TIMEOUT - 30 * 1000, SESSION_TIMEOUT * 0.9);
@@ -3306,7 +3371,6 @@
                     document.getElementById('addRepaymentBtn').style.display = 'none';
                 }
 
-                // Load settings (including session timeout) BEFORE starting the timer
                 await loadSettings();
                 applySessionSettings();
                 initLanguage();
@@ -3329,7 +3393,6 @@
                     });
                 });
 
-                // Logout
                 document.getElementById('logoutBtn').addEventListener('click', showLogoutModal);
                 document.getElementById('logoutCancel').addEventListener('click', hideLogoutModal);
                 document.getElementById('logoutConfirm').addEventListener('click', performLogout);
@@ -3340,7 +3403,6 @@
                     if (e.key === 'Escape') hideLogoutModal();
                 });
 
-                // Delete modal
                 document.getElementById('deleteCancel').addEventListener('click', closeDeleteModal);
                 document.getElementById('deleteConfirm').addEventListener('click', confirmDeleteRepayment);
                 document.getElementById('deleteModal').addEventListener('click', function(e) {
@@ -3458,7 +3520,6 @@
                 const t = translations[currentLang];
                 searchInput.placeholder = t.searchPlaceholder || 'Search by customer name or loan ID...';
 
-                // Start session timer AFTER settings were loaded
                 startSessionTimer();
             });
         });
