@@ -8,12 +8,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js">
-    </script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js">
-    </script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js">
-    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
     <style>
         /* ============================================================
@@ -735,6 +732,8 @@
                 <li><a href="repayments.html"><i class="fas fa-undo-alt"></i> <span data-i18n="navRepayments">Repayments</span></a></li>
                 <li><a href="withdrawals.html"><i class="fas fa-money-bill-wave"></i> <span data-i18n="navWithdrawals">Withdrawals</span></a></li>
                 <li class="active"><a href="dividends.html"><i class="fas fa-gift"></i> <span data-i18n="navDividends">Dividends</span></a></li>
+                <!-- CHANGE #1: Shares link added between Dividends and Reports -->
+                <li><a href="share.html"><i class="fas fa-chart-pie"></i> <span data-i18n="navShares">Shares</span></a></li>
                 <li><a href="reports.html"><i class="fas fa-chart-bar"></i> <span data-i18n="navReports">Reports</span></a></li>
                 <li><a href="penalties.html"><i class="fas fa-exclamation-triangle" style="color:#e67e22;"></i> <span data-i18n="navPenalties">Penalties</span></a></li>
                 <li id="auditNavItem" style="display:none;">
@@ -1053,7 +1052,7 @@
         }
 
         // ============================================================
-        // MULTI-LANGUAGE
+        // MULTI-LANGUAGE — CHANGE #2: navShares added in EN / AM / OM
         // ============================================================
         const translations = {
             en: {
@@ -1066,6 +1065,7 @@
                 navRepayments: 'Repayments',
                 navWithdrawals: 'Withdrawals',
                 navDividends: 'Dividends',
+                navShares: 'Shares',
                 navReports: 'Reports',
                 navPenalties: 'Penalties',
                 navAudit: 'Audit Trail',
@@ -1143,6 +1143,7 @@
                 navRepayments: 'ክፍያዎች',
                 navWithdrawals: 'መውጫዎች',
                 navDividends: 'ክፍፍል',
+                navShares: 'አክሲዮን',
                 navReports: 'ሪፖርቶች',
                 navPenalties: 'ቅጣቶች',
                 navAudit: 'የምዝግብ ታሪክ',
@@ -1220,6 +1221,7 @@
                 navRepayments: 'Kaffaltuu',
                 navWithdrawals: 'Baasii',
                 navDividends: 'Qooda',
+                navShares: 'Hirmaata',
                 navReports: 'Odeeffannoo',
                 navPenalties: 'Adaba',
                 navAudit: 'Seenaa Galmee',
@@ -1552,10 +1554,9 @@
         }
 
         // ============================================================
-        // ★★★ FIXED: CALCULATE YEAR DATA ★★★
+        // CALCULATE YEAR DATA
         // ============================================================
         async function calculateYearData(year) {
-            // Load all transaction types
             const [
                 savingsSnap, loansSnap, repaymentsSnap, profitIncomeSnap,
                 profitWithdrawalSnap, withdrawalSnap, leavingWithdrawalSnap,
@@ -1573,7 +1574,6 @@
                 db.collection('transactions').where('type', '==', 'penalty').get()
             ]);
 
-            // Store all data
             const allSavings = savingsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
             const allLoans = loansSnap.docs.map(d => ({ id: d.id, ...d.data() }));
             const allRepayments = repaymentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -1585,37 +1585,29 @@
             const allTransferIn = transferInSnap.docs.map(d => ({ id: d.id, ...d.data() }));
             const allPenalties = penaltiesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-            // ---- INCOME CALCULATION (Matches Dashboard) ----
-
-            // 1. PENALTY INCOME - All paid/approved penalties
             const totalPenaltyIncomeAllYears = allPenalties
                 .filter(p => p.status === 'paid' || p.status === 'done' || p.status === 'approved')
                 .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-            // 2. DEPOSIT INCOME - All profit_income EXCLUDING "Other" and "Other Deposit"
             const totalDepositIncomeAllYears = allProfitIncome
                 .filter(p => p.incomeType !== 'Other Deposit' && p.incomeType !== 'Other')
                 .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-            // 3. INTEREST INCOME - From approved loans
             const approvedLoansAllYears = allLoans.filter(l =>
                 l.status === 'active' || l.status === 'paid' || l.status === 'approved'
             );
             const totalInterestIncomeAllYears = approvedLoansAllYears
                 .reduce((sum, loan) => sum + getLoanInterest(loan), 0);
 
-            // 4. OTHER INCOME - profit_income with incomeType "Other" or "Other Deposit"
             const totalOtherIncomeAllYears = allProfitIncome
                 .filter(p => p.incomeType === 'Other Deposit' || p.incomeType === 'Other')
                 .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-            // TOTAL INCOME (all years) – not used in UI, but kept for consistency
             const totalIncomeAllYears = Math.round(
                 (totalPenaltyIncomeAllYears + totalDepositIncomeAllYears + totalInterestIncomeAllYears + totalOtherIncomeAllYears) *
                 100
             ) / 100;
 
-            // ---- YEARLY FILTERED DATA ----
             const savingsData = allSavings.filter(s => isInYear(s.date || s.timestamp, year));
             const loansData = allLoans.filter(l => isInYear(l.date || l.timestamp, year));
             const repaymentsData = allRepayments.filter(r => isInYear(r.date || r.timestamp, year));
@@ -1627,12 +1619,10 @@
                 (l.status === 'active' || l.status === 'paid' || l.status === 'approved')
             );
 
-            // ---- YEARLY INCOME ----
             const yearlyPenaltyIncome = penaltiesData
                 .filter(p => p.status === 'paid' || p.status === 'done' || p.status === 'approved')
                 .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-            // ★★★ FIX: Exclude "Other" types from deposit income ★★★
             const yearlyDepositIncome = profitIncomeData
                 .filter(p => p.incomeType !== 'Other Deposit' && p.incomeType !== 'Other')
                 .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
@@ -1648,19 +1638,16 @@
                 (yearlyPenaltyIncome + yearlyDepositIncome + yearlyInterestIncome + yearlyOtherIncome) * 100
             ) / 100;
 
-            // ---- DIVIDENDS (profit_withdrawal with reason Dividend) ----
             const dividendEntries = profitWithdrawalData
                 .filter(w => w.reason === 'Dividend')
                 .map(w => ({ id: w.id, ...w }));
 
             const totalDividends = dividendEntries.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
 
-            // ---- CRITICAL: If dividends have been distributed, set totalIncome to 0 ----
             if (dividendEntries.length > 0) {
                 totalIncomeYearly = 0;
             }
 
-            // ---- Get savings for preview ----
             const customerSavings = {};
             let totalSavingsAll = 0;
 
@@ -1675,7 +1662,6 @@
                 }
             });
 
-            // ---- Get active customers ----
             const customersSnapshot = await db.collection('customers').where('status', '==', 'active').get();
             const activeCustomers = [];
             customersSnapshot.forEach(doc => {
@@ -1683,7 +1669,6 @@
                 activeCustomers.push({ id: doc.id, fullName: data.fullName });
             });
 
-            // ---- Build preview data ----
             const previewData = [];
             activeCustomers.forEach(customer => {
                 const savings = customerSavings[customer.id] || 0;
