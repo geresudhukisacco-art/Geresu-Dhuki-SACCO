@@ -864,7 +864,7 @@
                         <div class="stat-info">
                             <span class="stat-label">Net Saving</span>
                             <span class="stat-value" id="netSavingsValue">0</span>
-                            <span class="stat-change" id="netSavingsChange">Savings – Withdrawals – Shares</span>
+                            <span class="stat-change" id="netSavingsChange">Gross − Shares from Savings − Individual Withdrawals</span>
                         </div>
                     </div>
 
@@ -891,7 +891,7 @@
                         <div class="stat-info">
                             <span class="stat-label" data-i18n="statProfit">Net Profit (ETB)</span>
                             <span class="stat-value" id="profitValue">0</span>
-                            <span class="stat-change" id="profitChange"></span>
+                            <span class="stat-change" id="profitChange">Interest + Reg. Fee + Other Deposits</span>
                         </div>
                     </div>
 
@@ -909,7 +909,7 @@
                         <div class="stat-info">
                             <span class="stat-label" data-i18n="statBalance">Total Balance (ETB)</span>
                             <span class="stat-value" id="balanceValue">0</span>
-                            <span class="stat-change" id="balanceChange"></span>
+                            <span class="stat-change" id="balanceChange">Net Saving + Net Profit + Net Share</span>
                         </div>
                     </div>
 
@@ -936,7 +936,7 @@
                         <div class="stat-info">
                             <span class="stat-label" data-i18n="statTotalShares">Total Shares (In Circulation)</span>
                             <span class="stat-value" id="totalSharesValue">0</span>
-                            <span class="stat-change" id="totalSharesChange">Net of buy/sell/transfer</span>
+                            <span class="stat-change" id="totalSharesChange">Sum of all bought shares</span>
                         </div>
                     </div>
 
@@ -945,7 +945,7 @@
                         <div class="stat-info">
                             <span class="stat-label" data-i18n="statShareValue">Net Share Value (ETB)</span>
                             <span class="stat-value" id="shareValueValue">0</span>
-                            <span class="stat-change" id="shareValueChange">Approved only</span>
+                            <span class="stat-change" id="shareValueChange">Cash / Bank / Mobile added directly</span>
                         </div>
                     </div>
                 </div>
@@ -1025,7 +1025,7 @@
                     <div class="ds-toggle-row">
                         <div class="ds-toggle-text">
                             <div class="ds-toggle-title">Include Other Income</div>
-                            <div class="ds-toggle-desc">Count deposits with <code>incomeType = "Other"</code> or <code>"Other Deposit"</code>.</div>
+                            <div class="ds-toggle-desc">Count every profit_income deposit that is NOT a registration fee.</div>
                         </div>
                         <label class="ds-toggle-switch">
                             <input type="checkbox" id="dsIncludeOtherIncome" />
@@ -1075,21 +1075,10 @@
                     <div class="ds-toggle-row">
                         <div class="ds-toggle-text">
                             <div class="ds-toggle-title">Deduct Share Buys from Net Saving</div>
-                            <div class="ds-toggle-desc">When a customer buys shares from savings, their Net Saving decreases.</div>
+                            <div class="ds-toggle-desc">Only <strong>savings-based</strong> share buys reduce Net Saving. External buys (cash/bank/mobile) do not.</div>
                         </div>
                         <label class="ds-toggle-switch">
                             <input type="checkbox" id="dsDeductShareBuys" />
-                            <span class="ds-slider"></span>
-                        </label>
-                    </div>
-
-                    <div class="ds-toggle-row">
-                        <div class="ds-toggle-text">
-                            <div class="ds-toggle-title">Add Share Sells back to Net Saving</div>
-                            <div class="ds-toggle-desc">When shares are sold, the money returns to savings — add it back to Net Saving.</div>
-                        </div>
-                        <label class="ds-toggle-switch">
-                            <input type="checkbox" id="dsAddShareSells" />
                             <span class="ds-slider"></span>
                         </label>
                     </div>
@@ -1167,7 +1156,7 @@
         // DEFAULT DASHBOARD SETTINGS
         // ============================================================
         const DEFAULT_DASHBOARD_SETTINGS = {
-            // Net Profit = Registration Fee + Other + Paid Interest
+            // Net Profit = Paid Interest + Registration Fee + All Other Income Deposits
             includeRegistrationFee: true,
             includeOtherIncome: true,
             includePaidInterest: true,
@@ -1176,10 +1165,18 @@
             // Repayment
             repaymentStatuses: ['approved', 'printed', 'paid', 'done'],
             // Net Saving / Shares
-            deductShareBuys: true,
-            addShareSells: true,
+            deductShareBuys: true,        // deduct ONLY savings-sourced share buys
             countShareTransfers: true,
-            shareStatuses: ['approved']
+            shareStatuses: ['approved'],
+            // How to identify savings vs. external payment source on a share doc
+            savingsPaymentValues: ['savings', 'saving', 'from_savings', 'savings_account',
+                                   'member_savings', 'account', 'sacco_savings', 'from_saving'],
+            externalPaymentValues: ['cash', 'bank', 'bank_transfer', 'transfer',
+                                    'mobile', 'mobile_money', 'mobile transfer',
+                                    'telebirr', 'tele_birr', 'tele-birr',
+                                    'mpesa', 'm-pesa', 'amole', 'hello_cash', 'hellocash',
+                                    'cbebirr', 'cbe_birr', 'e-birr', 'ebirr',
+                                    'external', 'deposit', 'direct_deposit', 'other']
         };
 
         let dashboardSettings = { ...DEFAULT_DASHBOARD_SETTINGS };
@@ -1198,7 +1195,11 @@
                             repaymentStatuses: Array.isArray(data.dashboard.repaymentStatuses) ?
                                 data.dashboard.repaymentStatuses : DEFAULT_DASHBOARD_SETTINGS.repaymentStatuses,
                             shareStatuses: Array.isArray(data.dashboard.shareStatuses) ?
-                                data.dashboard.shareStatuses : DEFAULT_DASHBOARD_SETTINGS.shareStatuses
+                                data.dashboard.shareStatuses : DEFAULT_DASHBOARD_SETTINGS.shareStatuses,
+                            savingsPaymentValues: Array.isArray(data.dashboard.savingsPaymentValues) ?
+                                data.dashboard.savingsPaymentValues : DEFAULT_DASHBOARD_SETTINGS.savingsPaymentValues,
+                            externalPaymentValues: Array.isArray(data.dashboard.externalPaymentValues) ?
+                                data.dashboard.externalPaymentValues : DEFAULT_DASHBOARD_SETTINGS.externalPaymentValues
                         };
                     }
                 }
@@ -1246,7 +1247,7 @@
             return calculateInterest(amount, rate, period, loanType);
         }
 
-        // Split a repayment into principal + interest portions using the loan's overall ratio
+        // Split a repayment into principal + interest portions
         function splitRepayment(amount, loan) {
             const principal = Number(loan.amount) || 0;
             const expectedInterest = getLoanInterest(loan);
@@ -1257,7 +1258,7 @@
             return { principal: principalPart, interest: interestPart };
         }
 
-        // Check if an incomeType counts as registration fee
+        // Registration fee detector
         function isRegistrationFee(incomeType) {
             const type = (incomeType || '').toLowerCase().trim();
             return type.includes('registration') ||
@@ -1266,10 +1267,39 @@
                    type === 'membership fee';
         }
 
-        // Check if an incomeType counts as "Other"
+        // Everything else that lands as a deposit counts as "Other" income
         function isOtherIncome(incomeType) {
-            const type = (incomeType || '').toLowerCase().trim();
-            return type === 'other' || type === 'other deposit';
+            if (isRegistrationFee(incomeType)) return false;
+            return true;
+        }
+
+        // ============================================================
+        // SHARE PAYMENT SOURCE
+        // ============================================================
+        function getSharePaymentMethod(share) {
+            const raw = share.paymentMethod
+                     || share.paymentSource
+                     || share.paidFrom
+                     || share.source
+                     || share.fundingSource
+                     || share.method
+                     || share.paymentType
+                     || '';
+            return String(raw).toLowerCase().trim();
+        }
+
+        function isSharePaidFromSavings(share) {
+            const m = getSharePaymentMethod(share);
+            const list = (dashboardSettings.savingsPaymentValues || []).map(x => String(x).toLowerCase().trim());
+            if (!m) return true; // Unspecified → treat as savings (SACCO default)
+            return list.includes(m);
+        }
+
+        function isSharePaidExternally(share) {
+            const m = getSharePaymentMethod(share);
+            if (!m) return false;
+            const list = (dashboardSettings.externalPaymentValues || []).map(x => String(x).toLowerCase().trim());
+            return list.includes(m);
         }
 
         // ============================================================
@@ -1315,7 +1345,7 @@
                 selectYear: 'Select Year:', status: 'Status:', open: 'Open', closed: 'Closed',
                 yearClosed: 'This year is closed (dividends distributed). New year starts fresh.',
                 yearOpen: 'This year is currently open.',
-                sessionTimeout: 'Your session will expire in {seconds} seconds.',
+                sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.',
                 testConnection: 'Test Connection',
                 connectionSuccess: '✅ Connection successful!',
                 connectionFailed: '❌ Connection failed: ',
@@ -1442,6 +1472,81 @@
             allProfitWithdrawal = [], allWithdrawals = [], allLeavingWithdrawals = [],
             allTransferOut = [], allTransferIn = [], allPenalties = [],
             allServiceWithdrawals = [], allShares = [];
+
+        // ============================================================
+        // SESSION TIMEOUT (loaded from settings/system)
+        // ============================================================
+        let SESSION_TIMEOUT_MINUTES = 5;
+        let SESSION_TIMEOUT = SESSION_TIMEOUT_MINUTES * 60 * 1000;
+        let SESSION_WARNING_TIMEOUT = Math.max(SESSION_TIMEOUT - 30 * 1000, SESSION_TIMEOUT * 0.9);
+        let sessionTimer = null, sessionWarningTimer = null,
+            sessionWarningToast = null, sessionCountdownInterval = null;
+        let sessionTimerStarted = false;
+        const SESSION_EVENTS = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
+
+        function sessionResetTimer() {
+            if (sessionTimer) clearTimeout(sessionTimer);
+            if (sessionWarningTimer) clearTimeout(sessionWarningTimer);
+            if (sessionCountdownInterval) clearInterval(sessionCountdownInterval);
+            if (sessionWarningToast) { sessionWarningToast.remove(); sessionWarningToast = null; }
+            sessionWarningTimer = setTimeout(sessionShowWarning, SESSION_WARNING_TIMEOUT);
+            sessionTimer = setTimeout(sessionForceLogout, SESSION_TIMEOUT);
+        }
+        function sessionShowWarning() {
+            const t = translations[currentLang] || translations.en;
+            const message = t.sessionTimeout || 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
+            let seconds = 30;
+            sessionWarningToast = document.createElement('div');
+            sessionWarningToast.style.cssText = `position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#f39c12;color:#fff;padding:16px 24px;border-radius:12px;font-size:15px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.2);z-index:99999;max-width:500px;text-align:center;display:flex;align-items:center;gap:12px;`;
+            sessionWarningToast.innerHTML = `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
+            document.body.appendChild(sessionWarningToast);
+            sessionCountdownInterval = setInterval(() => {
+                seconds--;
+                const textEl = document.getElementById('sessionWarningText');
+                if (textEl) textEl.textContent = message.replace('{seconds}', seconds);
+                if (seconds <= 0) clearInterval(sessionCountdownInterval);
+            }, 1000);
+        }
+        function sessionForceLogout() {
+            if (sessionCountdownInterval) clearInterval(sessionCountdownInterval);
+            if (sessionWarningToast) { sessionWarningToast.remove(); sessionWarningToast = null; }
+            if (auth) auth.signOut().then(() => window.location.href = '../index.html').catch(() => window.location.href = '../index.html');
+            else window.location.href = '../index.html';
+        }
+        function sessionHandleActivity() { sessionResetTimer(); }
+        function startSessionTimer() {
+            if (sessionTimerStarted) return;
+            sessionTimerStarted = true;
+            SESSION_EVENTS.forEach(evt => document.addEventListener(evt, sessionHandleActivity));
+            sessionResetTimer();
+        }
+        function applySessionSettings() {
+            SESSION_TIMEOUT = SESSION_TIMEOUT_MINUTES * 60 * 1000;
+            SESSION_WARNING_TIMEOUT = Math.max(SESSION_TIMEOUT - 30 * 1000, SESSION_TIMEOUT * 0.9);
+            if (sessionTimerStarted) sessionResetTimer();
+        }
+        async function loadSessionTimeoutFromSettings() {
+            try {
+                const doc = await db.collection('settings').doc('system').get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    let mins = 5;
+                    if (data.sessionTimeout !== undefined && data.sessionTimeout !== null) {
+                        mins = Number(data.sessionTimeout);
+                    } else if (data.sessionTimeoutMinutes !== undefined) {
+                        mins = Number(data.sessionTimeoutMinutes);
+                    } else if (data.sessionTimeoutSeconds !== undefined) {
+                        mins = Number(data.sessionTimeoutSeconds) / 60;
+                    }
+                    if (!isFinite(mins) || mins < 1) mins = 1;
+                    if (mins > 1440) mins = 1440;
+                    SESSION_TIMEOUT_MINUTES = Math.round(mins);
+                }
+            } catch (e) {
+                console.warn('Could not load session timeout — using default 5 min:', e.message);
+            }
+            applySessionSettings();
+        }
 
         function setLanguage(lang) {
             if (!translations[lang]) return;
@@ -1776,20 +1881,29 @@
                 allShares = sharesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
                 // ============================================================
-                // SHARES
+                // SHARES — NET of buys/sells (all years)
                 // ============================================================
-                let totalSharesNet = 0;
-                let netShareValue = 0;
+                let totalSharesNet = 0;         // share count in circulation
+                let netShareValue = 0;          // ETB value of shares in circulation
+                let sharesBoughtExternalAllY = 0; // for reference / tooltip only
 
                 allShares.forEach(s => {
                     if (!dashboardSettings.shareStatuses.includes(s.status)) return;
-                    const shares = Number(s.shares) || (Number(s.amount) ? (Number(s.amount) / 1000) : 0);
+                    const shares = Number(s.shares) || (Number(s.amount) && Number(s.pricePerShare)
+                        ? (Number(s.amount) / Number(s.pricePerShare)) : 0);
                     const amt = Number(s.amount) || 0;
                     const ty = String(s.type || '').toLowerCase();
-                    if (ty === 'share_buy' || (dashboardSettings.countShareTransfers && ty === 'share_transfer_in')) {
+                    const isBuy = (ty === 'share_buy' ||
+                                   (dashboardSettings.countShareTransfers && ty === 'share_transfer_in'));
+                    const isSell = (ty === 'share_sell' ||
+                                    (dashboardSettings.countShareTransfers && ty === 'share_transfer_out'));
+
+                    if (isBuy) {
                         totalSharesNet += shares;
                         netShareValue += amt;
-                    } else if (ty === 'share_sell' || (dashboardSettings.countShareTransfers && ty === 'share_transfer_out')) {
+                        // Track external payment for potential display
+                        if (isSharePaidExternally(s)) sharesBoughtExternalAllY += amt;
+                    } else if (isSell) {
                         totalSharesNet -= shares;
                         netShareValue -= amt;
                     }
@@ -1798,7 +1912,7 @@
                 netShareValue = Math.max(0, Math.round(netShareValue * 100) / 100);
 
                 // ============================================================
-                // PENALTIES: paid total (kept for the Paid Penalties card)
+                // PENALTIES: paid total
                 // ============================================================
                 const paidPenaltiesAllYears = allPenalties.filter(p =>
                     p.status === 'paid' || p.status === 'done' || p.status === 'approved'
@@ -1808,7 +1922,7 @@
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
                 // ============================================================
-                // ALL-YEARS INCOME — Net Profit = Registration Fee + Other + Paid Interest
+                // ALL-YEARS NET PROFIT = Registration Fee + Other Income + Paid Interest
                 // ============================================================
                 let allYearsRegistrationFee = 0;
                 if (dashboardSettings.includeRegistrationFee) {
@@ -1857,10 +1971,8 @@
                 const profitWithdrawalData = allProfitWithdrawal.filter(w => isInYear(w.date || w.timestamp, year));
                 const withdrawalsData = allWithdrawals.filter(w => isInYear(w.date || w.timestamp, year) &&
                     (w.status === 'approved' || w.status === 'completed'));
-                const leavingWithdrawalsData = allLeavingWithdrawals.filter(w => isInYear(w.date || w.timestamp, year) &&
-                    (w.status === 'approved' || w.status === 'completed'));
 
-                // ---- YEARLY Net Profit = Reg Fee + Other + Paid Interest ----
+                // ---- YEARLY Net Profit ----
                 let yearlyRegistrationFee = 0;
                 if (dashboardSettings.includeRegistrationFee) {
                     yearlyRegistrationFee = profitIncomeData
@@ -1877,10 +1989,8 @@
                         .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
                 }
 
-                // ---- YEARLY Paid Interest + Paid Principal (from repayments) ----
                 let yearlyPaidInterest = 0;
                 let yearlyPaidPrincipal = 0;
-
                 repaymentsData.forEach(r => {
                     const loan = allLoans.find(l => l.id === r.loanId);
                     if (!loan) return;
@@ -1890,7 +2000,6 @@
                         yearlyPaidInterest += split.interest;
                     }
                 });
-
                 yearlyPaidPrincipal = Math.round(yearlyPaidPrincipal * 100) / 100;
                 yearlyPaidInterest = Math.round(yearlyPaidInterest * 100) / 100;
 
@@ -1900,28 +2009,41 @@
 
                 const dividendEntries = profitWithdrawalData.filter(w => w.reason === 'Dividend');
 
-                // ---- Savings / Withdrawals / Shares ----
+                // ---- YEARLY Savings / Withdrawals ----
                 const totalSavings = savingsData.reduce((s, item) => s + (Number(item.amount) || 0), 0);
                 const totalWithdrawalsYearly = withdrawalsData.reduce((s, w) => s + (Number(w.amount) || 0), 0);
-                const totalLeavingWithdrawalsYearly = leavingWithdrawalsData.reduce((s, w) => s + (Number(w.amount) || 0), 0);
+                // "Individual withdrawals" — only `withdrawal` type. Leaving withdrawals are
+                // treated separately and do NOT affect Net Saving per the new rule.
+                const totalLeavingWithdrawalsYearly = 0;
 
-                let yearlySharesBought = 0;
+                // ---- YEARLY Shares ----
+                let yearlySharesBoughtFromSavings = 0;
+                let yearlySharesBoughtExternal = 0;
                 let yearlySharesSold = 0;
                 allShares.forEach(s => {
                     if (!dashboardSettings.shareStatuses.includes(s.status)) return;
                     if (!isInYear(s.date || s.timestamp, year)) return;
                     const amt = Number(s.amount) || 0;
                     const ty = String(s.type || '').toLowerCase();
-                    if (ty === 'share_buy' || (dashboardSettings.countShareTransfers && ty === 'share_transfer_in')) {
-                        yearlySharesBought += amt;
-                    } else if (ty === 'share_sell' || (dashboardSettings.countShareTransfers && ty === 'share_transfer_out')) {
+                    const isBuy = (ty === 'share_buy' ||
+                                   (dashboardSettings.countShareTransfers && ty === 'share_transfer_in'));
+                    const isSell = (ty === 'share_sell' ||
+                                    (dashboardSettings.countShareTransfers && ty === 'share_transfer_out'));
+
+                    if (isBuy) {
+                        if (isSharePaidFromSavings(s)) yearlySharesBoughtFromSavings += amt;
+                        else yearlySharesBoughtExternal += amt;
+                    } else if (isSell) {
                         yearlySharesSold += amt;
                     }
                 });
 
+                // ---- YEARLY Net Saving ----
+                // Net Saving = Gross Savings − shares bought FROM SAVINGS − individual withdrawals
                 let netSavingYearly = totalSavings - totalWithdrawalsYearly - totalLeavingWithdrawalsYearly;
-                if (dashboardSettings.deductShareBuys) netSavingYearly -= yearlySharesBought;
-                if (dashboardSettings.addShareSells) netSavingYearly += yearlySharesSold;
+                if (dashboardSettings.deductShareBuys) netSavingYearly -= yearlySharesBoughtFromSavings;
+                // Sold shares return money to savings → add back
+                netSavingYearly += yearlySharesSold;
                 netSavingYearly = Math.round(netSavingYearly * 100) / 100;
 
                 // ============================================================
@@ -1931,37 +2053,41 @@
                     (netSavingYearly + totalIncomeYearly + netShareValue) * 100
                 ) / 100;
 
+                // All-years net saving
                 const totalSavingsAllYears = allSavings
                     .filter(s => s.status === 'approved')
                     .reduce((s, item) => s + (Number(item.amount) || 0), 0);
 
-                // All-years net saving
                 let netSavingAllYears = totalSavingsAllYears;
 
                 const totalWithdrawalsAllYears = allWithdrawals
                     .filter(w => w.status === 'approved' || w.status === 'completed')
                     .reduce((s, w) => s + (Number(w.amount) || 0), 0);
 
-                const totalLeavingWithdrawalsAllYears = allLeavingWithdrawals
-                    .filter(w => w.status === 'approved' || w.status === 'completed')
-                    .reduce((s, w) => s + (Number(w.amount) || 0), 0);
+                const totalLeavingWithdrawalsAllYears = 0; // excluding from Net Saving per new rule
 
-                let sharesBoughtAllYears = 0;
+                let sharesBoughtFromSavingsAllYears = 0;
+                let sharesBoughtExternalAllYearsLocal = 0;
                 let sharesSoldAllYears = 0;
                 allShares.forEach(s => {
                     if (!dashboardSettings.shareStatuses.includes(s.status)) return;
                     const amt = Number(s.amount) || 0;
                     const ty = String(s.type || '').toLowerCase();
-                    if (ty === 'share_buy' || (dashboardSettings.countShareTransfers && ty === 'share_transfer_in')) {
-                        sharesBoughtAllYears += amt;
-                    } else if (ty === 'share_sell' || (dashboardSettings.countShareTransfers && ty === 'share_transfer_out')) {
+                    const isBuy = (ty === 'share_buy' ||
+                                   (dashboardSettings.countShareTransfers && ty === 'share_transfer_in'));
+                    const isSell = (ty === 'share_sell' ||
+                                    (dashboardSettings.countShareTransfers && ty === 'share_transfer_out'));
+                    if (isBuy) {
+                        if (isSharePaidFromSavings(s)) sharesBoughtFromSavingsAllYears += amt;
+                        else sharesBoughtExternalAllYearsLocal += amt;
+                    } else if (isSell) {
                         sharesSoldAllYears += amt;
                     }
                 });
 
-                if (dashboardSettings.deductShareBuys) netSavingAllYears -= sharesBoughtAllYears;
-                if (dashboardSettings.addShareSells) netSavingAllYears += sharesSoldAllYears;
-                netSavingAllYears -= totalWithdrawalsAllYears + totalLeavingWithdrawalsAllYears;
+                if (dashboardSettings.deductShareBuys) netSavingAllYears -= sharesBoughtFromSavingsAllYears;
+                netSavingAllYears += sharesSoldAllYears;
+                netSavingAllYears -= totalWithdrawalsAllYears;
                 netSavingAllYears = Math.round(netSavingAllYears * 100) / 100;
 
                 const totalBalanceAllYears = Math.round(
@@ -1972,15 +2098,16 @@
                     .reduce((s, l) => s + (Number(l.amount) || 0), 0);
                 const totalRepayments = repaymentsData.reduce((s, r) => s + (Number(r.amount) || 0), 0);
 
-                // ---- UPDATE UI ----
+                // ============================================================
+                // UPDATE UI
+                // ============================================================
                 document.getElementById('totalCustomersValue').textContent = totalCustomers.toLocaleString();
                 document.getElementById('savingsValue').textContent = totalSavings.toLocaleString();
                 document.getElementById('netSavingsValue').textContent = netSavingYearly.toLocaleString();
                 document.getElementById('netSavingsChange').innerHTML =
-                    `<span class="neutral">Savings – Withdrawals – Shares</span>`;
+                    `<span class="neutral">Gross − Shares from Savings − Withdrawals</span>`;
                 document.getElementById('loansValue').textContent = totalLoans.toLocaleString();
                 document.getElementById('repaymentsValue').textContent = totalRepayments.toLocaleString();
-                // ✅ Repayments card now shows the principal / interest split
                 document.getElementById('repaymentsChange').innerHTML =
                     `<span class="neutral">Loan repaid: ${yearlyPaidPrincipal.toLocaleString()} · Interest: ${yearlyPaidInterest.toLocaleString()}</span>`;
 
@@ -1999,11 +2126,11 @@
                 document.getElementById('totalSharesValue').textContent = totalSharesNet.toFixed(2) + ' shares';
                 document.getElementById('shareValueValue').textContent = 'ETB ' + netShareValue.toLocaleString();
                 document.getElementById('totalSharesChange').innerHTML =
-                    `<span class="neutral">Buy + Transfer In − Sell − Transfer Out</span>`;
+                    `<span class="neutral">Sum of all bought shares (net of sells)</span>`;
                 document.getElementById('shareValueChange').innerHTML =
-                    `<span class="neutral">Approved only</span>`;
+                    `<span class="neutral">Cash / Bank / Mobile added directly</span>`;
 
-                // Change percentages
+                // Change percentages (previous-year comparisons)
                 const currentMonth = new Date().getMonth();
                 const currentYear = year;
                 const prevYear = year - 1;
@@ -2023,7 +2150,6 @@
                 const prevRepayments = getMonthlyTotal(allRepayments.map(r => ({ ...r, date: r.date || r.timestamp })), 'amount', prevYear, currentMonth);
                 updateChange('repaymentsChange', prevRepayments > 0 ? ((curRepayments - prevRepayments) / prevRepayments * 100) : 0);
 
-                // Previous year comparison for Net Profit using same rules
                 const prevProfitIncomeData = allProfitIncome.filter(p => isInYear(p.date || p.timestamp, prevYear));
                 const prevRegFee = dashboardSettings.includeRegistrationFee ? prevProfitIncomeData
                     .filter(p => dashboardSettings.depositStatuses.includes(p.status))
@@ -2047,10 +2173,6 @@
                 const profitChange = prevTotalIncome > 0 ? ((totalIncomeYearly - prevTotalIncome) / prevTotalIncome * 100) : 0;
                 updateChange('profitChange', profitChange);
 
-                const curBalance = netSavingYearly + totalIncomeYearly + netShareValue;
-                const prevBalance = prevTotalIncome + netShareValue;
-                updateChange('balanceChange', prevBalance !== 0 ? ((curBalance - prevBalance) / prevBalance * 100) : 0);
-
                 updateChange('customerChange', 0);
                 document.getElementById('totalProfitChange').innerHTML = `<span class="neutral">—</span>`;
                 document.getElementById('totalBalanceAllChange').innerHTML = `<span class="neutral">—</span>`;
@@ -2063,7 +2185,7 @@
                 updateCharts(months, loansMonthly, repaymentsMonthly, savingsMonthly);
 
                 // ============================================================
-                // NOTIFICATIONS — up to 10 lines
+                // NOTIFICATIONS — up to 10 entries
                 // ============================================================
                 const activities = [];
 
@@ -2105,8 +2227,9 @@
                     .slice(0, 5).forEach(s => {
                         const ty = String(s.type || '').toLowerCase();
                         const isSell = ty === 'share_sell' || ty === 'share_transfer_out';
+                        const source = isSell ? '' : (isSharePaidFromSavings(s) ? ' (from savings)' : ' (external)');
                         activities.push({
-                            text: `${getCustomerName(s.customerId)} ${isSell ? 'sold' : 'bought'} ${Number(s.shares || 0).toFixed(2)} shares (ETB ${Number(s.amount).toLocaleString()})`,
+                            text: `${getCustomerName(s.customerId)} ${isSell ? 'sold' : 'bought'} ${Number(s.shares || 0).toFixed(2)} shares (ETB ${Number(s.amount).toLocaleString()})${source}`,
                             icon: isSell ? 'fa-arrow-up' : 'fa-chart-pie',
                             color: isSell ? 'orange' : 'purple',
                             date: s.date || s.timestamp
@@ -2178,21 +2301,6 @@
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
                 showToast('Failed to load dashboard data: ' + error.message, 'error');
-                document.getElementById('totalCustomersValue').textContent = '0';
-                document.getElementById('savingsValue').textContent = '0';
-                document.getElementById('netSavingsValue').textContent = '0';
-                document.getElementById('loansValue').textContent = '0';
-                document.getElementById('repaymentsValue').textContent = '0';
-                document.getElementById('profitValue').textContent = '0';
-                document.getElementById('totalProfitValue').textContent = '0';
-                document.getElementById('balanceValue').textContent = '0';
-                document.getElementById('totalBalanceAllValue').textContent = '0';
-                document.getElementById('penaltiesPaidValue').textContent = '0';
-                document.getElementById('totalSharesValue').textContent = '0';
-                document.getElementById('shareValueValue').textContent = '0';
-                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                updateCharts(months, Array(12).fill(0), Array(12).fill(0), Array(12).fill(0));
-                renderNotifications([]);
                 overlay.classList.remove('active');
             }
         }
@@ -2209,14 +2317,13 @@
 
         function openDashSettings() {
             if (currentUserRole !== 'admin') {
-                showToast(translations[currentLang].unauthorized || 'Only admins can change calculation settings.', 'warning');
+                showToast('Only admins can change calculation settings.', 'warning');
                 return;
             }
             document.getElementById('dsIncludeRegistrationFee').checked = !!dashboardSettings.includeRegistrationFee;
             document.getElementById('dsIncludeOtherIncome').checked = !!dashboardSettings.includeOtherIncome;
             document.getElementById('dsIncludePaidInterest').checked = !!dashboardSettings.includePaidInterest;
             document.getElementById('dsDeductShareBuys').checked = !!dashboardSettings.deductShareBuys;
-            document.getElementById('dsAddShareSells').checked = !!dashboardSettings.addShareSells;
             document.getElementById('dsCountShareTransfers').checked = !!dashboardSettings.countShareTransfers;
             document.getElementById('dsDepositStatuses').value = statusesArrayToString(dashboardSettings.depositStatuses);
             document.getElementById('dsRepaymentStatuses').value = statusesArrayToString(dashboardSettings.repaymentStatuses);
@@ -2241,7 +2348,6 @@
                 includeOtherIncome: document.getElementById('dsIncludeOtherIncome').checked,
                 includePaidInterest: document.getElementById('dsIncludePaidInterest').checked,
                 deductShareBuys: document.getElementById('dsDeductShareBuys').checked,
-                addShareSells: document.getElementById('dsAddShareSells').checked,
                 countShareTransfers: document.getElementById('dsCountShareTransfers').checked,
                 depositStatuses: stringToStatusesArray(document.getElementById('dsDepositStatuses').value),
                 repaymentStatuses: stringToStatusesArray(document.getElementById('dsRepaymentStatuses').value),
@@ -2267,7 +2373,6 @@
             document.getElementById('dsIncludeOtherIncome').checked = dashboardSettings.includeOtherIncome;
             document.getElementById('dsIncludePaidInterest').checked = dashboardSettings.includePaidInterest;
             document.getElementById('dsDeductShareBuys').checked = dashboardSettings.deductShareBuys;
-            document.getElementById('dsAddShareSells').checked = dashboardSettings.addShareSells;
             document.getElementById('dsCountShareTransfers').checked = dashboardSettings.countShareTransfers;
             document.getElementById('dsDepositStatuses').value = statusesArrayToString(dashboardSettings.depositStatuses);
             document.getElementById('dsRepaymentStatuses').value = statusesArrayToString(dashboardSettings.repaymentStatuses);
@@ -2287,49 +2392,8 @@
         }
 
         // ============================================================
-        // SESSION TIMEOUT
+        // INIT
         // ============================================================
-        (function() {
-            const SESSION_TIMEOUT = 5 * 60 * 1000;
-            const WARNING_TIMEOUT = SESSION_TIMEOUT - 30 * 1000;
-            let timer, warningTimer, warningToast, countdownInterval;
-            function resetTimer() {
-                clearTimeout(timer); clearTimeout(warningTimer); clearInterval(countdownInterval);
-                if (warningToast) { warningToast.remove(); warningToast = null; }
-                warningTimer = setTimeout(showWarning, WARNING_TIMEOUT);
-                timer = setTimeout(forceLogout, SESSION_TIMEOUT);
-            }
-            function showWarning() {
-                const t = translations[currentLang] || translations.en;
-                const message = t.sessionTimeout || 'Your session will expire in {seconds} seconds.';
-                let seconds = 30;
-                warningToast = document.createElement('div');
-                warningToast.style.cssText = `position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#f39c12;color:#fff;padding:16px 24px;border-radius:12px;font-size:15px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.2);z-index:99999;max-width:500px;text-align:center;display:flex;align-items:center;gap:12px;`;
-                warningToast.innerHTML = `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
-                document.body.appendChild(warningToast);
-                countdownInterval = setInterval(() => {
-                    seconds--;
-                    const textEl = document.getElementById('sessionWarningText');
-                    if (textEl) textEl.textContent = message.replace('{seconds}', seconds);
-                    if (seconds <= 0) clearInterval(countdownInterval);
-                }, 1000);
-            }
-            function forceLogout() {
-                clearInterval(countdownInterval);
-                if (warningToast) warningToast.remove();
-                if (auth) auth.signOut().then(() => window.location.href = '../index.html').catch(() => window.location.href = '../index.html');
-                else window.location.href = '../index.html';
-            }
-            const events = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
-            events.forEach(evt => document.addEventListener(evt, resetTimer));
-            resetTimer();
-            window.addEventListener('beforeunload', function() {
-                clearTimeout(timer); clearTimeout(warningTimer); clearInterval(countdownInterval);
-                if (warningToast) warningToast.remove();
-                events.forEach(evt => document.removeEventListener(evt, resetTimer));
-            });
-        })();
-
         document.addEventListener('DOMContentLoaded', async function() {
             auth.onAuthStateChanged(async (user) => {
                 if (!user) { window.location.href = '../index.html'; return; }
@@ -2355,7 +2419,9 @@
                 updateUserInfo();
                 initLanguage();
 
+                // Load dashboard + session timeout settings from settings/system
                 await loadDashboardSettings();
+                await loadSessionTimeoutFromSettings();
 
                 document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
                 document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
@@ -2382,7 +2448,7 @@
                 document.getElementById('dsSaveBtn').addEventListener('click', saveDashSettings);
                 document.getElementById('dsResetBtn').addEventListener('click', resetDashSettingsForm);
                 ['dsIncludeRegistrationFee', 'dsIncludeOtherIncome', 'dsIncludePaidInterest',
-                 'dsDeductShareBuys', 'dsAddShareSells', 'dsCountShareTransfers',
+                 'dsDeductShareBuys', 'dsCountShareTransfers',
                  'dsDepositStatuses', 'dsRepaymentStatuses', 'dsShareStatuses'
                 ].forEach(id => {
                     const el = document.getElementById(id);
@@ -2395,6 +2461,10 @@
                 window.testConnection = testConnection;
                 updateDateTime();
                 setInterval(updateDateTime, 60000);
+
+                // Start session timer with the loaded settings
+                startSessionTimer();
+
                 await loadAvailableYears();
                 await loadDashboardData();
             });
