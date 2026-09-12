@@ -585,7 +585,6 @@
                 <li><a href="repayments.html"><i class="fas fa-undo-alt"></i> <span data-i18n="navRepayments">Repayments</span></a></li>
                 <li><a href="withdrawals.html"><i class="fas fa-money-bill-wave"></i> <span data-i18n="navWithdrawals">Withdrawals</span></a></li>
                 <li><a href="dividends.html"><i class="fas fa-gift"></i> <span data-i18n="navDividends">Dividends</span></a></li>
-                <!-- ✅ NEW: SHARES LINK -->
                 <li><a href="share.html"><i class="fas fa-chart-pie"></i> <span data-i18n="navShares">Shares</span></a></li>
                 <li><a href="reports.html"><i class="fas fa-chart-bar"></i> <span data-i18n="navReports">Reports</span></a></li>
                 <li><a href="penalties.html"><i class="fas fa-exclamation-triangle" style="color:#e67e22;"></i> <span data-i18n="navPenalties">Penalties</span></a></li>
@@ -951,7 +950,7 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // ✅ BANKS & MOBILE MONEY PROVIDERS
+        // BANKS & MOBILE MONEY PROVIDERS
         // ============================================================
         const BANKS_LIST = [
             // Mobile Money
@@ -1081,7 +1080,7 @@
                 editDeposit: 'Edit Deposit', updateDeposit: 'Update Deposit',
                 cancel: 'Cancel', depositUpdated: 'Deposit updated successfully!',
                 customer: 'Customer', reloadCustomers: 'Reload Customers',
-                sessionTimeout: 'Your session will expire in {seconds} seconds.',
+                sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.',
                 approve: 'Approve', approved: 'Approved',
                 approvedBy: 'Approved By', approvedAt: 'Approved At',
                 recordNotFound: 'Record not found.',
@@ -1194,6 +1193,87 @@
         let filteredDeposits = [];
         let searchQuery = '';
         let filterYear = 'all';
+
+        // ============================================================
+        // SESSION TIMEOUT (loaded from settings/system — aligned with dashboard)
+        // ============================================================
+        let SESSION_TIMEOUT_MINUTES = 5;
+        let SESSION_TIMEOUT = SESSION_TIMEOUT_MINUTES * 60 * 1000;
+        let SESSION_WARNING_TIMEOUT = Math.max(SESSION_TIMEOUT - 30 * 1000, SESSION_TIMEOUT * 0.9);
+        let sessionTimer = null, sessionWarningTimer = null,
+            sessionWarningToast = null, sessionCountdownInterval = null;
+        let sessionTimerStarted = false;
+        const SESSION_EVENTS = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
+
+        function sessionResetTimer() {
+            if (sessionTimer) clearTimeout(sessionTimer);
+            if (sessionWarningTimer) clearTimeout(sessionWarningTimer);
+            if (sessionCountdownInterval) clearInterval(sessionCountdownInterval);
+            if (sessionWarningToast) { sessionWarningToast.remove(); sessionWarningToast = null; }
+            sessionWarningTimer = setTimeout(sessionShowWarning, SESSION_WARNING_TIMEOUT);
+            sessionTimer = setTimeout(sessionForceLogout, SESSION_TIMEOUT);
+        }
+
+        function sessionShowWarning() {
+            const t = translations[currentLang] || {};
+            const message = t.sessionTimeout || 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
+            let seconds = 30;
+            sessionWarningToast = document.createElement('div');
+            sessionWarningToast.style.cssText = `position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#f39c12;color:#fff;padding:16px 24px;border-radius:12px;font-size:15px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.2);z-index:99999;max-width:500px;text-align:center;display:flex;align-items:center;gap:12px;`;
+            sessionWarningToast.innerHTML = `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
+            document.body.appendChild(sessionWarningToast);
+            sessionCountdownInterval = setInterval(() => {
+                seconds--;
+                const textEl = document.getElementById('sessionWarningText');
+                if (textEl) textEl.textContent = message.replace('{seconds}', seconds);
+                if (seconds <= 0) clearInterval(sessionCountdownInterval);
+            }, 1000);
+        }
+
+        function sessionForceLogout() {
+            if (sessionCountdownInterval) clearInterval(sessionCountdownInterval);
+            if (sessionWarningToast) { sessionWarningToast.remove(); sessionWarningToast = null; }
+            if (auth) auth.signOut().then(() => window.location.href = '../login.html').catch(() => window.location.href = '../login.html');
+            else window.location.href = '../login.html';
+        }
+
+        function sessionHandleActivity() { sessionResetTimer(); }
+
+        function startSessionTimer() {
+            if (sessionTimerStarted) return;
+            sessionTimerStarted = true;
+            SESSION_EVENTS.forEach(evt => document.addEventListener(evt, sessionHandleActivity));
+            sessionResetTimer();
+        }
+
+        function applySessionSettings() {
+            SESSION_TIMEOUT = SESSION_TIMEOUT_MINUTES * 60 * 1000;
+            SESSION_WARNING_TIMEOUT = Math.max(SESSION_TIMEOUT - 30 * 1000, SESSION_TIMEOUT * 0.9);
+            if (sessionTimerStarted) sessionResetTimer();
+        }
+
+        async function loadSessionTimeoutFromSettings() {
+            try {
+                const doc = await db.collection('settings').doc('system').get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    let mins = 5;
+                    if (data.sessionTimeout !== undefined && data.sessionTimeout !== null) {
+                        mins = Number(data.sessionTimeout);
+                    } else if (data.sessionTimeoutMinutes !== undefined) {
+                        mins = Number(data.sessionTimeoutMinutes);
+                    } else if (data.sessionTimeoutSeconds !== undefined) {
+                        mins = Number(data.sessionTimeoutSeconds) / 60;
+                    }
+                    if (!isFinite(mins) || mins < 1) mins = 1;
+                    if (mins > 1440) mins = 1440;
+                    SESSION_TIMEOUT_MINUTES = Math.round(mins);
+                }
+            } catch (e) {
+                console.warn('Could not load session timeout — using default 5 min:', e.message);
+            }
+            applySessionSettings();
+        }
 
         function safeGet(id) { return document.getElementById(id); }
         function safeSetValue(id, value) { const el = safeGet(id); if (el) el.value = value; return el; }
@@ -2289,7 +2369,7 @@
                 safeAddEventListener('addPaymentMethod', 'change', toggleAddConditionalFields);
                 toggleAddConditionalFields();
 
-                // ✅ Bank dropdown change listeners for all 3 forms
+                // Bank dropdown change listeners for all 3 forms
                 safeAddEventListener('bankName', 'change', function() {
                     handleBankOtherToggle(this, document.getElementById('bankNameOther'), document.getElementById('bankOtherHint'));
                 });
@@ -2352,6 +2432,10 @@
                 });
                 safeAddEventListener('testConnectionBtn', 'click', testConnection);
 
+                // Load session timeout from settings/system (aligned with dashboard)
+                await loadSessionTimeoutFromSettings();
+                startSessionTimer();
+
                 window.editDeposit = editDeposit;
                 window.deleteDeposit = showDeleteModal;
                 window.viewDeposit = viewDeposit;
@@ -2375,48 +2459,6 @@
                 window.confirmDeleteDeposit = confirmDeleteDeposit;
             });
         });
-
-        (function() {
-            const SESSION_TIMEOUT = 5 * 60 * 1000;
-            const WARNING_TIMEOUT = SESSION_TIMEOUT - 30 * 1000;
-            let timer = null, warningTimer = null, warningToast = null, countdownInterval = null;
-            function resetTimer() {
-                clearTimeout(timer); clearTimeout(warningTimer); clearInterval(countdownInterval);
-                if (warningToast) { warningToast.remove(); warningToast = null; }
-                warningTimer = setTimeout(showWarning, WARNING_TIMEOUT);
-                timer = setTimeout(forceLogout, SESSION_TIMEOUT);
-            }
-            function showWarning() {
-                const t = translations[currentLang] || {};
-                const message = t.sessionTimeout || 'Your session will expire in {seconds} seconds.';
-                let seconds = 30;
-                warningToast = document.createElement('div');
-                warningToast.style.cssText = `position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#f39c12;color:#fff;padding:16px 24px;border-radius:12px;font-size:15px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.2);z-index:99999;max-width:500px;text-align:center;display:flex;align-items:center;gap:12px;`;
-                warningToast.innerHTML = `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
-                document.body.appendChild(warningToast);
-                countdownInterval = setInterval(() => {
-                    seconds--;
-                    const textEl = document.getElementById('sessionWarningText');
-                    if (textEl) textEl.textContent = message.replace('{seconds}', seconds);
-                    if (seconds <= 0) clearInterval(countdownInterval);
-                }, 1000);
-            }
-            function forceLogout() {
-                clearInterval(countdownInterval);
-                if (warningToast) warningToast.remove();
-                if (auth) auth.signOut().then(() => window.location.href = '../login.html').catch(() => window.location.href = '../login.html');
-                else window.location.href = '../login.html';
-            }
-            const events = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
-            function handleActivity() { resetTimer(); }
-            events.forEach(evt => document.addEventListener(evt, handleActivity));
-            resetTimer();
-            window.addEventListener('beforeunload', function() {
-                clearTimeout(timer); clearTimeout(warningTimer); clearInterval(countdownInterval);
-                if (warningToast) warningToast.remove();
-                events.forEach(evt => document.removeEventListener(evt, handleActivity));
-            });
-        })();
     </script>
 </body>
 </html>
