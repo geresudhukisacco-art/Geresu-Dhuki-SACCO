@@ -910,7 +910,7 @@
                         </div>
                     </div>
 
-                    <div class="stat-card balance">
+                    <div class="stat-card balance" title="Net Saving + Net Profit + Net Share Value">
                         <div class="stat-icon"><i class="fas fa-wallet"></i></div>
                         <div class="stat-info">
                             <span class="stat-label" data-i18n="statBalance">Total Balance (ETB)</span>
@@ -919,7 +919,7 @@
                         </div>
                     </div>
 
-                    <div class="stat-card totalbalanceall">
+                    <div class="stat-card totalbalanceall" title="Net Saving + Net Profit + Net Share Value (All Years)">
                         <div class="stat-icon"><i class="fas fa-database"></i></div>
                         <div class="stat-info">
                             <span class="stat-label" data-i18n="statTotalBalanceAll">Total Balance All Years (ETB)</span>
@@ -1014,7 +1014,6 @@
                     </div>
                 </div>
 
-                <!-- Income Components -->
                 <div class="ds-section">
                     <h4><i class="fas fa-list-check"></i> Income Components</h4>
 
@@ -1063,7 +1062,6 @@
                     </div>
                 </div>
 
-                <!-- Deposit filters -->
                 <div class="ds-section">
                     <h4><i class="fas fa-filter"></i> Deposit Income Filters</h4>
 
@@ -1089,7 +1087,6 @@
                     </div>
                 </div>
 
-                <!-- Loan filters -->
                 <div class="ds-section">
                     <h4><i class="fas fa-filter"></i> Loan Interest Filters</h4>
 
@@ -1113,7 +1110,6 @@
                     </div>
                 </div>
 
-                <!-- Penalty filters -->
                 <div class="ds-section">
                     <h4><i class="fas fa-filter"></i> Penalty Income Filters</h4>
                     <div class="ds-form-group">
@@ -1125,7 +1121,6 @@
                     </div>
                 </div>
 
-                <!-- Repayment filters -->
                 <div class="ds-section">
                     <h4><i class="fas fa-filter"></i> Repayment Filters</h4>
                     <div class="ds-form-group">
@@ -1139,7 +1134,6 @@
                     </div>
                 </div>
 
-                <!-- Net Saving & Shares -->
                 <div class="ds-section">
                     <h4><i class="fas fa-piggy-bank"></i> Net Saving & Shares</h4>
 
@@ -1185,7 +1179,6 @@
                     </div>
                 </div>
 
-                <!-- Live preview -->
                 <div class="ds-summary-box" id="dsSummaryBox">
                     <div class="ds-summary-title"><i class="fas fa-eye"></i> Live Preview</div>
                     <div class="ds-summary-line"><span>Deposit statuses:</span> <strong id="dsPreviewDepositStatuses">—</strong></div>
@@ -1588,7 +1581,7 @@
             else sidebar.classList.remove('collapsed');
         }
 
-        // ★ Role-based visibility: Performance Overview → admin/manager only
+        // Role-based visibility: Performance Overview → admin/manager only
         function applyRoleVisibility() {
             const canSeeStats = ['admin', 'manager'].includes(currentUserRole);
             const perfSection = document.getElementById('performanceOverview');
@@ -1836,7 +1829,9 @@
                 allServiceWithdrawals = serviceWithdrawalSnap.docs.map(d => ({ id: d.id, ...d.data() }));
                 allShares = sharesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-                // SHARES: net count & value + bought/sold amounts
+                // ============================================================
+                // SHARES: net count & value
+                // ============================================================
                 let totalSharesNet = 0;
                 let netShareValue = 0;
 
@@ -1856,7 +1851,9 @@
                 totalSharesNet = Math.max(0, Math.round(totalSharesNet * 10000) / 10000);
                 netShareValue = Math.max(0, Math.round(netShareValue * 100) / 100);
 
+                // ============================================================
                 // PENALTIES: paid total
+                // ============================================================
                 const paidPenaltiesAllYears = allPenalties.filter(p =>
                     dashboardSettings.penaltyStatuses.includes(p.status)
                 );
@@ -1864,7 +1861,7 @@
                 const paidPenaltiesAmount = paidPenaltiesAllYears
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-                // INCOME (all years)
+                // ---- INCOME (all years) ----
                 let totalPenaltyIncomeAllYears = 0;
                 if (dashboardSettings.includePenaltyIncome) {
                     totalPenaltyIncomeAllYears = paidPenaltiesAmount;
@@ -1907,11 +1904,10 @@
                      totalInterestIncomeAllYears - totalServiceWithdrawalsAllYears) * 100
                 ) / 100;
 
-                // YEARLY DATA
+                // ---- YEARLY DATA ----
                 const savingsData = allSavings.filter(s => isInYear(s.date || s.timestamp, year) && s.status === 'approved');
                 const loansData = allLoans.filter(l => isInYear(l.date || l.timestamp, year));
 
-                // REPAYMENTS — includes printed
                 const repaymentsData = allRepayments.filter(r =>
                     isInYear(r.date || r.timestamp, year) &&
                     dashboardSettings.repaymentStatuses.includes(r.status)
@@ -1926,7 +1922,7 @@
                 const leavingWithdrawalsData = allLeavingWithdrawals.filter(w => isInYear(w.date || w.timestamp, year) &&
                     (w.status === 'approved' || w.status === 'completed'));
 
-                // SHARES for current year
+                // Shares for current year
                 let yearlySharesBought = 0;
                 let yearlySharesSold = 0;
                 allShares.forEach(s => {
@@ -1946,7 +1942,7 @@
                     (l.status === 'active' || l.status === 'paid' || l.status === 'approved')
                 );
 
-                // YEARLY INCOME
+                // ---- YEARLY INCOME ----
                 let yearlyPenaltyIncome = 0;
                 if (dashboardSettings.includePenaltyIncome) {
                     yearlyPenaltyIncome = penaltiesData
@@ -1998,7 +1994,7 @@
                 const totalWithdrawalsYearly = withdrawalsData.reduce((s, w) => s + (Number(w.amount) || 0), 0);
                 const totalLeavingWithdrawalsYearly = leavingWithdrawalsData.reduce((s, w) => s + (Number(w.amount) || 0), 0);
 
-                // NET SAVING — with shares impact
+                // ---- NET SAVING — with shares impact ----
                 let netSavingYearly = totalSavings - totalWithdrawalsYearly - totalLeavingWithdrawalsYearly;
                 if (dashboardSettings.deductShareBuys) netSavingYearly -= yearlySharesBought;
                 if (dashboardSettings.addShareSells) netSavingYearly += yearlySharesSold;
@@ -2008,8 +2004,45 @@
                     .filter(s => s.status === 'approved')
                     .reduce((s, item) => s + (Number(item.amount) || 0), 0);
 
-                const totalBalanceYearly = Math.round((totalSavings + totalIncomeYearly) * 100) / 100;
-                const totalBalanceAllYears = Math.round((totalSavingsAllYears + totalIncomeAllYears) * 100) / 100;
+                // ============================================================
+                // ✅ TOTAL BALANCE = Net Saving + Net Profit + Net Share Value
+                // ============================================================
+                const totalBalanceYearly = Math.round(
+                    (netSavingYearly + totalIncomeYearly + netShareValue) * 100
+                ) / 100;
+
+                // ---- All-years net saving ----
+                let netSavingAllYears = totalSavingsAllYears;
+
+                const totalWithdrawalsAllYears = allWithdrawals
+                    .filter(w => w.status === 'approved' || w.status === 'completed')
+                    .reduce((s, w) => s + (Number(w.amount) || 0), 0);
+
+                const totalLeavingWithdrawalsAllYears = allLeavingWithdrawals
+                    .filter(w => w.status === 'approved' || w.status === 'completed')
+                    .reduce((s, w) => s + (Number(w.amount) || 0), 0);
+
+                let sharesBoughtAllYears = 0;
+                let sharesSoldAllYears = 0;
+                allShares.forEach(s => {
+                    if (!dashboardSettings.shareStatuses.includes(s.status)) return;
+                    const amt = Number(s.amount) || 0;
+                    const ty = String(s.type || '').toLowerCase();
+                    if (ty === 'share_buy' || (dashboardSettings.countShareTransfers && ty === 'share_transfer_in')) {
+                        sharesBoughtAllYears += amt;
+                    } else if (ty === 'share_sell' || (dashboardSettings.countShareTransfers && ty === 'share_transfer_out')) {
+                        sharesSoldAllYears += amt;
+                    }
+                });
+
+                if (dashboardSettings.deductShareBuys) netSavingAllYears -= sharesBoughtAllYears;
+                if (dashboardSettings.addShareSells) netSavingAllYears += sharesSoldAllYears;
+                netSavingAllYears -= totalWithdrawalsAllYears + totalLeavingWithdrawalsAllYears;
+                netSavingAllYears = Math.round(netSavingAllYears * 100) / 100;
+
+                const totalBalanceAllYears = Math.round(
+                    (netSavingAllYears + totalIncomeAllYears + netShareValue) * 100
+                ) / 100;
 
                 const totalLoans = loansData.filter(l => l.status === 'active' || l.status === 'paid')
                     .reduce((s, l) => s + (Number(l.amount) || 0), 0);
@@ -2062,7 +2095,7 @@
                 const prevRepayments = getMonthlyTotal(allRepayments.map(r => ({ ...r, date: r.date || r.timestamp })), 'amount', prevYear, currentMonth);
                 updateChange('repaymentsChange', prevRepayments > 0 ? ((curRepayments - prevRepayments) / prevRepayments * 100) : 0);
 
-                // Previous year comparisons
+                // Previous year comparison
                 const prevYearPenalties = allPenalties
                     .filter(p => isInYear(p.date || p.timestamp, prevYear) && dashboardSettings.penaltyStatuses.includes(p.status))
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
@@ -2094,7 +2127,7 @@
                 const profitChange = prevTotalIncome > 0 ? ((totalIncomeYearly - prevTotalIncome) / prevTotalIncome * 100) : 0;
                 updateChange('profitChange', profitChange);
 
-                const curBalance = curSavings + totalIncomeYearly;
+                const curBalance = netSavingYearly + totalIncomeYearly + netShareValue;
                 const prevBalance = prevSavings + prevTotalIncome;
                 updateChange('balanceChange', prevBalance !== 0 ? ((curBalance - prevBalance) / prevBalance * 100) : 0);
 
@@ -2110,11 +2143,10 @@
                 updateCharts(months, loansMonthly, repaymentsMonthly, savingsMonthly);
 
                 // ============================================================
-                // NOTIFICATIONS — UP TO 10 LINES, BIG POOL
+                // NOTIFICATIONS — up to 10 lines
                 // ============================================================
                 const activities = [];
 
-                // 1) Savings (up to 5)
                 savingsData.slice().sort((a, b) => (toDate(b.date || b.timestamp) || 0) - (toDate(a.date || a.timestamp) || 0))
                     .slice(0, 5).forEach(s => {
                         activities.push({
@@ -2123,7 +2155,6 @@
                         });
                     });
 
-                // 2) Loans (up to 5)
                 loansData.filter(l => l.status === 'active' || l.status === 'paid')
                     .slice().sort((a, b) => (toDate(b.date || b.timestamp) || 0) - (toDate(a.date || a.timestamp) || 0))
                     .slice(0, 5).forEach(l => {
@@ -2134,7 +2165,6 @@
                         });
                     });
 
-                // 3) Repayments (up to 5)
                 repaymentsData.slice()
                     .sort((a, b) => (toDate(b.date || b.timestamp) || 0) - (toDate(a.date || a.timestamp) || 0))
                     .slice(0, 5).forEach(r => {
@@ -2144,7 +2174,6 @@
                         });
                     });
 
-                // 4) Shares (up to 5)
                 allShares.filter(s => dashboardSettings.shareStatuses.includes(s.status))
                     .slice().sort((a, b) => (toDate(b.date || b.timestamp) || 0) - (toDate(a.date || a.timestamp) || 0))
                     .slice(0, 5).forEach(s => {
@@ -2158,7 +2187,6 @@
                         });
                     });
 
-                // 5) Paid penalties (up to 5)
                 paidPenaltiesAllYears.slice()
                     .sort((a, b) => (toDate(b.paidAt || b.createdAt || b.timestamp) || 0) - (toDate(a.paidAt || a.createdAt || a.timestamp) || 0))
                     .slice(0, 5).forEach(p => {
@@ -2169,7 +2197,6 @@
                         });
                     });
 
-                // 6) Deposit / profit income (up to 5)
                 profitIncomeData.filter(p => dashboardSettings.depositStatuses.includes(p.status))
                     .filter(p => {
                         if (!dashboardSettings.excludeOtherDeposits) return true;
@@ -2185,7 +2212,6 @@
                         });
                     });
 
-                // 7) Dividends (up to 5)
                 dividendEntries.slice()
                     .sort((a, b) => (toDate(b.date || b.timestamp) || 0) - (toDate(a.date || a.timestamp) || 0))
                     .slice(0, 5).forEach(w => {
@@ -2195,7 +2221,6 @@
                         });
                     });
 
-                // 8) Withdrawals (up to 5)
                 withdrawalsData.slice()
                     .sort((a, b) => (toDate(b.date || b.timestamp) || 0) - (toDate(a.date || a.timestamp) || 0))
                     .slice(0, 5).forEach(w => {
@@ -2205,7 +2230,6 @@
                         });
                     });
 
-                // Sort newest first → keep up to 10
                 activities.sort((a, b) => {
                     const da = toDate(a.date);
                     const db2 = toDate(b.date);
@@ -2253,7 +2277,7 @@
         }
 
         // ============================================================
-        // DASHBOARD SETTINGS MODAL LOGIC
+        // DASHBOARD SETTINGS MODAL
         // ============================================================
         function statusesArrayToString(arr) {
             return Array.isArray(arr) ? arr.join(', ') : '';
