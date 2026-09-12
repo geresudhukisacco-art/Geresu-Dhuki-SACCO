@@ -13,170 +13,87 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
     <style>
-        /* ============================================================
-           ROOT VARIABLES (Matches Dashboard)
-           ============================================================ */
         :root {
-            --primary: #1a6e3a;
-            --primary-dark: #0f4f28;
-            --primary-light: #2e8b4a;
-            --gold: #d4a845;
-            --gold-light: #f0d68a;
-            --gold-dark: #b8922f;
-            --bg-primary: #f5f7f6;
-            --bg-card: #ffffff;
-            --bg-sidebar: #1a6e3a;
-            --text-primary: #1a2e1f;
-            --text-secondary: #6c7d70;
-            --text-muted: #8a9e92;
+            --primary: #1a6e3a; --primary-dark: #0f4f28; --primary-light: #2e8b4a;
+            --gold: #d4a845; --gold-light: #f0d68a; --gold-dark: #b8922f;
+            --bg-primary: #f5f7f6; --bg-card: #ffffff; --bg-sidebar: #1a6e3a;
+            --text-primary: #1a2e1f; --text-secondary: #6c7d70; --text-muted: #8a9e92;
             --border-color: #e8ede9;
             --shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
             --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
             --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.1);
             --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.3);
-            --radius: 16px;
-            --radius-sm: 10px;
-            --success: #2d7a3d;
-            --danger: #e74c3c;
-            --warning: #f39c12;
-            --info: #2196f3;
-            --input-bg: #ffffff;
-            --input-border: #d0d7d2;
-            --input-focus: rgba(45, 122, 61, 0.1);
+            --radius: 16px; --radius-sm: 10px;
+            --success: #2d7a3d; --danger: #e74c3c; --warning: #f39c12; --info: #2196f3;
+            --input-bg: #ffffff; --input-border: #d0d7d2; --input-focus: rgba(45, 122, 61, 0.1);
             --transition: 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-            --sidebar-width: 260px;
-            --sidebar-collapsed-width: 72px;
+            --sidebar-width: 260px; --sidebar-collapsed-width: 72px;
         }
-
         [data-theme="dark"] {
-            --bg-primary: #1a1a2e;
-            --bg-card: #16213e;
-            --bg-sidebar: #0f4f28;
-            --text-primary: #e8f0ea;
-            --text-secondary: #a0aec0;
-            --text-muted: #6b7d82;
+            --bg-primary: #1a1a2e; --bg-card: #16213e; --bg-sidebar: #0f4f28;
+            --text-primary: #e8f0ea; --text-secondary: #a0aec0; --text-muted: #6b7d82;
             --border-color: #2d3748;
-            --shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
-            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
-            --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.4);
-            --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.5);
-            --input-bg: #2d3748;
-            --input-border: #4a5568;
-            --input-focus: rgba(45, 122, 61, 0.2);
+            --shadow: 0 2px 12px rgba(0, 0, 0, 0.3); --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+            --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.4); --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.5);
+            --input-bg: #2d3748; --input-border: #4a5568; --input-focus: rgba(45, 122, 61, 0.2);
         }
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            display: flex;
-            min-height: 100vh;
-            transition: background 0.3s, color 0.3s;
+            font-family: 'Inter', sans-serif; background: var(--bg-primary); color: var(--text-primary);
+            display: flex; min-height: 100vh; transition: background 0.3s, color 0.3s;
         }
-
         .loading-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.7);
-            z-index: 9999;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            gap: 16px;
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.7); z-index: 9999;
+            align-items: center; justify-content: center; flex-direction: column; gap: 16px;
         }
         .loading-overlay.active { display: flex; }
         .loading-overlay .spinner {
-            width: 48px;
-            height: 48px;
-            border: 4px solid var(--border-color);
-            border-top-color: var(--primary);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
+            width: 48px; height: 48px; border: 4px solid var(--border-color);
+            border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         .loading-overlay p { color: var(--text-secondary); font-weight: 500; }
 
         .sidebar {
-            width: var(--sidebar-width);
-            background: var(--bg-sidebar);
-            color: #e8f0ea;
-            height: 100vh;
-            position: fixed;
-            top: 0;
-            left: 0;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
+            width: var(--sidebar-width); background: var(--bg-sidebar); color: #e8f0ea;
+            height: 100vh; position: fixed; top: 0; left: 0; z-index: 1000;
+            display: flex; flex-direction: column;
             transition: width 0.3s ease, transform 0.3s ease;
-            box-shadow: 2px 0 16px rgba(0, 0, 0, 0.15);
-            overflow: hidden;
+            box-shadow: 2px 0 16px rgba(0, 0, 0, 0.15); overflow: hidden;
         }
-        .sidebar.collapsed {
-            width: var(--sidebar-collapsed-width);
-        }
-        .sidebar.collapsed .brand-text,
-        .sidebar.collapsed .sidebar-nav li a span,
-        .sidebar.collapsed .logout-btn span,
-        .sidebar.collapsed .sidebar-brand .brand-sub { display: none; }
+        .sidebar.collapsed { width: var(--sidebar-collapsed-width); }
+        .sidebar.collapsed .brand-text, .sidebar.collapsed .sidebar-nav li a span,
+        .sidebar.collapsed .logout-btn span, .sidebar.collapsed .sidebar-brand .brand-sub { display: none; }
         .sidebar.collapsed .sidebar-brand { padding: 16px 8px; }
         .sidebar.collapsed .brand-icon { width: 48px; height: 48px; }
         .sidebar.collapsed .sidebar-nav li a { justify-content: center; padding: 12px 0; }
         .sidebar.collapsed .sidebar-nav li a i { font-size: 20px; width: auto; }
         .sidebar.collapsed .logout-btn { justify-content: center; padding: 10px 0; }
         .sidebar.collapsed .logout-btn i { font-size: 20px; }
-
         .sidebar::-webkit-scrollbar { width: 4px; }
         .sidebar::-webkit-scrollbar-thumb { background: var(--gold-light); border-radius: 4px; }
 
         .sidebar-brand {
-            padding: 20px 20px 16px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-            text-align: center;
-            transition: padding 0.3s ease;
-            position: relative;
+            padding: 20px 20px 16px; display: flex; flex-direction: column;
+            align-items: center; gap: 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+            text-align: center; transition: padding 0.3s ease; position: relative;
         }
         .sidebar-toggle-btn {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: rgba(255, 255, 255, 0.15);
-            border: none;
-            border-radius: 50%;
-            width: 32px;
-            height: 32px;
-            color: #fff;
-            font-size: 14px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            position: absolute; top: 12px; right: 12px;
+            background: rgba(255, 255, 255, 0.15); border: none; border-radius: 50%;
+            width: 32px; height: 32px; color: #fff; font-size: 14px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
             transition: background 0.2s, transform 0.3s ease;
         }
         .sidebar-toggle-btn:hover { background: rgba(255, 255, 255, 0.25); }
         .sidebar.collapsed .sidebar-toggle-btn { transform: rotate(180deg); top: 8px; right: 6px; }
 
         .brand-icon {
-            width: 72px;
-            height: 72px;
-            border-radius: 50%;
-            overflow: hidden;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255, 255, 255, 0.12);
-            border: 2px solid var(--gold-light);
-            padding: 4px;
-            transition: width 0.3s ease, height 0.3s ease;
+            width: 72px; height: 72px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(255, 255, 255, 0.12); border: 2px solid var(--gold-light);
+            padding: 4px; transition: width 0.3s ease, height 0.3s ease;
         }
         .brand-logo-img { width: 100%; height: 100%; object-fit: contain; display: block; }
         .brand-text .brand-name {
@@ -184,14 +101,9 @@
             color: #ffffff; letter-spacing: 0.5px; transition: font-size 0.3s ease;
         }
         .brand-text .brand-name span { color: var(--gold-light); }
-        .brand-text .brand-sub {
-            font-size: 11px; opacity: 0.8; font-weight: 400; letter-spacing: 0.5px;
-            color: rgba(255, 255, 255, 0.85);
-        }
+        .brand-text .brand-sub { font-size: 11px; opacity: 0.8; font-weight: 400; letter-spacing: 0.5px; color: rgba(255, 255, 255, 0.85); }
 
-        .sidebar-nav {
-            flex: 1; padding: 16px 12px; overflow-y: auto; overflow-x: hidden;
-        }
+        .sidebar-nav { flex: 1; padding: 16px 12px; overflow-y: auto; overflow-x: hidden; }
         .sidebar-nav ul { list-style: none; padding: 0; margin: 0; }
         .sidebar-nav li { margin-bottom: 2px; }
         .sidebar-nav li a {
@@ -199,19 +111,13 @@
             border-radius: 10px; color: rgba(255, 255, 255, 0.9); text-decoration: none;
             font-weight: 500; font-size: 14px; transition: 0.2s; white-space: nowrap; overflow: hidden;
         }
-        .sidebar-nav li a i {
-            width: 22px; text-align: center; font-size: 17px; color: rgba(255, 255, 255, 0.75);
-            flex-shrink: 0; transition: color 0.2s;
-        }
+        .sidebar-nav li a i { width: 22px; text-align: center; font-size: 17px; color: rgba(255, 255, 255, 0.75); flex-shrink: 0; transition: color 0.2s; }
         .sidebar-nav li a:hover { background: rgba(255, 255, 255, 0.12); color: #ffffff; }
         .sidebar-nav li a:hover i { color: var(--gold-light); }
         .sidebar-nav li.active a { background: rgba(212, 168, 69, 0.25); color: var(--gold-light); }
         .sidebar-nav li.active a i { color: var(--gold-light); }
 
-        .sidebar-footer {
-            padding: 16px 20px 20px; border-top: 1px solid rgba(255, 255, 255, 0.12);
-            transition: padding 0.3s ease;
-        }
+        .sidebar-footer { padding: 16px 20px 20px; border-top: 1px solid rgba(255, 255, 255, 0.12); transition: padding 0.3s ease; }
         .logout-btn {
             width: 100%; padding: 10px; background: rgba(255, 255, 255, 0.08);
             border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 10px;
@@ -222,10 +128,7 @@
         .logout-btn i { color: rgba(255, 255, 255, 0.7); flex-shrink: 0; }
         .logout-btn:hover { background: rgba(231, 76, 60, 0.25); border-color: var(--danger); color: #ff6b6b; }
 
-        .sidebar-overlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.4); z-index: 999;
-        }
+        .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); z-index: 999; }
         .sidebar-overlay.active { display: block; }
 
         .main-content {
@@ -241,21 +144,10 @@
             box-shadow: var(--shadow); transition: background 0.3s, border-color 0.3s;
         }
         .header-left { display: flex; align-items: center; gap: 16px; }
-        .menu-toggle {
-            background: none; border: none; font-size: 22px; color: var(--text-primary);
-            cursor: pointer; display: none; transition: color 0.3s;
-        }
-        .page-title h1 {
-            font-size: 20px; font-weight: 700; color: var(--text-primary); margin: 0;
-            transition: color 0.3s;
-        }
-        .breadcrumb {
-            font-size: 13px; color: var(--text-secondary); margin-left: 8px;
-            transition: color 0.3s;
-        }
-        .header-right {
-            display: flex; align-items: center; gap: 16px;
-        }
+        .menu-toggle { background: none; border: none; font-size: 22px; color: var(--text-primary); cursor: pointer; display: none; }
+        .page-title h1 { font-size: 20px; font-weight: 700; color: var(--text-primary); margin: 0; }
+        .breadcrumb { font-size: 13px; color: var(--text-secondary); margin-left: 8px; }
+        .header-right { display: flex; align-items: center; gap: 16px; }
         .lang-switcher { display: flex; gap: 4px; }
         .lang-btn {
             background: transparent; border: 1px solid var(--input-border); border-radius: 6px;
@@ -272,54 +164,30 @@
         }
         .test-conn-btn:hover { background: var(--border-color); color: var(--text-primary); }
         .user-profile { display: flex; align-items: center; gap: 10px; }
-        .user-profile img {
-            width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
-            border: 2px solid var(--primary); background: #f5f7f6;
-        }
-        .user-name {
-            font-weight: 600; font-size: 14px; color: var(--text-primary);
-            transition: color 0.3s;
-        }
+        .user-profile img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); background: #f5f7f6; }
+        .user-name { font-weight: 600; font-size: 14px; color: var(--text-primary); }
 
         .dashboard-content { padding: 24px 30px 30px; flex: 1; }
-        .page-header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 24px; flex-wrap: wrap; gap: 16px;
-        }
-        .page-header-left h2 {
-            font-size: 22px; font-weight: 700; color: var(--text-primary);
-            margin-bottom: 4px; transition: color 0.3s;
-        }
-        .page-header-left p {
-            color: var(--text-secondary); font-size: 14px; transition: color 0.3s;
-        }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+        .page-header-left h2 { font-size: 22px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+        .page-header-left p { color: var(--text-secondary); font-size: 14px; }
 
         .btn-primary {
             background: var(--primary); color: #fff; border: none; padding: 10px 20px;
             border-radius: var(--radius); font-size: 14px; font-weight: 600;
-            display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
-            transition: all 0.2s;
+            display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s;
         }
         .btn-primary:hover { background: #1f5e2c; transform: scale(1.02); }
         .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
-        .btn-secondary {
-            background: var(--border-color); color: var(--text-primary); border: none;
-            padding: 10px 20px; border-radius: var(--radius); font-size: 14px; font-weight: 600;
-            cursor: pointer; transition: 0.2s;
-        }
+        .btn-secondary { background: var(--border-color); color: var(--text-primary); border: none; padding: 10px 20px; border-radius: var(--radius); font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .btn-secondary:hover { background: #d0d7d2; }
         .btn-success {
             background: #28a745; color: #fff; border: none; padding: 10px 20px;
             border-radius: var(--radius); font-size: 14px; font-weight: 600;
-            display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
-            transition: 0.2s;
+            display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: 0.2s;
         }
         .btn-success:hover { background: #218838; }
-        .btn-danger {
-            background: var(--danger); color: #fff; border: none; padding: 10px 20px;
-            border-radius: var(--radius); font-size: 14px; font-weight: 600; cursor: pointer;
-            transition: 0.2s;
-        }
+        .btn-danger { background: var(--danger); color: #fff; border: none; padding: 10px 20px; border-radius: var(--radius); font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .btn-danger:hover { background: #c0392b; }
         .btn-sm { padding: 6px 14px; font-size: 13px; }
 
@@ -327,24 +195,15 @@
             display: flex; align-items: center; gap: 10px;
             background: var(--bg-card); padding: 10px 16px; border-radius: var(--radius);
             border: 1px solid var(--border-color); margin-bottom: 20px; flex-wrap: wrap;
-            transition: background 0.3s, border-color 0.3s;
         }
-        .year-selector-wrapper label {
-            font-weight: 600; font-size: 12px; color: var(--text-primary);
-            transition: color 0.3s;
-        }
+        .year-selector-wrapper label { font-weight: 600; font-size: 12px; color: var(--text-primary); }
         .year-selector-wrapper select {
             padding: 6px 12px; border: 1px solid var(--input-border); border-radius: var(--radius-sm);
             font-size: 12px; font-weight: 600; background: var(--input-bg); color: var(--text-primary);
             cursor: pointer; transition: all 0.2s; min-width: 100px;
         }
-        .year-selector-wrapper select:focus {
-            outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--input-focus);
-        }
-        .year-status {
-            font-size: 11px; color: var(--text-secondary); margin-left: auto;
-            transition: color 0.3s; display: flex; align-items: center; gap: 8px;
-        }
+        .year-selector-wrapper select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--input-focus); }
+        .year-status { font-size: 11px; color: var(--text-secondary); margin-left: auto; display: flex; align-items: center; gap: 8px; }
         .year-status .closed { color: var(--danger); font-weight: 600; }
         .year-status .open { color: var(--success); font-weight: 600; }
 
@@ -357,14 +216,8 @@
             border: 1px solid var(--border-color); box-shadow: var(--shadow); transition: all 0.2s;
         }
         .summary-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
-        .summary-card .label {
-            font-size: 12px; color: var(--text-secondary); font-weight: 500; display: block;
-            transition: color 0.3s;
-        }
-        .summary-card .value {
-            font-size: 22px; font-weight: 700; color: var(--text-primary); margin-top: 4px;
-            transition: color 0.3s;
-        }
+        .summary-card .label { font-size: 12px; color: var(--text-secondary); font-weight: 500; display: block; }
+        .summary-card .value { font-size: 22px; font-weight: 700; color: var(--text-primary); margin-top: 4px; }
         .summary-card .value.green { color: var(--success); }
         .summary-card .value.orange { color: var(--warning); }
         .summary-card .value.purple { color: #9c27b0; }
@@ -374,47 +227,30 @@
         .preview-section {
             background: var(--bg-card); border-radius: var(--radius);
             border: 1px solid var(--border-color); padding: 18px 22px; margin-bottom: 24px;
-            box-shadow: var(--shadow); transition: background 0.3s, border-color 0.3s;
+            box-shadow: var(--shadow);
         }
-        .preview-section h3 {
-            font-size: 16px; font-weight: 600; margin-bottom: 14px; color: var(--text-primary);
-            display: flex; align-items: center; gap: 10px; transition: color 0.3s;
-        }
+        .preview-section h3 { font-size: 16px; font-weight: 600; margin-bottom: 14px; color: var(--text-primary); display: flex; align-items: center; gap: 10px; }
         .preview-section h3 i { color: var(--primary); }
-        .preview-section .total-profit-display {
-            font-size: 20px; font-weight: 700; color: var(--success); margin-bottom: 12px;
-        }
+        .preview-section .total-profit-display { font-size: 20px; font-weight: 700; color: var(--success); margin-bottom: 12px; }
         .preview-section .total-profit-display .amount { color: var(--primary); }
-        .preview-table-wrapper {
-            overflow-x: auto; max-height: 400px; overflow-y: auto;
-        }
-        .preview-table-wrapper table {
-            width: 100%; border-collapse: collapse; font-size: 13px;
-        }
+        .preview-table-wrapper { overflow-x: auto; max-height: 400px; overflow-y: auto; }
+        .preview-table-wrapper table { width: 100%; border-collapse: collapse; font-size: 13px; }
         .preview-table-wrapper thead th {
             background: var(--bg-primary); padding: 8px 12px; text-align: left;
             font-weight: 600; color: var(--text-primary); border-bottom: 2px solid var(--border-color);
             font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px;
-            position: sticky; top: 0; z-index: 2; transition: all 0.3s;
+            position: sticky; top: 0; z-index: 2;
         }
-        .preview-table-wrapper tbody td {
-            padding: 8px 12px; border-bottom: 1px solid var(--border-color);
-            color: var(--text-primary); transition: all 0.3s;
-        }
+        .preview-table-wrapper tbody td { padding: 8px 12px; border-bottom: 1px solid var(--border-color); color: var(--text-primary); }
         .preview-table-wrapper tbody tr:hover { background: var(--bg-primary); }
         .preview-table-wrapper tbody tr:last-child td { border-bottom: none; }
-        .preview-table-wrapper .total-row td {
-            font-weight: 700; background: var(--bg-primary); border-top: 2px solid var(--border-color);
-        }
-        .preview-actions {
-            display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap;
-        }
+        .preview-table-wrapper .total-row td { font-weight: 700; background: var(--bg-primary); border-top: 2px solid var(--border-color); }
+        .preview-actions { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
 
         .info-message {
             background: var(--primary-light); border-radius: var(--radius-sm);
             padding: 12px 16px; color: var(--text-primary); border-left: 4px solid var(--primary);
             margin-bottom: 12px; display: flex; align-items: center; gap: 10px;
-            transition: all 0.3s;
         }
         .info-message i { color: var(--primary); font-size: 18px; }
         .info-message.warning { border-left-color: var(--warning); background: #fff8e1; }
@@ -427,30 +263,23 @@
         .table-container {
             background: var(--bg-card); border-radius: var(--radius);
             border: 1px solid var(--border-color); overflow: hidden; box-shadow: var(--shadow);
-            transition: background 0.3s, border-color 0.3s;
         }
         .table-header {
             padding: 14px 18px; border-bottom: 1px solid var(--border-color);
             font-size: 14px; color: var(--text-primary); background: var(--bg-primary);
             display: flex; justify-content: space-between; align-items: center;
-            flex-wrap: wrap; gap: 8px; transition: all 0.3s;
+            flex-wrap: wrap; gap: 8px;
         }
         .table-header strong { color: var(--primary); }
         .table-wrapper { overflow-x: auto; }
-        table {
-            width: 100%; border-collapse: collapse; font-size: 14px;
-        }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
         thead { background: var(--bg-primary); }
         thead th {
             padding: 10px 14px; text-align: left; font-weight: 600; color: var(--text-primary);
             border-bottom: 2px solid var(--border-color); white-space: nowrap;
             font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px;
-            transition: all 0.3s;
         }
-        tbody td {
-            padding: 10px 14px; border-bottom: 1px solid var(--border-color);
-            color: var(--text-primary); vertical-align: middle; transition: all 0.3s;
-        }
+        tbody td { padding: 10px 14px; border-bottom: 1px solid var(--border-color); color: var(--text-primary); vertical-align: middle; }
         tbody tr:hover { background: var(--bg-primary); }
         tbody tr:last-child td { border-bottom: none; }
 
@@ -465,35 +294,22 @@
         .action-btn.delete-btn { background: var(--danger); color: #fff; }
         .action-btn.delete-btn:hover { background: #c0392b; transform: translateY(-1px); }
 
-        .status-badge {
-            padding: 3px 12px; border-radius: 20px; font-size: 11px; font-weight: 600;
-            display: inline-block;
-        }
+        .status-badge { padding: 3px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; }
         .status-badge.distributed { background: #d4edda; color: #155724; }
         .status-badge.pending { background: #fff3cd; color: #856404; }
         .status-badge.failed { background: #f8d7da; color: #721c24; }
 
-        .empty-state {
-            text-align: center; padding: 40px 20px; color: var(--text-secondary);
-            transition: color 0.3s;
-        }
-        .empty-state i {
-            font-size: 40px; color: var(--text-muted); margin-bottom: 12px; display: block;
-            transition: color 0.3s;
-        }
+        .empty-state { text-align: center; padding: 40px 20px; color: var(--text-secondary); }
+        .empty-state i { font-size: 40px; color: var(--text-muted); margin-bottom: 12px; display: block; }
 
         .pagination-container {
             display: flex; justify-content: space-between; align-items: center;
             padding: 12px 18px; background: var(--bg-primary); border-top: 1px solid var(--border-color);
-            flex-wrap: wrap; gap: 10px; transition: all 0.3s;
+            flex-wrap: wrap; gap: 10px;
         }
-        .pagination-info {
-            font-size: 13px; color: var(--text-secondary); transition: color 0.3s;
-        }
+        .pagination-info { font-size: 13px; color: var(--text-secondary); }
         .pagination-info strong { color: var(--text-primary); }
-        .pagination-buttons {
-            display: flex; gap: 4px; align-items: center; flex-wrap: wrap;
-        }
+        .pagination-buttons { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
         .pagination-btn {
             padding: 5px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm);
             background: var(--bg-card); cursor: pointer; font-size: 13px; font-weight: 500;
@@ -512,40 +328,25 @@
         .modal-content {
             background: var(--bg-card); border-radius: 16px; max-width: 700px; width: 100%;
             max-height: 90vh; overflow-y: auto; padding: 24px; box-shadow: var(--shadow-modal);
-            transition: background 0.3s;
         }
         .modal-content .modal-header {
             display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 20px; border-bottom: 1px solid var(--border-color);
-            padding-bottom: 12px;
+            margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;
         }
-        .modal-content .modal-header h3 {
-            font-size: 20px; font-weight: 700; color: var(--text-primary);
-        }
-        .modal-content .modal-close {
-            background: none; border: none; font-size: 28px; cursor: pointer;
-            color: var(--text-secondary); line-height: 1;
-        }
+        .modal-content .modal-header h3 { font-size: 20px; font-weight: 700; color: var(--text-primary); }
+        .modal-content .modal-close { background: none; border: none; font-size: 28px; cursor: pointer; color: var(--text-secondary); line-height: 1; }
         .modal-content .modal-close:hover { color: var(--danger); }
-        .view-detail-row {
-            display: flex; padding: 6px 0; border-bottom: 1px solid var(--border-color);
-            font-size: 14px;
-        }
-        .view-detail-row .label {
-            font-weight: 600; width: 140px; flex-shrink: 0; color: var(--text-secondary);
-        }
+        .view-detail-row { display: flex; padding: 6px 0; border-bottom: 1px solid var(--border-color); font-size: 14px; }
+        .view-detail-row .label { font-weight: 600; width: 140px; flex-shrink: 0; color: var(--text-secondary); }
         .view-detail-row .value { flex: 1; color: var(--text-primary); }
         .view-detail-row .value .status-badge { display: inline-block; }
 
         .logout-modal-overlay, .delete-modal-overlay, .dist-modal-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(6px); z-index: 99999;
-            align-items: center; justify-content: center; padding: 20px;
-            animation: fadeIn 0.3s ease;
+            align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.3s ease;
         }
-        .logout-modal-overlay.active, .delete-modal-overlay.active, .dist-modal-overlay.active {
-            display: flex;
-        }
+        .logout-modal-overlay.active, .delete-modal-overlay.active, .dist-modal-overlay.active { display: flex; }
         .logout-modal, .delete-modal, .dist-modal {
             background: var(--bg-card); border-radius: var(--radius);
             max-width: 420px; width: 100%; padding: 32px 28px 24px;
@@ -559,94 +360,56 @@
         .logout-modal .modal-icon { background: rgba(231, 76, 60, 0.12); color: var(--danger); }
         .delete-modal .modal-icon { background: rgba(231, 76, 60, 0.12); color: var(--danger); }
         .dist-modal .modal-icon { background: rgba(45, 122, 61, 0.12); color: var(--success); }
-        .logout-modal h3, .delete-modal h3, .dist-modal h3 {
-            font-size: 22px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;
-            transition: color 0.3s;
-        }
-        .logout-modal p, .delete-modal p, .dist-modal p {
-            font-size: 15px; color: var(--text-secondary); margin-bottom: 8px; line-height: 1.6;
-            transition: color 0.3s;
-        }
-        .delete-modal .delete-warning {
-            font-weight: 600; color: var(--danger); font-size: 14px; margin-bottom: 20px;
-        }
-        .dist-modal .dist-sub {
-            font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.6;
-        }
-        .dist-modal .dist-summary-box {
-            background: var(--bg-primary); border-radius: var(--radius);
-            padding: 16px 20px; margin-bottom: 16px; text-align: left;
-        }
-        .dist-modal .dist-summary-box .dist-row {
-            display: flex; justify-content: space-between; padding: 4px 0;
-            font-size: 14px; color: var(--text-primary);
-        }
-        .dist-modal .dist-summary-box .dist-row.total {
-            border-top: 2px solid var(--border-color); margin-top: 4px; padding-top: 10px;
-            font-weight: 700;
-        }
+        .logout-modal h3, .delete-modal h3, .dist-modal h3 { font-size: 22px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
+        .logout-modal p, .delete-modal p, .dist-modal p { font-size: 15px; color: var(--text-secondary); margin-bottom: 8px; line-height: 1.6; }
+        .delete-modal .delete-warning { font-weight: 600; color: var(--danger); font-size: 14px; margin-bottom: 20px; }
+        .dist-modal .dist-sub { font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.6; }
+        .dist-modal .dist-summary-box { background: var(--bg-primary); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 16px; text-align: left; }
+        .dist-modal .dist-summary-box .dist-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px; color: var(--text-primary); }
+        .dist-modal .dist-summary-box .dist-row.total { border-top: 2px solid var(--border-color); margin-top: 4px; padding-top: 10px; font-weight: 700; }
         .dist-modal .dist-summary-box .dist-row.total .dist-val { color: var(--success); }
-        .dist-modal .dist-note {
-            font-size: 13px; color: var(--text-muted); margin-bottom: 20px;
-        }
-        .logout-modal .modal-actions, .delete-modal .modal-actions, .dist-modal .modal-actions {
-            display: flex; gap: 12px; justify-content: center;
-        }
+        .dist-modal .dist-note { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+        .logout-modal .modal-actions, .delete-modal .modal-actions, .dist-modal .modal-actions { display: flex; gap: 12px; justify-content: center; }
         .logout-modal .modal-actions .btn, .delete-modal .modal-actions .btn, .dist-modal .modal-actions .btn {
             padding: 10px 28px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600;
-            border: none; cursor: pointer; transition: all 0.2s; font-family: inherit;
-            min-width: 100px;
+            border: none; cursor: pointer; transition: all 0.2s; font-family: inherit; min-width: 100px;
         }
-        .logout-modal .modal-actions .btn-cancel, .delete-modal .modal-actions .btn-cancel,
-        .dist-modal .modal-actions .btn-cancel {
+        .logout-modal .modal-actions .btn-cancel, .delete-modal .modal-actions .btn-cancel, .dist-modal .modal-actions .btn-cancel {
             background: var(--border-color); color: var(--text-primary);
         }
-        .logout-modal .modal-actions .btn-cancel:hover, .delete-modal .modal-actions .btn-cancel:hover,
-        .dist-modal .modal-actions .btn-cancel:hover {
+        .logout-modal .modal-actions .btn-cancel:hover, .delete-modal .modal-actions .btn-cancel:hover, .dist-modal .modal-actions .btn-cancel:hover {
             background: #d0d7d2; transform: translateY(-2px);
         }
-        .logout-modal .modal-actions .btn-logout, .delete-modal .modal-actions .btn-delete,
-        .dist-modal .modal-actions .btn-distribute {
+        .logout-modal .modal-actions .btn-logout, .delete-modal .modal-actions .btn-delete, .dist-modal .modal-actions .btn-distribute {
             background: var(--danger); color: #fff; display: inline-flex; align-items: center; gap: 8px;
         }
         .dist-modal .modal-actions .btn-distribute { background: var(--success); }
         .dist-modal .modal-actions .btn-distribute:hover { background: #1e7e34; }
-        .logout-modal .modal-actions .btn-logout:hover, .delete-modal .modal-actions .btn-delete:hover,
-        .dist-modal .modal-actions .btn-distribute:hover {
+        .logout-modal .modal-actions .btn-logout:hover, .delete-modal .modal-actions .btn-delete:hover, .dist-modal .modal-actions .btn-distribute:hover {
             transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.3);
         }
-        .logout-modal .modal-actions .btn-logout i, .delete-modal .modal-actions .btn-delete i,
-        .dist-modal .modal-actions .btn-distribute i { font-size: 16px; }
+        .logout-modal .modal-actions .btn-logout i, .delete-modal .modal-actions .btn-delete i, .dist-modal .modal-actions .btn-distribute i { font-size: 16px; }
 
-        .toast-container {
-            position: fixed; top: 20px; right: 20px; z-index: 99999;
-            display: flex; flex-direction: column; gap: 10px;
-        }
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 99999; display: flex; flex-direction: column; gap: 10px; }
         .toast {
-            padding: 14px 24px; border-radius: var(--radius); color: #fff;
-            font-weight: 500; font-size: 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-            animation: slideIn 0.3s ease; min-width: 280px; max-width: 400px;
-            display: flex; align-items: center; gap: 12px;
+            padding: 14px 24px; border-radius: var(--radius); color: #fff; font-weight: 500; font-size: 14px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15); animation: slideIn 0.3s ease;
+            min-width: 280px; max-width: 400px; display: flex; align-items: center; gap: 12px;
         }
         .toast i { font-size: 18px; }
         .toast.success { background: var(--success); }
         .toast.error { background: var(--danger); }
         .toast.warning { background: var(--warning); }
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         .toast.fade-out { opacity: 0; transition: opacity 0.3s ease; }
 
         .app-footer {
             background: var(--bg-card); border-top: 1px solid var(--border-color);
             padding: 16px 30px; text-align: center; font-size: 14px; color: var(--text-secondary);
-            margin-top: auto; transition: all 0.3s;
+            margin-top: auto;
         }
 
-        @media (max-width: 992px) {
-            .dividend-summary { grid-template-columns: repeat(2, 1fr); }
-        }
+        @media (max-width: 992px) { .dividend-summary { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 768px) {
             .sidebar { transform: translateX(-100%); width: 280px; }
             .sidebar.open { transform: translateX(0); }
@@ -680,11 +443,8 @@
             .brand-text .brand-name { font-size: 16px; }
             .view-detail-row { flex-wrap: wrap; }
             .view-detail-row .label { width: 100%; margin-bottom: 2px; }
-            .logout-modal .modal-actions, .delete-modal .modal-actions, .dist-modal .modal-actions {
-                flex-direction: column;
-            }
-            .logout-modal .modal-actions .btn, .delete-modal .modal-actions .btn,
-            .dist-modal .modal-actions .btn { width: 100%; }
+            .logout-modal .modal-actions, .delete-modal .modal-actions, .dist-modal .modal-actions { flex-direction: column; }
+            .logout-modal .modal-actions .btn, .delete-modal .modal-actions .btn, .dist-modal .modal-actions .btn { width: 100%; }
         }
         @media (max-width: 480px) {
             .dividend-summary { grid-template-columns: 1fr; }
@@ -701,7 +461,6 @@
 </head>
 <body>
 
-    <!-- LOADING OVERLAY -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>
         <p data-i18n="loadingData">Loading data...</p>
@@ -732,7 +491,6 @@
                 <li><a href="repayments.html"><i class="fas fa-undo-alt"></i> <span data-i18n="navRepayments">Repayments</span></a></li>
                 <li><a href="withdrawals.html"><i class="fas fa-money-bill-wave"></i> <span data-i18n="navWithdrawals">Withdrawals</span></a></li>
                 <li class="active"><a href="dividends.html"><i class="fas fa-gift"></i> <span data-i18n="navDividends">Dividends</span></a></li>
-                <!-- CHANGE #1: Shares link added between Dividends and Reports -->
                 <li><a href="share.html"><i class="fas fa-chart-pie"></i> <span data-i18n="navShares">Shares</span></a></li>
                 <li><a href="reports.html"><i class="fas fa-chart-bar"></i> <span data-i18n="navReports">Reports</span></a></li>
                 <li><a href="penalties.html"><i class="fas fa-exclamation-triangle" style="color:#e67e22;"></i> <span data-i18n="navPenalties">Penalties</span></a></li>
@@ -783,7 +541,6 @@
                 </div>
             </div>
 
-            <!-- Year Selector -->
             <div class="year-selector-wrapper">
                 <label for="yearSelect"><i class="fas fa-calendar"></i> <span data-i18n="selectYear">Select Year:</span></label>
                 <select id="yearSelect">
@@ -795,7 +552,6 @@
                 </span>
             </div>
 
-            <!-- Dividend Summary Cards -->
             <div class="dividend-summary" id="dividendSummary">
                 <div class="summary-card">
                     <span class="label" data-i18n="totalIncomeLabel">Total Income of SACCO (ETB) <span id="yearLabel">2025</span></span>
@@ -815,10 +571,8 @@
                 </div>
             </div>
 
-            <!-- Main Content Area -->
             <div id="mainContentArea">
 
-                <!-- Preview / Distribution Section -->
                 <div id="previewSection" class="preview-section" style="display:none;">
                     <h3><i class="fas fa-users"></i> <span data-i18n="dividendPreview">Dividend Preview</span></h3>
                     <div class="total-profit-display">
@@ -851,7 +605,6 @@
                     </div>
                 </div>
 
-                <!-- After Distribution: Close Year Section -->
                 <div id="closeYearSection" style="display:none;">
                     <div class="info-message success">
                         <i class="fas fa-check-circle"></i>
@@ -865,7 +618,6 @@
                     </div>
                 </div>
 
-                <!-- No Profit Message -->
                 <div id="noProfitSection" style="display:none;">
                     <div class="info-message warning">
                         <i class="fas fa-exclamation-triangle"></i>
@@ -873,7 +625,6 @@
                     </div>
                 </div>
 
-                <!-- Year Already Closed -->
                 <div id="yearClosedSection" style="display:none;">
                     <div class="info-message danger">
                         <i class="fas fa-lock"></i>
@@ -881,7 +632,6 @@
                     </div>
                 </div>
 
-                <!-- Dividend History -->
                 <div class="table-container">
                     <div class="table-header">
                         <span data-i18n="dividendHistory">Dividend History</span>
@@ -927,7 +677,6 @@
         </footer>
     </main>
 
-    <!-- ===== VIEW DIVIDEND MODAL ===== -->
     <div class="modal-overlay" id="viewDividendModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -938,12 +687,9 @@
         </div>
     </div>
 
-    <!-- ===== LOGOUT MODAL ===== -->
     <div class="logout-modal-overlay" id="logoutModal">
         <div class="logout-modal">
-            <div class="modal-icon">
-                <i class="fas fa-sign-out-alt"></i>
-            </div>
+            <div class="modal-icon"><i class="fas fa-sign-out-alt"></i></div>
             <h3>Logout Confirmation</h3>
             <p>Are you sure you want to log out? You will need to sign in again to access your account.</p>
             <div class="modal-actions">
@@ -953,12 +699,9 @@
         </div>
     </div>
 
-    <!-- ===== DELETE CONFIRMATION MODAL ===== -->
     <div class="delete-modal-overlay" id="deleteModal">
         <div class="delete-modal">
-            <div class="modal-icon">
-                <i class="fas fa-trash-alt"></i>
-            </div>
+            <div class="modal-icon"><i class="fas fa-trash-alt"></i></div>
             <h3>Delete Dividend Record</h3>
             <p>Are you sure you want to permanently delete this dividend record?</p>
             <p class="delete-warning">⚠️ This action cannot be undone. All associated data will be removed.</p>
@@ -969,15 +712,11 @@
         </div>
     </div>
 
-    <!-- ===== DISTRIBUTION CONFIRMATION MODAL ===== -->
     <div class="dist-modal-overlay" id="distributionModal">
         <div class="dist-modal">
-            <div class="modal-icon">
-                <i class="fas fa-hand-holding-heart"></i>
-            </div>
+            <div class="modal-icon"><i class="fas fa-hand-holding-heart"></i></div>
             <h3>Confirm Dividend Distribution</h3>
             <p class="dist-sub">You are about to distribute dividends for the year <strong id="distYearDisplay">2025</strong>.</p>
-
             <div class="dist-summary-box">
                 <div class="dist-row">
                     <span>Total Income</span>
@@ -992,9 +731,7 @@
                     <span class="dist-val" id="distTotalAmount">0.00</span>
                 </div>
             </div>
-
             <p class="dist-note">This action will create dividend records for all eligible customers.</p>
-
             <div class="modal-actions">
                 <button class="btn btn-cancel" id="distCancel">Cancel</button>
                 <button class="btn btn-distribute" id="distConfirm"><i class="fas fa-check"></i> Confirm Distribution</button>
@@ -1028,21 +765,16 @@
             const monthlyRate = r / 12;
             const n = months;
             switch (type) {
-                case 'simple':
-                    return principal * r * (n / 12);
-                case 'compound':
-                    return principal * (Math.pow(1 + monthlyRate, n) - 1);
-                case 'fixed':
-                    return principal * r * (n / 12);
+                case 'simple': return principal * r * (n / 12);
+                case 'compound': return principal * (Math.pow(1 + monthlyRate, n) - 1);
+                case 'fixed': return principal * r * (n / 12);
                 case 'reducing':
                     if (monthlyRate === 0) return 0;
                     const emi = principal * monthlyRate * Math.pow(1 + monthlyRate, n) / (Math.pow(1 + monthlyRate, n) - 1);
                     return (emi * n) - principal;
-                default:
-                    return principal * r * (n / 12);
+                default: return principal * r * (n / 12);
             }
         }
-
         function getLoanInterest(loan) {
             const amount = Number(loan.amount) || 0;
             const rate = Number(loan.interestRate) || 0;
@@ -1052,28 +784,30 @@
         }
 
         // ============================================================
-        // MULTI-LANGUAGE — CHANGE #2: navShares added in EN / AM / OM
+        // DEPOSIT STATUS RULES — aligned with dashboard
+        // approved / printed / completed / done / paid OR printed:true
+        // ============================================================
+        const COUNTED_DEPOSIT_STATUSES = ['approved', 'printed', 'completed', 'done', 'paid'];
+        function isDepositCounted(dep) {
+            if (!dep) return false;
+            const s = String(dep.status || '').toLowerCase().trim();
+            if (COUNTED_DEPOSIT_STATUSES.includes(s)) return true;
+            if (dep.printed === true) return true;
+            return false;
+        }
+
+        // ============================================================
+        // TRANSLATIONS
         // ============================================================
         const translations = {
             en: {
                 brandSub: 'SACCO Banking',
-                navDashboard: 'Dashboard',
-                navCustomers: 'Customers',
-                navSavings: 'Savings',
-                navDeposits: 'Deposits',
-                navLoans: 'Loans',
-                navRepayments: 'Repayments',
-                navWithdrawals: 'Withdrawals',
-                navDividends: 'Dividends',
-                navShares: 'Shares',
-                navReports: 'Reports',
-                navPenalties: 'Penalties',
-                navAudit: 'Audit Trail',
-                navUsers: 'Users',
-                navSettings: 'Settings',
-                logout: 'Logout',
-                pageTitle: 'Dividends',
-                breadcrumb: 'Home / Dividends',
+                navDashboard: 'Dashboard', navCustomers: 'Customers', navSavings: 'Savings',
+                navDeposits: 'Deposits', navLoans: 'Loans', navRepayments: 'Repayments',
+                navWithdrawals: 'Withdrawals', navDividends: 'Dividends', navShares: 'Shares',
+                navReports: 'Reports', navPenalties: 'Penalties', navAudit: 'Audit Trail',
+                navUsers: 'Users', navSettings: 'Settings', logout: 'Logout',
+                pageTitle: 'Dividends', breadcrumb: 'Home / Dividends',
                 rights: 'All rights reserved.',
                 dividendsTitle: 'Dividend Management',
                 dividendsSub: 'Distribute yearly profits to customers',
@@ -1081,16 +815,11 @@
                 totalDividendsYear: 'Total Dividends Distributed',
                 customersReceived: 'Customers Received',
                 avgDividend: 'Average Dividend',
-                selectYear: 'Select Year:',
-                statusLabel: 'Status:',
-                open: 'Open',
-                closed: 'Closed',
+                selectYear: 'Select Year:', statusLabel: 'Status:',
+                open: 'Open', closed: 'Closed',
                 dividendPreview: 'Dividend Preview',
                 totalProfitToDistribute: 'Total Income Available to Distribute:',
-                customer: 'Customer',
-                savings: 'Savings',
-                share: 'Share',
-                dividendAmount: 'Dividend',
+                customer: 'Customer', savings: 'Savings', share: 'Share', dividendAmount: 'Dividend',
                 distributeDividends: 'Distribute Dividends',
                 closeYear: 'Close Year',
                 closeYearHint: 'Closing the year will lock it. No further dividends can be distributed.',
@@ -1098,13 +827,8 @@
                 yearAlreadyClosedMessage: 'This year is already closed. Dividends have been distributed and the year is locked.',
                 dividendHistory: 'Dividend History',
                 noDividends: 'No dividends distributed yet.',
-                showing: 'Showing',
-                of: 'of',
-                by: 'By',
-                status: 'Status',
-                distributed: 'Distributed',
-                pending: 'Pending',
-                failed: 'Failed',
+                showing: 'Showing', of: 'of', by: 'By',
+                status: 'Status', distributed: 'Distributed', pending: 'Pending', failed: 'Failed',
                 dividendsDistributedSuccess: 'Dividends have been successfully distributed to all customers!',
                 closeYearConfirm: 'Are you sure you want to close the year {year}? This will lock the year and no further dividends can be distributed.',
                 closeYearSuccess: 'Year {year} closed successfully!',
@@ -1122,172 +846,91 @@
                 previewLoading: 'Calculating dividends...',
                 distributionSuccess: 'Dividends distributed successfully! {count} customers received a total of {total} ETB.',
                 distributionError: 'Error distributing dividends: ',
-                actions: 'Actions',
-                view: 'View',
-                delete: 'Delete',
+                actions: 'Actions', view: 'View', delete: 'Delete',
                 deleteConfirmation: 'Are you sure you want to delete this dividend record? This action cannot be undone.',
                 deleteSuccess: 'Dividend record deleted successfully.',
                 deleteError: 'Error deleting dividend: ',
                 testConnection: 'Test Connection',
                 connectionSuccess: '✅ Connection successful!',
                 connectionFailed: '❌ Connection failed: ',
-                loadingData: 'Loading data...'
+                loadingData: 'Loading data...',
+                sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
-                navDashboard: 'ዳሽቦርድ',
-                navCustomers: 'ደንበኞች',
-                navSavings: 'ቁጠባዎች',
-                navDeposits: 'ተቀማጭ',
-                navLoans: 'ብድር',
-                navRepayments: 'ክፍያዎች',
-                navWithdrawals: 'መውጫዎች',
-                navDividends: 'ክፍፍል',
-                navShares: 'አክሲዮን',
-                navReports: 'ሪፖርቶች',
-                navPenalties: 'ቅጣቶች',
-                navAudit: 'የምዝግብ ታሪክ',
-                navUsers: 'ተጠቃሚዎች',
-                navSettings: 'ቅንብሮች',
-                logout: 'ውጣ',
-                pageTitle: 'ክፍፍል',
-                breadcrumb: 'ዋና ገጽ / ክፍፍል',
-                rights: 'መብቶች በሙሉ ተጠብቀዋል።',
-                dividendsTitle: 'የክፍፍል አስተዳደር',
-                dividendsSub: 'ዓመታዊ ትርፍ ለደንበኞች ያሰራጩ',
-                totalIncomeLabel: 'ጠቅላላ ገቢ የ SACCO',
-                totalDividendsYear: 'ጠቅላላ ክፍፍል ተሰራጭቷል',
-                customersReceived: 'ክፍፍል የተቀበሉ ደንበኞች',
-                avgDividend: 'አማካይ ክፍፍል',
-                selectYear: 'ዓመት ይምረጡ:',
-                statusLabel: 'ሁኔታ:',
-                open: 'ክፍት',
-                closed: 'ተዘግቷል',
-                dividendPreview: 'የክፍፍል ቅድመ-እይታ',
-                totalProfitToDistribute: 'ለማሰራጨት የሚገኘው ጠቅላላ ገቢ:',
-                customer: 'ደንበኛ',
-                savings: 'ቁጠባ',
-                share: 'ድርሻ',
-                dividendAmount: 'ክፍፍል',
-                distributeDividends: 'ክፍፍል ያሰራጩ',
-                closeYear: 'ዓመት ዝጋ',
+                navDashboard: 'ዳሽቦርድ', navCustomers: 'ደንበኞች', navSavings: 'ቁጠባዎች',
+                navDeposits: 'ተቀማጭ', navLoans: 'ብድር', navRepayments: 'ክፍያዎች',
+                navWithdrawals: 'መውጫዎች', navDividends: 'ክፍፍል', navShares: 'አክሲዮን',
+                navReports: 'ሪፖርቶች', navPenalties: 'ቅጣቶች', navAudit: 'የምዝግብ ታሪክ',
+                navUsers: 'ተጠቃሚዎች', navSettings: 'ቅንብሮች', logout: 'ውጣ',
+                pageTitle: 'ክፍፍል', breadcrumb: 'ዋና ገጽ / ክፍፍል', rights: 'መብቶች በሙሉ ተጠብቀዋል።',
+                dividendsTitle: 'የክፍፍል አስተዳደር', dividendsSub: 'ዓመታዊ ትርፍ ለደንበኞች ያሰራጩ',
+                totalIncomeLabel: 'ጠቅላላ ገቢ የ SACCO', totalDividendsYear: 'ጠቅላላ ክፍፍል ተሰራጭቷል',
+                customersReceived: 'ክፍፍል የተቀበሉ ደንበኞች', avgDividend: 'አማካይ ክፍፍል',
+                selectYear: 'ዓመት ይምረጡ:', statusLabel: 'ሁኔታ:', open: 'ክፍት', closed: 'ተዘግቷል',
+                dividendPreview: 'የክፍፍል ቅድመ-እይታ', totalProfitToDistribute: 'ለማሰራጨት የሚገኘው ጠቅላላ ገቢ:',
+                customer: 'ደንበኛ', savings: 'ቁጠባ', share: 'ድርሻ', dividendAmount: 'ክፍፍል',
+                distributeDividends: 'ክፍፍል ያሰራጩ', closeYear: 'ዓመት ዝጋ',
                 closeYearHint: 'ዓመቱን መዝጋት ያቆልፋል። ተጨማሪ ክፍፍል ማሰራጨት አይቻልም።',
                 noProfitMessage: 'ለዚህ ዓመት ምንም ገቢ አይገኝም። እባክዎ በኋላ ይመልከቱ።',
                 yearAlreadyClosedMessage: 'ይህ ዓመት ቀድሞ ተዘግቷል። ክፍፍል ተሰራጭቷል እና ዓመቱ ተቆልፏል።',
-                dividendHistory: 'የክፍፍል ታሪክ',
-                noDividends: 'እስካሁን ምንም ክፍፍል አልተሰራጨም።',
-                showing: 'እያሳየ',
-                of: 'ከ',
-                by: 'አስተናጋጅ',
-                status: 'ሁኔታ',
-                distributed: 'ተሰራጭቷል',
-                pending: 'በመጠበቅ ላይ',
-                failed: 'አልተሳካም',
+                dividendHistory: 'የክፍፍል ታሪክ', noDividends: 'እስካሁን ምንም ክፍፍል አልተሰራጨም።',
+                showing: 'እያሳየ', of: 'ከ', by: 'አስተናጋጅ', status: 'ሁኔታ',
+                distributed: 'ተሰራጭቷል', pending: 'በመጠበቅ ላይ', failed: 'አልተሳካም',
                 dividendsDistributedSuccess: 'ክፍፍል ለሁሉም ደንበኞች በተሳካ ሁኔታ ተሰራጭቷል!',
                 closeYearConfirm: 'ዓመቱን {year} መዝጋት እርግጠኛ ነዎት? ይህ ዓመቱን ያቆልፋል እና ተጨማሪ ክፍፍል ማሰራጨት አይቻልም።',
-                closeYearSuccess: 'ዓመት {year} በተሳካ ሁኔታ ተዘግቷል!',
-                closeYearError: 'ዓመት በመዝጋት ላይ ስህተት: ',
+                closeYearSuccess: 'ዓመት {year} በተሳካ ሁኔታ ተዘግቷል!', closeYearError: 'ዓመት በመዝጋት ላይ ስህተት: ',
                 yearAlreadyClosed: 'ዓመት {year} ቀድሞ ተዘግቷል።',
-                dividendDistributed: 'ክፍፍል በተሳካ ሁኔታ ተሰራጭቷል!',
-                dividendError: 'ክፍፍል በማሰራጨት ላይ ስህተት: ',
-                loadError: 'ውሂብ በማስገባት ላይ ስህተት: ',
-                unauthorized: 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም።',
-                enterAmount: 'እባክዎ ትክክለኛ መጠን ያስገቡ።',
-                selectCustomerFirst: 'እባክዎ ደንበኛ ይምረጡ።',
-                searchPlaceholder: 'በደንበኛ ስም ይፈልጉ...',
-                noCustomersFound: 'ምንም ንቁ ደንበኞች አልተገኙም።',
-                noSavingsFound: 'ለዚህ ዓመት ምንም ቁጠባ አልተገኘም።',
-                previewLoading: 'ክፍፍል በማስላት ላይ...',
+                dividendDistributed: 'ክፍፍል በተሳካ ሁኔታ ተሰራጭቷል!', dividendError: 'ክፍፍል በማሰራጨት ላይ ስህተት: ',
+                loadError: 'ውሂብ በማስገባት ላይ ስህተት: ', unauthorized: 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም።',
+                enterAmount: 'እባክዎ ትክክለኛ መጠን ያስገቡ።', selectCustomerFirst: 'እባክዎ ደንበኛ ይምረጡ።',
+                searchPlaceholder: 'በደንበኛ ስም ይፈልጉ...', noCustomersFound: 'ምንም ንቁ ደንበኞች አልተገኙም።',
+                noSavingsFound: 'ለዚህ ዓመት ምንም ቁጠባ አልተገኘም።', previewLoading: 'ክፍፍል በማስላት ላይ...',
                 distributionSuccess: 'ክፍፍል በተሳካ ሁኔታ ተሰራጭቷል! {count} ደንበኞች {total} ብር ተቀብለዋል።',
-                distributionError: 'ክፍፍል በማሰራጨት ላይ ስህተት: ',
-                actions: 'ተግባራት',
-                view: 'ይመልከቱ',
-                delete: 'ሰርዝ',
+                distributionError: 'ክፍፍል በማሰራጨት ላይ ስህተት: ', actions: 'ተግባራት', view: 'ይመልከቱ', delete: 'ሰርዝ',
                 deleteConfirmation: 'ይህንን የክፍፍል መዝገብ መሰረዝ እርግጠኛ ነዎት? ይህ እርምጃ ሊቀለበስ አይችልም።',
-                deleteSuccess: 'የክፍፍል መዝገብ በተሳካ ሁኔታ ተሰርዟል።',
-                deleteError: 'ክፍፍል በመሰረዝ ላይ ስህተት: ',
-                testConnection: 'ግንኙነት ሞክር',
-                connectionSuccess: '✅ ግንኙነቱ ተሳክቷል!',
-                connectionFailed: '❌ ግንኙነቱ አልተሳካም: ',
-                loadingData: 'ውሂብ በማስገባት ላይ...'
+                deleteSuccess: 'የክፍፍል መዝገብ በተሳካ ሁኔታ ተሰርዟል።', deleteError: 'ክፍፍል በመሰረዝ ላይ ስህተት: ',
+                testConnection: 'ግንኙነት ሞክር', connectionSuccess: '✅ ግንኙነቱ ተሳክቷል!',
+                connectionFailed: '❌ ግንኙነቱ አልተሳካም: ', loadingData: 'ውሂብ በማስገባት ላይ...',
+                sessionTimeout: 'የእርስዎ ክፍለ-ጊዜ በ{seconds} ሰከንዶች ውስጥ ያበቃል።'
             },
             om: {
                 brandSub: 'Sirna Baankii',
-                navDashboard: 'Gabatee',
-                navCustomers: 'Maamila',
-                navSavings: 'Kusaa',
-                navDeposits: 'Kaasaa',
-                navLoans: 'Liqii',
-                navRepayments: 'Kaffaltuu',
-                navWithdrawals: 'Baasii',
-                navDividends: 'Qooda',
-                navShares: 'Hirmaata',
-                navReports: 'Odeeffannoo',
-                navPenalties: 'Adaba',
-                navAudit: 'Seenaa Galmee',
-                navUsers: 'Fayyadamtoota',
-                navSettings: 'Qindeessaa',
-                logout: 'Baasi',
-                pageTitle: 'Qooda',
-                breadcrumb: 'Mana / Qooda',
-                rights: 'Mirgi hundi eegama.',
-                dividendsTitle: 'Bulchiinsa Qoodaa',
-                dividendsSub: 'Bu’aa waggaa maamilaaf qoodi',
-                totalIncomeLabel: 'Galii Waliigalaa SACCO',
-                totalDividendsYear: 'Qoodni Waliigalaa Qoodame',
-                customersReceived: 'Maamilonni Qoodan',
-                avgDividend: 'Qooda Giddu galeessa',
-                selectYear: 'Waggaa Filadhu:',
-                statusLabel: 'Haala:',
-                open: 'Banaa',
-                closed: 'Cufame',
-                dividendPreview: 'Ilaalcha Qoodaa',
-                totalProfitToDistribute: 'Galii Qoodamuu Qabu Waliigalaa:',
-                customer: 'Maamila',
-                savings: 'Kusaa',
-                share: 'Qooda',
-                dividendAmount: 'Qooda',
-                distributeDividends: 'Qooda Qoodi',
-                closeYear: 'Waggaa Cufi',
+                navDashboard: 'Gabatee', navCustomers: 'Maamila', navSavings: 'Kusaa',
+                navDeposits: 'Kaasaa', navLoans: 'Liqii', navRepayments: 'Kaffaltuu',
+                navWithdrawals: 'Baasii', navDividends: 'Qooda', navShares: 'Hirmaata',
+                navReports: 'Odeeffannoo', navPenalties: 'Adaba', navAudit: 'Seenaa Galmee',
+                navUsers: 'Fayyadamtoota', navSettings: 'Qindeessaa', logout: 'Baasi',
+                pageTitle: 'Qooda', breadcrumb: 'Mana / Qooda', rights: 'Mirgi hundi eegama.',
+                dividendsTitle: 'Bulchiinsa Qoodaa', dividendsSub: 'Bu’aa waggaa maamilaaf qoodi',
+                totalIncomeLabel: 'Galii Waliigalaa SACCO', totalDividendsYear: 'Qoodni Waliigalaa Qoodame',
+                customersReceived: 'Maamilonni Qoodan', avgDividend: 'Qooda Giddu galeessa',
+                selectYear: 'Waggaa Filadhu:', statusLabel: 'Haala:', open: 'Banaa', closed: 'Cufame',
+                dividendPreview: 'Ilaalcha Qoodaa', totalProfitToDistribute: 'Galii Qoodamuu Qabu Waliigalaa:',
+                customer: 'Maamila', savings: 'Kusaa', share: 'Qooda', dividendAmount: 'Qooda',
+                distributeDividends: 'Qooda Qoodi', closeYear: 'Waggaa Cufi',
                 closeYearHint: 'Waggaa cufuun ni cufa. Qoodni dabalataa qoodamuu hin danda’u.',
                 noProfitMessage: 'Galii waggaa kanaaf hin jiru. Maaloo booda ilaali.',
                 yearAlreadyClosedMessage: 'Waggaan kun duraan cufameera. Qoodni qoodamee waggaannis cufame.',
-                dividendHistory: 'Seenaa Qoodaa',
-                noDividends: 'Qoodni hamma ammaa hin qoodamne.',
-                showing: 'Agarsii',
-                of: 'keessaa',
-                by: 'Hojjedhe',
-                status: 'Haala',
-                distributed: 'Qoodame',
-                pending: 'Eegamaa',
-                failed: 'Bade',
+                dividendHistory: 'Seenaa Qoodaa', noDividends: 'Qoodni hamma ammaa hin qoodamne.',
+                showing: 'Agarsii', of: 'keessaa', by: 'Hojjedhe', status: 'Haala',
+                distributed: 'Qoodame', pending: 'Eegamaa', failed: 'Bade',
                 dividendsDistributedSuccess: 'Qoodni maamila hundaaf sirriitti qoodame!',
                 closeYearConfirm: 'Waggaa {year} cufuu mirkaneeffattee? Kun waggaa ni cufa, qoodni dabalataa qoodamuu hin danda’u.',
-                closeYearSuccess: 'Waggaan {year} sirriitti cufame!',
-                closeYearError: 'Waggaa cufuuf dogoggora: ',
+                closeYearSuccess: 'Waggaan {year} sirriitti cufame!', closeYearError: 'Waggaa cufuuf dogoggora: ',
                 yearAlreadyClosed: 'Waggaan {year} duraan cufameera.',
-                dividendDistributed: 'Qoodni sirriitti qoodame!',
-                dividendError: 'Qooda qooduuf dogoggora: ',
-                loadError: 'Datuu galmeessuuf dogoggora: ',
-                unauthorized: 'Gochaa kana raawwachuuf hayyamamtee hin jirtu.',
-                enterAmount: 'Maaloo qaba sirrii ta’e galchi.',
-                selectCustomerFirst: 'Maaloo maamila filadhu.',
-                searchPlaceholder: 'Maqaa maamila-tiin barbaadi...',
-                noCustomersFound: 'Maamilonni hojiirra jiran hin argamne.',
-                noSavingsFound: 'Kussaan waggaa kanaaf hin argamne.',
-                previewLoading: 'Qooda shallaguumaa jira...',
+                dividendDistributed: 'Qoodni sirriitti qoodame!', dividendError: 'Qooda qooduuf dogoggora: ',
+                loadError: 'Datuu galmeessuuf dogoggora: ', unauthorized: 'Gochaa kana raawwachuuf hayyamamtee hin jirtu.',
+                enterAmount: 'Maaloo qaba sirrii ta’e galchi.', selectCustomerFirst: 'Maaloo maamila filadhu.',
+                searchPlaceholder: 'Maqaa maamila-tiin barbaadi...', noCustomersFound: 'Maamilonni hojiirra jiran hin argamne.',
+                noSavingsFound: 'Kussaan waggaa kanaaf hin argamne.', previewLoading: 'Qooda shallaguumaa jira...',
                 distributionSuccess: 'Qoodni sirriitti qoodame! {count} maamila {total} ETB argatan.',
-                distributionError: 'Qooda qooduuf dogoggora: ',
-                actions: 'Gochaa',
-                view: 'Ilaali',
-                delete: 'Haqi',
+                distributionError: 'Qooda qooduuf dogoggora: ', actions: 'Gochaa', view: 'Ilaali', delete: 'Haqi',
                 deleteConfirmation: 'Galmee qoodaa kana haquu mirkaneeffattee? Gochi kun deebifamuu hin danda’u.',
-                deleteSuccess: 'Galmeen qoodaa sirriitti haqame.',
-                deleteError: 'Qooda haquuf dogoggora: ',
-                testConnection: 'Qunnamtii Mirkaneessi',
-                connectionSuccess: '✅ Qunnamtii milkaa\'e!',
-                connectionFailed: '❌ Qunnamtii hin milkaanne: ',
-                loadingData: 'Datuu galmeessuuf...'
+                deleteSuccess: 'Galmeen qoodaa sirriitti haqame.', deleteError: 'Qooda haquuf dogoggora: ',
+                testConnection: 'Qunnamtii Mirkaneessi', connectionSuccess: '✅ Qunnamtii milkaa\'e!',
+                connectionFailed: '❌ Qunnamtii hin milkaanne: ', loadingData: 'Datuu galmeessuuf...',
+                sessionTimeout: 'Sessiin keessan {seconds} sekoondii keessatti xumurama.'
             }
         };
 
@@ -1301,15 +944,91 @@
         const pageSize = 10;
         let isAdmin = false;
         let yearData = {
-            isClosed: false,
-            totalIncome: 0,
-            dividendsTotal: 0,
-            membersCount: 0,
-            avgDividend: 0,
-            dividendEntries: [],
-            previewData: []
+            isClosed: false, totalIncome: 0, dividendsTotal: 0, membersCount: 0,
+            avgDividend: 0, dividendEntries: [], previewData: []
         };
         let pendingDeleteId = null;
+
+        // ============================================================
+        // SESSION TIMEOUT (loaded from settings/system)
+        // ============================================================
+        let SESSION_TIMEOUT_MINUTES = 5;
+        let SESSION_TIMEOUT = SESSION_TIMEOUT_MINUTES * 60 * 1000;
+        let SESSION_WARNING_TIMEOUT = Math.max(SESSION_TIMEOUT - 30 * 1000, SESSION_TIMEOUT * 0.9);
+        let sessionTimer = null, sessionWarningTimer = null,
+            sessionWarningToast = null, sessionCountdownInterval = null;
+        let sessionTimerStarted = false;
+        const SESSION_EVENTS = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
+
+        function sessionResetTimer() {
+            if (sessionTimer) clearTimeout(sessionTimer);
+            if (sessionWarningTimer) clearTimeout(sessionWarningTimer);
+            if (sessionCountdownInterval) clearInterval(sessionCountdownInterval);
+            if (sessionWarningToast) { sessionWarningToast.remove(); sessionWarningToast = null; }
+            sessionWarningTimer = setTimeout(sessionShowWarning, SESSION_WARNING_TIMEOUT);
+            sessionTimer = setTimeout(sessionForceLogout, SESSION_TIMEOUT);
+        }
+
+        function sessionShowWarning() {
+            const t = translations[currentLang] || translations.en;
+            const message = t.sessionTimeout || 'Your session will expire in {seconds} seconds.';
+            let seconds = 30;
+            sessionWarningToast = document.createElement('div');
+            sessionWarningToast.style.cssText = `position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#f39c12;color:#fff;padding:16px 24px;border-radius:12px;font-size:15px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.2);z-index:99999;max-width:500px;text-align:center;display:flex;align-items:center;gap:12px;`;
+            sessionWarningToast.innerHTML = `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
+            document.body.appendChild(sessionWarningToast);
+            sessionCountdownInterval = setInterval(() => {
+                seconds--;
+                const textEl = document.getElementById('sessionWarningText');
+                if (textEl) textEl.textContent = message.replace('{seconds}', seconds);
+                if (seconds <= 0) clearInterval(sessionCountdownInterval);
+            }, 1000);
+        }
+
+        function sessionForceLogout() {
+            if (sessionCountdownInterval) clearInterval(sessionCountdownInterval);
+            if (sessionWarningToast) { sessionWarningToast.remove(); sessionWarningToast = null; }
+            if (auth) auth.signOut().then(() => window.location.href = '../login.html').catch(() => window.location.href = '../login.html');
+            else window.location.href = '../login.html';
+        }
+
+        function sessionHandleActivity() { sessionResetTimer(); }
+
+        function startSessionTimer() {
+            if (sessionTimerStarted) return;
+            sessionTimerStarted = true;
+            SESSION_EVENTS.forEach(evt => document.addEventListener(evt, sessionHandleActivity));
+            sessionResetTimer();
+        }
+
+        function applySessionSettings() {
+            SESSION_TIMEOUT = SESSION_TIMEOUT_MINUTES * 60 * 1000;
+            SESSION_WARNING_TIMEOUT = Math.max(SESSION_TIMEOUT - 30 * 1000, SESSION_TIMEOUT * 0.9);
+            if (sessionTimerStarted) sessionResetTimer();
+        }
+
+        async function loadSessionTimeoutFromSettings() {
+            try {
+                const doc = await db.collection('settings').doc('system').get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    let mins = 5;
+                    if (data.sessionTimeout !== undefined && data.sessionTimeout !== null) {
+                        mins = Number(data.sessionTimeout);
+                    } else if (data.sessionTimeoutMinutes !== undefined) {
+                        mins = Number(data.sessionTimeoutMinutes);
+                    } else if (data.sessionTimeoutSeconds !== undefined) {
+                        mins = Number(data.sessionTimeoutSeconds) / 60;
+                    }
+                    if (!isFinite(mins) || mins < 1) mins = 1;
+                    if (mins > 1440) mins = 1440;
+                    SESSION_TIMEOUT_MINUTES = Math.round(mins);
+                }
+            } catch (e) {
+                console.warn('Could not load session timeout — using default 5 min:', e.message);
+            }
+            applySessionSettings();
+        }
 
         // ============================================================
         // LANGUAGE FUNCTIONS
@@ -1333,10 +1052,7 @@
             });
             try { localStorage.setItem('waciti-lang', lang); } catch (e) {}
             const testBtn = document.getElementById('testConnectionBtn');
-            if (testBtn) {
-                const span = testBtn.querySelector('span');
-                if (span) span.textContent = t.testConnection || 'Test Connection';
-            }
+            if (testBtn) { const span = testBtn.querySelector('span'); if (span) span.textContent = t.testConnection || 'Test Connection'; }
             const loadingText = document.querySelector('#loadingOverlay p');
             if (loadingText) loadingText.textContent = t.loadingData || 'Loading data...';
             updatePaginationInfo();
@@ -1350,27 +1066,22 @@
         }
 
         // ============================================================
-        // SIDEBAR TOGGLE
+        // SIDEBAR
         // ============================================================
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('open');
             document.getElementById('sidebarOverlay').classList.toggle('active');
         }
-
         function toggleSidebarCollapse() {
             const sidebar = document.getElementById('sidebar');
             sidebar.classList.toggle('collapsed');
             localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed') ? 'true' : 'false');
         }
-
         function loadSidebarState() {
             const sidebar = document.getElementById('sidebar');
             const isCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
-            if (isCollapsed) {
-                sidebar.classList.add('collapsed');
-            } else {
-                sidebar.classList.remove('collapsed');
-            }
+            if (isCollapsed) sidebar.classList.add('collapsed');
+            else sidebar.classList.remove('collapsed');
         }
 
         // ============================================================
@@ -1406,77 +1117,56 @@
         // ============================================================
         async function testConnection() {
             try {
-                const testRef = db.collection('customers').limit(1);
-                await testRef.get();
+                await db.collection('customers').limit(1).get();
                 const t = translations[currentLang];
                 showToast(t.connectionSuccess || '✅ Connection successful!', 'success');
                 return true;
             } catch (error) {
-                console.error('Connection test failed:', error);
                 const t = translations[currentLang];
                 showToast((t.connectionFailed || '❌ Connection failed: ') + error.message, 'error');
                 return false;
             }
         }
-
         document.getElementById('testConnectionBtn')?.addEventListener('click', testConnection);
 
         // ============================================================
         // USER INFO
         // ============================================================
         function updateUserInfo() {
-            const roleMap = { admin: 'ADMIN', manager: 'MANAGER', teller: 'TELLER', accountant: 'ACCOUNTANT',
-                viewer: 'VIEWER' };
+            const roleMap = { admin: 'ADMIN', manager: 'MANAGER', teller: 'TELLER', accountant: 'ACCOUNTANT', viewer: 'VIEWER' };
             const roleLabel = roleMap[currentUserRole] || 'VIEWER';
             const displayName = currentUserDisplayName || 'User';
             document.getElementById('userDisplayName').textContent = displayName + ' (' + roleLabel + ')';
-
             const auditNav = document.getElementById('auditNavItem');
-            if (auditNav) {
-                auditNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
-            }
-
+            if (auditNav) auditNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
             const usersNav = document.getElementById('usersNavItem');
-            if (usersNav) {
-                usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
-            }
+            if (usersNav) usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
         }
 
         // ============================================================
-        // AUDIT LOGGING
+        // AUDIT
         // ============================================================
         async function logAudit(action, collection, documentId, changes = {}, details = '') {
             try {
                 const user = auth.currentUser;
-                const userEmail = user?.email || 'system';
-                const userName = user?.displayName || user?.email || 'System';
-                const userDisplayName = user?.displayName || 'System';
-
                 await db.collection('audit').add({
-                    action: action,
-                    collection: collection,
-                    documentId: documentId,
-                    changes: changes,
+                    action, collection, documentId, changes,
                     details: details || `${action} ${collection} document ${documentId}`,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                    userEmail: userEmail,
-                    userName: userName,
-                    userDisplayName: userDisplayName
+                    userEmail: user?.email || 'system',
+                    userName: user?.displayName || user?.email || 'System',
+                    userDisplayName: user?.displayName || 'System'
                 });
-            } catch (error) {
-                console.error('Error writing to audit log:', error);
-            }
+            } catch (error) { console.error('Error writing to audit log:', error); }
         }
 
         // ============================================================
-        // ROLE PERMISSIONS
+        // PERMISSIONS
         // ============================================================
-        function canManageDividends() {
-            return ['admin'].includes(currentUserRole);
-        }
+        function canManageDividends() { return ['admin'].includes(currentUserRole); }
 
         // ============================================================
-        // HELPER: Get display name
+        // HELPERS
         // ============================================================
         function getDisplayName(user) {
             if (!user) return 'Admin';
@@ -1485,23 +1175,17 @@
             if (name.includes('@')) return name.split('@')[0];
             return name;
         }
-
-        // ============================================================
-        // TO DATE HELPER
-        // ============================================================
         function toDate(value) {
             if (!value) return null;
             if (value.toDate) return value.toDate();
             if (typeof value === 'string') return new Date(value);
             return value;
         }
-
         function isInYear(dateValue, year) {
             const d = toDate(dateValue);
             if (!d) return false;
             return d.getFullYear() === year;
         }
-
         function formatDate(d) {
             if (!d) return '—';
             const date = toDate(d);
@@ -1544,8 +1228,7 @@
                     .where('year', '==', year)
                     .where('createdAt', '>=', startDate)
                     .where('createdAt', '<=', endDate)
-                    .limit(1)
-                    .get();
+                    .limit(1).get();
                 return !snapshot.empty;
             } catch (error) {
                 console.error('Error checking year closure:', error);
@@ -1585,11 +1268,14 @@
             const allTransferIn = transferInSnap.docs.map(d => ({ id: d.id, ...d.data() }));
             const allPenalties = penaltiesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
+            // ============== ALL-YEARS INCOME (uses isDepositCounted) ==============
             const totalPenaltyIncomeAllYears = allPenalties
                 .filter(p => p.status === 'paid' || p.status === 'done' || p.status === 'approved')
                 .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
+            // Registration Fee + everything that isn't "Other Deposit"
             const totalDepositIncomeAllYears = allProfitIncome
+                .filter(p => isDepositCounted(p))
                 .filter(p => p.incomeType !== 'Other Deposit' && p.incomeType !== 'Other')
                 .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
@@ -1600,14 +1286,15 @@
                 .reduce((sum, loan) => sum + getLoanInterest(loan), 0);
 
             const totalOtherIncomeAllYears = allProfitIncome
+                .filter(p => isDepositCounted(p))
                 .filter(p => p.incomeType === 'Other Deposit' || p.incomeType === 'Other')
                 .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
             const totalIncomeAllYears = Math.round(
-                (totalPenaltyIncomeAllYears + totalDepositIncomeAllYears + totalInterestIncomeAllYears + totalOtherIncomeAllYears) *
-                100
+                (totalPenaltyIncomeAllYears + totalDepositIncomeAllYears + totalInterestIncomeAllYears + totalOtherIncomeAllYears) * 100
             ) / 100;
 
+            // ============== YEARLY FILTERS ==============
             const savingsData = allSavings.filter(s => isInYear(s.date || s.timestamp, year));
             const loansData = allLoans.filter(l => isInYear(l.date || l.timestamp, year));
             const repaymentsData = allRepayments.filter(r => isInYear(r.date || r.timestamp, year));
@@ -1624,6 +1311,7 @@
                 .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
             const yearlyDepositIncome = profitIncomeData
+                .filter(p => isDepositCounted(p))
                 .filter(p => p.incomeType !== 'Other Deposit' && p.incomeType !== 'Other')
                 .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
@@ -1631,6 +1319,7 @@
                 .reduce((sum, loan) => sum + getLoanInterest(loan), 0);
 
             const yearlyOtherIncome = profitIncomeData
+                .filter(p => isDepositCounted(p))
                 .filter(p => p.incomeType === 'Other Deposit' || p.incomeType === 'Other')
                 .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
@@ -1704,7 +1393,7 @@
         }
 
         // ============================================================
-        // UPDATE UI BASED ON YEAR DATA
+        // UPDATE UI
         // ============================================================
         function updateUI(yearData) {
             const t = translations[currentLang];
@@ -1775,11 +1464,8 @@
 
             const closeBtn = document.getElementById('closeYearBtn');
             if (closeBtn) {
-                if (!canManageDividends()) {
-                    closeBtn.style.display = 'none';
-                } else {
-                    closeBtn.style.display = 'inline-flex';
-                }
+                if (!canManageDividends()) closeBtn.style.display = 'none';
+                else closeBtn.style.display = 'inline-flex';
             }
 
             renderDividendHistory(yearData.dividendEntries);
@@ -1793,15 +1479,11 @@
             const tbody = document.getElementById('previewTableBody');
             const totalDisplay = document.getElementById('totalProfitDisplay');
             if (totalDisplay) totalDisplay.textContent = totalIncome.toFixed(2);
-
             if (!tbody) return;
-
             if (!previewData || previewData.length === 0) {
-                tbody.innerHTML =
-                    `<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-secondary);">No data available</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-secondary);">No data available</td></tr>`;
                 return;
             }
-
             let html = '';
             let totalDividend = 0;
             previewData.forEach((item, i) => {
@@ -1814,13 +1496,11 @@
                     <td><strong>${item.dividendAmount.toFixed(2)}</strong></td>
                 </tr>`;
             });
-
             html += `<tr class="total-row">
                 <td colspan="3"></td>
                 <td><strong>Total</strong></td>
                 <td><strong>${totalDividend.toFixed(2)}</strong></td>
             </tr>`;
-
             tbody.innerHTML = html;
         }
 
@@ -1830,15 +1510,11 @@
         function renderDividendHistory(entries) {
             const tbody = document.getElementById('dividendsBody');
             const t = translations[currentLang];
-
             if (!tbody) return;
-
             if (!entries || entries.length === 0) {
-                tbody.innerHTML =
-                `<tr><td colspan="7"><div class="empty-state"><i class="fas fa-gift"></i><span>${t.noDividends}</span></div></td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><i class="fas fa-gift"></i><span>${t.noDividends}</span></div></td></tr>`;
                 return;
             }
-
             const start = (currentPage - 1) * pageSize;
             const end = Math.min(start + pageSize, entries.length);
             const pageItems = entries.slice(start, end);
@@ -1849,19 +1525,15 @@
                     d.status === 'pending' ? 'pending' : 'failed';
                 const statusLabel = d.status === 'distributed' ? t.distributed :
                     d.status === 'pending' ? t.pending : t.failed;
-
                 const dateStr = formatDate(d.date || d.timestamp);
                 let byUser = d.createdByName || d.createdBy || d.createdByEmail || 'Admin';
                 if (byUser.includes('@')) byUser = byUser.split('@')[0];
                 if (!byUser || byUser.trim() === '') byUser = 'Admin';
-
                 const customerName = customersList.find(c => c.id === d.customerId)?.fullName || d.customerName || 'Unknown';
 
-                let actionsHtml =
-                    `<button class="action-btn view-btn" onclick="viewDividend('${d.id}')" title="${t.view}"><i class="fas fa-eye"></i></button>`;
+                let actionsHtml = `<button class="action-btn view-btn" onclick="viewDividend('${d.id}')" title="${t.view}"><i class="fas fa-eye"></i></button>`;
                 if (canManageDividends()) {
-                    actionsHtml +=
-                        `<button class="action-btn delete-btn" onclick="showDeleteModal('${d.id}')" title="${t.delete}"><i class="fas fa-trash"></i></button>`;
+                    actionsHtml += `<button class="action-btn delete-btn" onclick="showDeleteModal('${d.id}')" title="${t.delete}"><i class="fas fa-trash"></i></button>`;
                 }
 
                 html += `<tr>
@@ -1874,7 +1546,6 @@
                     <td>${actionsHtml}</td>
                 </tr>`;
             });
-
             tbody.innerHTML = html;
             updatePaginationInfo(entries.length);
             renderPageButtons(entries.length);
@@ -1907,8 +1578,7 @@
                 if (startPage > 2) html += `<button class="pagination-btn" disabled>...</button>`;
             }
             for (let i = startPage; i <= endPage; i++) {
-                html +=
-                    `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+                html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
             }
             if (endPage < totalPages) {
                 if (endPage < totalPages - 1) html += `<button class="pagination-btn" disabled>...</button>`;
@@ -1931,23 +1601,15 @@
         // ============================================================
         function viewDividend(id) {
             const entry = yearData.dividendEntries.find(d => d.id === id);
-            if (!entry) {
-                showToast('Dividend record not found.', 'error');
-                return;
-            }
-
+            if (!entry) { showToast('Dividend record not found.', 'error'); return; }
             const customer = customersList.find(c => c.id === entry.customerId);
             const customerName = customer ? customer.fullName : (entry.customerName || 'Unknown');
             const t = translations[currentLang];
-
             const amount = Number(entry.amount) || 0;
-            const dateStr = entry.date ? (entry.date.toDate ? entry.date.toDate().toLocaleString() : new Date(entry.date)
-                .toLocaleString()) : '—';
+            const dateStr = entry.date ? (entry.date.toDate ? entry.date.toDate().toLocaleString() : new Date(entry.date).toLocaleString()) : '—';
             const status = entry.status || 'distributed';
-            let statusLabel = status === 'distributed' ? t.distributed :
-                status === 'pending' ? t.pending : t.failed;
-            const statusClass = status === 'distributed' ? 'distributed' :
-                status === 'pending' ? 'pending' : 'failed';
+            let statusLabel = status === 'distributed' ? t.distributed : status === 'pending' ? t.pending : t.failed;
+            const statusClass = status === 'distributed' ? 'distributed' : status === 'pending' ? 'pending' : 'failed';
             const note = entry.note || entry.description || 'Dividend distribution';
             const recordedBy = entry.createdByName || entry.createdBy || entry.createdByEmail || 'Admin';
             const recordedDisplay = recordedBy.includes('@') ? recordedBy.split('@')[0] : recordedBy;
@@ -1964,7 +1626,6 @@
                 <div class="view-detail-row"><span class="label">Date</span><span class="value">${dateStr}</span></div>
                 <div class="view-detail-row"><span class="label">Recorded By</span><span class="value">${recordedDisplay}</span></div>
             `;
-
             document.getElementById('viewDividendModal').classList.add('active');
             document.getElementById('viewDividendModal').style.display = 'flex';
         }
@@ -1975,79 +1636,49 @@
         }
 
         // ============================================================
-        // DELETE MODAL FUNCTIONS
+        // DELETE
         // ============================================================
         function showDeleteModal(id) {
-            if (!canManageDividends()) {
-                showToast(translations[currentLang].unauthorized, 'error');
-                return;
-            }
+            if (!canManageDividends()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
             pendingDeleteId = id;
             document.getElementById('deleteModal').classList.add('active');
         }
-
         function closeDeleteModal() {
             document.getElementById('deleteModal').classList.remove('active');
             pendingDeleteId = null;
         }
-
         async function confirmDeleteDividend() {
-            if (!pendingDeleteId) {
-                closeDeleteModal();
-                return;
-            }
+            if (!pendingDeleteId) { closeDeleteModal(); return; }
             const t = translations[currentLang];
             try {
                 const docRef = db.collection('transactions').doc(pendingDeleteId);
                 const doc = await docRef.get();
                 const data = doc.exists ? doc.data() : {};
-
                 await docRef.delete();
-
-                await logAudit('deleted', 'transactions', pendingDeleteId, { deletedData: { old: null, new: data } },
-                    `Dividend record deleted (${data.amount || 0} ETB)`);
-
+                await logAudit('deleted', 'transactions', pendingDeleteId, { deletedData: { old: null, new: data } }, `Dividend record deleted (${data.amount || 0} ETB)`);
                 showToast(t.deleteSuccess, 'success');
                 closeDeleteModal();
                 await loadYearData(selectedYear);
-
             } catch (error) {
-                console.error('Error deleting dividend:', error);
                 showToast(t.deleteError + error.message, 'error');
                 closeDeleteModal();
             }
         }
 
         // ============================================================
-        // DISTRIBUTION MODAL FUNCTIONS
+        // DISTRIBUTION
         // ============================================================
         function showDistributionModal() {
-            if (!canManageDividends()) {
-                showToast(translations[currentLang].unauthorized, 'error');
-                return;
-            }
-
-            if (yearData.isClosed) {
-                showToast(translations[currentLang].yearAlreadyClosed.replace('{year}', selectedYear), 'warning');
-                return;
-            }
-
-            if (yearData.totalIncome <= 0.005) {
-                showToast('No income available to distribute.', 'warning');
-                return;
-            }
-
-            if (yearData.dividendsCount > 0) {
-                showToast('Dividends have already been distributed for this year.', 'warning');
-                return;
-            }
+            if (!canManageDividends()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
+            if (yearData.isClosed) { showToast(translations[currentLang].yearAlreadyClosed.replace('{year}', selectedYear), 'warning'); return; }
+            if (yearData.totalIncome <= 0.005) { showToast('No income available to distribute.', 'warning'); return; }
+            if (yearData.dividendsCount > 0) { showToast('Dividends have already been distributed for this year.', 'warning'); return; }
 
             const totalToDistribute = yearData.previewData.reduce((sum, p) => sum + p.dividendAmount, 0);
             document.getElementById('distYearDisplay').textContent = selectedYear;
             document.getElementById('distTotalIncome').textContent = yearData.totalIncome.toFixed(2);
             document.getElementById('distCustomerCount').textContent = yearData.previewData.length;
             document.getElementById('distTotalAmount').textContent = totalToDistribute.toFixed(2);
-
             document.getElementById('distributionModal').classList.add('active');
         }
 
@@ -2057,18 +1688,15 @@
 
         async function confirmDistribution() {
             closeDistributionModal();
-
             const t = translations[currentLang];
             const btn = document.getElementById('distributeBtn');
             if (!btn) return;
             const originalHtml = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Distributing...';
-
             try {
                 const user = auth.currentUser;
                 const createdByName = getDisplayName(user);
-
                 const batch = db.batch();
                 let distributedCount = 0;
                 let totalDistributed = 0;
@@ -2097,35 +1725,20 @@
                         customerDetails.push(`${item.customerName}: ${item.dividendAmount.toFixed(2)} ETB`);
                     }
                 }
-
                 await batch.commit();
+                await logAudit('created', 'transactions', 'dividend_batch_' + Date.now(), {
+                    year: { old: null, new: selectedYear },
+                    totalCustomers: { old: null, new: distributedCount },
+                    totalAmount: { old: null, new: Math.round(totalDistributed * 100) / 100 }
+                }, `Dividend distribution for year ${selectedYear}: ${distributedCount} customers received total ETB ${Math.round(totalDistributed * 100) / 100}`);
 
-                await logAudit(
-                    'created',
-                    'transactions',
-                    'dividend_batch_' + Date.now(),
-                    {
-                        year: { old: null, new: selectedYear },
-                        totalCustomers: { old: null, new: distributedCount },
-                        totalAmount: { old: null, new: Math.round(totalDistributed * 100) / 100 },
-                        details: { old: null, new: customerDetails.join('; ') }
-                    },
-                    `Dividend distribution for year ${selectedYear}: ${distributedCount} customers received total ETB ${Math.round(totalDistributed * 100) / 100}`
-                );
-
-                showToast(t.distributionSuccess.replace('{count}', distributedCount).replace('{total}', Math.round(
-                    totalDistributed * 100) / 100), 'success');
-
+                showToast(t.distributionSuccess.replace('{count}', distributedCount).replace('{total}', Math.round(totalDistributed * 100) / 100), 'success');
                 await loadYearData(selectedYear);
                 updateUI(yearData);
 
-                const previewSection = document.getElementById('previewSection');
-                const closeYearSection = document.getElementById('closeYearSection');
-                if (previewSection) previewSection.style.display = 'none';
-                if (closeYearSection) closeYearSection.style.display = 'block';
-
+                document.getElementById('previewSection').style.display = 'none';
+                document.getElementById('closeYearSection').style.display = 'block';
             } catch (error) {
-                console.error('Error distributing dividends:', error);
                 showToast(t.distributionError + error.message, 'error');
             } finally {
                 btn.disabled = false;
@@ -2137,37 +1750,21 @@
         // CLOSE YEAR
         // ============================================================
         async function closeYear() {
-            if (!canManageDividends()) {
-                showToast(translations[currentLang].unauthorized, 'error');
-                return;
-            }
-
+            if (!canManageDividends()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
             const year = selectedYear;
             const t = translations[currentLang];
-
-            if (yearData.isClosed) {
-                showToast(t.yearAlreadyClosed.replace('{year}', year), 'warning');
-                return;
-            }
-
-            if (yearData.dividendsCount === 0) {
-                showToast('Cannot close year: No dividends have been distributed yet.', 'warning');
-                return;
-            }
-
-            const confirmMsg = t.closeYearConfirm.replace('{year}', year);
-            if (!confirm(confirmMsg)) return;
+            if (yearData.isClosed) { showToast(t.yearAlreadyClosed.replace('{year}', year), 'warning'); return; }
+            if (yearData.dividendsCount === 0) { showToast('Cannot close year: No dividends have been distributed yet.', 'warning'); return; }
+            if (!confirm(t.closeYearConfirm.replace('{year}', year))) return;
 
             const btn = document.getElementById('closeYearBtn');
             if (!btn) return;
             const originalHtml = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Closing...';
-
             try {
                 const user = auth.currentUser;
                 const createdByName = getDisplayName(user);
-
                 const docRef = await db.collection('transactions').add({
                     type: 'year_close',
                     year: year,
@@ -2177,30 +1774,15 @@
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     note: `Year ${year} closed by ${createdByName}`
                 });
-
-                await logAudit(
-                    'created',
-                    'transactions',
-                    docRef.id,
-                    {
-                        year: { old: null, new: year },
-                        closedBy: { old: null, new: createdByName },
-                        totalDividendsDistributed: { old: null, new: Math.round(yearData.totalDividends * 100) / 100 },
-                        customersReceived: { old: null, new: yearData.dividendsCount }
-                    },
-                    `Year ${year} closed by ${createdByName} with ${yearData.dividendsCount} customers receiving ETB ${Math.round(yearData.totalDividends * 100) / 100} in dividends`
-                );
-
+                await logAudit('created', 'transactions', docRef.id, {
+                    year: { old: null, new: year },
+                    closedBy: { old: null, new: createdByName }
+                }, `Year ${year} closed by ${createdByName}`);
                 showToast(t.closeYearSuccess.replace('{year}', year), 'success');
-
                 await loadYearData(year);
                 updateUI(yearData);
-
-                const closeYearSection = document.getElementById('closeYearSection');
-                if (closeYearSection) closeYearSection.style.display = 'none';
-
+                document.getElementById('closeYearSection').style.display = 'none';
             } catch (error) {
-                console.error('Error closing year:', error);
                 showToast(t.closeYearError + error.message, 'error');
             } finally {
                 btn.disabled = false;
@@ -2235,10 +1817,7 @@
             try {
                 const currentYear = new Date().getFullYear();
                 const yearsSet = new Set();
-
-                const collections = ['profit_withdrawal', 'year_close', 'savings', 'repayment', 'loan', 'profit_income',
-                    'penalty'
-                ];
+                const collections = ['profit_withdrawal', 'year_close', 'savings', 'repayment', 'loan', 'profit_income', 'penalty'];
                 for (const type of collections) {
                     const snap = await db.collection('transactions').where('type', '==', type).get();
                     snap.forEach(doc => {
@@ -2246,13 +1825,8 @@
                         if (d) yearsSet.add(d.getFullYear());
                     });
                 }
-
-                for (let i = -2; i <= 5; i++) {
-                    yearsSet.add(currentYear + i);
-                }
-
+                for (let i = -2; i <= 5; i++) yearsSet.add(currentYear + i);
                 availableYears = Array.from(yearsSet).filter(y => y >= 2020).sort((a, b) => b - a);
-
                 const select = document.getElementById('yearSelect');
                 if (!select) return;
                 select.innerHTML = '';
@@ -2263,17 +1837,13 @@
                     if (year === currentYear) option.selected = true;
                     select.appendChild(option);
                 });
-
                 selectedYear = parseInt(select.value);
-
                 select.addEventListener('change', function() {
                     selectedYear = parseInt(this.value);
                     loadYearData(selectedYear);
                 });
-
                 overlay.classList.remove('active');
                 return selectedYear;
-
             } catch (error) {
                 console.error('Error loading years:', error);
                 const currentYear = new Date().getFullYear();
@@ -2294,24 +1864,13 @@
         }
 
         // ============================================================
-        // LOGOUT MODAL FUNCTIONS
+        // LOGOUT
         // ============================================================
-        function showLogoutModal() {
-            document.getElementById('logoutModal').classList.add('active');
-        }
-
-        function hideLogoutModal() {
-            document.getElementById('logoutModal').classList.remove('active');
-        }
-
+        function showLogoutModal() { document.getElementById('logoutModal').classList.add('active'); }
+        function hideLogoutModal() { document.getElementById('logoutModal').classList.remove('active'); }
         async function performLogout() {
-            try {
-                await auth.signOut();
-                window.location.href = '../login.html';
-            } catch (error) {
-                showToast('Error logging out: ' + error.message, 'error');
-                hideLogoutModal();
-            }
+            try { await auth.signOut(); window.location.href = '../login.html'; }
+            catch (error) { showToast('Error logging out: ' + error.message, 'error'); hideLogoutModal(); }
         }
 
         // ============================================================
@@ -2319,99 +1878,72 @@
         // ============================================================
         document.addEventListener('DOMContentLoaded', async function() {
             auth.onAuthStateChanged(async (user) => {
-                if (!user) {
-                    window.location.href = '../login.html';
-                    return;
-                }
-
+                if (!user) { window.location.href = '../login.html'; return; }
                 try {
                     const doc = await db.collection('users').doc(user.uid).get();
                     if (doc.exists) {
                         const data = doc.data();
                         currentUserRole = data.role || 'viewer';
-                        currentUserDisplayName = data.displayName || data.name || user.displayName || user.email?.split(
-                            '@')[0] || 'User';
+                        currentUserDisplayName = data.displayName || data.name || user.displayName || user.email?.split('@')[0] || 'User';
                     } else {
                         currentUserRole = 'viewer';
                         currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'User';
                     }
                 } catch (err) {
-                    console.error('Error fetching role:', err);
                     currentUserRole = 'viewer';
                     currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'User';
                 }
-
                 isAdmin = currentUserRole === 'admin';
-
                 updateUserInfo();
-
                 window.testConnection = testConnection;
-
                 initLanguage();
                 loadSidebarState();
 
                 document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
                 document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
                 document.getElementById('sidebarToggleBtn').addEventListener('click', toggleSidebarCollapse);
-
                 document.querySelectorAll('.lang-btn').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        setLanguage(this.dataset.lang);
-                    });
+                    btn.addEventListener('click', function() { setLanguage(this.dataset.lang); });
                 });
 
-                // ---- LOGOUT ----
                 document.getElementById('logoutBtn').addEventListener('click', showLogoutModal);
                 document.getElementById('logoutCancel').addEventListener('click', hideLogoutModal);
                 document.getElementById('logoutConfirm').addEventListener('click', performLogout);
-                document.getElementById('logoutModal').addEventListener('click', function(e) {
-                    if (e.target === this) hideLogoutModal();
-                });
-                document.addEventListener('keydown', function(e) {
-                    if (e.key === 'Escape') hideLogoutModal();
-                });
+                document.getElementById('logoutModal').addEventListener('click', function(e) { if (e.target === this) hideLogoutModal(); });
+                document.addEventListener('keydown', function(e) { if (e.key === 'Escape') hideLogoutModal(); });
 
-                // ---- DELETE ----
                 document.getElementById('deleteCancel').addEventListener('click', closeDeleteModal);
                 document.getElementById('deleteConfirm').addEventListener('click', confirmDeleteDividend);
-                document.getElementById('deleteModal').addEventListener('click', function(e) {
-                    if (e.target === this) closeDeleteModal();
-                });
+                document.getElementById('deleteModal').addEventListener('click', function(e) { if (e.target === this) closeDeleteModal(); });
 
-                // ---- DISTRIBUTION ----
                 document.getElementById('distCancel').addEventListener('click', closeDistributionModal);
                 document.getElementById('distConfirm').addEventListener('click', confirmDistribution);
-                document.getElementById('distributionModal').addEventListener('click', function(e) {
-                    if (e.target === this) closeDistributionModal();
-                });
+                document.getElementById('distributionModal').addEventListener('click', function(e) { if (e.target === this) closeDistributionModal(); });
 
                 await loadCustomersForSelect();
 
-                // Close view modal
                 document.getElementById('closeViewModal').addEventListener('click', closeViewModal);
-                document.getElementById('viewDividendModal').addEventListener('click', function(e) {
-                    if (e.target === this) closeViewModal();
-                });
+                document.getElementById('viewDividendModal').addEventListener('click', function(e) { if (e.target === this) closeViewModal(); });
 
                 await loadAvailableYears();
                 await loadYearData(selectedYear);
 
                 const distributeBtn = document.getElementById('distributeBtn');
                 if (distributeBtn) distributeBtn.addEventListener('click', showDistributionModal);
-
                 const closeBtn = document.getElementById('closeYearBtn');
                 if (closeBtn) closeBtn.addEventListener('click', closeYear);
 
                 document.getElementById('prevPage').addEventListener('click', function() {
-                    const total = yearData.dividendEntries.length;
-                    const totalPages = Math.ceil(total / pageSize);
                     if (currentPage > 1) goToPage(currentPage - 1);
                 });
                 document.getElementById('nextPage').addEventListener('click', function() {
-                    const total = yearData.dividendEntries.length;
-                    const totalPages = Math.ceil(total / pageSize);
+                    const totalPages = Math.ceil(yearData.dividendEntries.length / pageSize);
                     if (currentPage < totalPages) goToPage(currentPage + 1);
                 });
+
+                // Load session timeout from settings, then start timer
+                await loadSessionTimeoutFromSettings();
+                startSessionTimer();
 
                 window.goToPage = goToPage;
                 window.toggleSidebar = toggleSidebar;
@@ -2426,130 +1958,6 @@
                 window.closeViewModal = closeViewModal;
             });
         });
-
-        // ============================================================
-        // SESSION TIMEOUT
-        // ============================================================
-        (function() {
-            const SESSION_TIMEOUT = 5 * 60 * 1000;
-            const WARNING_TIMEOUT = SESSION_TIMEOUT - 30 * 1000;
-
-            let timer = null;
-            let warningTimer = null;
-            let warningToast = null;
-            let countdownInterval = null;
-
-            function resetTimer() {
-                clearTimeout(timer);
-                clearTimeout(warningTimer);
-                clearInterval(countdownInterval);
-                if (warningToast) {
-                    warningToast.remove();
-                    warningToast = null;
-                }
-                warningTimer = setTimeout(showWarning, WARNING_TIMEOUT);
-                timer = setTimeout(forceLogout, SESSION_TIMEOUT);
-            }
-
-            function showWarning() {
-                const t = translations && translations[currentLang] ? translations[currentLang] : { sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.' };
-                const message = t.sessionTimeout || 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
-
-                let seconds = 30;
-                warningToast = document.createElement('div');
-                warningToast.style.cssText = `
-                    position: fixed;
-                    bottom: 30px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    background: #f39c12;
-                    color: #fff;
-                    padding: 16px 24px;
-                    border-radius: 12px;
-                    font-size: 15px;
-                    font-weight: 500;
-                    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-                    z-index: 99999;
-                    max-width: 500px;
-                    text-align: center;
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    animation: slideUp 0.3s ease;
-                `;
-                warningToast.innerHTML =
-                `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
-
-                const style = document.createElement('style');
-                style.textContent = `
-                    @keyframes slideUp {
-                        from { transform: translateX(-50%) translateY(20px); opacity: 0; }
-                        to { transform: translateX(-50%) translateY(0); opacity: 1; }
-                    }
-                `;
-                document.head.appendChild(style);
-                document.body.appendChild(warningToast);
-
-                countdownInterval = setInterval(() => {
-                    seconds--;
-                    const textEl = document.getElementById('sessionWarningText');
-                    if (textEl) {
-                        textEl.textContent = message.replace('{seconds}', seconds);
-                    }
-                    if (seconds <= 0) {
-                        clearInterval(countdownInterval);
-                    }
-                }, 1000);
-            }
-
-            function forceLogout() {
-                clearInterval(countdownInterval);
-                if (warningToast) {
-                    warningToast.remove();
-                    warningToast = null;
-                }
-                if (typeof auth !== 'undefined' && auth) {
-                    auth.signOut().then(() => {
-                        window.location.href = '../login.html';
-                    }).catch(() => {
-                        window.location.href = '../login.html';
-                    });
-                } else {
-                    window.location.href = '../login.html';
-                }
-            }
-
-            const events = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
-
-            function handleActivity() {
-                resetTimer();
-            }
-            events.forEach(evt => {
-                document.addEventListener(evt, handleActivity);
-            });
-            resetTimer();
-
-            window.addEventListener('beforeunload', function() {
-                clearTimeout(timer);
-                clearTimeout(warningTimer);
-                clearInterval(countdownInterval);
-                if (warningToast) {
-                    warningToast.remove();
-                }
-                events.forEach(evt => {
-                    document.removeEventListener(evt, handleActivity);
-                });
-            });
-
-            if (typeof translations !== 'undefined' && translations.en && !translations.en.sessionTimeout) {
-                translations.en.sessionTimeout =
-                    'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
-                translations.am.sessionTimeout =
-                    'የእርስዎ ክፍለ-ጊዜ በ{seconds} ሰከንዶች ውስጥ ያበቃል። በመዳፊት ወይም ቁልፍ ይንቀሳቀሱ ወይም ይጫኑ በመግቢያ ላይ ለመቆየት።';
-                translations.om.sessionTimeout =
-                    'Sessiin keessan {seconds} sekoondii keessatti xumurama. Siiqaa ykn cuqaasaa sochoosuu ykn cuqaasuu akka seenan turtanii.';
-            }
-        })();
     </script>
 </body>
 </html>
