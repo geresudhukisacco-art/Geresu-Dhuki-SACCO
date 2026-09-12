@@ -1050,9 +1050,11 @@
                     <div class="ds-form-group">
                         <label>
                             Deposit Statuses to Count
-                            <span class="hint">Comma-separated. Only <code>profit_income</code> records with these statuses count.</span>
+                            <span class="hint">
+                                Comma-separated. <strong>approved, printed, completed, done, paid</strong> all count as "already deposited". A <code>printed: true</code> flag also counts.
+                            </span>
                         </label>
-                        <input type="text" id="dsDepositStatuses" placeholder="approved, completed, paid" />
+                        <input type="text" id="dsDepositStatuses" placeholder="approved, printed, completed, done, paid" />
                     </div>
                 </div>
 
@@ -1160,15 +1162,15 @@
             includeRegistrationFee: true,
             includeOtherIncome: true,
             includePaidInterest: true,
-            // Deposit
-            depositStatuses: ['approved', 'completed', 'paid'],
+            // Deposit — any of these = "already deposited"
+            depositStatuses: ['approved', 'printed', 'completed', 'done', 'paid'],
             // Repayment
             repaymentStatuses: ['approved', 'printed', 'paid', 'done'],
             // Net Saving / Shares
-            deductShareBuys: true,        // deduct ONLY savings-sourced share buys
+            deductShareBuys: true,
             countShareTransfers: true,
             shareStatuses: ['approved'],
-            // How to identify savings vs. external payment source on a share doc
+            // Share payment source detection
             savingsPaymentValues: ['savings', 'saving', 'from_savings', 'savings_account',
                                    'member_savings', 'account', 'sacco_savings', 'from_saving'],
             externalPaymentValues: ['cash', 'bank', 'bank_transfer', 'transfer',
@@ -1187,11 +1189,16 @@
                 if (doc.exists) {
                     const data = doc.data();
                     if (data && data.dashboard && typeof data.dashboard === 'object') {
+                        // Merge deposit statuses from defaults + saved, so
+                        // old saved settings can't accidentally hide records.
+                        const mergedStatuses = new Set([
+                            ...(DEFAULT_DASHBOARD_SETTINGS.depositStatuses || []),
+                            ...((data.dashboard.depositStatuses) || [])
+                        ]);
                         dashboardSettings = {
                             ...DEFAULT_DASHBOARD_SETTINGS,
                             ...data.dashboard,
-                            depositStatuses: Array.isArray(data.dashboard.depositStatuses) ?
-                                data.dashboard.depositStatuses : DEFAULT_DASHBOARD_SETTINGS.depositStatuses,
+                            depositStatuses: Array.from(mergedStatuses),
                             repaymentStatuses: Array.isArray(data.dashboard.repaymentStatuses) ?
                                 data.dashboard.repaymentStatuses : DEFAULT_DASHBOARD_SETTINGS.repaymentStatuses,
                             shareStatuses: Array.isArray(data.dashboard.shareStatuses) ?
@@ -1247,7 +1254,6 @@
             return calculateInterest(amount, rate, period, loanType);
         }
 
-        // Split a repayment into principal + interest portions
         function splitRepayment(amount, loan) {
             const principal = Number(loan.amount) || 0;
             const expectedInterest = getLoanInterest(loan);
@@ -1274,6 +1280,29 @@
         }
 
         // ============================================================
+        // DEPOSIT STATUS RULES
+        // Any of these statuses (or a printed flag) = "already deposited"
+        // and therefore counted toward Net Profit.
+        // ============================================================
+        const ALWAYS_COUNTED_DEPOSIT_STATUSES = [
+            'approved', 'printed', 'completed', 'done', 'paid'
+        ];
+
+        function isDepositStatusCounted(status, printedFlag) {
+            const s = String(status || '').toLowerCase().trim();
+            if (ALWAYS_COUNTED_DEPOSIT_STATUSES.includes(s)) return true;
+            if (printedFlag === true) return true;
+            const configured = (dashboardSettings.depositStatuses || [])
+                .map(x => String(x).toLowerCase().trim());
+            return configured.includes(s);
+        }
+
+        function isDepositCounted(dep) {
+            if (!dep) return false;
+            return isDepositStatusCounted(dep.status, dep.printed);
+        }
+
+        // ============================================================
         // SHARE PAYMENT SOURCE
         // ============================================================
         function getSharePaymentMethod(share) {
@@ -1291,7 +1320,7 @@
         function isSharePaidFromSavings(share) {
             const m = getSharePaymentMethod(share);
             const list = (dashboardSettings.savingsPaymentValues || []).map(x => String(x).toLowerCase().trim());
-            if (!m) return true; // Unspecified → treat as savings (SACCO default)
+            if (!m) return true;
             return list.includes(m);
         }
 
@@ -1883,9 +1912,8 @@
                 // ============================================================
                 // SHARES — NET of buys/sells (all years)
                 // ============================================================
-                let totalSharesNet = 0;         // share count in circulation
-                let netShareValue = 0;          // ETB value of shares in circulation
-                let sharesBoughtExternalAllY = 0; // for reference / tooltip only
+                let totalSharesNet = 0;
+                let netShareValue = 0;
 
                 allShares.forEach(s => {
                     if (!dashboardSettings.shareStatuses.includes(s.status)) return;
@@ -1901,8 +1929,6 @@
                     if (isBuy) {
                         totalSharesNet += shares;
                         netShareValue += amt;
-                        // Track external payment for potential display
-                        if (isSharePaidExternally(s)) sharesBoughtExternalAllY += amt;
                     } else if (isSell) {
                         totalSharesNet -= shares;
                         netShareValue -= amt;
@@ -1927,7 +1953,7 @@
                 let allYearsRegistrationFee = 0;
                 if (dashboardSettings.includeRegistrationFee) {
                     allYearsRegistrationFee = allProfitIncome
-                        .filter(p => dashboardSettings.depositStatuses.includes(p.status))
+                        .filter(p => isDepositCounted(p))
                         .filter(p => isRegistrationFee(p.incomeType))
                         .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
                 }
@@ -1935,7 +1961,7 @@
                 let allYearsOtherIncome = 0;
                 if (dashboardSettings.includeOtherIncome) {
                     allYearsOtherIncome = allProfitIncome
-                        .filter(p => dashboardSettings.depositStatuses.includes(p.status))
+                        .filter(p => isDepositCounted(p))
                         .filter(p => isOtherIncome(p.incomeType))
                         .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
                 }
@@ -1976,7 +2002,7 @@
                 let yearlyRegistrationFee = 0;
                 if (dashboardSettings.includeRegistrationFee) {
                     yearlyRegistrationFee = profitIncomeData
-                        .filter(p => dashboardSettings.depositStatuses.includes(p.status))
+                        .filter(p => isDepositCounted(p))
                         .filter(p => isRegistrationFee(p.incomeType))
                         .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
                 }
@@ -1984,7 +2010,7 @@
                 let yearlyOtherIncome = 0;
                 if (dashboardSettings.includeOtherIncome) {
                     yearlyOtherIncome = profitIncomeData
-                        .filter(p => dashboardSettings.depositStatuses.includes(p.status))
+                        .filter(p => isDepositCounted(p))
                         .filter(p => isOtherIncome(p.incomeType))
                         .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
                 }
@@ -2012,8 +2038,6 @@
                 // ---- YEARLY Savings / Withdrawals ----
                 const totalSavings = savingsData.reduce((s, item) => s + (Number(item.amount) || 0), 0);
                 const totalWithdrawalsYearly = withdrawalsData.reduce((s, w) => s + (Number(w.amount) || 0), 0);
-                // "Individual withdrawals" — only `withdrawal` type. Leaving withdrawals are
-                // treated separately and do NOT affect Net Saving per the new rule.
                 const totalLeavingWithdrawalsYearly = 0;
 
                 // ---- YEARLY Shares ----
@@ -2039,16 +2063,11 @@
                 });
 
                 // ---- YEARLY Net Saving ----
-                // Net Saving = Gross Savings − shares bought FROM SAVINGS − individual withdrawals
                 let netSavingYearly = totalSavings - totalWithdrawalsYearly - totalLeavingWithdrawalsYearly;
                 if (dashboardSettings.deductShareBuys) netSavingYearly -= yearlySharesBoughtFromSavings;
-                // Sold shares return money to savings → add back
                 netSavingYearly += yearlySharesSold;
                 netSavingYearly = Math.round(netSavingYearly * 100) / 100;
 
-                // ============================================================
-                // TOTAL BALANCE = Net Saving + Net Profit + Net Share Value
-                // ============================================================
                 const totalBalanceYearly = Math.round(
                     (netSavingYearly + totalIncomeYearly + netShareValue) * 100
                 ) / 100;
@@ -2064,10 +2083,9 @@
                     .filter(w => w.status === 'approved' || w.status === 'completed')
                     .reduce((s, w) => s + (Number(w.amount) || 0), 0);
 
-                const totalLeavingWithdrawalsAllYears = 0; // excluding from Net Saving per new rule
+                const totalLeavingWithdrawalsAllYears = 0;
 
                 let sharesBoughtFromSavingsAllYears = 0;
-                let sharesBoughtExternalAllYearsLocal = 0;
                 let sharesSoldAllYears = 0;
                 allShares.forEach(s => {
                     if (!dashboardSettings.shareStatuses.includes(s.status)) return;
@@ -2079,7 +2097,6 @@
                                     (dashboardSettings.countShareTransfers && ty === 'share_transfer_out'));
                     if (isBuy) {
                         if (isSharePaidFromSavings(s)) sharesBoughtFromSavingsAllYears += amt;
-                        else sharesBoughtExternalAllYearsLocal += amt;
                     } else if (isSell) {
                         sharesSoldAllYears += amt;
                     }
@@ -2152,11 +2169,11 @@
 
                 const prevProfitIncomeData = allProfitIncome.filter(p => isInYear(p.date || p.timestamp, prevYear));
                 const prevRegFee = dashboardSettings.includeRegistrationFee ? prevProfitIncomeData
-                    .filter(p => dashboardSettings.depositStatuses.includes(p.status))
+                    .filter(p => isDepositCounted(p))
                     .filter(p => isRegistrationFee(p.incomeType))
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0) : 0;
                 const prevOther = dashboardSettings.includeOtherIncome ? prevProfitIncomeData
-                    .filter(p => dashboardSettings.depositStatuses.includes(p.status))
+                    .filter(p => isDepositCounted(p))
                     .filter(p => isOtherIncome(p.incomeType))
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0) : 0;
                 const prevRepaymentsData = allRepayments.filter(r =>
@@ -2246,7 +2263,7 @@
                         });
                     });
 
-                profitIncomeData.filter(p => dashboardSettings.depositStatuses.includes(p.status))
+                profitIncomeData.filter(p => isDepositCounted(p))
                     .slice().sort((a, b) => (toDate(b.date || b.timestamp) || 0) - (toDate(a.date || a.timestamp) || 0))
                     .slice(0, 5).forEach(p => {
                         const type = p.incomeType || 'Deposit';
