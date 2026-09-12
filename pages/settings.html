@@ -171,7 +171,6 @@
         .input-with-unit input { padding-right: 60px; }
         .input-with-unit .unit { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 600; color: var(--text-muted); pointer-events: none; }
 
-        /* Share summary box */
         .share-summary-box {
             background: linear-gradient(135deg, rgba(45,122,61,0.06), rgba(45,122,61,0.02));
             border: 1px solid rgba(45,122,61,0.2);
@@ -182,20 +181,10 @@
             grid-template-columns: repeat(3, 1fr);
             gap: 12px;
         }
-        .share-summary-box .share-item {
-            display: flex; flex-direction: column; gap: 2px;
-        }
-        .share-summary-box .share-item .label {
-            font-size: 11px; color: var(--text-secondary);
-            font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;
-        }
-        .share-summary-box .share-item .value {
-            font-size: 18px; font-weight: 800; color: var(--primary);
-        }
-        .share-summary-box .share-item .value .cur {
-            font-size: 12px; font-weight: 600; color: var(--text-secondary);
-            margin-left: 3px;
-        }
+        .share-summary-box .share-item { display: flex; flex-direction: column; gap: 2px; }
+        .share-summary-box .share-item .label { font-size: 11px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+        .share-summary-box .share-item .value { font-size: 18px; font-weight: 800; color: var(--primary); }
+        .share-summary-box .share-item .value .cur { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-left: 3px; }
 
         .toggle-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 14px 0; border-bottom: 1px solid var(--border-color); }
         .toggle-row:last-child { border-bottom: none; }
@@ -540,7 +529,7 @@
                         </div>
                     </div>
 
-                    <!-- FINANCIAL (with share value + min/max shares in ETB) -->
+                    <!-- FINANCIAL -->
                     <div class="settings-panel" id="panel-financial">
                         <div class="settings-card">
                             <div class="settings-card-header">
@@ -556,13 +545,11 @@
                                     <div><strong data-i18n="readOnlyLabel">Read-only:</strong> <span data-i18n="roleAdminOnlySection">Only administrators can edit this section.</span></div>
                                 </div>
 
-                                <!-- ★★★ SHARES SECTION — value per share + min/max shares with ETB equivalent ★★★ -->
                                 <h4 style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--text-primary);display:flex;align-items:center;gap:8px;">
                                     <i class="fas fa-chart-pie" style="color:var(--primary);"></i>
                                     <span data-i18n="sharesSection">Share Configuration</span>
                                 </h4>
 
-                                <!-- Live summary box showing computed ETB amounts -->
                                 <div class="share-summary-box">
                                     <div class="share-item">
                                         <span class="label" data-i18n="shareValueSummary">Share Value</span>
@@ -607,7 +594,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Divider before other financial settings -->
                                 <h4 style="font-size:14px;font-weight:700;margin:22px 0 12px;color:var(--text-primary);display:flex;align-items:center;gap:8px;">
                                     <i class="fas fa-sliders-h" style="color:var(--primary);"></i>
                                     <span data-i18n="otherFinancial">Other Financial Settings</span>
@@ -701,6 +687,49 @@
                                     <div class="toggle-text"><div class="toggle-title" data-i18n="allowPartialRepayment">Allow partial repayments</div><div class="toggle-desc" data-i18n="allowPartialRepaymentDesc">Customers can pay less than the monthly installment</div></div>
                                     <label class="toggle-switch"><input type="checkbox" id="allowPartialRepayment" /><span class="slider"></span></label>
                                 </div>
+
+                                <!-- ===== Repayment Rules (used by repayments.html) ===== -->
+                                <h4 style="font-size:14px;font-weight:700;margin:22px 0 8px;color:var(--text-primary);display:flex;align-items:center;gap:8px;">
+                                    <i class="fas fa-undo-alt" style="color:var(--primary);"></i>
+                                    <span data-i18n="repaymentRulesSection">Repayment Rules</span>
+                                </h4>
+
+                                <div class="settings-form-row three">
+                                    <div class="settings-form-group">
+                                        <label data-i18n="minMonthsForRepayAllLabel">Minimum months before "Repay All" <span class="required">*</span></label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="minMonthsForRepayAll" step="1" min="0" max="60" placeholder="6" />
+                                            <span class="unit" data-i18n="months">months</span>
+                                        </div>
+                                        <span class="input-hint" data-i18n="minMonthsForRepayAllHint">Number of approved monthly payments required before a customer can use Repay All</span>
+                                    </div>
+                                    <div class="settings-form-group" style="grid-column: span 2;">
+                                        <label data-i18n="repayAllPreviewLabel">Preview</label>
+                                        <span class="input-hint" style="margin-top:8px; font-size:13px; line-height:1.7;">
+                                            <span data-i18n="repayAllPreviewPrefix">Repay All becomes available after</span>
+                                            <strong id="minMonthsForRepayAllPreview">6</strong>
+                                            <span data-i18n="months">months</span>.
+                                            <span data-i18n="interestWaiverPreview">Remaining interest</span>
+                                            <strong id="interestWaiverPreviewText" style="color:var(--success);">will be waived</strong>.
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div class="toggle-row">
+                                    <div class="toggle-text">
+                                        <div class="toggle-title" data-i18n="allowInterestWaiverLabel">Waive remaining interest on Repay All</div>
+                                        <div class="toggle-desc" data-i18n="allowInterestWaiverDesc">When enabled, Repay All only charges the outstanding principal and waives the remaining interest</div>
+                                    </div>
+                                    <label class="toggle-switch"><input type="checkbox" id="allowInterestWaiver" /><span class="slider"></span></label>
+                                </div>
+
+                                <div class="toggle-row">
+                                    <div class="toggle-text">
+                                        <div class="toggle-title" data-i18n="waiverRequiresMinMonthsLabel">Only allow interest waiver after the minimum months rule is met</div>
+                                        <div class="toggle-desc" data-i18n="waiverRequiresMinMonthsDesc">If disabled, the waiver applies even before the minimum-months requirement</div>
+                                    </div>
+                                    <label class="toggle-switch"><input type="checkbox" id="waiverRequiresMinMonths" /><span class="slider"></span></label>
+                                </div>
                             </div>
                             <div class="settings-card-actions">
                                 <span class="save-state-hint" data-section="loan"><i class="fas fa-check-circle"></i><span data-i18n="allChangesSaved">All changes saved</span></span>
@@ -781,10 +810,9 @@
                         </div>
                     </div>
 
-                    <!-- SESSION & SECURITY (with change password) -->
+                    <!-- SESSION & SECURITY -->
                     <div class="settings-panel" id="panel-security">
 
-                        <!-- CHANGE PASSWORD — available to ALL users -->
                         <div class="password-card" id="passwordCard">
                             <div class="settings-card-header">
                                 <div class="card-icon"><i class="fas fa-key"></i></div>
@@ -834,7 +862,6 @@
                             </div>
                         </div>
 
-                        <!-- SESSION & SECURITY (admin only) -->
                         <div class="settings-card">
                             <div class="settings-card-header">
                                 <div class="card-icon"><i class="fas fa-shield-alt"></i></div>
@@ -910,7 +937,7 @@
                         </div>
                     </div>
 
-                    <!-- NOTIFICATIONS (personal) -->
+                    <!-- NOTIFICATIONS -->
                     <div class="settings-panel" id="panel-notifications">
                         <div class="settings-card">
                             <div class="settings-card-header">
@@ -968,7 +995,7 @@
                         </div>
                     </div>
 
-                    <!-- APPEARANCE (personal) -->
+                    <!-- APPEARANCE -->
                     <div class="settings-panel" id="panel-appearance">
                         <div class="settings-card">
                             <div class="settings-card-header">
@@ -1236,6 +1263,10 @@
             maxLoanAmount: 500000,
             requireApprovalLoans: true,
             allowPartialRepayment: true,
+            // Repayment rules (used by repayments.html)
+            minMonthsForRepayAll: 6,
+            allowInterestWaiver: true,
+            waiverRequiresMinMonths: true,
             // Penalties
             penaltiesEnabled: true,
             loansPenaltyRate: 5,
@@ -1286,7 +1317,7 @@
         const SECTION_FIELDS = {
             general: ['saccoName', 'saccoShortName', 'saccoEmail', 'saccoPhone', 'saccoAddress', 'currency', 'defaultLanguage'],
             financial: ['shareValue', 'minShares', 'maxShares', 'dividendPercentage', 'minSavingsAmount', 'maxSavingsPerTxn', 'minWithdrawalAmount', 'allowNegativeCapital'],
-            loan: ['defaultLoanInterestRate', 'defaultLoanPeriod', 'defaultLoanType', 'minLoanAmount', 'maxLoanAmount', 'requireApprovalLoans', 'allowPartialRepayment'],
+            loan: ['defaultLoanInterestRate', 'defaultLoanPeriod', 'defaultLoanType', 'minLoanAmount', 'maxLoanAmount', 'requireApprovalLoans', 'allowPartialRepayment', 'minMonthsForRepayAll', 'allowInterestWaiver', 'waiverRequiresMinMonths'],
             penalties: ['penaltiesEnabled', 'loansPenaltyRate', 'gracePeriod', 'penaltiesMinAmount', 'penaltiesMaxAmount', 'penaltiesNotifyDays', 'penaltyAutoGenerate', 'penaltiesCompound', 'penaltiesApplyLoans', 'penaltiesApplySavings'],
             security: ['sessionTimeout', 'maxLoginAttempts', 'passwordMinLength', 'passwordRequireNumber', 'passwordRequireSpecial', 'twoFactorEnabled', 'forceLogoutOnPasswordChange'],
             notifications: ['enableEmailNotifications', 'enableSmsNotifications', 'notifyLoanDue', 'notifyPenalty', 'notifyDividend', 'notifyLargeTransaction', 'largeTransactionThreshold', 'notificationEmail'],
@@ -1295,7 +1326,6 @@
             backup: ['autoBackupEnabled', 'backupFrequency', 'backupEmail']
         };
 
-        // Only these sections are editable by non-admins
         const USER_EDITABLE_SECTIONS = ['appearance', 'notifications'];
 
         let currentSettings = { ...DEFAULT_SETTINGS };
@@ -1305,7 +1335,6 @@
         let currentLang = 'en';
         let isAdmin = false;
 
-        // Session timer
         let sessionTimeoutMs = 5 * 60 * 1000;
         let sessionTimeoutWarningMs = sessionTimeoutMs - 30 * 1000;
         let sessionTimer = null, sessionWarningTimer = null,
@@ -1351,6 +1380,16 @@
                 defaultLoanType: 'Default Loan Type', minLoanAmount: 'Minimum Loan Amount', maxLoanAmount: 'Maximum Loan Amount',
                 requireApprovalLoans: 'Require approval for loans', requireApprovalLoansDesc: 'New loans must be approved by a manager before activation',
                 allowPartialRepayment: 'Allow partial repayments', allowPartialRepaymentDesc: 'Customers can pay less than the monthly installment',
+                repaymentRulesSection: 'Repayment Rules',
+                minMonthsForRepayAllLabel: 'Minimum months before "Repay All"',
+                minMonthsForRepayAllHint: 'Number of approved monthly payments required before a customer can use Repay All',
+                repayAllPreviewLabel: 'Preview',
+                repayAllPreviewPrefix: 'Repay All becomes available after',
+                interestWaiverPreview: 'Remaining interest',
+                allowInterestWaiverLabel: 'Waive remaining interest on Repay All',
+                allowInterestWaiverDesc: 'When enabled, Repay All only charges the outstanding principal and waives the remaining interest',
+                waiverRequiresMinMonthsLabel: 'Only allow interest waiver after the minimum months rule is met',
+                waiverRequiresMinMonthsDesc: 'If disabled, the waiver applies even before the minimum-months requirement',
                 penaltiesSettings: 'Penalty Settings', penaltiesSettingsDesc: 'Configure penalty rules for overdue loans and late payments',
                 penaltiesEnabled: 'Enable penalty system', penaltiesEnabledDesc: 'Master switch for all penalty calculations across the system',
                 penaltyRate: 'Loan Penalty Rate', penaltyRateHint: 'Applied to unpaid monthly loan installments',
@@ -1463,6 +1502,16 @@
                 minLoanAmount: 'ዝቅተኛ የብድር መጠን', maxLoanAmount: 'ከፍተኛ የብድር መጠን',
                 requireApprovalLoans: 'ለብድሮች ማጽደቅ ያስፈልጋል', requireApprovalLoansDesc: 'አዲስ ብድሮች ከመነሳታቸው በፊት በአስተዳዳሪ መጽደቅ አለባቸው',
                 allowPartialRepayment: 'ከፊል ክፍያ ፍቀድ', allowPartialRepaymentDesc: 'ደንበኞች ከወርሃዊ ክፍያ ባነሰ መክፈል ይችላሉ',
+                repaymentRulesSection: 'የክፍያ ደንቦች',
+                minMonthsForRepayAllLabel: 'ከ"ሁሉንም ክፈል" በፊት ዝቅተኛ ወራት',
+                minMonthsForRepayAllHint: 'ደንበኛ ሁሉንም ክፈል ከመጠቀሙ በፊት የሚያስፈልጉ የጸደቁ ወርሃዊ ክፍያዎች',
+                repayAllPreviewLabel: 'ቅድመ-እይታ',
+                repayAllPreviewPrefix: 'ሁሉንም ክፈል ከዚህ በኋላ ይገኛል',
+                interestWaiverPreview: 'ቀሪ ወለድ',
+                allowInterestWaiverLabel: 'በሁሉንም ክፈል ላይ ቀሪ ወለድ ሰርዝ',
+                allowInterestWaiverDesc: 'ሲነቃ፣ ሁሉንም ክፈል የቀረውን ዋና ገንዘብ ብቻ ያስከፍላል እና ቀሪውን ወለድ ይሰርዛል',
+                waiverRequiresMinMonthsLabel: 'የወለድ ስረዛ የዝቅተኛ ወራት ደንብ ከተሟላ በኋላ ብቻ ፍቀድ',
+                waiverRequiresMinMonthsDesc: 'ካልተፈቀደ፣ ስረዛው ከዝቅተኛ ወራት መስፈርት በፊትም ይተገበራል',
                 penaltiesSettings: 'የቅጣት ቅንብሮች', penaltiesSettingsDesc: 'የዘገዩ ብድሮችን እና ዘግይተው የሚከፈሉ ክፍያዎችን ደንብ ያዋቅሩ',
                 penaltiesEnabled: 'የቅጣት ስርዓት አንቃ', penaltiesEnabledDesc: 'በስርዓቱ ላይ ላሉ ሁሉም የቅጣት ስሌቶች ዋና መቀየሪያ',
                 penaltyRate: 'የብድር ቅጣት መጠን', penaltyRateHint: 'በማይከፈሉ ወርሃዊ የብድር ክፍያዎች ላይ ይተገበራል',
@@ -1574,6 +1623,16 @@
                 minLoanAmount: 'Liqii Xiqqaa', maxLoanAmount: 'Liqii Ol\'aanaa',
                 requireApprovalLoans: 'Liqiif mirkaneessi barbaachisa', requireApprovalLoansDesc: 'Liqiin haaraan osoo hin eegallee bulchaan mirkaneessuu qaba',
                 allowPartialRepayment: 'Kaffaltii gartokkoo hayyami', allowPartialRepaymentDesc: 'Maamilonni kaffaltii ji\'aa gadi bu\'anii kaffaluu danda\'u',
+                repaymentRulesSection: 'Seera Kaffaltii',
+                minMonthsForRepayAllLabel: 'Ji\'oota xiqqaa "Hunda Kaffali" dura',
+                minMonthsForRepayAllHint: 'Kaffaltii ji\'aa mirkanaa\'e barbaachisu maamilaan "Hunda Kaffali" fayyadamuun dura',
+                repayAllPreviewLabel: 'Dur-ilaalcha',
+                repayAllPreviewPrefix: 'Hunda Kaffali booda argama',
+                interestWaiverPreview: 'Dhala hafe',
+                allowInterestWaiverLabel: 'Dhala hafe Hunda Kaffali irratti haqi',
+                allowInterestWaiverDesc: 'Yoo dandeessifame, Hunda Kaffali qofa liqii hafe gaafata, dhala hafe haqa',
+                waiverRequiresMinMonthsLabel: 'Haqiinsa dhalaa erga seera ji\'oota xiqqaa guutame booda qofa hayyami',
+                waiverRequiresMinMonthsDesc: 'Yoo dhorkame, haqiinsi duraan seera ji\'oota xiqqaa irratti hojiirra oola',
                 penaltiesSettings: 'Qindeessaa Adabaa', penaltiesSettingsDesc: 'Seera adaba liqii yeroo darbee fi kaffaltii turtii',
                 penaltiesEnabled: 'Sirna adabaa dandeessisi', penaltiesEnabledDesc: 'Jalqaba sirna guutuu qindeessaa adaba',
                 penaltyRate: 'Sadarkaa Adaba Liqii', penaltyRateHint: 'Kaffaltii ji\'aa liqii hin kaffalamneef',
@@ -1807,7 +1866,7 @@
         }
 
         // ============================================================
-        // SHARE ETB COMPUTATION ★★★ NEW ★★★
+        // SHARE ETB COMPUTATION
         // ============================================================
         function updateShareETBDisplays() {
             const sv = parseFloat(document.getElementById('shareValue').value) || 0;
@@ -1818,13 +1877,11 @@
 
             const fmt = (n) => Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-            // Inline hints below inputs
             const minETB = document.getElementById('minSharesETB');
             const maxETB = document.getElementById('maxSharesETB');
             if (minETB) minETB.textContent = fmt(minAmount);
             if (maxETB) maxETB.textContent = fmt(maxAmount);
 
-            // Summary box
             const ssv = document.getElementById('summaryShareValue');
             const smin = document.getElementById('summaryMinShares');
             const smax = document.getElementById('summaryMaxShares');
@@ -1835,6 +1892,26 @@
             if (smax) smax.textContent = maxSharesCount;
             if (smina) smina.textContent = fmt(minAmount);
             if (smaxa) smaxa.textContent = fmt(maxAmount);
+        }
+
+        // ============================================================
+        // REPAYMENT RULES PREVIEW
+        // ============================================================
+        function updateRepaymentRulesPreview() {
+            const monthsEl = document.getElementById('minMonthsForRepayAllPreview');
+            const waiverEl = document.getElementById('interestWaiverPreviewText');
+            const monthsVal = document.getElementById('minMonthsForRepayAll');
+            const waiverChk = document.getElementById('allowInterestWaiver');
+            if (monthsEl && monthsVal) monthsEl.textContent = Math.max(0, parseInt(monthsVal.value) || 0);
+            if (waiverEl && waiverChk) {
+                if (waiverChk.checked) {
+                    waiverEl.textContent = 'will be waived';
+                    waiverEl.style.color = 'var(--success)';
+                } else {
+                    waiverEl.textContent = 'will still be charged';
+                    waiverEl.style.color = 'var(--text-secondary)';
+                }
+            }
         }
 
         // ============================================================
@@ -1933,7 +2010,6 @@
         // FORM LOAD / SAVE
         // ============================================================
         function loadSettingsToForm(settings) {
-            // General
             document.getElementById('saccoName').value = settings.saccoName || '';
             document.getElementById('saccoShortName').value = settings.saccoShortName || '';
             document.getElementById('saccoEmail').value = settings.saccoEmail || '';
@@ -1942,7 +2018,6 @@
             document.getElementById('currency').value = settings.currency || 'ETB';
             document.getElementById('defaultLanguage').value = settings.defaultLanguage || 'en';
 
-            // Financial (shares)
             document.getElementById('shareValue').value = settings.shareValue ?? 100;
             document.getElementById('minShares').value = settings.minShares ?? 5;
             document.getElementById('maxShares').value = settings.maxShares ?? 1000;
@@ -1952,7 +2027,6 @@
             document.getElementById('minWithdrawalAmount').value = settings.minWithdrawalAmount ?? 50;
             document.getElementById('allowNegativeCapital').checked = !!settings.allowNegativeCapital;
 
-            // Loan
             document.getElementById('defaultLoanInterestRate').value = settings.defaultLoanInterestRate ?? 12;
             document.getElementById('defaultLoanPeriod').value = settings.defaultLoanPeriod ?? 12;
             document.getElementById('defaultLoanType').value = settings.defaultLoanType || 'simple';
@@ -1960,8 +2034,12 @@
             document.getElementById('maxLoanAmount').value = settings.maxLoanAmount ?? 500000;
             document.getElementById('requireApprovalLoans').checked = !!settings.requireApprovalLoans;
             document.getElementById('allowPartialRepayment').checked = !!settings.allowPartialRepayment;
+            // Repayment rules
+            document.getElementById('minMonthsForRepayAll').value = (settings.minMonthsForRepayAll ?? 6);
+            document.getElementById('allowInterestWaiver').checked = settings.allowInterestWaiver !== false;
+            document.getElementById('waiverRequiresMinMonths').checked = settings.waiverRequiresMinMonths !== false;
+            updateRepaymentRulesPreview();
 
-            // Penalties
             document.getElementById('penaltiesEnabled').checked = !!settings.penaltiesEnabled;
             document.getElementById('loansPenaltyRate').value = settings.loansPenaltyRate ?? 5;
             document.getElementById('gracePeriod').value = settings.gracePeriod ?? 7;
@@ -1973,7 +2051,6 @@
             document.getElementById('penaltiesApplyLoans').checked = !!settings.penaltiesApplyLoans;
             document.getElementById('penaltiesApplySavings').checked = !!settings.penaltiesApplySavings;
 
-            // Security
             document.getElementById('sessionTimeout').value = settings.sessionTimeout ?? 5;
             document.getElementById('maxLoginAttempts').value = settings.maxLoginAttempts ?? 5;
             document.getElementById('passwordMinLength').value = settings.passwordMinLength ?? 8;
@@ -1982,7 +2059,6 @@
             document.getElementById('twoFactorEnabled').checked = !!settings.twoFactorEnabled;
             document.getElementById('forceLogoutOnPasswordChange').checked = !!settings.forceLogoutOnPasswordChange;
 
-            // Notifications
             document.getElementById('enableEmailNotifications').checked = !!settings.enableEmailNotifications;
             document.getElementById('enableSmsNotifications').checked = !!settings.enableSmsNotifications;
             document.getElementById('notifyLoanDue').checked = !!settings.notifyLoanDue;
@@ -1992,7 +2068,6 @@
             document.getElementById('largeTransactionThreshold').value = settings.largeTransactionThreshold ?? 50000;
             document.getElementById('notificationEmail').value = settings.notificationEmail || '';
 
-            // Appearance
             document.getElementById('theme').value = settings.theme || 'light';
             document.getElementById('itemsPerPage').value = settings.itemsPerPage || '20';
             document.getElementById('dateFormat').value = settings.dateFormat || 'DD/MM/YYYY';
@@ -2003,30 +2078,26 @@
                 opt.classList.toggle('selected', opt.dataset.theme === (settings.theme || 'light'));
             });
 
-            // Advanced
             document.getElementById('enableAuditLog').checked = !!settings.enableAuditLog;
             document.getElementById('enableDuplicateCheck').checked = !!settings.enableDuplicateCheck;
             document.getElementById('autoApproveSmallTransactions').checked = !!settings.autoApproveSmallTransactions;
             document.getElementById('autoApproveThreshold').value = settings.autoApproveThreshold ?? 1000;
             document.getElementById('dataRetentionDays').value = settings.dataRetentionDays ?? 3650;
 
-            // Backup
             document.getElementById('autoBackupEnabled').checked = !!settings.autoBackupEnabled;
             document.getElementById('backupFrequency').value = settings.backupFrequency || 'weekly';
             document.getElementById('backupEmail').value = settings.backupEmail || '';
 
-            // Password min length display
             const lengthVal = document.getElementById('pwReqLengthValue');
             if (lengthVal) lengthVal.textContent = settings.passwordMinLength || 8;
 
-            // Refresh share amount displays + session banner
             updateShareETBDisplays();
+            updateRepaymentRulesPreview();
             applySessionTimeoutFromSettings();
         }
 
         function collectFormData() {
             const data = {};
-            // General
             data.saccoName = document.getElementById('saccoName').value.trim();
             data.saccoShortName = document.getElementById('saccoShortName').value.trim();
             data.saccoEmail = document.getElementById('saccoEmail').value.trim();
@@ -2035,7 +2106,6 @@
             data.currency = document.getElementById('currency').value;
             data.defaultLanguage = document.getElementById('defaultLanguage').value;
 
-            // Financial
             data.shareValue = parseFloat(document.getElementById('shareValue').value) || 0;
             data.minShares = parseInt(document.getElementById('minShares').value) || 0;
             data.maxShares = parseInt(document.getElementById('maxShares').value) || 0;
@@ -2047,7 +2117,6 @@
             data.minWithdrawalAmount = parseFloat(document.getElementById('minWithdrawalAmount').value) || 0;
             data.allowNegativeCapital = document.getElementById('allowNegativeCapital').checked;
 
-            // Loan
             data.defaultLoanInterestRate = parseFloat(document.getElementById('defaultLoanInterestRate').value) || 0;
             data.defaultLoanPeriod = parseInt(document.getElementById('defaultLoanPeriod').value) || 0;
             data.defaultLoanType = document.getElementById('defaultLoanType').value;
@@ -2055,8 +2124,11 @@
             data.maxLoanAmount = parseFloat(document.getElementById('maxLoanAmount').value) || 0;
             data.requireApprovalLoans = document.getElementById('requireApprovalLoans').checked;
             data.allowPartialRepayment = document.getElementById('allowPartialRepayment').checked;
+            // Repayment rules
+            data.minMonthsForRepayAll = Math.max(0, parseInt(document.getElementById('minMonthsForRepayAll').value) || 0);
+            data.allowInterestWaiver = document.getElementById('allowInterestWaiver').checked;
+            data.waiverRequiresMinMonths = document.getElementById('waiverRequiresMinMonths').checked;
 
-            // Penalties
             data.penaltiesEnabled = document.getElementById('penaltiesEnabled').checked;
             data.loansPenaltyRate = parseFloat(document.getElementById('loansPenaltyRate').value) || 0;
             data.penaltyRate = data.loansPenaltyRate;
@@ -2069,7 +2141,6 @@
             data.penaltiesApplyLoans = document.getElementById('penaltiesApplyLoans').checked;
             data.penaltiesApplySavings = document.getElementById('penaltiesApplySavings').checked;
 
-            // Security
             data.sessionTimeout = parseInt(document.getElementById('sessionTimeout').value) || 5;
             data.sessionTimeoutMinutes = data.sessionTimeout;
             data.sessionTimeoutSeconds = data.sessionTimeout * 60;
@@ -2080,7 +2151,6 @@
             data.twoFactorEnabled = document.getElementById('twoFactorEnabled').checked;
             data.forceLogoutOnPasswordChange = document.getElementById('forceLogoutOnPasswordChange').checked;
 
-            // Notifications
             data.enableEmailNotifications = document.getElementById('enableEmailNotifications').checked;
             data.enableSmsNotifications = document.getElementById('enableSmsNotifications').checked;
             data.notifyLoanDue = document.getElementById('notifyLoanDue').checked;
@@ -2090,7 +2160,6 @@
             data.largeTransactionThreshold = parseFloat(document.getElementById('largeTransactionThreshold').value) || 0;
             data.notificationEmail = document.getElementById('notificationEmail').value.trim();
 
-            // Appearance
             data.theme = document.getElementById('theme').value;
             data.itemsPerPage = document.getElementById('itemsPerPage').value;
             data.dateFormat = document.getElementById('dateFormat').value;
@@ -2098,14 +2167,12 @@
             data.showSidebarCollapsed = document.getElementById('showSidebarCollapsed').checked;
             data.showDashboardAnimations = document.getElementById('showDashboardAnimations').checked;
 
-            // Advanced
             data.enableAuditLog = document.getElementById('enableAuditLog').checked;
             data.enableDuplicateCheck = document.getElementById('enableDuplicateCheck').checked;
             data.autoApproveSmallTransactions = document.getElementById('autoApproveSmallTransactions').checked;
             data.autoApproveThreshold = parseFloat(document.getElementById('autoApproveThreshold').value) || 0;
             data.dataRetentionDays = parseInt(document.getElementById('dataRetentionDays').value) || 3650;
 
-            // Backup
             data.autoBackupEnabled = document.getElementById('autoBackupEnabled').checked;
             data.backupFrequency = document.getElementById('backupFrequency').value;
             data.backupEmail = document.getElementById('backupEmail').value.trim();
@@ -2246,6 +2313,7 @@
                     });
                 }
                 if (section === 'financial') updateShareETBDisplays();
+                if (section === 'loan') updateRepaymentRulesPreview();
                 updateDirtyIndicators();
                 showToast(t.resetDone, 'success');
             });
@@ -2563,7 +2631,6 @@
                     Object.keys(DEFAULT_SETTINGS).forEach(key => {
                         if (data[key] !== undefined && data[key] !== null) merged[key] = data[key];
                     });
-                    // Legacy aliases
                     if (data.penaltyRate !== undefined && data.loansPenaltyRate === undefined) merged.loansPenaltyRate = Number(data.penaltyRate);
                     if (data.sessionTimeoutMinutes !== undefined && data.sessionTimeout === undefined) merged.sessionTimeout = Number(data.sessionTimeoutMinutes);
                     else if (data.sessionTimeoutSeconds !== undefined && data.sessionTimeout === undefined) merged.sessionTimeout = Number(data.sessionTimeoutSeconds) / 60;
@@ -2618,12 +2685,10 @@
                 initLanguage();
                 loadSidebarState();
 
-                // Sidebar
                 document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
                 document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
                 document.getElementById('sidebarToggleBtn').addEventListener('click', toggleSidebarCollapse);
 
-                // Language
                 document.querySelectorAll('.lang-btn').forEach(btn => {
                     btn.addEventListener('click', function() {
                         setLanguage(this.dataset.lang);
@@ -2636,7 +2701,6 @@
                 applyPermissions();
                 startSessionTimer();
 
-                // Nav tabs
                 document.querySelectorAll('.settings-nav button').forEach(btn => {
                     btn.addEventListener('click', function() {
                         document.querySelectorAll('.settings-nav button').forEach(b => b.classList.remove('active'));
@@ -2647,7 +2711,6 @@
                     });
                 });
 
-                // Theme picker
                 document.querySelectorAll('.theme-option').forEach(opt => {
                     opt.addEventListener('click', function() {
                         if (!canEditSection('appearance')) return;
@@ -2660,7 +2723,6 @@
                     });
                 });
 
-                // Per-section save/reset
                 document.querySelectorAll('[data-save]').forEach(btn => {
                     btn.addEventListener('click', function() { saveSection(this.dataset.save); });
                 });
@@ -2668,7 +2730,6 @@
                     btn.addEventListener('click', function() { resetSection(this.dataset.reset); });
                 });
 
-                // Save all / reload
                 document.getElementById('saveAllBtn').addEventListener('click', saveAll);
                 document.getElementById('saveAllFloatingBtn').addEventListener('click', saveAll);
                 document.getElementById('discardAllBtn').addEventListener('click', discardAll);
@@ -2678,21 +2739,17 @@
                     showToast(translations[currentLang].allChangesSaved || 'Reloaded', 'success');
                 });
 
-                // Danger zone
                 document.getElementById('resetAllSettingsBtn').addEventListener('click', resetAllSettings);
                 document.getElementById('clearCacheBtn').addEventListener('click', clearCache);
                 document.getElementById('deleteAllTransactionsBtn').addEventListener('click', deleteAllTransactions);
 
-                // Backup
                 document.getElementById('exportAllDataBtn').addEventListener('click', exportAllData);
                 document.getElementById('exportSettingsBtn').addEventListener('click', exportSettings);
                 document.getElementById('importSettingsBtn').addEventListener('click', triggerImportSettings);
                 document.getElementById('importSettingsFile').addEventListener('change', handleImportSettings);
 
-                // Test connection
                 document.getElementById('testConnectionBtn').addEventListener('click', testConnection);
 
-                // Change password
                 document.getElementById('changePasswordBtn').addEventListener('click', changePassword);
                 document.getElementById('clearPasswordFormBtn').addEventListener('click', clearPasswordForm);
                 document.getElementById('newPassword').addEventListener('input', function() {
@@ -2706,7 +2763,6 @@
                     changePassword();
                 });
 
-                // Session presets
                 document.querySelectorAll('#sessionPresets button').forEach(btn => {
                     btn.addEventListener('click', function() {
                         if (!canEditSection('security')) return;
@@ -2716,7 +2772,6 @@
                     });
                 });
 
-                // Session timeout live banner update
                 document.getElementById('sessionTimeout').addEventListener('input', function() {
                     const mins = Math.max(1, Math.min(1440, parseInt(this.value) || 5));
                     const bannerVal = document.getElementById('sessionTimeoutBannerValue');
@@ -2728,7 +2783,6 @@
                     });
                 });
 
-                // ★★★ SHARE VALUE / MIN / MAX — live ETB computation ★★★
                 ['shareValue', 'minShares', 'maxShares'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) {
@@ -2743,7 +2797,16 @@
                     }
                 });
 
-                // Password policy changes → live requirement refresh
+                // Repayment rules live preview
+                const minMonthsEl = document.getElementById('minMonthsForRepayAll');
+                const allowWaiverEl = document.getElementById('allowInterestWaiver');
+                const waiverMinEl = document.getElementById('waiverRequiresMinMonths');
+                [minMonthsEl, allowWaiverEl, waiverMinEl].forEach(el => {
+                    if (!el) return;
+                    el.addEventListener('input', () => { updateRepaymentRulesPreview(); updateDirtyIndicators(); });
+                    el.addEventListener('change', () => { updateRepaymentRulesPreview(); updateDirtyIndicators(); });
+                });
+
                 document.getElementById('passwordMinLength').addEventListener('input', function() {
                     const lengthVal = document.getElementById('pwReqLengthValue');
                     if (lengthVal) lengthVal.textContent = this.value || 8;
@@ -2752,13 +2815,11 @@
                 document.getElementById('passwordRequireNumber').addEventListener('change', updatePasswordRequirements);
                 document.getElementById('passwordRequireSpecial').addEventListener('change', updatePasswordRequirements);
 
-                // Dirty indicators
                 document.querySelectorAll('.settings-panel input, .settings-panel select, .settings-panel textarea').forEach(el => {
                     el.addEventListener('input', updateDirtyIndicators);
                     el.addEventListener('change', updateDirtyIndicators);
                 });
 
-                // Logout
                 document.getElementById('logoutBtn').addEventListener('click', () => {
                     document.getElementById('logoutModal').classList.add('active');
                 });
@@ -2773,7 +2834,6 @@
                     if (e.target === this) this.classList.remove('active');
                 });
 
-                // Confirm modal
                 document.getElementById('confirmCancel').addEventListener('click', closeConfirmModal);
                 document.getElementById('confirmOk').addEventListener('click', () => {
                     const cb = confirmCallback;
@@ -2784,7 +2844,6 @@
                     if (e.target === this) closeConfirmModal();
                 });
 
-                // Unsaved changes warning
                 window.addEventListener('beforeunload', function(e) {
                     if (countDirtyFields() > 0) {
                         e.preventDefault();
