@@ -636,7 +636,7 @@
 
             <div class="deposit-balance-card">
                 <div>
-                    <div class="balance-label" data-i18n="totalDeposits">Total Approved Deposits</div>
+                    <div class="balance-label" data-i18n="totalDeposits">Total Deposited Income (Approved / Printed / Completed / Done)</div>
                 </div>
                 <div class="balance-amount">
                     <span class="currency">ETB</span>
@@ -721,7 +721,6 @@
 
     <div id="slipContainer" class="slip-container"></div>
 
-    <!-- ===== VIEW DEPOSIT MODAL ===== -->
     <div class="modal-overlay" id="viewDepositModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -734,7 +733,6 @@
         </div>
     </div>
 
-    <!-- ===== EDIT DEPOSIT MODAL ===== -->
     <div class="modal-overlay" id="editDepositModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -817,7 +815,6 @@
         </div>
     </div>
 
-    <!-- ===== ADD DEPOSIT MODAL ===== -->
     <div class="modal-overlay" id="addDepositModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -904,7 +901,6 @@
         </div>
     </div>
 
-    <!-- ===== LOGOUT MODAL ===== -->
     <div class="logout-modal-overlay" id="logoutModal">
         <div class="logout-modal">
             <div class="modal-icon"><i class="fas fa-sign-out-alt"></i></div>
@@ -917,7 +913,6 @@
         </div>
     </div>
 
-    <!-- ===== DELETE MODAL ===== -->
     <div class="delete-modal-overlay" id="deleteModal">
         <div class="delete-modal">
             <div class="modal-icon"><i class="fas fa-trash-alt"></i></div>
@@ -948,6 +943,18 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+
+        // ============================================================
+        // DEPOSIT STATUS RULES — aligned with dashboard
+        // Any of these (or a `printed: true` flag) = "already deposited"
+        // ============================================================
+        const COUNTED_DEPOSIT_STATUSES = ['approved', 'printed', 'completed', 'done', 'paid'];
+        function isDepositCounted(status, printedFlag) {
+            const s = String(status || '').toLowerCase().trim();
+            if (COUNTED_DEPOSIT_STATUSES.includes(s)) return true;
+            if (printedFlag === true) return true;
+            return false;
+        }
 
         // ============================================================
         // BANKS & MOBILE MONEY PROVIDERS
@@ -1056,7 +1063,7 @@
                 pageTitle: 'Deposits', breadcrumb: 'Home / Deposits',
                 depositsTitle: 'Deposits Management',
                 depositsSub: 'Record income from registration fees and other deposits',
-                totalDeposits: 'Total Approved Deposits', recordDeposit: 'Record Deposit',
+                totalDeposits: 'Total Deposited Income (Approved / Printed / Completed / Done)', recordDeposit: 'Record Deposit',
                 incomeType: 'Income Type', registrationFee: 'Registration Fee',
                 otherDeposit: 'Other Deposit', amount: 'Amount', date: 'Date',
                 paymentMethod: 'Payment Method', cash: 'Cash', bankTransfer: 'Bank Transfer',
@@ -1101,7 +1108,7 @@
                 pageTitle: 'ተቀማጭ', breadcrumb: 'ዋና ገጽ / ተቀማጭ',
                 depositsTitle: 'የተቀማጭ አስተዳደር',
                 depositsSub: 'ከምዝገባ ክፍያ እና ሌሎች ተቀማጭ ገቢ ይመዝግቡ',
-                totalDeposits: 'ጠቅላላ የጸደቀ ተቀማጭ', recordDeposit: 'ተቀማጭ ይመዝግቡ',
+                totalDeposits: 'ጠቅላላ የተቀማጭ ገቢ (የጸደቀ / የታተመ / የተጠናቀቀ / የተከናወነ)', recordDeposit: 'ተቀማጭ ይመዝግቡ',
                 incomeType: 'የገቢ አይነት', registrationFee: 'የምዝገባ ክፍያ',
                 otherDeposit: 'ሌላ ተቀማጭ', amount: 'መጠን', date: 'ቀን',
                 paymentMethod: 'የክፍያ ዘዴ', cash: 'ጥሬ ገንዘብ', bankTransfer: 'የባንክ ዝውውር',
@@ -1146,7 +1153,7 @@
                 pageTitle: 'Kaasaa', breadcrumb: 'Mana / Kaasaa',
                 depositsTitle: 'Bulchiinsa Kaasaa',
                 depositsSub: 'Galii kaffaltii galmeessaa fi kaasaa biroo galmeessi',
-                totalDeposits: 'Kaasaa Mirkanaa\'e Waliigalaa', recordDeposit: 'Kaasaa Galmeessi',
+                totalDeposits: 'Kaasaa Galii Waliigalaa (Mirkanaa\'e / Maxxanfame / Xumurame)', recordDeposit: 'Kaasaa Galmeessi',
                 incomeType: 'Gosa Galii', registrationFee: 'Kaffaltii Galmeessaa',
                 otherDeposit: 'Kaasaa Biroo', amount: 'Qaba', date: 'Guyyaa',
                 paymentMethod: 'Haala Kaffaltii', cash: 'Maallaqa Saaphanaa', bankTransfer: 'Sochoosa Baankii',
@@ -1195,7 +1202,7 @@
         let filterYear = 'all';
 
         // ============================================================
-        // SESSION TIMEOUT (loaded from settings/system — aligned with dashboard)
+        // SESSION TIMEOUT (loaded from settings/system)
         // ============================================================
         let SESSION_TIMEOUT_MINUTES = 5;
         let SESSION_TIMEOUT = SESSION_TIMEOUT_MINUTES * 60 * 1000;
@@ -1677,14 +1684,17 @@
             else yearFilter.value = 'all';
         }
 
+        // ============================================================
+        // TOTAL DEPOSITS — uses isDepositCounted() so approved, printed,
+        // completed, done, paid, OR printed:true all count.
+        // ============================================================
         async function getTotalDeposits() {
             try {
                 const snapshot = await db.collection('transactions').where('type', '==', 'profit_income').get();
                 let total = 0;
                 snapshot.forEach(doc => {
                     const data = doc.data();
-                    const status = data.status || 'pending';
-                    if (status === 'approved' || status === 'printed' || status === 'completed') {
+                    if (isDepositCounted(data.status, data.printed)) {
                         total += Number(data.amount) || 0;
                     }
                 });
@@ -1795,9 +1805,14 @@
                 const status = d.status || 'pending';
                 let statusLabel = status === 'printed' ? t.printed :
                     status === 'completed' ? t.completed :
+                    status === 'done' ? 'Done' :
+                    status === 'paid' ? 'Paid' :
                     status === 'approved' ? t.approved : t.pending;
                 const statusClass = status === 'printed' ? 'printed' :
-                    status === 'completed' || status === 'approved' ? 'completed' : 'pending';
+                    status === 'completed' || status === 'approved' || status === 'done' || status === 'paid' ? 'completed' : 'pending';
+                if (d.printed === true && status === 'approved') {
+                    statusLabel = t.approved + ' · ' + t.printed;
+                }
                 const methodMap = { 'cash': t.cash, 'bank': t.bankTransfer, 'mobile': t.mobileMoney };
                 const methodLabel = methodMap[d.paymentMethod] || d.paymentMethod || 'Cash';
                 let actionsHtml = `<button class="action-btn view-btn" onclick="viewDeposit('${d.id}')" title="${t.viewDetails}"><i class="fas fa-eye"></i></button>`;
@@ -1888,9 +1903,14 @@
             const status = d.status || 'pending';
             let statusLabel = status === 'printed' ? t.printed :
                 status === 'completed' ? t.completed :
+                status === 'done' ? 'Done' :
+                status === 'paid' ? 'Paid' :
                 status === 'approved' ? t.approved : t.pending;
             const statusClass = status === 'printed' ? 'printed' :
-                status === 'completed' || status === 'approved' ? 'completed' : 'pending';
+                status === 'completed' || status === 'approved' || status === 'done' || status === 'paid' ? 'completed' : 'pending';
+            if (d.printed === true && status === 'approved') {
+                statusLabel = t.approved + ' · ' + t.printed;
+            }
             const note = d.note || d.description || '—';
             const recordedBy = d.createdByName || d.createdBy || d.createdByEmail || 'Admin';
             const recordedDisplay = recordedBy.includes('@') ? recordedBy.split('@')[0] : recordedBy;
@@ -1989,7 +2009,6 @@
 
             toggleEditConditionalFields();
 
-            // Restore bank selection
             const bankSelect = document.getElementById('editBankName');
             const bankOther = document.getElementById('editBankNameOther');
             const savedBank = (d.bankName || '').trim();
@@ -2230,6 +2249,12 @@
             return name;
         }
 
+        // ============================================================
+        // PRINT DEPOSIT SLIP
+        // IMPORTANT: Only sets `printed: true` — never overwrites `status`
+        // so the deposit stays "approved" and continues to count toward
+        // Net Profit on the dashboard.
+        // ============================================================
         async function printDepositSlip(docId) {
             if (!canPrintDeposit()) { showToast(translations[currentLang].unauthorized, 'error'); return; }
             const deposit = allDeposits.find(d => d.id === docId);
@@ -2241,13 +2266,16 @@
                 if (printedBy.includes('@')) printedBy = printedBy.split('@')[0];
             }
             try {
-                if (deposit.status !== 'printed') {
+                if (deposit.printed !== true) {
+                    // Keep approval status intact — only flag as printed.
                     await db.collection('transactions').doc(docId).update({
-                        status: 'printed', printed: true,
+                        printed: true,
                         printedAt: firebase.firestore.FieldValue.serverTimestamp(),
                         printedBy: printedBy
                     });
-                    deposit.status = 'printed'; deposit.printed = true;
+                    deposit.printed = true;
+                    deposit.printedAt = new Date();
+                    deposit.printedBy = printedBy;
                     const currentItems = filteredDeposits.slice((currentPage - 1) * pageSize, currentPage * pageSize);
                     renderTable(currentItems);
                 }
@@ -2369,7 +2397,6 @@
                 safeAddEventListener('addPaymentMethod', 'change', toggleAddConditionalFields);
                 toggleAddConditionalFields();
 
-                // Bank dropdown change listeners for all 3 forms
                 safeAddEventListener('bankName', 'change', function() {
                     handleBankOtherToggle(this, document.getElementById('bankNameOther'), document.getElementById('bankOtherHint'));
                 });
@@ -2432,7 +2459,6 @@
                 });
                 safeAddEventListener('testConnectionBtn', 'click', testConnection);
 
-                // Load session timeout from settings/system (aligned with dashboard)
                 await loadSessionTimeoutFromSettings();
                 startSessionTimer();
 
