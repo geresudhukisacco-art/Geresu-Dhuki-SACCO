@@ -423,6 +423,10 @@
                             <span class="card-label"><i class="fas fa-arrow-left"></i> <span data-i18n="transfersIn">Transfers In</span></span>
                             <span class="card-value" id="indTransfersIn">0.00 ETB</span>
                         </div>
+                        <div class="breakdown-card bg-transfers-out">
+                            <span class="card-label"><i class="fas fa-arrow-right"></i> <span data-i18n="transfersOut">Transfers Out</span></span>
+                            <span class="card-value" id="indTransfersOut">0.00 ETB</span>
+                        </div>
                         <div class="breakdown-card bg-share-buy">
                             <span class="card-label"><i class="fas fa-chart-pie"></i> <span data-i18n="shareBuy">Net Share Buy</span></span>
                             <span class="card-value" id="indShareBuy">0.00 ETB</span>
@@ -596,9 +600,13 @@
                             <span class="card-label"><i class="fas fa-arrow-left"></i> <span data-i18n="transfersIn">Transfers In</span></span>
                             <span class="card-value" id="leaveTransfersIn">0.00 ETB</span>
                         </div>
-                        <div class="breakdown-card bg-share-buy">
-                            <span class="card-label"><i class="fas fa-chart-pie"></i> <span data-i18n="shareBuy">Net Share Buy</span></span>
-                            <span class="card-value" id="leaveShareBuy">0.00 ETB</span>
+                        <div class="breakdown-card bg-transfers-out">
+                            <span class="card-label"><i class="fas fa-arrow-right"></i> <span data-i18n="transfersOut">Transfers Out</span></span>
+                            <span class="card-value" id="leaveTransfersOut">0.00 ETB</span>
+                        </div>
+                        <div class="breakdown-card bg-transfer-in">
+                            <span class="card-label"><i class="fas fa-chart-pie"></i> <span data-i18n="shareCashedOut">Share Value (Cashed Out)</span></span>
+                            <span class="card-value" id="leaveShareBuy">+0.00 ETB</span>
                         </div>
                         <div class="breakdown-card bg-withdrawals">
                             <span class="card-label"><i class="fas fa-minus-circle"></i> <span data-i18n="withdrawalsTotal">Withdrawals</span></span>
@@ -913,7 +921,7 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // SHARED DASHBOARD SETTINGS (same as dashboard / dividends)
+        // SHARED DASHBOARD SETTINGS
         // ============================================================
         const DEFAULT_DASHBOARD_SETTINGS = {
             includeRegistrationFee: true,
@@ -1022,30 +1030,18 @@
             return ACTIVE_SERVICE_WITHDRAWAL_STATUSES.includes(s);
         }
 
-        function getSharePaymentMethod(share) {
-            const raw = share.paymentMethod || share.paymentSource || share.paidFrom ||
-                        share.source || share.fundingSource || share.method || share.paymentType || '';
-            return String(raw).toLowerCase().trim();
-        }
-        function isSharePaidFromSavings(share) {
-            const m = getSharePaymentMethod(share);
-            const list = (dashboardSettings.savingsPaymentValues || []).map(x => String(x).toLowerCase().trim());
-            if (!m) return true;
-            return list.includes(m);
-        }
-
         // ============================================================
         // TRANSLATIONS
         // ============================================================
         const translations = {
             en: {
-                brandSub:'SACCO Banking',navDashboard:'Dashboard',navCustomers:'Customers',navSavings:'Savings',navDeposits:'Deposits',navLoans:'Loans',navRepayments:'Repayments',navWithdrawals:'Withdrawals',navDividends:'Dividends',navShares:'Shares',navPenalties:'Penalties',navReports:'Reports',navAudit:'Audit Trail',navUsers:'Users',navSettings:'Settings',logout:'Logout',logoutTitle:'Logout',logoutMessage:'Are you sure you want to logout?',cancel:'Cancel',pageTitle:'Withdrawals & Transfers',breadcrumb:'Home / Withdrawals',withdrawalsTitle:'Capital Withdrawals & Transfers',withdrawalsSub:'Manage customer capital withdrawals, service withdrawals, and transfers',individual:'Individual',service:'SACCO Services',leaving:'Customer Leaving',transfer:'Transfer',customer:'Customer',fromCustomer:'From Customer',toCustomer:'To Customer',amount:'Amount',date:'Date',reason:'Reason',note:'Note (optional)',status:'Status',completed:'Completed',approved:'Approved',pending:'Pending',failed:'Failed',transactionHistory:'Transaction History',noTransactions:'No transactions found.',showing:'Showing',of:'of',by:'By',actions:'Actions',view:'View',delete:'Delete',printSlip:'Print Slip',searchPlaceholder:'Search by customer name...',totalCapital:'Total Capital',serviceType:'Service Type',type:'Type',allTypes:'All Types',allYears:'All Years',selectCustomerFirst:'Please select a customer.',amountExceedsMax:'Amount exceeds 95% of capital.',insufficientCapital:'Insufficient capital.',cannotTransferToSelf:'Cannot transfer to same customer.',transferSuccess:'Transfer completed successfully!',transferError:'Transfer failed: ',withdrawalRecorded:'Withdrawal recorded successfully!',serviceRecorded:'Service withdrawal recorded successfully!',leavingRecorded:'Customer leaving processed successfully!',deleteSuccess:'Transaction deleted.',loadError:'Error loading data: ',amountInWords:'Amount in words',description:'Description',insufficientProfit:'Insufficient SACCO net profit.',transferOut:'Transfer Out',transferIn:'Transfer In',savings:'Savings',dividends:'Dividends',transfersIn:'Transfers In',withdrawalsTotal:'Withdrawals',transfersOut:'Transfers Out',testConnection:'Test Connection',connectionSuccess:'✅ Connection successful!',connectionFailed:'❌ Connection failed: ',loadingData:'Loading data...',transactionId:'Transaction ID',transactionDetails:'Transaction Details',penaltyRateLabel:'Penalty Rate:',newWithdrawal:'New Withdrawal',save:'Save',approve:'Approve',edit:'Edit',shareBuy:'Net Share Buy',customerLeaving:'Customer Leaving',maxWithdrawal:'Max withdrawal (95%)',withdraw:'Withdraw',withdrawService:'Withdraw Service',processLeaving:'Process Leaving',reasonForLeaving:'Reason for Leaving',paidInterest:'Paid Interest',registrationFee:'Registration Fee',otherIncome:'Other Income',totalIncome:'Total Income',serviceWithdrawals:'Service Withdrawals',servicesUsed:'Services Used',netProfitAvailable:'Net Profit Available',noProfitAvailable:'No profit available',sessionTimeout:'Your session will expire in {seconds} seconds.'
+                brandSub:'SACCO Banking',navDashboard:'Dashboard',navCustomers:'Customers',navSavings:'Savings',navDeposits:'Deposits',navLoans:'Loans',navRepayments:'Repayments',navWithdrawals:'Withdrawals',navDividends:'Dividends',navShares:'Shares',navPenalties:'Penalties',navReports:'Reports',navAudit:'Audit Trail',navUsers:'Users',navSettings:'Settings',logout:'Logout',logoutTitle:'Logout',logoutMessage:'Are you sure you want to logout?',cancel:'Cancel',pageTitle:'Withdrawals & Transfers',breadcrumb:'Home / Withdrawals',withdrawalsTitle:'Capital Withdrawals & Transfers',withdrawalsSub:'Manage customer capital withdrawals, service withdrawals, and transfers',individual:'Individual',service:'SACCO Services',leaving:'Customer Leaving',transfer:'Transfer',customer:'Customer',fromCustomer:'From Customer',toCustomer:'To Customer',amount:'Amount',date:'Date',reason:'Reason',note:'Note (optional)',status:'Status',completed:'Completed',approved:'Approved',pending:'Pending',failed:'Failed',transactionHistory:'Transaction History',noTransactions:'No transactions found.',showing:'Showing',of:'of',by:'By',actions:'Actions',view:'View',delete:'Delete',printSlip:'Print Slip',searchPlaceholder:'Search by customer name...',totalCapital:'Total Capital',serviceType:'Service Type',type:'Type',allTypes:'All Types',allYears:'All Years',selectCustomerFirst:'Please select a customer.',amountExceedsMax:'Amount exceeds 95% of capital.',insufficientCapital:'Insufficient capital.',cannotTransferToSelf:'Cannot transfer to same customer.',transferSuccess:'Transfer completed successfully!',transferError:'Transfer failed: ',withdrawalRecorded:'Withdrawal recorded successfully!',serviceRecorded:'Service withdrawal recorded successfully!',leavingRecorded:'Customer leaving processed successfully!',deleteSuccess:'Transaction deleted.',loadError:'Error loading data: ',amountInWords:'Amount in words',description:'Description',insufficientProfit:'Insufficient SACCO net profit.',transferOut:'Transfer Out',transferIn:'Transfer In',savings:'Savings',dividends:'Dividends',transfersIn:'Transfers In',withdrawalsTotal:'Withdrawals',transfersOut:'Transfers Out',testConnection:'Test Connection',connectionSuccess:'✅ Connection successful!',connectionFailed:'❌ Connection failed: ',loadingData:'Loading data...',transactionId:'Transaction ID',transactionDetails:'Transaction Details',penaltyRateLabel:'Penalty Rate:',newWithdrawal:'New Withdrawal',save:'Save',approve:'Approve',edit:'Edit',shareBuy:'Net Share Buy',shareCashedOut:'Share Value (Cashed Out)',customerLeaving:'Customer Leaving',maxWithdrawal:'Max withdrawal (95%)',withdraw:'Withdraw',withdrawService:'Withdraw Service',processLeaving:'Process Leaving',reasonForLeaving:'Reason for Leaving',paidInterest:'Paid Interest',registrationFee:'Registration Fee',otherIncome:'Other Income',totalIncome:'Total Income',serviceWithdrawals:'Service Withdrawals',servicesUsed:'Services Used',netProfitAvailable:'Net Profit Available',noProfitAvailable:'No profit available',accountInactive:'Account is now INACTIVE. Re-register to reactivate.',sessionTimeout:'Your session will expire in {seconds} seconds.'
             },
             am: {
-                brandSub:'ባንክ ስርዓት',navDashboard:'ዳሽቦርድ',navCustomers:'ደንበኞች',navSavings:'ቁጠባዎች',navDeposits:'ተቀማጭ',navLoans:'ብድር',navRepayments:'ክፍያዎች',navWithdrawals:'መውጫዎች',navDividends:'ክፍፍል',navShares:'አክሲዮን',navPenalties:'ቅጣቶች',navReports:'ሪፖርቶች',navAudit:'የምዝግብ ታሪክ',navUsers:'ተጠቃሚዎች',navSettings:'ቅንብሮች',logout:'ውጣ',logoutTitle:'ውጣ',logoutMessage:'ከመለያዎ መውጣት እርግጠኛ ነዎት?',cancel:'ሰርዝ',pageTitle:'መውጫዎች እና ዝውውሮች',breadcrumb:'ዋና ገጽ / መውጫዎች',withdrawalsTitle:'የካፒታል መውጫዎች እና ዝውውሮች',withdrawalsSub:'የደንበኞች ካፒታል መውጫ፣ የአገልግሎት መውጫ እና ዝውውር ያስተዳድሩ',individual:'የግል',service:'የሳኮ አገልግሎቶች',leaving:'ደንበኛ መውጣት',transfer:'ዝውውር',customer:'ደንበኛ',fromCustomer:'ከደንበኛ',toCustomer:'ለደንበኛ',amount:'መጠን',date:'ቀን',reason:'ምክንያት',note:'ማስታወሻ (አማራጭ)',status:'ሁኔታ',completed:'ተጠናቋል',approved:'ጸድቋል',pending:'በመጠበቅ ላይ',failed:'አልተሳካም',transactionHistory:'የግብይት ታሪክ',noTransactions:'ምንም ግብይቶች አልተገኙም።',showing:'እያሳየ',of:'ከ',by:'አስተናጋጅ',actions:'ተግባራት',view:'ይመልከቱ',delete:'ሰርዝ',printSlip:'ሪሲት አትም',searchPlaceholder:'በደንበኛ ስም ይፈልጉ...',totalCapital:'ጠቅላላ ካፒታል',serviceType:'የአገልግሎት አይነት',type:'አይነት',allTypes:'ሁሉም አይነቶች',allYears:'ሁሉም ዓመታት',selectCustomerFirst:'እባክዎ ደንበኛ ይምረጡ።',amountExceedsMax:'መጠን ከ95% ካፒታል ይበልጣል።',insufficientCapital:'በቂ ካፒታል የለም።',cannotTransferToSelf:'ወደ ራስዎ ማዝውወር አይችሉም።',transferSuccess:'ዝውውር ተጠናቋል!',transferError:'ዝውውር አልተሳካም: ',withdrawalRecorded:'መውጫ ተመዝግቧል!',serviceRecorded:'የአገልግሎት መውጫ ተመዝግቧል!',leavingRecorded:'የደንበኛ መውጣት ተሰራ!',deleteSuccess:'ግብይት ተሰርዟል።',loadError:'ውሂብ በማስገባት ላይ ስህተት: ',amountInWords:'በቃላት መጠን',description:'መግለጫ',insufficientProfit:'በቂ ትርፍ የለም።',transferOut:'ወጪ ዝውውር',transferIn:'ገቢ ዝውውር',savings:'ቁጠባ',dividends:'ክፍፍል',transfersIn:'ገቢ ዝውውሮች',withdrawalsTotal:'መውጫዎች',transfersOut:'ወጪ ዝውውሮች',testConnection:'ግንኙነት ሞክር',connectionSuccess:'✅ ግንኙነቱ ተሳክቷል!',connectionFailed:'❌ ግንኙነቱ አልተሳካም: ',loadingData:'ውሂብ በማስገባት ላይ...',transactionId:'የግብይት መታወቂያ',transactionDetails:'የግብይት ዝርዝሮች',penaltyRateLabel:'የቅጣት መጠን:',newWithdrawal:'አዲስ መውጫ',save:'አስቀምጥ',approve:'አጽድቅ',edit:'አስተካክል',shareBuy:'የተገዛ አክሲዮን',customerLeaving:'ደንበኛ መውጣት',maxWithdrawal:'ከፍተኛ መውጫ (95%)',withdraw:'አውጣ',withdrawService:'አገልግሎት አውጣ',processLeaving:'መውጣት አስኪድ',reasonForLeaving:'የመውጣት ምክንያት',paidInterest:'የተከፈለ ወለድ',registrationFee:'የምዝገባ ክፍያ',otherIncome:'ሌላ ገቢ',totalIncome:'ጠቅላላ ገቢ',serviceWithdrawals:'የአገልግሎት መውጫዎች',servicesUsed:'ያገለገሉ አገልግሎቶች',netProfitAvailable:'የሚገኝ የተጣራ ትርፍ',noProfitAvailable:'ትርፍ አልተገኘም',sessionTimeout:'ክፍለ ጊዜዎ በ{seconds} ሰከንዶች ውስጥ ያበቃል።'
+                brandSub:'ባንክ ስርዓት',navDashboard:'ዳሽቦርድ',navCustomers:'ደንበኞች',navSavings:'ቁጠባዎች',navDeposits:'ተቀማጭ',navLoans:'ብድር',navRepayments:'ክፍያዎች',navWithdrawals:'መውጫዎች',navDividends:'ክፍፍል',navShares:'አክሲዮን',navPenalties:'ቅጣቶች',navReports:'ሪፖርቶች',navAudit:'የምዝግብ ታሪክ',navUsers:'ተጠቃሚዎች',navSettings:'ቅንብሮች',logout:'ውጣ',logoutTitle:'ውጣ',logoutMessage:'ከመለያዎ መውጣት እርግጠኛ ነዎት?',cancel:'ሰርዝ',pageTitle:'መውጫዎች እና ዝውውሮች',breadcrumb:'ዋና ገጽ / መውጫዎች',withdrawalsTitle:'የካፒታል መውጫዎች እና ዝውውሮች',withdrawalsSub:'የደንበኞች ካፒታል መውጫ፣ የአገልግሎት መውጫ እና ዝውውር ያስተዳድሩ',individual:'የግል',service:'የሳኮ አገልግሎቶች',leaving:'ደንበኛ መውጣት',transfer:'ዝውውር',customer:'ደንበኛ',fromCustomer:'ከደንበኛ',toCustomer:'ለደንበኛ',amount:'መጠን',date:'ቀን',reason:'ምክንያት',note:'ማስታወሻ (አማራጭ)',status:'ሁኔታ',completed:'ተጠናቋል',approved:'ጸድቋል',pending:'በመጠበቅ ላይ',failed:'አልተሳካም',transactionHistory:'የግብይት ታሪክ',noTransactions:'ምንም ግብይቶች አልተገኙም።',showing:'እያሳየ',of:'ከ',by:'አስተናጋጅ',actions:'ተግባራት',view:'ይመልከቱ',delete:'ሰርዝ',printSlip:'ሪሲት አትም',searchPlaceholder:'በደንበኛ ስም ይፈልጉ...',totalCapital:'ጠቅላላ ካፒታል',serviceType:'የአገልግሎት አይነት',type:'አይነት',allTypes:'ሁሉም አይነቶች',allYears:'ሁሉም ዓመታት',selectCustomerFirst:'እባክዎ ደንበኛ ይምረጡ።',amountExceedsMax:'መጠን ከ95% ካፒታል ይበልጣል።',insufficientCapital:'በቂ ካፒታል የለም።',cannotTransferToSelf:'ወደ ራስዎ ማዝውወር አይችሉም።',transferSuccess:'ዝውውር ተጠናቋል!',transferError:'ዝውውር አልተሳካም: ',withdrawalRecorded:'መውጫ ተመዝግቧል!',serviceRecorded:'የአገልግሎት መውጫ ተመዝግቧል!',leavingRecorded:'የደንበኛ መውጣት ተሰራ!',deleteSuccess:'ግብይት ተሰርዟል።',loadError:'ውሂብ በማስገባት ላይ ስህተት: ',amountInWords:'በቃላት መጠን',description:'መግለጫ',insufficientProfit:'በቂ ትርፍ የለም።',transferOut:'ወጪ ዝውውር',transferIn:'ገቢ ዝውውር',savings:'ቁጠባ',dividends:'ክፍፍል',transfersIn:'ገቢ ዝውውሮች',withdrawalsTotal:'መውጫዎች',transfersOut:'ወጪ ዝውውሮች',testConnection:'ግንኙነት ሞክር',connectionSuccess:'✅ ግንኙነቱ ተሳክቷል!',connectionFailed:'❌ ግንኙነቱ አልተሳካም: ',loadingData:'ውሂብ በማስገባት ላይ...',transactionId:'የግብይት መታወቂያ',transactionDetails:'የግብይት ዝርዝሮች',penaltyRateLabel:'የቅጣት መጠን:',newWithdrawal:'አዲስ መውጫ',save:'አስቀምጥ',approve:'አጽድቅ',edit:'አስተካክል',shareBuy:'የተገዛ አክሲዮን',shareCashedOut:'የአክሲዮን ዋጋ (የተከፈለ)',customerLeaving:'ደንበኛ መውጣት',maxWithdrawal:'ከፍተኛ መውጫ (95%)',withdraw:'አውጣ',withdrawService:'አገልግሎት አውጣ',processLeaving:'መውጣት አስኪድ',reasonForLeaving:'የመውጣት ምክንያት',paidInterest:'የተከፈለ ወለድ',registrationFee:'የምዝገባ ክፍያ',otherIncome:'ሌላ ገቢ',totalIncome:'ጠቅላላ ገቢ',serviceWithdrawals:'የአገልግሎት መውጫዎች',servicesUsed:'ያገለገሉ አገልግሎቶች',netProfitAvailable:'የሚገኝ የተጣራ ትርፍ',noProfitAvailable:'ትርፍ አልተገኘም',accountInactive:'መለያው አሁን ንቁ ያልሆነ ነው። ለማግበር በድጋሚ ይመዝገቡ።',sessionTimeout:'ክፍለ ጊዜዎ በ{seconds} ሰከንዶች ውስጥ ያበቃል።'
             },
             om: {
-                brandSub:'Sirna Baankii',navDashboard:'Gabatee',navCustomers:'Maamila',navSavings:'Kusaa',navDeposits:'Kaasaa',navLoans:'Liqii',navRepayments:'Kaffaltuu',navWithdrawals:'Baasii',navDividends:'Qooda',navShares:'Hirmaata',navPenalties:'Adabbii',navReports:'Odeeffannoo',navAudit:'Seenaa Galmee',navUsers:'Fayyadamtoota',navSettings:'Qindeessaa',logout:'Baasi',logoutTitle:'Baasi',logoutMessage:'Akaawuntii keessan baasuu mirkaneeffattee?',cancel:'Haqi',pageTitle:'Baasii fi Dabarsuu',breadcrumb:'Mana / Baasii',withdrawalsTitle:'Baasii Kaapitaalaa fi Dabarsuu',withdrawalsSub:'Baasii kaapitaalaa maamila, baasii tajaajilaa, fi dabarsuu bulchi',individual:'Dhuunfaa',service:'Tajaajila SACCO',leaving:'Maamila Baasuu',transfer:'Dabarsuu',customer:'Maamila',fromCustomer:'Maamila Irraa',toCustomer:'Maamila Gara',amount:'Qaba',date:'Guyyaa',reason:'Sababa',note:'Hubachi (Filannoo)',status:'Haala',completed:'Xumurame',approved:'Mirkanaafame',pending:'Eegamaa',failed:'Bade',transactionHistory:'Seenaa Dura Dabarsuu',noTransactions:'Dura dabarsiin hin argamne.',showing:'Agarsii',of:'keessaa',by:'Hojjedhe',actions:'Gochaa',view:'Ilaali',delete:'Haqi',printSlip:'Maxxansi',searchPlaceholder:'Maqaa maamila-tiin barbaadi...',totalCapital:'Kaapitaala Waliigalaa',serviceType:'Gosa Tajaajilaa',type:'Gosa',allTypes:'Gosa Hunda',allYears:'Waggaa Hunda',selectCustomerFirst:'Maaloo maamila filadhu.',amountExceedsMax:'Qabni 95% kaapitaalaa ol ta\'a.',insufficientCapital:'Kaapitaalaan hin ga\'u.',cannotTransferToSelf:'Ofuma isaaf dabarsuu hin dandeessu.',transferSuccess:'Dabarsi sirriitti xumurame!',transferError:'Dabarsuuf dogoggora: ',withdrawalRecorded:'Baasiin sirriitti galmeefame!',serviceRecorded:'Baasiin tajaajilaa sirriitti galmeefame!',leavingRecorded:'Baasiin maamila sirriitti hojjechi!',deleteSuccess:'Dura dabarsi haqame.',loadError:'Datuu galmeessuuf dogoggora: ',amountInWords:'Qaba jechootaan',description:'Ibsa',insufficientProfit:'Bu’aan hin ga’u.',transferOut:'Dabarsuu Baasuu',transferIn:'Dabarsuu Galchuu',savings:'Kusaa',dividends:'Qooda',transfersIn:'Dabarsuu Galchuu',withdrawalsTotal:'Baasii',transfersOut:'Dabarsuu Baasuu',testConnection:'Qunnamtii Mirkaneessi',connectionSuccess:'✅ Qunnamtii milkaa\'e!',connectionFailed:'❌ Qunnamtii hin milkaanne: ',loadingData:'Datuu galmeessuuf...',transactionId:'ID Dura Dabarsuu',transactionDetails:'Gadifageenya Dura Dabarsuu',penaltyRateLabel:'Haala Adabbii:',newWithdrawal:'Baasii Haaraa',save:'Olkaasi',approve:'Mirkaneessi',edit:'Jijjiiri',shareBuy:'Hirmaata Bitame',customerLeaving:'Maamila Baasuu',maxWithdrawal:'Baasii Ol-aanaa (95%)',withdraw:'Baasi',withdrawService:'Tajaajila Baasi',processLeaving:'Baasuu Hojjedhi',reasonForLeaving:'Sababa Baasuu',paidInterest:'Dhala Kaffalame',registrationFee:'Kaffaltii Galmee',otherIncome:'Galii Biraa',totalIncome:'Galii Waliigalaa',serviceWithdrawals:'Baasii Tajaajilaa',servicesUsed:'Tajaajila Fayyadame',netProfitAvailable:'Bu’aa Qulqulluu Jiru',noProfitAvailable:'Bu’aan hin jiru',sessionTimeout:'Yeroon keessan sekondii {seconds} keessatti dhumaa.'
+                brandSub:'Sirna Baankii',navDashboard:'Gabatee',navCustomers:'Maamila',navSavings:'Kusaa',navDeposits:'Kaasaa',navLoans:'Liqii',navRepayments:'Kaffaltuu',navWithdrawals:'Baasii',navDividends:'Qooda',navShares:'Hirmaata',navPenalties:'Adabbii',navReports:'Odeeffannoo',navAudit:'Seenaa Galmee',navUsers:'Fayyadamtoota',navSettings:'Qindeessaa',logout:'Baasi',logoutTitle:'Baasi',logoutMessage:'Akaawuntii keessan baasuu mirkaneeffattee?',cancel:'Haqi',pageTitle:'Baasii fi Dabarsuu',breadcrumb:'Mana / Baasii',withdrawalsTitle:'Baasii Kaapitaalaa fi Dabarsuu',withdrawalsSub:'Baasii kaapitaalaa maamila, baasii tajaajilaa, fi dabarsuu bulchi',individual:'Dhuunfaa',service:'Tajaajila SACCO',leaving:'Maamila Baasuu',transfer:'Dabarsuu',customer:'Maamila',fromCustomer:'Maamila Irraa',toCustomer:'Maamila Gara',amount:'Qaba',date:'Guyyaa',reason:'Sababa',note:'Hubachi (Filannoo)',status:'Haala',completed:'Xumurame',approved:'Mirkanaafame',pending:'Eegamaa',failed:'Bade',transactionHistory:'Seenaa Dura Dabarsuu',noTransactions:'Dura dabarsiin hin argamne.',showing:'Agarsii',of:'keessaa',by:'Hojjedhe',actions:'Gochaa',view:'Ilaali',delete:'Haqi',printSlip:'Maxxansi',searchPlaceholder:'Maqaa maamila-tiin barbaadi...',totalCapital:'Kaapitaala Waliigalaa',serviceType:'Gosa Tajaajilaa',type:'Gosa',allTypes:'Gosa Hunda',allYears:'Waggaa Hunda',selectCustomerFirst:'Maaloo maamila filadhu.',amountExceedsMax:'Qabni 95% kaapitaalaa ol ta\'a.',insufficientCapital:'Kaapitaalaan hin ga\'u.',cannotTransferToSelf:'Ofuma isaaf dabarsuu hin dandeessu.',transferSuccess:'Dabarsi sirriitti xumurame!',transferError:'Dabarsuuf dogoggora: ',withdrawalRecorded:'Baasiin sirriitti galmeefame!',serviceRecorded:'Baasiin tajaajilaa sirriitti galmeefame!',leavingRecorded:'Baasiin maamila sirriitti hojjechi!',deleteSuccess:'Dura dabarsi haqame.',loadError:'Datuu galmeessuuf dogoggora: ',amountInWords:'Qaba jechootaan',description:'Ibsa',insufficientProfit:'Bu’aan hin ga’u.',transferOut:'Dabarsuu Baasuu',transferIn:'Dabarsuu Galchuu',savings:'Kusaa',dividends:'Qooda',transfersIn:'Dabarsuu Galchuu',withdrawalsTotal:'Baasii',transfersOut:'Dabarsuu Baasuu',testConnection:'Qunnamtii Mirkaneessi',connectionSuccess:'✅ Qunnamtii milkaa\'e!',connectionFailed:'❌ Qunnamtii hin milkaanne: ',loadingData:'Datuu galmeessuuf...',transactionId:'ID Dura Dabarsuu',transactionDetails:'Gadifageenya Dura Dabarsuu',penaltyRateLabel:'Haala Adabbii:',newWithdrawal:'Baasii Haaraa',save:'Olkaasi',approve:'Mirkaneessi',edit:'Jijjiiri',shareBuy:'Hirmaata Bitame',shareCashedOut:'Gatii Hirmaataa (Baafame)',customerLeaving:'Maamila Baasuu',maxWithdrawal:'Baasii Ol-aanaa (95%)',withdraw:'Baasi',withdrawService:'Tajaajila Baasi',processLeaving:'Baasuu Hojjedhi',reasonForLeaving:'Sababa Baasuu',paidInterest:'Dhala Kaffalame',registrationFee:'Kaffaltii Galmee',otherIncome:'Galii Biraa',totalIncome:'Galii Waliigalaa',serviceWithdrawals:'Baasii Tajaajilaa',servicesUsed:'Tajaajila Fayyadame',netProfitAvailable:'Bu’aa Qulqulluu Jiru',noProfitAvailable:'Bu’aan hin jiru',accountInactive:'Herregni amma hin socho\'u. Deebi\'ii galmaa\'i.',sessionTimeout:'Yeroon keessan sekondii {seconds} keessatti dhumaa.'
             }
         };
 
@@ -1061,7 +1057,7 @@
         let pendingDeleteId=null;
 
         // ============================================================
-        // SESSION TIMEOUT (loaded from settings)
+        // SESSION TIMEOUT
         // ============================================================
         let SESSION_TIMEOUT_MINUTES=5;
         let SESSION_TIMEOUT=SESSION_TIMEOUT_MINUTES*60*1000;
@@ -1128,7 +1124,7 @@
         }
 
         // ============================================================
-        // LANGUAGE
+        // LANGUAGE / SIDEBAR / TOAST
         // ============================================================
         function setLanguage(lang){
             if(!translations[lang])return;
@@ -1159,10 +1155,6 @@
             const valid=['en','am','om'];
             setLanguage(valid.includes(saved)?saved:'en');
         }
-
-        // ============================================================
-        // SIDEBAR / TOAST / CONNECTION
-        // ============================================================
         function toggleSidebar(){
             document.getElementById('sidebar').classList.toggle('open');
             document.getElementById('sidebarOverlay').classList.toggle('active');
@@ -1308,7 +1300,7 @@
         }
 
         // ============================================================
-        // LOAD CUSTOMERS
+        // LOAD CUSTOMERS (only ACTIVE — inactive ones must re-register)
         // ============================================================
         async function loadCustomers(){
             const overlay=document.getElementById('loadingOverlay');
@@ -1318,7 +1310,13 @@
                 customersList=[];
                 snapshot.forEach(doc=>{
                     const data=doc.data();
-                    customersList.push({id:doc.id,fullName:data.fullName||data.name,customerId:data.customerId||data.memberId});
+                    const status=(data.status||'active').toLowerCase().trim();
+                    if(status==='inactive') return;   // skip — must re-register
+                    customersList.push({
+                        id:doc.id,
+                        fullName:data.fullName||data.name,
+                        customerId:data.customerId||data.memberId
+                    });
                 });
                 overlay.classList.remove('active');
                 return true;
@@ -1370,9 +1368,9 @@
         }
 
         // ============================================================
-        // INDIVIDUAL CAPITAL (NEW FORMULA)
+        // INDIVIDUAL CAPITAL
         // Capital = (Savings + Dividends + Transfers In)
-        //          − (Net Share Buys + Withdrawals + Customer Leaving)
+        //          − (Net Share Buy + Withdrawals + Customer Leaving + Transfers Out)
         // ============================================================
         async function getIndividualCapital(customerId){
             try{
@@ -1388,7 +1386,7 @@
                     if(!docs.some(d=>d.id===doc.id))docs.push({id:doc.id,...doc.data()});
                 });
 
-                let totalSavings=0,totalDividends=0,totalTransfersIn=0;
+                let totalSavings=0,totalDividends=0,totalTransfersIn=0,totalTransfersOut=0;
                 let totalShareBuy=0,totalShareSell=0;
                 let totalWithdrawals=0,totalLeaving=0;
 
@@ -1403,6 +1401,8 @@
                         totalDividends+=amt;
                     }else if(type==='transfer_in'){
                         totalTransfersIn+=amt;
+                    }else if(type==='transfer_out'){
+                        totalTransfersOut+=amt;
                     }else if(type==='withdrawal'||type==='individual_withdrawal'){
                         totalWithdrawals+=amt;
                     }else if(type==='leaving_withdrawal'){
@@ -1410,7 +1410,6 @@
                     }
                 });
 
-                // Share buys / sells for this customer
                 sharesSnap.forEach(doc=>{
                     const s=doc.data();
                     const sCustomerId=s.customerId||s.memberId;
@@ -1426,13 +1425,14 @@
 
                 const netShareBuy=Math.max(0,Math.round((totalShareBuy-totalShareSell)*100)/100);
                 const totalCredit=Math.round((totalSavings+totalDividends+totalTransfersIn)*100)/100;
-                const totalDebit=Math.round((netShareBuy+totalWithdrawals+totalLeaving)*100)/100;
+                const totalDebit=Math.round((netShareBuy+totalWithdrawals+totalLeaving+totalTransfersOut)*100)/100;
                 const capital=Math.round((totalCredit-totalDebit)*100)/100;
 
                 return{
                     totalSavings:Math.round(totalSavings*100)/100,
                     totalDividends:Math.round(totalDividends*100)/100,
                     totalTransfersIn:Math.round(totalTransfersIn*100)/100,
+                    totalTransfersOut:Math.round(totalTransfersOut*100)/100,
                     totalShareBuy:netShareBuy,
                     totalWithdrawals:Math.round(totalWithdrawals*100)/100,
                     totalLeaving:Math.round(totalLeaving*100)/100,
@@ -1440,7 +1440,86 @@
                 };
             }catch(e){
                 console.error('Error calculating capital:',e);
-                return{totalSavings:0,totalDividends:0,totalTransfersIn:0,totalShareBuy:0,totalWithdrawals:0,totalLeaving:0,capital:0};
+                return{totalSavings:0,totalDividends:0,totalTransfersIn:0,totalTransfersOut:0,totalShareBuy:0,totalWithdrawals:0,totalLeaving:0,capital:0};
+            }
+        }
+
+        // ============================================================
+        // LEAVING CAPITAL — Shares are cashed out when leaving
+        // Leaving = (Savings + Dividends + Transfers In + Net Share Value)
+        //            − (Withdrawals + Customer Leaving + Transfers Out)
+        // ============================================================
+        async function getLeavingCapital(customerId){
+            try{
+                const [snap1,snap2,sharesSnap]=await Promise.all([
+                    db.collection('transactions').where('customerId','==',customerId).get(),
+                    db.collection('transactions').where('memberId','==',customerId).get(),
+                    db.collection('transactions').where('type','in',
+                        ['share_buy','share_sell','share_transfer_in','share_transfer_out']).get()
+                ]);
+
+                const docs=[];
+                snap1.forEach(doc=>docs.push({id:doc.id,...doc.data()}));
+                snap2.forEach(doc=>{
+                    if(!docs.some(d=>d.id===doc.id))docs.push({id:doc.id,...doc.data()});
+                });
+
+                let totalSavings=0,totalDividends=0,totalTransfersIn=0,totalTransfersOut=0;
+                let totalShareBuy=0,totalShareSell=0;
+                let totalWithdrawals=0,totalLeaving=0;
+
+                docs.forEach(data=>{
+                    if(data.status!=='approved'&&data.status!=='completed')return;
+                    const amt=Number(data.amount)||0;
+                    const type=data.type||data.transactionType||'';
+
+                    if(type==='savings'||type==='savings_deposit'){
+                        totalSavings+=amt;
+                    }else if(type==='profit_withdrawal'||type==='dividend'||data.reason==='Dividend'){
+                        totalDividends+=amt;
+                    }else if(type==='transfer_in'){
+                        totalTransfersIn+=amt;
+                    }else if(type==='transfer_out'){
+                        totalTransfersOut+=amt;
+                    }else if(type==='withdrawal'||type==='individual_withdrawal'){
+                        totalWithdrawals+=amt;
+                    }else if(type==='leaving_withdrawal'){
+                        totalLeaving+=amt;
+                    }
+                });
+
+                sharesSnap.forEach(doc=>{
+                    const s=doc.data();
+                    const sCustomerId=s.customerId||s.memberId;
+                    if(sCustomerId!==customerId)return;
+                    if(!dashboardSettings.shareStatuses.includes(s.status))return;
+                    const ty=String(s.type||'').toLowerCase();
+                    const amt=Number(s.amount)||0;
+                    const isBuy=(ty==='share_buy'||(dashboardSettings.countShareTransfers&&ty==='share_transfer_in'));
+                    const isSell=(ty==='share_sell'||(dashboardSettings.countShareTransfers&&ty==='share_transfer_out'));
+                    if(isBuy)totalShareBuy+=amt;
+                    else if(isSell)totalShareSell+=amt;
+                });
+
+                // Net share value is ADDED (cashed out) because customer is leaving
+                const netShareBuy=Math.round((totalShareBuy-totalShareSell)*100)/100;
+                const totalCredit=Math.round((totalSavings+totalDividends+totalTransfersIn+netShareBuy)*100)/100;
+                const totalDebit=Math.round((totalWithdrawals+totalLeaving+totalTransfersOut)*100)/100;
+                const capital=Math.round((totalCredit-totalDebit)*100)/100;
+
+                return{
+                    totalSavings:Math.round(totalSavings*100)/100,
+                    totalDividends:Math.round(totalDividends*100)/100,
+                    totalTransfersIn:Math.round(totalTransfersIn*100)/100,
+                    totalTransfersOut:Math.round(totalTransfersOut*100)/100,
+                    totalShareBuy:netShareBuy,
+                    totalWithdrawals:Math.round(totalWithdrawals*100)/100,
+                    totalLeaving:Math.round(totalLeaving*100)/100,
+                    capital
+                };
+            }catch(e){
+                console.error('Error calculating leaving capital:',e);
+                return{totalSavings:0,totalDividends:0,totalTransfersIn:0,totalTransfersOut:0,totalShareBuy:0,totalWithdrawals:0,totalLeaving:0,capital:0};
             }
         }
 
@@ -1453,6 +1532,7 @@
             document.getElementById('indSavings').textContent=data.totalSavings.toFixed(2)+' ETB';
             document.getElementById('indDividends').textContent=data.totalDividends.toFixed(2)+' ETB';
             document.getElementById('indTransfersIn').textContent=data.totalTransfersIn.toFixed(2)+' ETB';
+            document.getElementById('indTransfersOut').textContent=data.totalTransfersOut.toFixed(2)+' ETB';
             document.getElementById('indShareBuy').textContent=data.totalShareBuy.toFixed(2)+' ETB';
             document.getElementById('indWithdrawals').textContent=data.totalWithdrawals.toFixed(2)+' ETB';
             document.getElementById('indLeaving').textContent=data.totalLeaving.toFixed(2)+' ETB';
@@ -1481,14 +1561,20 @@
 
         async function updateLeavingCapital(customerId){
             if(!customerId)return;
-            const data=await getIndividualCapital(customerId);
+            const data=await getLeavingCapital(customerId);
             const customer=customersList.find(c=>c.id===customerId);
 
             document.getElementById('leaveCapitalBalance').textContent=data.capital.toFixed(2);
             document.getElementById('leaveSavings').textContent=data.totalSavings.toFixed(2)+' ETB';
             document.getElementById('leaveDividends').textContent=data.totalDividends.toFixed(2)+' ETB';
             document.getElementById('leaveTransfersIn').textContent=data.totalTransfersIn.toFixed(2)+' ETB';
-            document.getElementById('leaveShareBuy').textContent=data.totalShareBuy.toFixed(2)+' ETB';
+            document.getElementById('leaveTransfersOut').textContent=data.totalTransfersOut.toFixed(2)+' ETB';
+            const shareEl=document.getElementById('leaveShareBuy');
+            if(data.totalShareBuy>=0){
+                shareEl.textContent='+'+data.totalShareBuy.toFixed(2)+' ETB';
+            }else{
+                shareEl.textContent='-'+Math.abs(data.totalShareBuy).toFixed(2)+' ETB';
+            }
             document.getElementById('leaveWithdrawals').textContent=data.totalWithdrawals.toFixed(2)+' ETB';
             document.getElementById('leaveLeaving').textContent=data.totalLeaving.toFixed(2)+' ETB';
             document.getElementById('leaveTotalCapital').textContent=data.capital.toFixed(2)+' ETB';
@@ -1519,8 +1605,7 @@
         }
 
         // ============================================================
-        // SACCO PROFIT (same as Dashboard / Dividends)
-        // Net Profit = Paid Interest + Reg Fee + Other Income − Service Withdrawals
+        // SACCO PROFIT
         // ============================================================
         async function getSaccoProfit(){
             try{
@@ -1536,7 +1621,6 @@
                 const allProfitIncome=profitIncomeSnap.docs.map(d=>({id:d.id,...d.data()}));
                 const allServiceWithdrawals=serviceSnap.docs.map(d=>({id:d.id,...d.data()}));
 
-                // Paid Interest
                 let totalPaidInterest=0;
                 if(dashboardSettings.includePaidInterest!==false){
                     allRepayments.forEach(r=>{
@@ -1548,19 +1632,16 @@
                 }
                 totalPaidInterest=Math.round(totalPaidInterest*100)/100;
 
-                // Registration Fee
                 const totalRegistrationFee=dashboardSettings.includeRegistrationFee!==false
                     ? allProfitIncome.filter(p=>isDepositCounted(p)).filter(p=>isRegistrationFee(p.incomeType))
                         .reduce((s,p)=>s+(Number(p.amount)||0),0)
                     : 0;
 
-                // Other Income
                 const totalOtherIncome=dashboardSettings.includeOtherIncome!==false
                     ? allProfitIncome.filter(p=>isDepositCounted(p)).filter(p=>isOtherIncome(p.incomeType))
                         .reduce((s,p)=>s+(Number(p.amount)||0),0)
                     : 0;
 
-                // Service Withdrawals
                 const activeServiceWithdrawals=allServiceWithdrawals.filter(isServiceWithdrawalCounted);
                 const totalServiceWithdrawals=dashboardSettings.includeServiceWithdrawals!==false
                     ? activeServiceWithdrawals.reduce((s,x)=>s+(Number(x.amount)||0),0)
@@ -1904,7 +1985,7 @@
             document.getElementById('indAmount').value='';
             document.getElementById('indDate').value=new Date().toISOString().split('T')[0];
             document.getElementById('indCapitalBalance').textContent='0.00';
-            ['indSavings','indDividends','indTransfersIn','indShareBuy','indWithdrawals','indLeaving','indTotalCapital','indMaxWithdrawal','indAvailable'].forEach(id=>{
+            ['indSavings','indDividends','indTransfersIn','indTransfersOut','indShareBuy','indWithdrawals','indLeaving','indTotalCapital','indMaxWithdrawal','indAvailable'].forEach(id=>{
                 document.getElementById(id).textContent=id.includes('Available')?'0.00':'0.00 ETB';
             });
             if(data){
@@ -1981,9 +2062,10 @@
             document.getElementById('leaveCustomerSearch').value='';
             document.getElementById('leaveCustomerInfo').classList.remove('active');
             document.getElementById('leaveDate').value=new Date().toISOString().split('T')[0];
-            ['leaveSavings','leaveDividends','leaveTransfersIn','leaveShareBuy','leaveWithdrawals','leaveLeaving','leaveTotalCapital'].forEach(id=>{
+            ['leaveSavings','leaveDividends','leaveTransfersIn','leaveTransfersOut','leaveWithdrawals','leaveLeaving','leaveTotalCapital'].forEach(id=>{
                 document.getElementById(id).textContent='0.00 ETB';
             });
+            document.getElementById('leaveShareBuy').textContent='+0.00 ETB';
             document.getElementById('leaveCapitalBalance').textContent='0.00';
             if(data){
                 const customer=customersList.find(c=>c.id===data.customerId);
@@ -2308,8 +2390,15 @@
             const editId=document.getElementById('leavingModal').dataset.editId||'';
             if(!customerId){showToast(translations[currentLang].selectCustomerFirst||'Select customer','warning');return;}
             if(!date){showToast('Please select a date.','warning');return;}
-            const capital=await getIndividualCapital(customerId);
+
+            if(!editId){
+                const confirmLeave=confirm('This will permanently mark the customer as INACTIVE. They will need to re-register to reactivate. Continue?');
+                if(!confirmLeave)return;
+            }
+
+            const capital=await getLeavingCapital(customerId);
             if(capital.capital<=0){showToast(translations[currentLang].insufficientCapital||'Insufficient capital','warning');return;}
+
             const btn=this.querySelector('button[type="submit"]');
             const originalHtml=btn.innerHTML;
             btn.disabled=true;
@@ -2338,9 +2427,33 @@
                 }else{
                     const docRef=await db.collection('transactions').add(docData);
                     await logAudit('created','transactions',docRef.id,docData,`Customer leaving for ${customer?customer.fullName:'Unknown'}`);
-                    showToast(translations[currentLang].leavingRecorded||'Leaving recorded!','success');
+
+                    // ------------------------------------------------------------
+                    // Mark customer as INACTIVE until re-registered
+                    // ------------------------------------------------------------
+                    try{
+                        await db.collection('customers').doc(customerId).update({
+                            status:'inactive',
+                            leftAt:firebase.firestore.FieldValue.serverTimestamp(),
+                            leftReason:reason,
+                            leftNote:note,
+                            leftBy:getDisplayName(user)
+                        });
+                        await logAudit('updated','customers',customerId,
+                            {status:{old:'active',new:'inactive'}},
+                            `Customer marked inactive (left SACCO): ${reason}`);
+                    }catch(custErr){
+                        console.warn('Could not update customer status:',custErr.message);
+                    }
+
+                    showToast(
+                        (translations[currentLang].leavingRecorded||'Customer leaving processed!')
+                        + ' ' + (translations[currentLang].accountInactive||'Account is now INACTIVE.'),
+                        'success'
+                    );
                 }
                 closeLeavingModal();
+                await loadCustomers();       // refresh list so inactive customer disappears from suggestions
                 await loadTransactions();
             }catch(e){
                 showToast('Error: '+e.message,'error');
