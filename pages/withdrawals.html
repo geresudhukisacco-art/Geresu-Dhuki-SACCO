@@ -210,7 +210,8 @@
         .breakdown-card.bg-transfer-in{background:linear-gradient(135deg,#2e7d32,#43a047);}
         .breakdown-card.bg-transfer-net{background:linear-gradient(135deg,#6a1b9a,#9c27b0);}
         .breakdown-card.bg-total{background:linear-gradient(135deg,#1a237e,#283593);}
-        .breakdown-card.bg-share-buy{background:linear-gradient(135deg,#4a148c,#7b1fa2);}
+        .breakdown-card.bg-share-in{background:linear-gradient(135deg,#00897b,#26a69a);}
+        .breakdown-card.bg-share-out{background:linear-gradient(135deg,#4a148c,#7b1fa2);}
         .breakdown-card.bg-customer-leaving{background:linear-gradient(135deg,#bf360c,#e64a19);}
         .customer-info-display{background:var(--bg-primary);border-radius:12px;padding:12px 16px;border:1px solid var(--border-color);margin-bottom:12px;display:none;transition:all 0.3s;}
         .customer-info-display.active{display:block;}
@@ -423,13 +424,17 @@
                             <span class="card-label"><i class="fas fa-arrow-left"></i> <span data-i18n="transfersIn">Transfers In</span></span>
                             <span class="card-value" id="indTransfersIn">0.00 ETB</span>
                         </div>
+                        <div class="breakdown-card bg-share-in">
+                            <span class="card-label"><i class="fas fa-chart-pie"></i> <span data-i18n="shareIn">Share In</span></span>
+                            <span class="card-value" id="indShareIn">0.00 ETB</span>
+                        </div>
                         <div class="breakdown-card bg-transfers-out">
                             <span class="card-label"><i class="fas fa-arrow-right"></i> <span data-i18n="transfersOut">Transfers Out</span></span>
                             <span class="card-value" id="indTransfersOut">0.00 ETB</span>
                         </div>
-                        <div class="breakdown-card bg-share-buy">
-                            <span class="card-label"><i class="fas fa-chart-pie"></i> <span data-i18n="shareBuy">Net Share Buy</span></span>
-                            <span class="card-value" id="indShareBuy">0.00 ETB</span>
+                        <div class="breakdown-card bg-share-out">
+                            <span class="card-label"><i class="fas fa-chart-pie"></i> <span data-i18n="shareOut">Share Out</span></span>
+                            <span class="card-value" id="indShareOut">0.00 ETB</span>
                         </div>
                         <div class="breakdown-card bg-withdrawals">
                             <span class="card-label"><i class="fas fa-minus-circle"></i> <span data-i18n="withdrawalsTotal">Withdrawals</span></span>
@@ -600,13 +605,17 @@
                             <span class="card-label"><i class="fas fa-arrow-left"></i> <span data-i18n="transfersIn">Transfers In</span></span>
                             <span class="card-value" id="leaveTransfersIn">0.00 ETB</span>
                         </div>
+                        <div class="breakdown-card bg-share-in">
+                            <span class="card-label"><i class="fas fa-chart-pie"></i> <span data-i18n="shareIn">Share In</span></span>
+                            <span class="card-value" id="leaveShareIn">0.00 ETB</span>
+                        </div>
                         <div class="breakdown-card bg-transfers-out">
                             <span class="card-label"><i class="fas fa-arrow-right"></i> <span data-i18n="transfersOut">Transfers Out</span></span>
                             <span class="card-value" id="leaveTransfersOut">0.00 ETB</span>
                         </div>
-                        <div class="breakdown-card bg-transfer-in">
-                            <span class="card-label"><i class="fas fa-chart-pie"></i> <span data-i18n="shareCashedOut">Share Value (Cashed Out)</span></span>
-                            <span class="card-value" id="leaveShareBuy">+0.00 ETB</span>
+                        <div class="breakdown-card bg-share-out">
+                            <span class="card-label"><i class="fas fa-chart-pie"></i> <span data-i18n="shareOut">Share Out</span></span>
+                            <span class="card-value" id="leaveShareOut">0.00 ETB</span>
                         </div>
                         <div class="breakdown-card bg-withdrawals">
                             <span class="card-label"><i class="fas fa-minus-circle"></i> <span data-i18n="withdrawalsTotal">Withdrawals</span></span>
@@ -931,15 +940,7 @@
             depositStatuses: ['approved', 'printed', 'completed', 'done', 'paid'],
             repaymentStatuses: ['approved', 'printed', 'paid', 'done'],
             countShareTransfers: true,
-            shareStatuses: ['approved'],
-            savingsPaymentValues: ['savings', 'saving', 'from_savings', 'savings_account',
-                                   'member_savings', 'account', 'sacco_savings', 'from_saving'],
-            externalPaymentValues: ['cash', 'bank', 'bank_transfer', 'transfer',
-                                    'mobile', 'mobile_money', 'mobile transfer',
-                                    'telebirr', 'tele_birr', 'tele-birr',
-                                    'mpesa', 'm-pesa', 'amole', 'hello_cash', 'hellocash',
-                                    'cbebirr', 'cbe_birr', 'e-birr', 'ebirr',
-                                    'external', 'deposit', 'direct_deposit', 'other']
+            shareStatuses: ['approved']
         };
         let dashboardSettings = { ...DEFAULT_DASHBOARD_SETTINGS };
 
@@ -949,15 +950,10 @@
                 if (doc.exists) {
                     const data = doc.data();
                     if (data && data.dashboard && typeof data.dashboard === 'object') {
-                        dashboardSettings = {
-                            ...DEFAULT_DASHBOARD_SETTINGS,
-                            ...data.dashboard
-                        };
+                        dashboardSettings = { ...DEFAULT_DASHBOARD_SETTINGS, ...data.dashboard };
                     }
                 }
-            } catch (e) {
-                console.warn('Could not load dashboard settings — using defaults:', e.message);
-            }
+            } catch (e) { console.warn('Could not load dashboard settings:', e.message); }
             return dashboardSettings;
         }
 
@@ -991,43 +987,31 @@
             const totalPayable = principal + expectedInterest;
             if (totalPayable <= 0) return { principal: 0, interest: 0 };
             const interestPart = amount * (expectedInterest / totalPayable);
-            const principalPart = amount - interestPart;
-            return { principal: principalPart, interest: interestPart };
+            return { principal: amount - interestPart, interest: interestPart };
         }
 
         // ============================================================
-        // INCOME / STATUS RULES
+        // STATUS RULES
         // ============================================================
         const ALWAYS_COUNTED_DEPOSIT_STATUSES = ['approved', 'printed', 'completed', 'done', 'paid'];
         const ACTIVE_SERVICE_WITHDRAWAL_STATUSES = ['pending', 'approved', 'completed'];
 
         function isRegistrationFee(incomeType) {
             const type = (incomeType || '').toLowerCase().trim();
-            return type.includes('registration') ||
-                   type === 'reg fee' ||
-                   type === 'regfee' ||
-                   type === 'membership fee';
+            return type.includes('registration') || type === 'reg fee' || type === 'regfee' || type === 'membership fee';
         }
-        function isOtherIncome(incomeType) {
-            if (isRegistrationFee(incomeType)) return false;
-            return true;
-        }
+        function isOtherIncome(incomeType) { return !isRegistrationFee(incomeType); }
         function isDepositStatusCounted(status, printedFlag) {
             const s = String(status || '').toLowerCase().trim();
             if (ALWAYS_COUNTED_DEPOSIT_STATUSES.includes(s)) return true;
             if (printedFlag === true) return true;
-            const configured = (dashboardSettings.depositStatuses || [])
-                .map(x => String(x).toLowerCase().trim());
+            const configured = (dashboardSettings.depositStatuses || []).map(x => String(x).toLowerCase().trim());
             return configured.includes(s);
         }
-        function isDepositCounted(dep) {
-            if (!dep) return false;
-            return isDepositStatusCounted(dep.status, dep.printed);
-        }
+        function isDepositCounted(dep) { return dep ? isDepositStatusCounted(dep.status, dep.printed) : false; }
         function isServiceWithdrawalCounted(sw) {
             if (!sw) return false;
-            const s = String(sw.status || '').toLowerCase().trim();
-            return ACTIVE_SERVICE_WITHDRAWAL_STATUSES.includes(s);
+            return ACTIVE_SERVICE_WITHDRAWAL_STATUSES.includes(String(sw.status || '').toLowerCase().trim());
         }
 
         // ============================================================
@@ -1035,13 +1019,13 @@
         // ============================================================
         const translations = {
             en: {
-                brandSub:'SACCO Banking',navDashboard:'Dashboard',navCustomers:'Customers',navSavings:'Savings',navDeposits:'Deposits',navLoans:'Loans',navRepayments:'Repayments',navWithdrawals:'Withdrawals',navDividends:'Dividends',navShares:'Shares',navPenalties:'Penalties',navReports:'Reports',navAudit:'Audit Trail',navUsers:'Users',navSettings:'Settings',logout:'Logout',logoutTitle:'Logout',logoutMessage:'Are you sure you want to logout?',cancel:'Cancel',pageTitle:'Withdrawals & Transfers',breadcrumb:'Home / Withdrawals',withdrawalsTitle:'Capital Withdrawals & Transfers',withdrawalsSub:'Manage customer capital withdrawals, service withdrawals, and transfers',individual:'Individual',service:'SACCO Services',leaving:'Customer Leaving',transfer:'Transfer',customer:'Customer',fromCustomer:'From Customer',toCustomer:'To Customer',amount:'Amount',date:'Date',reason:'Reason',note:'Note (optional)',status:'Status',completed:'Completed',approved:'Approved',pending:'Pending',failed:'Failed',transactionHistory:'Transaction History',noTransactions:'No transactions found.',showing:'Showing',of:'of',by:'By',actions:'Actions',view:'View',delete:'Delete',printSlip:'Print Slip',searchPlaceholder:'Search by customer name...',totalCapital:'Total Capital',serviceType:'Service Type',type:'Type',allTypes:'All Types',allYears:'All Years',selectCustomerFirst:'Please select a customer.',amountExceedsMax:'Amount exceeds 95% of capital.',insufficientCapital:'Insufficient capital.',cannotTransferToSelf:'Cannot transfer to same customer.',transferSuccess:'Transfer completed successfully!',transferError:'Transfer failed: ',withdrawalRecorded:'Withdrawal recorded successfully!',serviceRecorded:'Service withdrawal recorded successfully!',leavingRecorded:'Customer leaving processed successfully!',deleteSuccess:'Transaction deleted.',loadError:'Error loading data: ',amountInWords:'Amount in words',description:'Description',insufficientProfit:'Insufficient SACCO net profit.',transferOut:'Transfer Out',transferIn:'Transfer In',savings:'Savings',dividends:'Dividends',transfersIn:'Transfers In',withdrawalsTotal:'Withdrawals',transfersOut:'Transfers Out',testConnection:'Test Connection',connectionSuccess:'✅ Connection successful!',connectionFailed:'❌ Connection failed: ',loadingData:'Loading data...',transactionId:'Transaction ID',transactionDetails:'Transaction Details',penaltyRateLabel:'Penalty Rate:',newWithdrawal:'New Withdrawal',save:'Save',approve:'Approve',edit:'Edit',shareBuy:'Net Share Buy',shareCashedOut:'Share Value (Cashed Out)',customerLeaving:'Customer Leaving',maxWithdrawal:'Max withdrawal (95%)',withdraw:'Withdraw',withdrawService:'Withdraw Service',processLeaving:'Process Leaving',reasonForLeaving:'Reason for Leaving',paidInterest:'Paid Interest',registrationFee:'Registration Fee',otherIncome:'Other Income',totalIncome:'Total Income',serviceWithdrawals:'Service Withdrawals',servicesUsed:'Services Used',netProfitAvailable:'Net Profit Available',noProfitAvailable:'No profit available',accountInactive:'Account is now INACTIVE. Re-register to reactivate.',sessionTimeout:'Your session will expire in {seconds} seconds.'
+                brandSub:'SACCO Banking',navDashboard:'Dashboard',navCustomers:'Customers',navSavings:'Savings',navDeposits:'Deposits',navLoans:'Loans',navRepayments:'Repayments',navWithdrawals:'Withdrawals',navDividends:'Dividends',navShares:'Shares',navPenalties:'Penalties',navReports:'Reports',navAudit:'Audit Trail',navUsers:'Users',navSettings:'Settings',logout:'Logout',logoutTitle:'Logout',logoutMessage:'Are you sure you want to logout?',cancel:'Cancel',pageTitle:'Withdrawals & Transfers',breadcrumb:'Home / Withdrawals',withdrawalsTitle:'Capital Withdrawals & Transfers',withdrawalsSub:'Manage customer capital withdrawals, service withdrawals, and transfers',individual:'Individual',service:'SACCO Services',leaving:'Customer Leaving',transfer:'Transfer',customer:'Customer',fromCustomer:'From Customer',toCustomer:'To Customer',amount:'Amount',date:'Date',reason:'Reason',note:'Note (optional)',status:'Status',completed:'Completed',approved:'Approved',pending:'Pending',failed:'Failed',transactionHistory:'Transaction History',noTransactions:'No transactions found.',showing:'Showing',of:'of',by:'By',actions:'Actions',view:'View',delete:'Delete',printSlip:'Print Slip',searchPlaceholder:'Search by customer name...',totalCapital:'Total Capital',serviceType:'Service Type',type:'Type',allTypes:'All Types',allYears:'All Years',selectCustomerFirst:'Please select a customer.',amountExceedsMax:'Amount exceeds 95% of capital.',insufficientCapital:'Insufficient capital.',cannotTransferToSelf:'Cannot transfer to same customer.',transferSuccess:'Transfer completed successfully!',transferError:'Transfer failed: ',withdrawalRecorded:'Withdrawal recorded successfully!',serviceRecorded:'Service withdrawal recorded successfully!',leavingRecorded:'Customer leaving processed successfully!',deleteSuccess:'Transaction deleted.',loadError:'Error loading data: ',amountInWords:'Amount in words',description:'Description',insufficientProfit:'Insufficient SACCO net profit.',transferOut:'Transfer Out',transferIn:'Transfer In',savings:'Savings',dividends:'Dividends',transfersIn:'Transfers In',withdrawalsTotal:'Withdrawals',transfersOut:'Transfers Out',testConnection:'Test Connection',connectionSuccess:'✅ Connection successful!',connectionFailed:'❌ Connection failed: ',loadingData:'Loading data...',transactionId:'Transaction ID',transactionDetails:'Transaction Details',penaltyRateLabel:'Penalty Rate:',newWithdrawal:'New Withdrawal',save:'Save',approve:'Approve',edit:'Edit',shareIn:'Share In',shareOut:'Share Out',customerLeaving:'Customer Leaving',maxWithdrawal:'Max withdrawal (95%)',withdraw:'Withdraw',withdrawService:'Withdraw Service',processLeaving:'Process Leaving',reasonForLeaving:'Reason for Leaving',paidInterest:'Paid Interest',registrationFee:'Registration Fee',otherIncome:'Other Income',totalIncome:'Total Income',serviceWithdrawals:'Service Withdrawals',servicesUsed:'Services Used',netProfitAvailable:'Net Profit Available',noProfitAvailable:'No profit available',accountInactive:'Account is now INACTIVE. Re-register to reactivate.',sessionTimeout:'Your session will expire in {seconds} seconds.'
             },
             am: {
-                brandSub:'ባንክ ስርዓት',navDashboard:'ዳሽቦርድ',navCustomers:'ደንበኞች',navSavings:'ቁጠባዎች',navDeposits:'ተቀማጭ',navLoans:'ብድር',navRepayments:'ክፍያዎች',navWithdrawals:'መውጫዎች',navDividends:'ክፍፍል',navShares:'አክሲዮን',navPenalties:'ቅጣቶች',navReports:'ሪፖርቶች',navAudit:'የምዝግብ ታሪክ',navUsers:'ተጠቃሚዎች',navSettings:'ቅንብሮች',logout:'ውጣ',logoutTitle:'ውጣ',logoutMessage:'ከመለያዎ መውጣት እርግጠኛ ነዎት?',cancel:'ሰርዝ',pageTitle:'መውጫዎች እና ዝውውሮች',breadcrumb:'ዋና ገጽ / መውጫዎች',withdrawalsTitle:'የካፒታል መውጫዎች እና ዝውውሮች',withdrawalsSub:'የደንበኞች ካፒታል መውጫ፣ የአገልግሎት መውጫ እና ዝውውር ያስተዳድሩ',individual:'የግል',service:'የሳኮ አገልግሎቶች',leaving:'ደንበኛ መውጣት',transfer:'ዝውውር',customer:'ደንበኛ',fromCustomer:'ከደንበኛ',toCustomer:'ለደንበኛ',amount:'መጠን',date:'ቀን',reason:'ምክንያት',note:'ማስታወሻ (አማራጭ)',status:'ሁኔታ',completed:'ተጠናቋል',approved:'ጸድቋል',pending:'በመጠበቅ ላይ',failed:'አልተሳካም',transactionHistory:'የግብይት ታሪክ',noTransactions:'ምንም ግብይቶች አልተገኙም።',showing:'እያሳየ',of:'ከ',by:'አስተናጋጅ',actions:'ተግባራት',view:'ይመልከቱ',delete:'ሰርዝ',printSlip:'ሪሲት አትም',searchPlaceholder:'በደንበኛ ስም ይፈልጉ...',totalCapital:'ጠቅላላ ካፒታል',serviceType:'የአገልግሎት አይነት',type:'አይነት',allTypes:'ሁሉም አይነቶች',allYears:'ሁሉም ዓመታት',selectCustomerFirst:'እባክዎ ደንበኛ ይምረጡ።',amountExceedsMax:'መጠን ከ95% ካፒታል ይበልጣል።',insufficientCapital:'በቂ ካፒታል የለም።',cannotTransferToSelf:'ወደ ራስዎ ማዝውወር አይችሉም።',transferSuccess:'ዝውውር ተጠናቋል!',transferError:'ዝውውር አልተሳካም: ',withdrawalRecorded:'መውጫ ተመዝግቧል!',serviceRecorded:'የአገልግሎት መውጫ ተመዝግቧል!',leavingRecorded:'የደንበኛ መውጣት ተሰራ!',deleteSuccess:'ግብይት ተሰርዟል።',loadError:'ውሂብ በማስገባት ላይ ስህተት: ',amountInWords:'በቃላት መጠን',description:'መግለጫ',insufficientProfit:'በቂ ትርፍ የለም።',transferOut:'ወጪ ዝውውር',transferIn:'ገቢ ዝውውር',savings:'ቁጠባ',dividends:'ክፍፍል',transfersIn:'ገቢ ዝውውሮች',withdrawalsTotal:'መውጫዎች',transfersOut:'ወጪ ዝውውሮች',testConnection:'ግንኙነት ሞክር',connectionSuccess:'✅ ግንኙነቱ ተሳክቷል!',connectionFailed:'❌ ግንኙነቱ አልተሳካም: ',loadingData:'ውሂብ በማስገባት ላይ...',transactionId:'የግብይት መታወቂያ',transactionDetails:'የግብይት ዝርዝሮች',penaltyRateLabel:'የቅጣት መጠን:',newWithdrawal:'አዲስ መውጫ',save:'አስቀምጥ',approve:'አጽድቅ',edit:'አስተካክል',shareBuy:'የተገዛ አክሲዮን',shareCashedOut:'የአክሲዮን ዋጋ (የተከፈለ)',customerLeaving:'ደንበኛ መውጣት',maxWithdrawal:'ከፍተኛ መውጫ (95%)',withdraw:'አውጣ',withdrawService:'አገልግሎት አውጣ',processLeaving:'መውጣት አስኪድ',reasonForLeaving:'የመውጣት ምክንያት',paidInterest:'የተከፈለ ወለድ',registrationFee:'የምዝገባ ክፍያ',otherIncome:'ሌላ ገቢ',totalIncome:'ጠቅላላ ገቢ',serviceWithdrawals:'የአገልግሎት መውጫዎች',servicesUsed:'ያገለገሉ አገልግሎቶች',netProfitAvailable:'የሚገኝ የተጣራ ትርፍ',noProfitAvailable:'ትርፍ አልተገኘም',accountInactive:'መለያው አሁን ንቁ ያልሆነ ነው። ለማግበር በድጋሚ ይመዝገቡ።',sessionTimeout:'ክፍለ ጊዜዎ በ{seconds} ሰከንዶች ውስጥ ያበቃል።'
+                brandSub:'ባንክ ስርዓት',navDashboard:'ዳሽቦርድ',navCustomers:'ደንበኞች',navSavings:'ቁጠባዎች',navDeposits:'ተቀማጭ',navLoans:'ብድር',navRepayments:'ክፍያዎች',navWithdrawals:'መውጫዎች',navDividends:'ክፍፍል',navShares:'አክሲዮን',navPenalties:'ቅጣቶች',navReports:'ሪፖርቶች',navAudit:'የምዝግብ ታሪክ',navUsers:'ተጠቃሚዎች',navSettings:'ቅንብሮች',logout:'ውጣ',logoutTitle:'ውጣ',logoutMessage:'ከመለያዎ መውጣት እርግጠኛ ነዎት?',cancel:'ሰርዝ',pageTitle:'መውጫዎች እና ዝውውሮች',breadcrumb:'ዋና ገጽ / መውጫዎች',withdrawalsTitle:'የካፒታል መውጫዎች እና ዝውውሮች',withdrawalsSub:'የደንበኞች ካፒታል መውጫ፣ የአገልግሎት መውጫ እና ዝውውር ያስተዳድሩ',individual:'የግል',service:'የሳኮ አገልግሎቶች',leaving:'ደንበኛ መውጣት',transfer:'ዝውውር',customer:'ደንበኛ',fromCustomer:'ከደንበኛ',toCustomer:'ለደንበኛ',amount:'መጠን',date:'ቀን',reason:'ምክንያት',note:'ማስታወሻ (አማራጭ)',status:'ሁኔታ',completed:'ተጠናቋል',approved:'ጸድቋል',pending:'በመጠበቅ ላይ',failed:'አልተሳካም',transactionHistory:'የግብይት ታሪክ',noTransactions:'ምንም ግብይቶች አልተገኙም።',showing:'እያሳየ',of:'ከ',by:'አስተናጋጅ',actions:'ተግባራት',view:'ይመልከቱ',delete:'ሰርዝ',printSlip:'ሪሲት አትም',searchPlaceholder:'በደንበኛ ስም ይፈልጉ...',totalCapital:'ጠቅላላ ካፒታል',serviceType:'የአገልግሎት አይነት',type:'አይነት',allTypes:'ሁሉም አይነቶች',allYears:'ሁሉም ዓመታት',selectCustomerFirst:'እባክዎ ደንበኛ ይምረጡ።',amountExceedsMax:'መጠን ከ95% ካፒታል ይበልጣል።',insufficientCapital:'በቂ ካፒታል የለም።',cannotTransferToSelf:'ወደ ራስዎ ማዝውወር አይችሉም።',transferSuccess:'ዝውውር ተጠናቋል!',transferError:'ዝውውር አልተሳካም: ',withdrawalRecorded:'መውጫ ተመዝግቧል!',serviceRecorded:'የአገልግሎት መውጫ ተመዝግቧል!',leavingRecorded:'የደንበኛ መውጣት ተሰራ!',deleteSuccess:'ግብይት ተሰርዟል።',loadError:'ውሂብ በማስገባት ላይ ስህተት: ',amountInWords:'በቃላት መጠን',description:'መግለጫ',insufficientProfit:'በቂ ትርፍ የለም።',transferOut:'ወጪ ዝውውር',transferIn:'ገቢ ዝውውር',savings:'ቁጠባ',dividends:'ክፍፍል',transfersIn:'ገቢ ዝውውሮች',withdrawalsTotal:'መውጫዎች',transfersOut:'ወጪ ዝውውሮች',testConnection:'ግንኙነት ሞክር',connectionSuccess:'✅ ግንኙነቱ ተሳክቷል!',connectionFailed:'❌ ግንኙነቱ አልተሳካም: ',loadingData:'ውሂብ በማስገባት ላይ...',transactionId:'የግብይት መታወቂያ',transactionDetails:'የግብይት ዝርዝሮች',penaltyRateLabel:'የቅጣት መጠን:',newWithdrawal:'አዲስ መውጫ',save:'አስቀምጥ',approve:'አጽድቅ',edit:'አስተካክል',shareIn:'ገቢ አክሲዮን',shareOut:'ወጪ አክሲዮን',customerLeaving:'ደንበኛ መውጣት',maxWithdrawal:'ከፍተኛ መውጫ (95%)',withdraw:'አውጣ',withdrawService:'አገልግሎት አውጣ',processLeaving:'መውጣት አስኪድ',reasonForLeaving:'የመውጣት ምክንያት',paidInterest:'የተከፈለ ወለድ',registrationFee:'የምዝገባ ክፍያ',otherIncome:'ሌላ ገቢ',totalIncome:'ጠቅላላ ገቢ',serviceWithdrawals:'የአገልግሎት መውጫዎች',servicesUsed:'ያገለገሉ አገልግሎቶች',netProfitAvailable:'የሚገኝ የተጣራ ትርፍ',noProfitAvailable:'ትርፍ አልተገኘም',accountInactive:'መለያው አሁን ንቁ ያልሆነ ነው። ለማግበር በድጋሚ ይመዝገቡ።',sessionTimeout:'ክፍለ ጊዜዎ በ{seconds} ሰከንዶች ውስጥ ያበቃል።'
             },
             om: {
-                brandSub:'Sirna Baankii',navDashboard:'Gabatee',navCustomers:'Maamila',navSavings:'Kusaa',navDeposits:'Kaasaa',navLoans:'Liqii',navRepayments:'Kaffaltuu',navWithdrawals:'Baasii',navDividends:'Qooda',navShares:'Hirmaata',navPenalties:'Adabbii',navReports:'Odeeffannoo',navAudit:'Seenaa Galmee',navUsers:'Fayyadamtoota',navSettings:'Qindeessaa',logout:'Baasi',logoutTitle:'Baasi',logoutMessage:'Akaawuntii keessan baasuu mirkaneeffattee?',cancel:'Haqi',pageTitle:'Baasii fi Dabarsuu',breadcrumb:'Mana / Baasii',withdrawalsTitle:'Baasii Kaapitaalaa fi Dabarsuu',withdrawalsSub:'Baasii kaapitaalaa maamila, baasii tajaajilaa, fi dabarsuu bulchi',individual:'Dhuunfaa',service:'Tajaajila SACCO',leaving:'Maamila Baasuu',transfer:'Dabarsuu',customer:'Maamila',fromCustomer:'Maamila Irraa',toCustomer:'Maamila Gara',amount:'Qaba',date:'Guyyaa',reason:'Sababa',note:'Hubachi (Filannoo)',status:'Haala',completed:'Xumurame',approved:'Mirkanaafame',pending:'Eegamaa',failed:'Bade',transactionHistory:'Seenaa Dura Dabarsuu',noTransactions:'Dura dabarsiin hin argamne.',showing:'Agarsii',of:'keessaa',by:'Hojjedhe',actions:'Gochaa',view:'Ilaali',delete:'Haqi',printSlip:'Maxxansi',searchPlaceholder:'Maqaa maamila-tiin barbaadi...',totalCapital:'Kaapitaala Waliigalaa',serviceType:'Gosa Tajaajilaa',type:'Gosa',allTypes:'Gosa Hunda',allYears:'Waggaa Hunda',selectCustomerFirst:'Maaloo maamila filadhu.',amountExceedsMax:'Qabni 95% kaapitaalaa ol ta\'a.',insufficientCapital:'Kaapitaalaan hin ga\'u.',cannotTransferToSelf:'Ofuma isaaf dabarsuu hin dandeessu.',transferSuccess:'Dabarsi sirriitti xumurame!',transferError:'Dabarsuuf dogoggora: ',withdrawalRecorded:'Baasiin sirriitti galmeefame!',serviceRecorded:'Baasiin tajaajilaa sirriitti galmeefame!',leavingRecorded:'Baasiin maamila sirriitti hojjechi!',deleteSuccess:'Dura dabarsi haqame.',loadError:'Datuu galmeessuuf dogoggora: ',amountInWords:'Qaba jechootaan',description:'Ibsa',insufficientProfit:'Bu’aan hin ga’u.',transferOut:'Dabarsuu Baasuu',transferIn:'Dabarsuu Galchuu',savings:'Kusaa',dividends:'Qooda',transfersIn:'Dabarsuu Galchuu',withdrawalsTotal:'Baasii',transfersOut:'Dabarsuu Baasuu',testConnection:'Qunnamtii Mirkaneessi',connectionSuccess:'✅ Qunnamtii milkaa\'e!',connectionFailed:'❌ Qunnamtii hin milkaanne: ',loadingData:'Datuu galmeessuuf...',transactionId:'ID Dura Dabarsuu',transactionDetails:'Gadifageenya Dura Dabarsuu',penaltyRateLabel:'Haala Adabbii:',newWithdrawal:'Baasii Haaraa',save:'Olkaasi',approve:'Mirkaneessi',edit:'Jijjiiri',shareBuy:'Hirmaata Bitame',shareCashedOut:'Gatii Hirmaataa (Baafame)',customerLeaving:'Maamila Baasuu',maxWithdrawal:'Baasii Ol-aanaa (95%)',withdraw:'Baasi',withdrawService:'Tajaajila Baasi',processLeaving:'Baasuu Hojjedhi',reasonForLeaving:'Sababa Baasuu',paidInterest:'Dhala Kaffalame',registrationFee:'Kaffaltii Galmee',otherIncome:'Galii Biraa',totalIncome:'Galii Waliigalaa',serviceWithdrawals:'Baasii Tajaajilaa',servicesUsed:'Tajaajila Fayyadame',netProfitAvailable:'Bu’aa Qulqulluu Jiru',noProfitAvailable:'Bu’aan hin jiru',accountInactive:'Herregni amma hin socho\'u. Deebi\'ii galmaa\'i.',sessionTimeout:'Yeroon keessan sekondii {seconds} keessatti dhumaa.'
+                brandSub:'Sirna Baankii',navDashboard:'Gabatee',navCustomers:'Maamila',navSavings:'Kusaa',navDeposits:'Kaasaa',navLoans:'Liqii',navRepayments:'Kaffaltuu',navWithdrawals:'Baasii',navDividends:'Qooda',navShares:'Hirmaata',navPenalties:'Adabbii',navReports:'Odeeffannoo',navAudit:'Seenaa Galmee',navUsers:'Fayyadamtoota',navSettings:'Qindeessaa',logout:'Baasi',logoutTitle:'Baasi',logoutMessage:'Akaawuntii keessan baasuu mirkaneeffattee?',cancel:'Haqi',pageTitle:'Baasii fi Dabarsuu',breadcrumb:'Mana / Baasii',withdrawalsTitle:'Baasii Kaapitaalaa fi Dabarsuu',withdrawalsSub:'Baasii kaapitaalaa maamila, baasii tajaajilaa, fi dabarsuu bulchi',individual:'Dhuunfaa',service:'Tajaajila SACCO',leaving:'Maamila Baasuu',transfer:'Dabarsuu',customer:'Maamila',fromCustomer:'Maamila Irraa',toCustomer:'Maamila Gara',amount:'Qaba',date:'Guyyaa',reason:'Sababa',note:'Hubachi (Filannoo)',status:'Haala',completed:'Xumurame',approved:'Mirkanaafame',pending:'Eegamaa',failed:'Bade',transactionHistory:'Seenaa Dura Dabarsuu',noTransactions:'Dura dabarsiin hin argamne.',showing:'Agarsii',of:'keessaa',by:'Hojjedhe',actions:'Gochaa',view:'Ilaali',delete:'Haqi',printSlip:'Maxxansi',searchPlaceholder:'Maqaa maamila-tiin barbaadi...',totalCapital:'Kaapitaala Waliigalaa',serviceType:'Gosa Tajaajilaa',type:'Gosa',allTypes:'Gosa Hunda',allYears:'Waggaa Hunda',selectCustomerFirst:'Maaloo maamila filadhu.',amountExceedsMax:'Qabni 95% kaapitaalaa ol ta\'a.',insufficientCapital:'Kaapitaalaan hin ga\'u.',cannotTransferToSelf:'Ofuma isaaf dabarsuu hin dandeessu.',transferSuccess:'Dabarsi sirriitti xumurame!',transferError:'Dabarsuuf dogoggora: ',withdrawalRecorded:'Baasiin sirriitti galmeefame!',serviceRecorded:'Baasiin tajaajilaa sirriitti galmeefame!',leavingRecorded:'Baasiin maamila sirriitti hojjechi!',deleteSuccess:'Dura dabarsi haqame.',loadError:'Datuu galmeessuuf dogoggora: ',amountInWords:'Qaba jechootaan',description:'Ibsa',insufficientProfit:'Bu’aan hin ga’u.',transferOut:'Dabarsuu Baasuu',transferIn:'Dabarsuu Galchuu',savings:'Kusaa',dividends:'Qooda',transfersIn:'Dabarsuu Galchuu',withdrawalsTotal:'Baasii',transfersOut:'Dabarsuu Baasuu',testConnection:'Qunnamtii Mirkaneessi',connectionSuccess:'✅ Qunnamtii milkaa\'e!',connectionFailed:'❌ Qunnamtii hin milkaanne: ',loadingData:'Datuu galmeessuuf...',transactionId:'ID Dura Dabarsuu',transactionDetails:'Gadifageenya Dura Dabarsuu',penaltyRateLabel:'Haala Adabbii:',newWithdrawal:'Baasii Haaraa',save:'Olkaasi',approve:'Mirkaneessi',edit:'Jijjiiri',shareIn:'Hirmaata Galchuu',shareOut:'Hirmaata Baasuu',customerLeaving:'Maamila Baasuu',maxWithdrawal:'Baasii Ol-aanaa (95%)',withdraw:'Baasi',withdrawService:'Tajaajila Baasi',processLeaving:'Baasuu Hojjedhi',reasonForLeaving:'Sababa Baasuu',paidInterest:'Dhala Kaffalame',registrationFee:'Kaffaltii Galmee',otherIncome:'Galii Biraa',totalIncome:'Galii Waliigalaa',serviceWithdrawals:'Baasii Tajaajilaa',servicesUsed:'Tajaajila Fayyadame',netProfitAvailable:'Bu’aa Qulqulluu Jiru',noProfitAvailable:'Bu’aan hin jiru',accountInactive:'Herregni amma hin socho\'u. Deebi\'ii galmaa\'i.',sessionTimeout:'Yeroon keessan sekondii {seconds} keessatti dhumaa.'
             }
         };
 
@@ -1056,9 +1040,7 @@
         let loansPenaltyRate=0.05;
         let pendingDeleteId=null;
 
-        // ============================================================
         // SESSION TIMEOUT
-        // ============================================================
         let SESSION_TIMEOUT_MINUTES=5;
         let SESSION_TIMEOUT=SESSION_TIMEOUT_MINUTES*60*1000;
         let SESSION_WARNING_TIMEOUT=Math.max(SESSION_TIMEOUT-30*1000,SESSION_TIMEOUT*0.9);
@@ -1123,9 +1105,7 @@
             applySessionSettings();
         }
 
-        // ============================================================
-        // LANGUAGE / SIDEBAR / TOAST
-        // ============================================================
+        // LANGUAGE
         function setLanguage(lang){
             if(!translations[lang])return;
             currentLang=lang;
@@ -1155,28 +1135,14 @@
             const valid=['en','am','om'];
             setLanguage(valid.includes(saved)?saved:'en');
         }
-        function toggleSidebar(){
-            document.getElementById('sidebar').classList.toggle('open');
-            document.getElementById('sidebarOverlay').classList.toggle('active');
-        }
-        function toggleSidebarCollapse(){
-            const sidebar=document.getElementById('sidebar');
-            sidebar.classList.toggle('collapsed');
-            localStorage.setItem('sidebar-collapsed',sidebar.classList.contains('collapsed')?'true':'false');
-        }
-        function loadSidebarState(){
-            const sidebar=document.getElementById('sidebar');
-            if(localStorage.getItem('sidebar-collapsed')==='true')sidebar.classList.add('collapsed');
-            else sidebar.classList.remove('collapsed');
-        }
+
+        // SIDEBAR / TOAST
+        function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('active');}
+        function toggleSidebarCollapse(){const sidebar=document.getElementById('sidebar');sidebar.classList.toggle('collapsed');localStorage.setItem('sidebar-collapsed',sidebar.classList.contains('collapsed')?'true':'false');}
+        function loadSidebarState(){const sidebar=document.getElementById('sidebar');if(localStorage.getItem('sidebar-collapsed')==='true')sidebar.classList.add('collapsed');else sidebar.classList.remove('collapsed');}
         function showToast(message,type='success'){
             let container=document.getElementById('toast-container');
-            if(!container){
-                container=document.createElement('div');
-                container.id='toast-container';
-                container.className='toast-container';
-                document.body.appendChild(container);
-            }
+            if(!container){container=document.createElement('div');container.id='toast-container';container.className='toast-container';document.body.appendChild(container);}
             const toast=document.createElement('div');
             toast.className=`toast ${type}`;
             const icon=document.createElement('i');
@@ -1184,124 +1150,57 @@
             else if(type==='error')icon.className='fas fa-exclamation-circle';
             else icon.className='fas fa-exclamation-triangle';
             toast.appendChild(icon);
-            const text=document.createElement('span');
-            text.textContent=message;
-            toast.appendChild(text);
+            const text=document.createElement('span');text.textContent=message;toast.appendChild(text);
             container.appendChild(toast);
-            setTimeout(()=>{
-                toast.classList.add('fade-out');
-                setTimeout(()=>{if(toast.parentNode)toast.remove();},300);
-            },4500);
+            setTimeout(()=>{toast.classList.add('fade-out');setTimeout(()=>{if(toast.parentNode)toast.remove();},300);},4500);
         }
         async function testConnection(){
-            try{
-                await db.collection('customers').limit(1).get();
-                showToast(translations[currentLang].connectionSuccess||'✅ Connection successful!','success');
-                return true;
-            }catch(error){
-                showToast((translations[currentLang].connectionFailed||'❌ Connection failed: ')+error.message,'error');
-                return false;
-            }
+            try{await db.collection('customers').limit(1).get();showToast(translations[currentLang].connectionSuccess||'✅ Connection successful!','success');return true;}
+            catch(error){showToast((translations[currentLang].connectionFailed||'❌ Connection failed: ')+error.message,'error');return false;}
         }
-
-        // ============================================================
-        // SETTINGS / USER
-        // ============================================================
         async function loadSettings(){
             try{
                 const doc=await db.collection('settings').doc('system').get();
-                if(doc.exists){
-                    const data=doc.data();
-                    loansPenaltyRate=data.loansPenaltyRate!==undefined?data.loansPenaltyRate/100:(data.penaltyRate||5)/100;
-                }
+                if(doc.exists){const data=doc.data();loansPenaltyRate=data.loansPenaltyRate!==undefined?data.loansPenaltyRate/100:(data.penaltyRate||5)/100;}
                 document.getElementById('penaltyRateDisplay').textContent=`${(loansPenaltyRate*100).toFixed(1)}%`;
                 return loansPenaltyRate;
-            }catch(error){
-                console.error('Error loading settings:',error);
-                document.getElementById('penaltyRateDisplay').textContent='5.0%';
-                return 0.05;
-            }
+            }catch(error){document.getElementById('penaltyRateDisplay').textContent='5.0%';return 0.05;}
         }
         function updateUserInfo(){
             const roleMap={admin:'ADMIN',manager:'MANAGER',teller:'TELLER',accountant:'ACCOUNTANT',viewer:'VIEWER'};
             const roleLabel=roleMap[currentUserRole]||'VIEWER';
             const displayName=currentUserDisplayName||'User';
             document.getElementById('userDisplayName').textContent=displayName+' ('+roleLabel+')';
-            const auditNav=document.getElementById('auditNavItem');
-            if(auditNav)auditNav.style.display=(currentUserRole==='admin')?'':'none';
-            const usersNav=document.getElementById('usersNavItem');
-            if(usersNav)usersNav.style.display=(currentUserRole==='admin')?'':'none';
+            const auditNav=document.getElementById('auditNavItem');if(auditNav)auditNav.style.display=(currentUserRole==='admin')?'':'none';
+            const usersNav=document.getElementById('usersNavItem');if(usersNav)usersNav.style.display=(currentUserRole==='admin')?'':'none';
         }
         async function logAudit(action,collection,documentId,changes={},details=''){
             try{
                 const user=auth.currentUser;
-                await db.collection('audit').add({
-                    action,collection,documentId,changes,
-                    details:details||`${action} ${collection}`,
-                    timestamp:firebase.firestore.FieldValue.serverTimestamp(),
-                    userEmail:user?.email||'system',
-                    userName:user?.displayName||user?.email||'System',
-                    userDisplayName:user?.displayName||'System'
-                });
+                await db.collection('audit').add({action,collection,documentId,changes,details:details||`${action} ${collection}`,timestamp:firebase.firestore.FieldValue.serverTimestamp(),userEmail:user?.email||'system',userName:user?.displayName||user?.email||'System',userDisplayName:user?.displayName||'System'});
             }catch(e){console.error('Audit error:',e);}
         }
         function canAddTransaction(){return['admin','manager','teller'].includes(currentUserRole);}
         function canDeleteTransaction(){return['admin'].includes(currentUserRole);}
         function canEditTransaction(){return['admin'].includes(currentUserRole);}
         function canApproveTransaction(){return['admin','manager'].includes(currentUserRole);}
-        function getDisplayName(user){
-            if(!user)return'Admin';
-            if(currentUserDisplayName)return currentUserDisplayName;
-            const name=user.displayName||user.email||'Admin';
-            return name.includes('@')?name.split('@')[0]:name;
-        }
-        function toDate(v){
-            if(!v)return null;
-            if(v.toDate)return v.toDate();
-            if(typeof v==='string')return new Date(v);
-            if(v instanceof Date)return v;
-            return null;
-        }
-        function formatDate(d){
-            if(!d)return '—';
-            const date=toDate(d);
-            if(!date)return '—';
-            return date.toLocaleDateString();
-        }
-        function isInYear(dateValue,year){
-            const d=toDate(dateValue);
-            if(!d)return false;
-            return d.getFullYear()===year;
-        }
+        function getDisplayName(user){if(!user)return'Admin';if(currentUserDisplayName)return currentUserDisplayName;const name=user.displayName||user.email||'Admin';return name.includes('@')?name.split('@')[0]:name;}
+        function toDate(v){if(!v)return null;if(v.toDate)return v.toDate();if(typeof v==='string')return new Date(v);if(v instanceof Date)return v;return null;}
+        function formatDate(d){if(!d)return '—';const date=toDate(d);if(!date)return '—';return date.toLocaleDateString();}
+        function isInYear(dateValue,year){const d=toDate(dateValue);if(!d)return false;return d.getFullYear()===year;}
         function numberToWords(num){
             if(num===0)return'Zero';
             const units=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
             const tens=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
             const thousands=['','Thousand','Million','Billion','Trillion'];
-            function convertHundreds(n){
-                let result='';
-                if(n>=100){result+=units[Math.floor(n/100)]+' Hundred ';n%=100;}
-                if(n>=20){result+=tens[Math.floor(n/10)]+' ';n%=10;}
-                if(n>0){result+=units[n]+' ';}
-                return result.trim();
-            }
+            function convertHundreds(n){let result='';if(n>=100){result+=units[Math.floor(n/100)]+' Hundred ';n%=100;}if(n>=20){result+=tens[Math.floor(n/10)]+' ';n%=10;}if(n>0){result+=units[n]+' ';}return result.trim();}
             if(num<0)return'Minus '+numberToWords(-num);
             let word='',chunkCount=0;
-            while(num>0){
-                const chunk=num%1000;
-                if(chunk!==0){
-                    const chunkWords=convertHundreds(chunk);
-                    word=(chunkWords+' '+(thousands[chunkCount]||'')+' '+word).trim();
-                }
-                num=Math.floor(num/1000);
-                chunkCount++;
-            }
+            while(num>0){const chunk=num%1000;if(chunk!==0){const chunkWords=convertHundreds(chunk);word=(chunkWords+' '+(thousands[chunkCount]||'')+' '+word).trim();}num=Math.floor(num/1000);chunkCount++;}
             return word.trim()||'Zero';
         }
 
-        // ============================================================
-        // LOAD CUSTOMERS (only ACTIVE — inactive ones must re-register)
-        // ============================================================
+        // LOAD CUSTOMERS (only ACTIVE)
         async function loadCustomers(){
             const overlay=document.getElementById('loadingOverlay');
             overlay.classList.add('active');
@@ -1311,50 +1210,28 @@
                 snapshot.forEach(doc=>{
                     const data=doc.data();
                     const status=(data.status||'active').toLowerCase().trim();
-                    if(status==='inactive') return;   // skip — must re-register
-                    customersList.push({
-                        id:doc.id,
-                        fullName:data.fullName||data.name,
-                        customerId:data.customerId||data.memberId
-                    });
+                    if(status==='inactive')return;
+                    customersList.push({id:doc.id,fullName:data.fullName||data.name,customerId:data.customerId||data.memberId});
                 });
                 overlay.classList.remove('active');
                 return true;
-            }catch(e){
-                showToast('Error loading customers','error');
-                overlay.classList.remove('active');
-                return false;
-            }
+            }catch(e){showToast('Error loading customers','error');overlay.classList.remove('active');return false;}
         }
 
-        // ============================================================
         // SUGGESTIONS
-        // ============================================================
         function setupSuggestions(inputId,hiddenId,suggestionsId,callback){
-            const input=document.getElementById(inputId);
-            const hidden=document.getElementById(hiddenId);
-            const box=document.getElementById(suggestionsId);
+            const input=document.getElementById(inputId),hidden=document.getElementById(hiddenId),box=document.getElementById(suggestionsId);
             if(!input||!hidden||!box)return;
             input.addEventListener('input',function(){
                 const q=this.value.toLowerCase().trim();
                 if(!q){box.style.display='none';hidden.value='';return;}
-                const filtered=customersList.filter(c=>
-                    c.fullName.toLowerCase().includes(q)||
-                    (c.customerId&&c.customerId.toLowerCase().includes(q))
-                );
+                const filtered=customersList.filter(c=>c.fullName.toLowerCase().includes(q)||(c.customerId&&c.customerId.toLowerCase().includes(q)));
                 if(filtered.length===0){box.style.display='none';return;}
                 let html='';
-                filtered.forEach(c=>{
-                    html+=`<div onclick="selectSuggestion('${inputId}','${hiddenId}','${suggestionsId}','${c.id}','${c.fullName} (${c.customerId||''})', ${callback ? 'true' : 'false'})">
-                                ${c.fullName} <span style="color:var(--text-muted);font-size:12px;">${c.customerId||''}</span>
-                            </div>`;
-                });
-                box.innerHTML=html;
-                box.style.display='block';
+                filtered.forEach(c=>{html+=`<div onclick="selectSuggestion('${inputId}','${hiddenId}','${suggestionsId}','${c.id}','${c.fullName} (${c.customerId||''})', ${callback ? 'true' : 'false'})">${c.fullName} <span style="color:var(--text-muted);font-size:12px;">${c.customerId||''}</span></div>`;});
+                box.innerHTML=html;box.style.display='block';
             });
-            input.addEventListener('blur',function(){
-                setTimeout(()=>{box.style.display='none';},200);
-            });
+            input.addEventListener('blur',function(){setTimeout(()=>{box.style.display='none';},200);});
         }
         function selectSuggestion(inputId,hiddenId,suggestionsId,id,displayName,callback){
             document.getElementById(inputId).value=displayName;
@@ -1368,11 +1245,11 @@
         }
 
         // ============================================================
-        // INDIVIDUAL CAPITAL
-        // Capital = (Savings + Dividends + Transfers In)
-        //          − (Net Share Buy + Withdrawals + Customer Leaving + Transfers Out)
+        // CAPITAL — NET SAVING FORMULA
+        // Net Saving = (savings + dividends + transfer_in + share_transfer_in + share_sell)
+        //            − (transfer_out + share_transfer_out + share_buy + withdrawals + leaving)
         // ============================================================
-        async function getIndividualCapital(customerId){
+        async function getCustomerCapital(customerId){
             try{
                 const [snap1,snap2,sharesSnap]=await Promise.all([
                     db.collection('transactions').where('customerId','==',customerId).get(),
@@ -1382,12 +1259,9 @@
 
                 const docs=[];
                 snap1.forEach(doc=>docs.push({id:doc.id,...doc.data()}));
-                snap2.forEach(doc=>{
-                    if(!docs.some(d=>d.id===doc.id))docs.push({id:doc.id,...doc.data()});
-                });
+                snap2.forEach(doc=>{if(!docs.some(d=>d.id===doc.id))docs.push({id:doc.id,...doc.data()});});
 
                 let totalSavings=0,totalDividends=0,totalTransfersIn=0,totalTransfersOut=0;
-                let totalShareBuy=0,totalShareSell=0;
                 let totalWithdrawals=0,totalLeaving=0;
 
                 docs.forEach(data=>{
@@ -1395,21 +1269,16 @@
                     const amt=Number(data.amount)||0;
                     const type=data.type||data.transactionType||'';
 
-                    if(type==='savings'||type==='savings_deposit'){
-                        totalSavings+=amt;
-                    }else if(type==='profit_withdrawal'||type==='dividend'||data.reason==='Dividend'){
-                        totalDividends+=amt;
-                    }else if(type==='transfer_in'){
-                        totalTransfersIn+=amt;
-                    }else if(type==='transfer_out'){
-                        totalTransfersOut+=amt;
-                    }else if(type==='withdrawal'||type==='individual_withdrawal'){
-                        totalWithdrawals+=amt;
-                    }else if(type==='leaving_withdrawal'){
-                        totalLeaving+=amt;
-                    }
+                    if(type==='savings'||type==='savings_deposit')totalSavings+=amt;
+                    else if(type==='profit_withdrawal'||type==='dividend'||data.reason==='Dividend')totalDividends+=amt;
+                    else if(type==='transfer_in')totalTransfersIn+=amt;
+                    else if(type==='transfer_out')totalTransfersOut+=amt;
+                    else if(type==='withdrawal'||type==='individual_withdrawal')totalWithdrawals+=amt;
+                    else if(type==='leaving_withdrawal')totalLeaving+=amt;
                 });
 
+                // Share transactions
+                let shareBuy=0,shareSell=0,shareTransferIn=0,shareTransferOut=0;
                 sharesSnap.forEach(doc=>{
                     const s=doc.data();
                     const sCustomerId=s.customerId||s.memberId;
@@ -1417,111 +1286,42 @@
                     if(!dashboardSettings.shareStatuses.includes(s.status))return;
                     const ty=String(s.type||'').toLowerCase();
                     const amt=Number(s.amount)||0;
-                    const isBuy=(ty==='share_buy'||(dashboardSettings.countShareTransfers&&ty==='share_transfer_in'));
-                    const isSell=(ty==='share_sell'||(dashboardSettings.countShareTransfers&&ty==='share_transfer_out'));
-                    if(isBuy)totalShareBuy+=amt;
-                    else if(isSell)totalShareSell+=amt;
+                    if(ty==='share_buy')shareBuy+=amt;
+                    else if(ty==='share_sell')shareSell+=amt;
+                    else if(ty==='share_transfer_in')shareTransferIn+=amt;
+                    else if(ty==='share_transfer_out')shareTransferOut+=amt;
                 });
 
-                const netShareBuy=Math.max(0,Math.round((totalShareBuy-totalShareSell)*100)/100);
-                const totalCredit=Math.round((totalSavings+totalDividends+totalTransfersIn)*100)/100;
-                const totalDebit=Math.round((netShareBuy+totalWithdrawals+totalLeaving+totalTransfersOut)*100)/100;
-                const capital=Math.round((totalCredit-totalDebit)*100)/100;
+                // NET SAVING formula
+                const totalCredit = totalSavings + totalDividends + totalTransfersIn + shareTransferIn + shareSell;
+                const totalDebit  = totalTransfersOut + shareTransferOut + shareBuy + totalWithdrawals + totalLeaving;
+                const capital     = Math.round((totalCredit - totalDebit) * 100) / 100;
 
-                return{
-                    totalSavings:Math.round(totalSavings*100)/100,
-                    totalDividends:Math.round(totalDividends*100)/100,
-                    totalTransfersIn:Math.round(totalTransfersIn*100)/100,
-                    totalTransfersOut:Math.round(totalTransfersOut*100)/100,
-                    totalShareBuy:netShareBuy,
-                    totalWithdrawals:Math.round(totalWithdrawals*100)/100,
-                    totalLeaving:Math.round(totalLeaving*100)/100,
+                return {
+                    totalSavings: Math.round(totalSavings*100)/100,
+                    totalDividends: Math.round(totalDividends*100)/100,
+                    totalTransfersIn: Math.round(totalTransfersIn*100)/100,
+                    totalTransfersOut: Math.round(totalTransfersOut*100)/100,
+                    shareBuy: Math.round(shareBuy*100)/100,
+                    shareSell: Math.round(shareSell*100)/100,
+                    shareTransferIn: Math.round(shareTransferIn*100)/100,
+                    shareTransferOut: Math.round(shareTransferOut*100)/100,
+                    // consolidated Share In / Out for display
+                    shareIn: Math.round((shareSell + shareTransferIn)*100)/100,
+                    shareOut: Math.round((shareBuy + shareTransferOut)*100)/100,
+                    totalWithdrawals: Math.round(totalWithdrawals*100)/100,
+                    totalLeaving: Math.round(totalLeaving*100)/100,
                     capital
                 };
             }catch(e){
                 console.error('Error calculating capital:',e);
-                return{totalSavings:0,totalDividends:0,totalTransfersIn:0,totalTransfersOut:0,totalShareBuy:0,totalWithdrawals:0,totalLeaving:0,capital:0};
+                return {totalSavings:0,totalDividends:0,totalTransfersIn:0,totalTransfersOut:0,shareBuy:0,shareSell:0,shareTransferIn:0,shareTransferOut:0,shareIn:0,shareOut:0,totalWithdrawals:0,totalLeaving:0,capital:0};
             }
         }
 
-        // ============================================================
-        // LEAVING CAPITAL — Shares are cashed out when leaving
-        // Leaving = (Savings + Dividends + Transfers In + Net Share Value)
-        //            − (Withdrawals + Customer Leaving + Transfers Out)
-        // ============================================================
-        async function getLeavingCapital(customerId){
-            try{
-                const [snap1,snap2,sharesSnap]=await Promise.all([
-                    db.collection('transactions').where('customerId','==',customerId).get(),
-                    db.collection('transactions').where('memberId','==',customerId).get(),
-                    db.collection('transactions').where('type','in',
-                        ['share_buy','share_sell','share_transfer_in','share_transfer_out']).get()
-                ]);
-
-                const docs=[];
-                snap1.forEach(doc=>docs.push({id:doc.id,...doc.data()}));
-                snap2.forEach(doc=>{
-                    if(!docs.some(d=>d.id===doc.id))docs.push({id:doc.id,...doc.data()});
-                });
-
-                let totalSavings=0,totalDividends=0,totalTransfersIn=0,totalTransfersOut=0;
-                let totalShareBuy=0,totalShareSell=0;
-                let totalWithdrawals=0,totalLeaving=0;
-
-                docs.forEach(data=>{
-                    if(data.status!=='approved'&&data.status!=='completed')return;
-                    const amt=Number(data.amount)||0;
-                    const type=data.type||data.transactionType||'';
-
-                    if(type==='savings'||type==='savings_deposit'){
-                        totalSavings+=amt;
-                    }else if(type==='profit_withdrawal'||type==='dividend'||data.reason==='Dividend'){
-                        totalDividends+=amt;
-                    }else if(type==='transfer_in'){
-                        totalTransfersIn+=amt;
-                    }else if(type==='transfer_out'){
-                        totalTransfersOut+=amt;
-                    }else if(type==='withdrawal'||type==='individual_withdrawal'){
-                        totalWithdrawals+=amt;
-                    }else if(type==='leaving_withdrawal'){
-                        totalLeaving+=amt;
-                    }
-                });
-
-                sharesSnap.forEach(doc=>{
-                    const s=doc.data();
-                    const sCustomerId=s.customerId||s.memberId;
-                    if(sCustomerId!==customerId)return;
-                    if(!dashboardSettings.shareStatuses.includes(s.status))return;
-                    const ty=String(s.type||'').toLowerCase();
-                    const amt=Number(s.amount)||0;
-                    const isBuy=(ty==='share_buy'||(dashboardSettings.countShareTransfers&&ty==='share_transfer_in'));
-                    const isSell=(ty==='share_sell'||(dashboardSettings.countShareTransfers&&ty==='share_transfer_out'));
-                    if(isBuy)totalShareBuy+=amt;
-                    else if(isSell)totalShareSell+=amt;
-                });
-
-                // Net share value is ADDED (cashed out) because customer is leaving
-                const netShareBuy=Math.round((totalShareBuy-totalShareSell)*100)/100;
-                const totalCredit=Math.round((totalSavings+totalDividends+totalTransfersIn+netShareBuy)*100)/100;
-                const totalDebit=Math.round((totalWithdrawals+totalLeaving+totalTransfersOut)*100)/100;
-                const capital=Math.round((totalCredit-totalDebit)*100)/100;
-
-                return{
-                    totalSavings:Math.round(totalSavings*100)/100,
-                    totalDividends:Math.round(totalDividends*100)/100,
-                    totalTransfersIn:Math.round(totalTransfersIn*100)/100,
-                    totalTransfersOut:Math.round(totalTransfersOut*100)/100,
-                    totalShareBuy:netShareBuy,
-                    totalWithdrawals:Math.round(totalWithdrawals*100)/100,
-                    totalLeaving:Math.round(totalLeaving*100)/100,
-                    capital
-                };
-            }catch(e){
-                console.error('Error calculating leaving capital:',e);
-                return{totalSavings:0,totalDividends:0,totalTransfersIn:0,totalTransfersOut:0,totalShareBuy:0,totalWithdrawals:0,totalLeaving:0,capital:0};
-            }
-        }
+        // Same formula for both individual and leaving
+        async function getIndividualCapital(customerId){ return getCustomerCapital(customerId); }
+        async function getLeavingCapital(customerId){ return getCustomerCapital(customerId); }
 
         async function updateIndividualCapital(customerId){
             if(!customerId)return;
@@ -1532,8 +1332,9 @@
             document.getElementById('indSavings').textContent=data.totalSavings.toFixed(2)+' ETB';
             document.getElementById('indDividends').textContent=data.totalDividends.toFixed(2)+' ETB';
             document.getElementById('indTransfersIn').textContent=data.totalTransfersIn.toFixed(2)+' ETB';
+            document.getElementById('indShareIn').textContent=data.shareIn.toFixed(2)+' ETB';
             document.getElementById('indTransfersOut').textContent=data.totalTransfersOut.toFixed(2)+' ETB';
-            document.getElementById('indShareBuy').textContent=data.totalShareBuy.toFixed(2)+' ETB';
+            document.getElementById('indShareOut').textContent=data.shareOut.toFixed(2)+' ETB';
             document.getElementById('indWithdrawals').textContent=data.totalWithdrawals.toFixed(2)+' ETB';
             document.getElementById('indLeaving').textContent=data.totalLeaving.toFixed(2)+' ETB';
             document.getElementById('indTotalCapital').textContent=data.capital.toFixed(2)+' ETB';
@@ -1547,8 +1348,7 @@
                 amountInput.max=maxAllowed;
                 amountInput.min=0.01;
                 amountInput.disabled=(data.capital<=0);
-                if(data.capital<=0)amountInput.placeholder='No capital';
-                else amountInput.placeholder=`Max: ${maxAllowed.toFixed(2)}`;
+                amountInput.placeholder=data.capital<=0?'No capital':`Max: ${maxAllowed.toFixed(2)}`;
             }
             const infoDisplay=document.getElementById('indCustomerInfo');
             document.getElementById('indCustomerName').textContent=customer?customer.fullName:'Unknown';
@@ -1568,13 +1368,9 @@
             document.getElementById('leaveSavings').textContent=data.totalSavings.toFixed(2)+' ETB';
             document.getElementById('leaveDividends').textContent=data.totalDividends.toFixed(2)+' ETB';
             document.getElementById('leaveTransfersIn').textContent=data.totalTransfersIn.toFixed(2)+' ETB';
+            document.getElementById('leaveShareIn').textContent=data.shareIn.toFixed(2)+' ETB';
             document.getElementById('leaveTransfersOut').textContent=data.totalTransfersOut.toFixed(2)+' ETB';
-            const shareEl=document.getElementById('leaveShareBuy');
-            if(data.totalShareBuy>=0){
-                shareEl.textContent='+'+data.totalShareBuy.toFixed(2)+' ETB';
-            }else{
-                shareEl.textContent='-'+Math.abs(data.totalShareBuy).toFixed(2)+' ETB';
-            }
+            document.getElementById('leaveShareOut').textContent=data.shareOut.toFixed(2)+' ETB';
             document.getElementById('leaveWithdrawals').textContent=data.totalWithdrawals.toFixed(2)+' ETB';
             document.getElementById('leaveLeaving').textContent=data.totalLeaving.toFixed(2)+' ETB';
             document.getElementById('leaveTotalCapital').textContent=data.capital.toFixed(2)+' ETB';
@@ -1599,27 +1395,23 @@
                 amountInput.max=maxAllowed;
                 amountInput.min=0.01;
                 amountInput.disabled=(data.capital<=0);
-                if(data.capital<=0)amountInput.placeholder='No capital';
-                else amountInput.placeholder=`Max: ${maxAllowed.toFixed(2)}`;
+                amountInput.placeholder=data.capital<=0?'No capital':`Max: ${maxAllowed.toFixed(2)}`;
             }
         }
 
-        // ============================================================
         // SACCO PROFIT
-        // ============================================================
         async function getSaccoProfit(){
             try{
-                const [interestLoanSnap,repaymentsSnap,profitIncomeSnap,serviceSnap]=await Promise.all([
+                const [loanSnap,repaySnap,incSnap,svcSnap]=await Promise.all([
                     db.collection('transactions').where('type','==','loan').get(),
                     db.collection('transactions').where('type','==','repayment').get(),
                     db.collection('transactions').where('type','==','profit_income').get(),
                     db.collection('transactions').where('type','==','service_withdrawal').get()
                 ]);
-
-                const allLoans=interestLoanSnap.docs.map(d=>({id:d.id,...d.data()}));
-                const allRepayments=repaymentsSnap.docs.map(d=>({id:d.id,...d.data()}));
-                const allProfitIncome=profitIncomeSnap.docs.map(d=>({id:d.id,...d.data()}));
-                const allServiceWithdrawals=serviceSnap.docs.map(d=>({id:d.id,...d.data()}));
+                const allLoans=loanSnap.docs.map(d=>({id:d.id,...d.data()}));
+                const allRepayments=repaySnap.docs.map(d=>({id:d.id,...d.data()}));
+                const allProfitIncome=incSnap.docs.map(d=>({id:d.id,...d.data()}));
+                const allServiceWithdrawals=svcSnap.docs.map(d=>({id:d.id,...d.data()}));
 
                 let totalPaidInterest=0;
                 if(dashboardSettings.includePaidInterest!==false){
@@ -1633,33 +1425,19 @@
                 totalPaidInterest=Math.round(totalPaidInterest*100)/100;
 
                 const totalRegistrationFee=dashboardSettings.includeRegistrationFee!==false
-                    ? allProfitIncome.filter(p=>isDepositCounted(p)).filter(p=>isRegistrationFee(p.incomeType))
-                        .reduce((s,p)=>s+(Number(p.amount)||0),0)
-                    : 0;
-
+                    ? allProfitIncome.filter(p=>isDepositCounted(p)).filter(p=>isRegistrationFee(p.incomeType)).reduce((s,p)=>s+(Number(p.amount)||0),0):0;
                 const totalOtherIncome=dashboardSettings.includeOtherIncome!==false
-                    ? allProfitIncome.filter(p=>isDepositCounted(p)).filter(p=>isOtherIncome(p.incomeType))
-                        .reduce((s,p)=>s+(Number(p.amount)||0),0)
-                    : 0;
+                    ? allProfitIncome.filter(p=>isDepositCounted(p)).filter(p=>isOtherIncome(p.incomeType)).reduce((s,p)=>s+(Number(p.amount)||0),0):0;
 
                 const activeServiceWithdrawals=allServiceWithdrawals.filter(isServiceWithdrawalCounted);
                 const totalServiceWithdrawals=dashboardSettings.includeServiceWithdrawals!==false
-                    ? activeServiceWithdrawals.reduce((s,x)=>s+(Number(x.amount)||0),0)
-                    : 0;
+                    ? activeServiceWithdrawals.reduce((s,x)=>s+(Number(x.amount)||0),0):0;
                 const totalServices=activeServiceWithdrawals.length;
 
                 const totalIncome=Math.round((totalPaidInterest+totalRegistrationFee+totalOtherIncome)*100)/100;
                 const netProfit=Math.round((totalIncome-totalServiceWithdrawals)*100)/100;
 
-                return{
-                    totalPaidInterest,
-                    totalRegistrationFee:Math.round(totalRegistrationFee*100)/100,
-                    totalOtherIncome:Math.round(totalOtherIncome*100)/100,
-                    totalIncome,
-                    totalServiceWithdrawals:Math.round(totalServiceWithdrawals*100)/100,
-                    netProfit,
-                    totalServices
-                };
+                return{totalPaidInterest,totalRegistrationFee:Math.round(totalRegistrationFee*100)/100,totalOtherIncome:Math.round(totalOtherIncome*100)/100,totalIncome,totalServiceWithdrawals:Math.round(totalServiceWithdrawals*100)/100,netProfit,totalServices};
             }catch(e){
                 console.error('Error calculating SACCO profit:',e);
                 return{totalPaidInterest:0,totalRegistrationFee:0,totalOtherIncome:0,totalIncome:0,totalServiceWithdrawals:0,netProfit:0,totalServices:0};
@@ -1683,15 +1461,12 @@
                 amountInput.max=data.netProfit;
                 amountInput.min=0.01;
                 amountInput.disabled=(data.netProfit<=0);
-                if(data.netProfit<=0)amountInput.placeholder='No profit available';
-                else amountInput.placeholder=`Max: ${data.netProfit.toFixed(2)}`;
+                amountInput.placeholder=data.netProfit<=0?'No profit available':`Max: ${data.netProfit.toFixed(2)}`;
             }
             return data;
         }
 
-        // ============================================================
         // LOAD TRANSACTIONS
-        // ============================================================
         async function loadTransactions(){
             const overlay=document.getElementById('loadingOverlay');
             overlay.classList.add('active');
@@ -1713,44 +1488,23 @@
                         const fromCustomer=customersList.find(c=>c.id===data.fromCustomerId);
                         details=`From: ${fromCustomer?fromCustomer.fullName:(data.fromCustomerName||'Unknown')}`;
                     }
-                    allTransactions.push({id:doc.id,...data,customerName:customerName,displayType:displayType,details:details});
+                    allTransactions.push({id:doc.id,...data,customerName,displayType,details});
                 });
-                allTransactions.sort((a,b)=>{
-                    const da=toDate(a.date||a.timestamp);
-                    const db2=toDate(b.date||b.timestamp);
-                    return db2-da;
-                });
-                populateYearFilter();
-                applyFilters();
-                updateCategorySummary();
+                allTransactions.sort((a,b)=>{const da=toDate(a.date||a.timestamp);const db2=toDate(b.date||b.timestamp);return db2-da;});
+                populateYearFilter();applyFilters();updateCategorySummary();
                 overlay.classList.remove('active');
-            }catch(e){
-                showToast(translations[currentLang].loadError+e.message,'error');
-                overlay.classList.remove('active');
-            }
+            }catch(e){showToast(translations[currentLang].loadError+e.message,'error');overlay.classList.remove('active');}
         }
         function populateYearFilter(){
             const yearFilter=document.getElementById('yearFilter');
             const years=new Set();
-            allTransactions.forEach(t=>{
-                const d=toDate(t.date||t.timestamp);
-                if(d&&!isNaN(d.getFullYear()))years.add(d.getFullYear());
-            });
+            allTransactions.forEach(t=>{const d=toDate(t.date||t.timestamp);if(d&&!isNaN(d.getFullYear()))years.add(d.getFullYear());});
             const currentVal=yearFilter.value;
             yearFilter.innerHTML='';
-            const allOpt=document.createElement('option');
-            allOpt.value='all';
-            allOpt.textContent=translations[currentLang].allYears||'All Years';
-            yearFilter.appendChild(allOpt);
+            const allOpt=document.createElement('option');allOpt.value='all';allOpt.textContent=translations[currentLang].allYears||'All Years';yearFilter.appendChild(allOpt);
             const sorted=Array.from(years).sort((a,b)=>b-a);
-            sorted.forEach(y=>{
-                const opt=document.createElement('option');
-                opt.value=y;
-                opt.textContent=y;
-                yearFilter.appendChild(opt);
-            });
-            if(sorted.includes(Number(currentVal))&&currentVal!=='all')yearFilter.value=currentVal;
-            else yearFilter.value='all';
+            sorted.forEach(y=>{const opt=document.createElement('option');opt.value=y;opt.textContent=y;yearFilter.appendChild(opt);});
+            if(sorted.includes(Number(currentVal))&&currentVal!=='all')yearFilter.value=currentVal;else yearFilter.value='all';
         }
         function applyFilters(){
             const searchQ=document.getElementById('searchInput').value.toLowerCase().trim();
@@ -1763,16 +1517,12 @@
                 const yearMatch=yearFilter==='all'||isInYear(t.date||t.timestamp,Number(yearFilter));
                 return nameMatch&&typeMatch&&yearMatch;
             });
-            currentPage=1;
-            paginateTransactions();
+            currentPage=1;paginateTransactions();
         }
         function paginateTransactions(){
-            const start=(currentPage-1)*pageSize;
-            const end=start+pageSize;
+            const start=(currentPage-1)*pageSize;const end=start+pageSize;
             const pageItems=filteredTransactions.slice(start,end);
-            renderTable(pageItems);
-            updatePaginationInfo();
-            renderPageButtons();
+            renderTable(pageItems);updatePaginationInfo();renderPageButtons();
             document.getElementById('totalTransactionsCount').textContent=filteredTransactions.length;
         }
         function renderTable(items){
@@ -1784,15 +1534,13 @@
             }
             let html='';
             items.forEach((tr,i)=>{
-                let typeClass='';
-                let typeLabel=tr.displayType;
+                let typeClass='',typeLabel=tr.displayType;
                 if(typeLabel==='withdrawal'||typeLabel==='individual_withdrawal'){typeClass='type-withdrawal';typeLabel='Individual';}
                 else if(typeLabel==='service_withdrawal'){typeClass='type-service';typeLabel='Service';}
                 else if(typeLabel==='leaving_withdrawal'){typeClass='type-leaving';typeLabel='Leaving';}
                 else if(typeLabel==='transfer_out'){typeClass='type-transfer_out';typeLabel='Transfer Out';}
                 else if(typeLabel==='transfer_in'){typeClass='type-transfer_in';typeLabel='Transfer In';}
-                let statusClass='completed';
-                let statusLabel=t.completed||'Completed';
+                let statusClass='completed';let statusLabel=t.completed||'Completed';
                 if(tr.status==='pending'){statusClass='pending';statusLabel=t.pending||'Pending';}
                 else if(tr.status==='failed'){statusClass='failed';statusLabel=t.failed||'Failed';}
                 else if(tr.status==='approved'){statusClass='approved';statusLabel=t.approved||'Approved';}
@@ -1802,33 +1550,16 @@
                 let actionsHtml='';
                 actionsHtml+=`<button class="action-btn view-btn" onclick="viewTransaction('${tr.id}')" title="${t.view}"><i class="fas fa-eye"></i></button>`;
                 actionsHtml+=`<button class="action-btn print-btn" onclick="printSlip('${tr.id}')" title="${t.printSlip}"><i class="fas fa-print"></i></button>`;
-                if(tr.status==='pending'&&canApproveTransaction()){
-                    actionsHtml+=`<button class="action-btn approve-btn" onclick="approveWithdrawal('${tr.id}')" title="${t.approve}"><i class="fas fa-check-circle"></i> ${t.approve}</button>`;
-                }
-                if(canEditTransaction()){
-                    actionsHtml+=`<button class="action-btn edit-btn" onclick="openEditWithdrawal('${tr.id}')" title="${t.edit}"><i class="fas fa-edit"></i></button>`;
-                }
-                if(canDeleteTransaction()){
-                    actionsHtml+=`<button class="action-btn delete-btn" onclick="showDeleteModal('${tr.id}')" title="${t.delete}"><i class="fas fa-trash"></i></button>`;
-                }
-                html+=`<tr>
-                    <td>${(currentPage-1)*pageSize+i+1}</td>
-                    <td><span class="badge-type ${typeClass}">${typeLabel}</span></td>
-                    <td>${tr.customerName}</td>
-                    <td>${Number(tr.amount).toLocaleString()}</td>
-                    <td style="font-size:12px;color:var(--text-secondary);">${tr.details||'—'}</td>
-                    <td><span class="badge-status ${statusClass}">${statusLabel}</span></td>
-                    <td>${dateStr}</td>
-                    <td>${byUser}</td>
-                    <td>${actionsHtml}</td>
-                </tr>`;
+                if(tr.status==='pending'&&canApproveTransaction())actionsHtml+=`<button class="action-btn approve-btn" onclick="approveWithdrawal('${tr.id}')" title="${t.approve}"><i class="fas fa-check-circle"></i> ${t.approve}</button>`;
+                if(canEditTransaction())actionsHtml+=`<button class="action-btn edit-btn" onclick="openEditWithdrawal('${tr.id}')" title="${t.edit}"><i class="fas fa-edit"></i></button>`;
+                if(canDeleteTransaction())actionsHtml+=`<button class="action-btn delete-btn" onclick="showDeleteModal('${tr.id}')" title="${t.delete}"><i class="fas fa-trash"></i></button>`;
+                html+=`<tr><td>${(currentPage-1)*pageSize+i+1}</td><td><span class="badge-type ${typeClass}">${typeLabel}</span></td><td>${tr.customerName}</td><td>${Number(tr.amount).toLocaleString()}</td><td style="font-size:12px;color:var(--text-secondary);">${tr.details||'—'}</td><td><span class="badge-status ${statusClass}">${statusLabel}</span></td><td>${dateStr}</td><td>${byUser}</td><td>${actionsHtml}</td></tr>`;
             });
             tbody.innerHTML=html;
         }
         function updatePaginationInfo(){
             const total=filteredTransactions.length;
-            const start=(currentPage-1)*pageSize+1;
-            const end=Math.min(currentPage*pageSize,total);
+            const start=(currentPage-1)*pageSize+1;const end=Math.min(currentPage*pageSize,total);
             document.getElementById('pageStart').textContent=total>0?start:0;
             document.getElementById('pageEnd').textContent=total>0?end:0;
             document.getElementById('totalTransactionsCountPagination').textContent=total;
@@ -1839,40 +1570,25 @@
             const container=document.getElementById('pageNumbers');
             const totalPages=Math.ceil(filteredTransactions.length/pageSize);
             if(totalPages<=1){container.innerHTML='';return;}
-            let html='';
-            const maxVisible=5;
+            let html='';const maxVisible=5;
             let startPage=Math.max(1,currentPage-Math.floor(maxVisible/2));
             let endPage=Math.min(totalPages,startPage+maxVisible-1);
             if(endPage-startPage<maxVisible-1)startPage=Math.max(1,endPage-maxVisible+1);
-            if(startPage>1){
-                html+=`<button class="pagination-btn" onclick="goToPage(1)">1</button>`;
-                if(startPage>2)html+=`<button class="pagination-btn" disabled>...</button>`;
-            }
-            for(let i=startPage;i<=endPage;i++){
-                html+=`<button class="pagination-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
-            }
-            if(endPage<totalPages){
-                if(endPage<totalPages-1)html+=`<button class="pagination-btn" disabled>...</button>`;
-                html+=`<button class="pagination-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
-            }
+            if(startPage>1){html+=`<button class="pagination-btn" onclick="goToPage(1)">1</button>`;if(startPage>2)html+=`<button class="pagination-btn" disabled>...</button>`;}
+            for(let i=startPage;i<=endPage;i++){html+=`<button class="pagination-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;}
+            if(endPage<totalPages){if(endPage<totalPages-1)html+=`<button class="pagination-btn" disabled>...</button>`;html+=`<button class="pagination-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;}
             container.innerHTML=html;
         }
         function goToPage(page){
             const totalPages=Math.ceil(filteredTransactions.length/pageSize);
             if(page<1||page>totalPages)return;
-            currentPage=page;
-            paginateTransactions();
+            currentPage=page;paginateTransactions();
             document.querySelector('.table-container').scrollIntoView({behavior:'smooth',block:'start'});
         }
 
-        // ============================================================
         // CATEGORY SUMMARY
-        // ============================================================
         function updateCategorySummary(){
-            const stats={
-                individual:{count:0,total:0},service:{count:0,total:0},leaving:{count:0,total:0},
-                transferOut:{count:0,total:0},transferIn:{count:0,total:0}
-            };
+            const stats={individual:{count:0,total:0},service:{count:0,total:0},leaving:{count:0,total:0},transferOut:{count:0,total:0},transferIn:{count:0,total:0}};
             allTransactions.forEach(t=>{
                 if(t.status!=='approved'&&t.status!=='completed')return;
                 const type=t.type||t.displayType;
@@ -1899,19 +1615,15 @@
             document.getElementById('catTransferTotalAmount').textContent=(outTotal+inTotal).toFixed(2)+' ETB';
         }
 
-        // ============================================================
         // APPROVE / EDIT / DELETE
-        // ============================================================
         async function approveWithdrawal(id){
             if(!canApproveTransaction()){showToast(translations[currentLang].unauthorized||'Unauthorized','error');return;}
             if(!confirm('Approve this withdrawal?'))return;
             try{
                 const docRef=db.collection('transactions').doc(id);
-                const doc=await docRef.get();
-                const data=doc.exists?doc.data():{};
+                const doc=await docRef.get();const data=doc.exists?doc.data():{};
                 if(data.status!=='pending'){showToast('This withdrawal is already processed.','warning');return;}
-                const user=auth.currentUser;
-                const approvedByName=getDisplayName(user);
+                const user=auth.currentUser;const approvedByName=getDisplayName(user);
                 await docRef.update({status:'approved',approvedBy:approvedByName,approvedAt:firebase.firestore.FieldValue.serverTimestamp()});
                 await logAudit('approved','transactions',id,{status:{old:data.status||'pending',new:'approved'}},`Withdrawal approved by ${approvedByName}`);
                 showToast('Withdrawal approved successfully!','success');
@@ -1938,10 +1650,7 @@
             pendingDeleteId=id;
             document.getElementById('deleteModal').classList.add('active');
         }
-        function closeDeleteModal(){
-            document.getElementById('deleteModal').classList.remove('active');
-            pendingDeleteId=null;
-        }
+        function closeDeleteModal(){document.getElementById('deleteModal').classList.remove('active');pendingDeleteId=null;}
         async function confirmDeleteTransaction(){
             if(!pendingDeleteId)return;
             const id=pendingDeleteId;
@@ -1949,19 +1658,15 @@
             if(!tr){closeDeleteModal();return;}
             try{
                 const docRef=db.collection('transactions').doc(id);
-                const doc=await docRef.get();
-                const data=doc.exists?doc.data():{};
+                const doc=await docRef.get();const data=doc.exists?doc.data():{};
                 await docRef.delete();
                 await logAudit('deleted','transactions',id,{deletedData:{old:null,new:data}},`Transaction deleted (${data.type||'unknown'})`);
                 showToast(translations[currentLang].deleteSuccess||'Transaction deleted.','success');
-                closeDeleteModal();
-                await loadTransactions();
+                closeDeleteModal();await loadTransactions();
             }catch(e){showToast('Error: '+e.message,'error');closeDeleteModal();}
         }
 
-        // ============================================================
         // SELECTION MODAL
-        // ============================================================
         function openSelectionModal(){document.getElementById('selectionModal').classList.add('active');document.getElementById('selectionModal').style.display='flex';}
         function closeSelectionModal(){document.getElementById('selectionModal').classList.remove('active');document.getElementById('selectionModal').style.display='none';}
         function selectWithdrawalType(type){
@@ -1972,9 +1677,7 @@
             else if(type==='transfer')openTransferModal();
         }
 
-        // ============================================================
         // INDIVIDUAL MODAL
-        // ============================================================
         function openIndividualModal(data=null){
             const modal=document.getElementById('individualModal');
             const form=document.getElementById('individualForm');
@@ -1985,7 +1688,7 @@
             document.getElementById('indAmount').value='';
             document.getElementById('indDate').value=new Date().toISOString().split('T')[0];
             document.getElementById('indCapitalBalance').textContent='0.00';
-            ['indSavings','indDividends','indTransfersIn','indTransfersOut','indShareBuy','indWithdrawals','indLeaving','indTotalCapital','indMaxWithdrawal','indAvailable'].forEach(id=>{
+            ['indSavings','indDividends','indTransfersIn','indShareIn','indTransfersOut','indShareOut','indWithdrawals','indLeaving','indTotalCapital','indMaxWithdrawal','indAvailable'].forEach(id=>{
                 document.getElementById(id).textContent=id.includes('Available')?'0.00':'0.00 ETB';
             });
             if(data){
@@ -1998,28 +1701,19 @@
                 document.getElementById('indAmount').value=data.amount;
                 document.getElementById('indReason').value=data.reason||'Personal';
                 document.getElementById('indNote').value=data.note||'';
-                if(data.date){
-                    const d=toDate(data.date);
-                    if(d)document.getElementById('indDate').value=d.toISOString().split('T')[0];
-                }
+                if(data.date){const d=toDate(data.date);if(d)document.getElementById('indDate').value=d.toISOString().split('T')[0];}
                 document.querySelector('#individualForm button[type="submit"]').innerHTML='<i class="fas fa-save"></i> Update';
                 document.getElementById('individualModal').dataset.editId=data.id;
             }else{
                 document.querySelector('#individualForm button[type="submit"]').innerHTML='<i class="fas fa-save"></i> Withdraw';
                 document.getElementById('individualModal').dataset.editId='';
             }
-            modal.classList.add('active');
-            modal.style.display='flex';
+            modal.classList.add('active');modal.style.display='flex';
             setTimeout(()=>{document.getElementById('indCustomerSearch').focus();},300);
         }
-        function closeIndividualModal(){
-            document.getElementById('individualModal').classList.remove('active');
-            document.getElementById('individualModal').style.display='none';
-        }
+        function closeIndividualModal(){document.getElementById('individualModal').classList.remove('active');document.getElementById('individualModal').style.display='none';}
 
-        // ============================================================
         // SERVICE MODAL
-        // ============================================================
         async function openServiceModal(data=null){
             const modal=document.getElementById('serviceModal');
             const form=document.getElementById('serviceForm');
@@ -2033,27 +1727,18 @@
                 document.getElementById('svcAmount').value=data.amount;
                 document.getElementById('svcDescription').value=data.description||'';
                 document.getElementById('svcNote').value=data.note||'';
-                if(data.date){
-                    const d=toDate(data.date);
-                    if(d)document.getElementById('svcDate').value=d.toISOString().split('T')[0];
-                }
+                if(data.date){const d=toDate(data.date);if(d)document.getElementById('svcDate').value=d.toISOString().split('T')[0];}
                 document.querySelector('#serviceForm button[type="submit"]').innerHTML='<i class="fas fa-save"></i> Update';
                 document.getElementById('serviceModal').dataset.editId=data.id;
             }else{
                 document.querySelector('#serviceForm button[type="submit"]').innerHTML='<i class="fas fa-save"></i> Withdraw Service';
                 document.getElementById('serviceModal').dataset.editId='';
             }
-            modal.classList.add('active');
-            modal.style.display='flex';
+            modal.classList.add('active');modal.style.display='flex';
         }
-        function closeServiceModal(){
-            document.getElementById('serviceModal').classList.remove('active');
-            document.getElementById('serviceModal').style.display='none';
-        }
+        function closeServiceModal(){document.getElementById('serviceModal').classList.remove('active');document.getElementById('serviceModal').style.display='none';}
 
-        // ============================================================
         // LEAVING MODAL
-        // ============================================================
         function openLeavingModal(data=null){
             const modal=document.getElementById('leavingModal');
             const form=document.getElementById('leavingForm');
@@ -2062,10 +1747,9 @@
             document.getElementById('leaveCustomerSearch').value='';
             document.getElementById('leaveCustomerInfo').classList.remove('active');
             document.getElementById('leaveDate').value=new Date().toISOString().split('T')[0];
-            ['leaveSavings','leaveDividends','leaveTransfersIn','leaveTransfersOut','leaveWithdrawals','leaveLeaving','leaveTotalCapital'].forEach(id=>{
+            ['leaveSavings','leaveDividends','leaveTransfersIn','leaveShareIn','leaveTransfersOut','leaveShareOut','leaveWithdrawals','leaveLeaving','leaveTotalCapital'].forEach(id=>{
                 document.getElementById(id).textContent='0.00 ETB';
             });
-            document.getElementById('leaveShareBuy').textContent='+0.00 ETB';
             document.getElementById('leaveCapitalBalance').textContent='0.00';
             if(data){
                 const customer=customersList.find(c=>c.id===data.customerId);
@@ -2076,28 +1760,19 @@
                 }
                 document.getElementById('leaveReason').value=data.reason||'Voluntary Exit';
                 document.getElementById('leaveNote').value=data.note||'';
-                if(data.date){
-                    const d=toDate(data.date);
-                    if(d)document.getElementById('leaveDate').value=d.toISOString().split('T')[0];
-                }
+                if(data.date){const d=toDate(data.date);if(d)document.getElementById('leaveDate').value=d.toISOString().split('T')[0];}
                 document.querySelector('#leavingForm button[type="submit"]').innerHTML='<i class="fas fa-user-slash"></i> Update';
                 document.getElementById('leavingModal').dataset.editId=data.id;
             }else{
                 document.querySelector('#leavingForm button[type="submit"]').innerHTML='<i class="fas fa-user-slash"></i> Process Leaving';
                 document.getElementById('leavingModal').dataset.editId='';
             }
-            modal.classList.add('active');
-            modal.style.display='flex';
+            modal.classList.add('active');modal.style.display='flex';
             setTimeout(()=>{document.getElementById('leaveCustomerSearch').focus();},300);
         }
-        function closeLeavingModal(){
-            document.getElementById('leavingModal').classList.remove('active');
-            document.getElementById('leavingModal').style.display='none';
-        }
+        function closeLeavingModal(){document.getElementById('leavingModal').classList.remove('active');document.getElementById('leavingModal').style.display='none';}
 
-        // ============================================================
         // TRANSFER MODAL
-        // ============================================================
         function openTransferModal(data=null){
             const modal=document.getElementById('transferModal');
             const form=document.getElementById('transferForm');
@@ -2113,8 +1788,7 @@
             let outTotal=0,outCount=0,inTotal=0,inCount=0;
             allTransactions.forEach(t=>{
                 if(t.status!=='approved'&&t.status!=='completed')return;
-                const type=t.type||t.displayType;
-                const amt=Number(t.amount)||0;
+                const type=t.type||t.displayType;const amt=Number(t.amount)||0;
                 if(type==='transfer_out'){outTotal+=amt;outCount++;}
                 else if(type==='transfer_in'){inTotal+=amt;inCount++;}
             });
@@ -2142,27 +1816,18 @@
                 document.getElementById('transAmount').value=data.amount;
                 document.getElementById('transReason').value=data.reason||'Family Support';
                 document.getElementById('transNote').value=data.note||'';
-                if(data.date){
-                    const d=toDate(data.date);
-                    if(d)document.getElementById('transDate').value=d.toISOString().split('T')[0];
-                }
+                if(data.date){const d=toDate(data.date);if(d)document.getElementById('transDate').value=d.toISOString().split('T')[0];}
                 document.querySelector('#transferForm button[type="submit"]').innerHTML='<i class="fas fa-exchange-alt"></i> Update';
                 document.getElementById('transferModal').dataset.editId=data.id;
             }else{
                 document.querySelector('#transferForm button[type="submit"]').innerHTML='<i class="fas fa-exchange-alt"></i> Transfer';
                 document.getElementById('transferModal').dataset.editId='';
             }
-            modal.classList.add('active');
-            modal.style.display='flex';
+            modal.classList.add('active');modal.style.display='flex';
         }
-        function closeTransferModal(){
-            document.getElementById('transferModal').classList.remove('active');
-            document.getElementById('transferModal').style.display='none';
-        }
+        function closeTransferModal(){document.getElementById('transferModal').classList.remove('active');document.getElementById('transferModal').style.display='none';}
 
-        // ============================================================
-        // VIEW TRANSACTION
-        // ============================================================
+        // VIEW / PRINT
         function viewTransaction(id){
             const tr=allTransactions.find(t=>t.id===id);
             if(!tr)return;
@@ -2176,8 +1841,7 @@
             else if(typeLabel==='leaving_withdrawal')typeLabel=t.leaving||'Leaving';
             else if(typeLabel==='transfer_out')typeLabel=t.transferOut||'Transfer Out';
             else if(typeLabel==='transfer_in')typeLabel=t.transferIn||'Transfer In';
-            let statusClass='completed';
-            let statusLabel=t.completed||'Completed';
+            let statusClass='completed';let statusLabel=t.completed||'Completed';
             if(tr.status==='pending'){statusClass='pending';statusLabel=t.pending||'Pending';}
             else if(tr.status==='failed'){statusClass='failed';statusLabel=t.failed||'Failed';}
             else if(tr.status==='approved'){statusClass='approved';statusLabel=t.approved||'Approved';}
@@ -2187,18 +1851,10 @@
             else if(tr.type==='service_withdrawal')typeClass='type-service';
             else if(tr.type==='leaving_withdrawal')typeClass='type-leaving';
             let extraRows='';
-            if(tr.type==='transfer_out'){
-                const toCustomer=customersList.find(c=>c.id===tr.toCustomerId);
-                extraRows+=`<div class="view-detail-row"><span class="label">${t.toCustomer||'To Customer'}</span><span class="value">${toCustomer?toCustomer.fullName:(tr.toCustomerName||'Unknown')}</span></div>`;
-            }else if(tr.type==='transfer_in'){
-                const fromCustomer=customersList.find(c=>c.id===tr.fromCustomerId);
-                extraRows+=`<div class="view-detail-row"><span class="label">${t.fromCustomer||'From Customer'}</span><span class="value">${fromCustomer?fromCustomer.fullName:(tr.fromCustomerName||'Unknown')}</span></div>`;
-            }else if(tr.type==='service_withdrawal'){
-                extraRows+=`<div class="view-detail-row"><span class="label">${t.serviceType||'Service Type'}</span><span class="value">${tr.serviceType||tr.reason||'—'}</span></div>`;
-                if(tr.description)extraRows+=`<div class="view-detail-row"><span class="label">${t.description||'Description'}</span><span class="value">${tr.description}</span></div>`;
-            }else if(tr.type==='leaving_withdrawal'){
-                extraRows+=`<div class="view-detail-row"><span class="label">${t.reason||'Reason'}</span><span class="value">${tr.reason||'Voluntary Exit'}</span></div>`;
-            }
+            if(tr.type==='transfer_out'){const toCustomer=customersList.find(c=>c.id===tr.toCustomerId);extraRows+=`<div class="view-detail-row"><span class="label">${t.toCustomer||'To Customer'}</span><span class="value">${toCustomer?toCustomer.fullName:(tr.toCustomerName||'Unknown')}</span></div>`;}
+            else if(tr.type==='transfer_in'){const fromCustomer=customersList.find(c=>c.id===tr.fromCustomerId);extraRows+=`<div class="view-detail-row"><span class="label">${t.fromCustomer||'From Customer'}</span><span class="value">${fromCustomer?fromCustomer.fullName:(tr.fromCustomerName||'Unknown')}</span></div>`;}
+            else if(tr.type==='service_withdrawal'){extraRows+=`<div class="view-detail-row"><span class="label">${t.serviceType||'Service Type'}</span><span class="value">${tr.serviceType||tr.reason||'—'}</span></div>`;if(tr.description)extraRows+=`<div class="view-detail-row"><span class="label">${t.description||'Description'}</span><span class="value">${tr.description}</span></div>`;}
+            else if(tr.type==='leaving_withdrawal'){extraRows+=`<div class="view-detail-row"><span class="label">${t.reason||'Reason'}</span><span class="value">${tr.reason||'Voluntary Exit'}</span></div>`;}
             const content=document.getElementById('viewWithdrawalContent');
             content.innerHTML=`
                 <div class="view-detail-row"><span class="label">${t.transactionId||'Transaction ID'}</span><span class="value">${tr.id}</span></div>
@@ -2214,14 +1870,8 @@
             document.getElementById('viewWithdrawalModal').classList.add('active');
             document.getElementById('viewWithdrawalModal').style.display='flex';
         }
-        function closeViewWithdrawalModal(){
-            document.getElementById('viewWithdrawalModal').classList.remove('active');
-            document.getElementById('viewWithdrawalModal').style.display='none';
-        }
+        function closeViewWithdrawalModal(){document.getElementById('viewWithdrawalModal').classList.remove('active');document.getElementById('viewWithdrawalModal').style.display='none';}
 
-        // ============================================================
-        // PRINT SLIP
-        // ============================================================
         async function printSlip(id){
             const tr=allTransactions.find(t=>t.id===id);
             if(!tr)return;
@@ -2238,18 +1888,10 @@
             else if(typeLabel==='transfer_out')typeLabel='Transfer Out';
             else if(typeLabel==='transfer_in')typeLabel='Transfer In';
             let extraRows='';
-            if(tr.type==='transfer_out'){
-                const toCustomer=customersList.find(c=>c.id===tr.toCustomerId);
-                extraRows=`<div class="slip-row"><span class="label">To Customer</span><span class="value">${toCustomer?toCustomer.fullName:(tr.toCustomerName||'Unknown')}</span></div>`;
-            }else if(tr.type==='transfer_in'){
-                const fromCustomer=customersList.find(c=>c.id===tr.fromCustomerId);
-                extraRows=`<div class="slip-row"><span class="label">From Customer</span><span class="value">${fromCustomer?fromCustomer.fullName:(tr.fromCustomerName||'Unknown')}</span></div>`;
-            }else if(tr.type==='service_withdrawal'){
-                extraRows=`<div class="slip-row"><span class="label">Service Type</span><span class="value">${tr.serviceType||tr.reason||'—'}</span></div>`;
-                if(tr.description)extraRows+=`<div class="slip-row"><span class="label">Description</span><span class="value">${tr.description}</span></div>`;
-            }else if(tr.type==='leaving_withdrawal'){
-                extraRows=`<div class="slip-row"><span class="label">Reason</span><span class="value">${tr.reason||'Voluntary Exit'}</span></div>`;
-            }
+            if(tr.type==='transfer_out'){const toCustomer=customersList.find(c=>c.id===tr.toCustomerId);extraRows=`<div class="slip-row"><span class="label">To Customer</span><span class="value">${toCustomer?toCustomer.fullName:(tr.toCustomerName||'Unknown')}</span></div>`;}
+            else if(tr.type==='transfer_in'){const fromCustomer=customersList.find(c=>c.id===tr.fromCustomerId);extraRows=`<div class="slip-row"><span class="label">From Customer</span><span class="value">${fromCustomer?fromCustomer.fullName:(tr.fromCustomerName||'Unknown')}</span></div>`;}
+            else if(tr.type==='service_withdrawal'){extraRows=`<div class="slip-row"><span class="label">Service Type</span><span class="value">${tr.serviceType||tr.reason||'—'}</span></div>`;if(tr.description)extraRows+=`<div class="slip-row"><span class="label">Description</span><span class="value">${tr.description}</span></div>`;}
+            else if(tr.type==='leaving_withdrawal'){extraRows=`<div class="slip-row"><span class="label">Reason</span><span class="value">${tr.reason||'Voluntary Exit'}</span></div>`;}
             container.innerHTML=`
                 <div class="slip-header"><h1>GERESU DHUKI SACCO</h1><p>${typeLabel} Receipt</p></div>
                 <div class="slip-body">
@@ -2267,9 +1909,7 @@
             window.print();
         }
 
-        // ============================================================
         // FORM HANDLERS
-        // ============================================================
         document.getElementById('individualForm').addEventListener('submit',async function(e){
             e.preventDefault();
             if(!canAddTransaction()){showToast(translations[currentLang].unauthorized||'Unauthorized','error');return;}
@@ -2286,27 +1926,12 @@
             const maxAllowed=Math.round((capital.capital*0.95)*100)/100;
             if(amount>maxAllowed){showToast(translations[currentLang].amountExceedsMax||'Amount exceeds 95%','warning');return;}
             if(capital.capital<=0){showToast(translations[currentLang].insufficientCapital||'Insufficient capital','warning');return;}
-            const btn=this.querySelector('button[type="submit"]');
-            const originalHtml=btn.innerHTML;
-            btn.disabled=true;
-            btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Processing...';
+            const btn=this.querySelector('button[type="submit"]');const originalHtml=btn.innerHTML;
+            btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Processing...';
             try{
                 const user=auth.currentUser;
                 const customer=customersList.find(c=>c.id===customerId);
-                const docData={
-                    customerId:customerId,
-                    customerName:customer?customer.fullName:'Unknown',
-                    type:'individual_withdrawal',
-                    amount:Math.round(amount*100)/100,
-                    date:new Date(date),
-                    reason:reason,
-                    note:note,
-                    status:'pending',
-                    createdByName:getDisplayName(user),
-                    createdBy:getDisplayName(user),
-                    createdByEmail:user?.email||'admin@geresu.com',
-                    createdAt:firebase.firestore.FieldValue.serverTimestamp()
-                };
+                const docData={customerId,customerName:customer?customer.fullName:'Unknown',type:'individual_withdrawal',amount:Math.round(amount*100)/100,date:new Date(date),reason,note,status:'pending',createdByName:getDisplayName(user),createdBy:getDisplayName(user),createdByEmail:user?.email||'admin@geresu.com',createdAt:firebase.firestore.FieldValue.serverTimestamp()};
                 if(editId){
                     await db.collection('transactions').doc(editId).update(docData);
                     await logAudit('updated','transactions',editId,docData,'Individual withdrawal updated');
@@ -2316,14 +1941,9 @@
                     await logAudit('created','transactions',docRef.id,docData,`Individual withdrawal for ${customer?customer.fullName:'Unknown'}`);
                     showToast(translations[currentLang].withdrawalRecorded||'Withdrawal recorded!','success');
                 }
-                closeIndividualModal();
-                await loadTransactions();
-            }catch(e){
-                showToast('Error: '+e.message,'error');
-            }finally{
-                btn.disabled=false;
-                btn.innerHTML=originalHtml;
-            }
+                closeIndividualModal();await loadTransactions();
+            }catch(e){showToast('Error: '+e.message,'error');}
+            finally{btn.disabled=false;btn.innerHTML=originalHtml;}
         });
 
         document.getElementById('serviceForm').addEventListener('submit',async function(e){
@@ -2339,28 +1959,11 @@
             if(!date){showToast('Please select a date.','warning');return;}
             const profitData=await getSaccoProfit();
             if(amount>profitData.netProfit){showToast(translations[currentLang].insufficientProfit||'Insufficient profit','warning');return;}
-            const btn=this.querySelector('button[type="submit"]');
-            const originalHtml=btn.innerHTML;
-            btn.disabled=true;
-            btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Processing...';
+            const btn=this.querySelector('button[type="submit"]');const originalHtml=btn.innerHTML;
+            btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Processing...';
             try{
                 const user=auth.currentUser;
-                const docData={
-                    customerId:'sacco',
-                    customerName:'SACCO (Service)',
-                    type:'service_withdrawal',
-                    amount:Math.round(amount*100)/100,
-                    date:new Date(date),
-                    reason:serviceType,
-                    serviceType:serviceType,
-                    description:description||'',
-                    note:note,
-                    status:'pending',
-                    createdByName:getDisplayName(user),
-                    createdBy:getDisplayName(user),
-                    createdByEmail:user?.email||'admin@geresu.com',
-                    createdAt:firebase.firestore.FieldValue.serverTimestamp()
-                };
+                const docData={customerId:'sacco',customerName:'SACCO (Service)',type:'service_withdrawal',amount:Math.round(amount*100)/100,date:new Date(date),reason:serviceType,serviceType,description:description||'',note,status:'pending',createdByName:getDisplayName(user),createdBy:getDisplayName(user),createdByEmail:user?.email||'admin@geresu.com',createdAt:firebase.firestore.FieldValue.serverTimestamp()};
                 if(editId){
                     await db.collection('transactions').doc(editId).update(docData);
                     await logAudit('updated','transactions',editId,docData,'Service withdrawal updated');
@@ -2370,14 +1973,9 @@
                     await logAudit('created','transactions',docRef.id,docData,`SACCO service withdrawal: ${serviceType} (${amount} ETB)`);
                     showToast(translations[currentLang].serviceRecorded||'Service recorded!','success');
                 }
-                closeServiceModal();
-                await loadTransactions();
-            }catch(e){
-                showToast('Error: '+e.message,'error');
-            }finally{
-                btn.disabled=false;
-                btn.innerHTML=originalHtml;
-            }
+                closeServiceModal();await loadTransactions();
+            }catch(e){showToast('Error: '+e.message,'error');}
+            finally{btn.disabled=false;btn.innerHTML=originalHtml;}
         });
 
         document.getElementById('leavingForm').addEventListener('submit',async function(e){
@@ -2390,36 +1988,18 @@
             const editId=document.getElementById('leavingModal').dataset.editId||'';
             if(!customerId){showToast(translations[currentLang].selectCustomerFirst||'Select customer','warning');return;}
             if(!date){showToast('Please select a date.','warning');return;}
-
             if(!editId){
                 const confirmLeave=confirm('This will permanently mark the customer as INACTIVE. They will need to re-register to reactivate. Continue?');
                 if(!confirmLeave)return;
             }
-
             const capital=await getLeavingCapital(customerId);
             if(capital.capital<=0){showToast(translations[currentLang].insufficientCapital||'Insufficient capital','warning');return;}
-
-            const btn=this.querySelector('button[type="submit"]');
-            const originalHtml=btn.innerHTML;
-            btn.disabled=true;
-            btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Processing...';
+            const btn=this.querySelector('button[type="submit"]');const originalHtml=btn.innerHTML;
+            btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Processing...';
             try{
                 const user=auth.currentUser;
                 const customer=customersList.find(c=>c.id===customerId);
-                const docData={
-                    customerId:customerId,
-                    customerName:customer?customer.fullName:'Unknown',
-                    type:'leaving_withdrawal',
-                    amount:Math.round(capital.capital*100)/100,
-                    date:new Date(date),
-                    reason:reason,
-                    note:note,
-                    status:'pending',
-                    createdByName:getDisplayName(user),
-                    createdBy:getDisplayName(user),
-                    createdByEmail:user?.email||'admin@geresu.com',
-                    createdAt:firebase.firestore.FieldValue.serverTimestamp()
-                };
+                const docData={customerId,customerName:customer?customer.fullName:'Unknown',type:'leaving_withdrawal',amount:Math.round(capital.capital*100)/100,date:new Date(date),reason,note,status:'pending',createdByName:getDisplayName(user),createdBy:getDisplayName(user),createdByEmail:user?.email||'admin@geresu.com',createdAt:firebase.firestore.FieldValue.serverTimestamp()};
                 if(editId){
                     await db.collection('transactions').doc(editId).update(docData);
                     await logAudit('updated','transactions',editId,docData,'Leaving withdrawal updated');
@@ -2427,40 +2007,21 @@
                 }else{
                     const docRef=await db.collection('transactions').add(docData);
                     await logAudit('created','transactions',docRef.id,docData,`Customer leaving for ${customer?customer.fullName:'Unknown'}`);
-
-                    // ------------------------------------------------------------
-                    // Mark customer as INACTIVE until re-registered
-                    // ------------------------------------------------------------
                     try{
                         await db.collection('customers').doc(customerId).update({
                             status:'inactive',
                             leftAt:firebase.firestore.FieldValue.serverTimestamp(),
-                            leftReason:reason,
-                            leftNote:note,
-                            leftBy:getDisplayName(user)
+                            leftReason:reason,leftNote:note,leftBy:getDisplayName(user)
                         });
-                        await logAudit('updated','customers',customerId,
-                            {status:{old:'active',new:'inactive'}},
-                            `Customer marked inactive (left SACCO): ${reason}`);
-                    }catch(custErr){
-                        console.warn('Could not update customer status:',custErr.message);
-                    }
-
-                    showToast(
-                        (translations[currentLang].leavingRecorded||'Customer leaving processed!')
-                        + ' ' + (translations[currentLang].accountInactive||'Account is now INACTIVE.'),
-                        'success'
-                    );
+                        await logAudit('updated','customers',customerId,{status:{old:'active',new:'inactive'}},`Customer marked inactive (left SACCO): ${reason}`);
+                    }catch(custErr){console.warn('Could not update customer status:',custErr.message);}
+                    showToast((translations[currentLang].leavingRecorded||'Customer leaving processed!')+' '+(translations[currentLang].accountInactive||'Account is now INACTIVE.'),'success');
                 }
                 closeLeavingModal();
-                await loadCustomers();       // refresh list so inactive customer disappears from suggestions
+                await loadCustomers();
                 await loadTransactions();
-            }catch(e){
-                showToast('Error: '+e.message,'error');
-            }finally{
-                btn.disabled=false;
-                btn.innerHTML=originalHtml;
-            }
+            }catch(e){showToast('Error: '+e.message,'error');}
+            finally{btn.disabled=false;btn.innerHTML=originalHtml;}
         });
 
         document.getElementById('transferForm').addEventListener('submit',async function(e){
@@ -2481,111 +2042,49 @@
             const maxAllowed=Math.round((fromCapital.capital*0.95)*100)/100;
             if(amount>maxAllowed){showToast(translations[currentLang].amountExceedsMax||'Amount exceeds 95%','warning');return;}
             if(fromCapital.capital<=0){showToast(translations[currentLang].insufficientCapital||'Insufficient capital','warning');return;}
-            const btn=this.querySelector('button[type="submit"]');
-            const originalHtml=btn.innerHTML;
-            btn.disabled=true;
-            btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Processing...';
+            const btn=this.querySelector('button[type="submit"]');const originalHtml=btn.innerHTML;
+            btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Processing...';
             try{
                 const user=auth.currentUser;
                 const fromCustomer=customersList.find(c=>c.id===fromId);
                 const toCustomer=customersList.find(c=>c.id===toId);
-                const outData={
-                    customerId:fromId,
-                    customerName:fromCustomer?fromCustomer.fullName:'Unknown',
-                    toCustomerId:toId,
-                    toCustomerName:toCustomer?toCustomer.fullName:'Unknown',
-                    type:'transfer_out',
-                    amount:Math.round(amount*100)/100,
-                    date:new Date(date),
-                    reason:reason,
-                    note:note,
-                    status:'pending',
-                    createdByName:getDisplayName(user),
-                    createdBy:getDisplayName(user),
-                    createdByEmail:user?.email||'admin@geresu.com',
-                    createdAt:firebase.firestore.FieldValue.serverTimestamp()
-                };
-                const inData={
-                    customerId:toId,
-                    customerName:toCustomer?toCustomer.fullName:'Unknown',
-                    fromCustomerId:fromId,
-                    fromCustomerName:fromCustomer?fromCustomer.fullName:'Unknown',
-                    type:'transfer_in',
-                    amount:Math.round(amount*100)/100,
-                    date:new Date(date),
-                    reason:`Transfer from ${fromCustomer?fromCustomer.fullName:'Unknown'}`,
-                    note:`Transfer from ${fromCustomer?fromCustomer.fullName:'Unknown'}`,
-                    status:'pending',
-                    createdByName:getDisplayName(user),
-                    createdBy:getDisplayName(user),
-                    createdByEmail:user?.email||'admin@geresu.com',
-                    createdAt:firebase.firestore.FieldValue.serverTimestamp()
-                };
+                const outData={customerId:fromId,customerName:fromCustomer?fromCustomer.fullName:'Unknown',toCustomerId:toId,toCustomerName:toCustomer?toCustomer.fullName:'Unknown',type:'transfer_out',amount:Math.round(amount*100)/100,date:new Date(date),reason,note,status:'pending',createdByName:getDisplayName(user),createdBy:getDisplayName(user),createdByEmail:user?.email||'admin@geresu.com',createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+                const inData={customerId:toId,customerName:toCustomer?toCustomer.fullName:'Unknown',fromCustomerId:fromId,fromCustomerName:fromCustomer?fromCustomer.fullName:'Unknown',type:'transfer_in',amount:Math.round(amount*100)/100,date:new Date(date),reason:`Transfer from ${fromCustomer?fromCustomer.fullName:'Unknown'}`,note:`Transfer from ${fromCustomer?fromCustomer.fullName:'Unknown'}`,status:'pending',createdByName:getDisplayName(user),createdBy:getDisplayName(user),createdByEmail:user?.email||'admin@geresu.com',createdAt:firebase.firestore.FieldValue.serverTimestamp()};
                 if(editId){showToast('Editing transfers is not supported.','warning');return;}
                 const outRef=await db.collection('transactions').add(outData);
                 const inRef=await db.collection('transactions').add(inData);
                 await logAudit('created','transactions',outRef.id,outData,`Transfer out: ${fromCustomer?fromCustomer.fullName:'Unknown'} -> ${toCustomer?toCustomer.fullName:'Unknown'}`);
                 await logAudit('created','transactions',inRef.id,inData,`Transfer in: ${fromCustomer?fromCustomer.fullName:'Unknown'} -> ${toCustomer?toCustomer.fullName:'Unknown'}`);
                 showToast(translations[currentLang].transferSuccess||'Transfer successful!','success');
-                closeTransferModal();
-                await loadTransactions();
-            }catch(e){
-                showToast(translations[currentLang].transferError+e.message||'Transfer failed: '+e.message,'error');
-            }finally{
-                btn.disabled=false;
-                btn.innerHTML=originalHtml;
-            }
+                closeTransferModal();await loadTransactions();
+            }catch(e){showToast(translations[currentLang].transferError+e.message||'Transfer failed: '+e.message,'error');}
+            finally{btn.disabled=false;btn.innerHTML=originalHtml;}
         });
 
-        // ============================================================
         // LOGOUT
-        // ============================================================
         function showLogoutModal(){document.getElementById('logoutModal').classList.add('active');document.body.style.overflow='hidden';}
         function hideLogoutModal(){document.getElementById('logoutModal').classList.remove('active');document.body.style.overflow='';}
-        async function performLogout(){
-            try{await auth.signOut();window.location.href='../index.html';}
-            catch(error){showToast('Error logging out: '+error.message,'error');hideLogoutModal();}
-        }
+        async function performLogout(){try{await auth.signOut();window.location.href='../index.html';}catch(error){showToast('Error logging out: '+error.message,'error');hideLogoutModal();}}
 
-        // ============================================================
         // INIT
-        // ============================================================
         document.addEventListener('DOMContentLoaded',async function(){
             auth.onAuthStateChanged(async(user)=>{
                 if(!user){window.location.href='../index.html';return;}
                 try{
                     const doc=await db.collection('users').doc(user.uid).get();
-                    if(doc.exists){
-                        const data=doc.data();
-                        currentUserRole=data.role||'viewer';
-                        currentUserDisplayName=data.displayName||data.name||user.displayName||user.email?.split('@')[0]||'User';
-                    }else{
-                        currentUserRole='viewer';
-                        currentUserDisplayName=user.displayName||user.email?.split('@')[0]||'User';
-                    }
+                    if(doc.exists){const data=doc.data();currentUserRole=data.role||'viewer';currentUserDisplayName=data.displayName||data.name||user.displayName||user.email?.split('@')[0]||'User';}
+                    else{currentUserRole='viewer';currentUserDisplayName=user.displayName||user.email?.split('@')[0]||'User';}
                 }catch(e){currentUserRole='viewer';currentUserDisplayName=user.displayName||user.email?.split('@')[0]||'User';}
 
                 window.testConnection=testConnection;
                 await loadSettings();
                 await loadDashboardSettings();
-                updateUserInfo();
-                initLanguage();
-                loadSidebarState();
+                updateUserInfo();initLanguage();loadSidebarState();
 
                 document.getElementById('menuToggle').addEventListener('click',toggleSidebar);
                 document.getElementById('sidebarOverlay').addEventListener('click',toggleSidebar);
                 document.getElementById('sidebarToggleBtn').addEventListener('click',toggleSidebarCollapse);
-
-                document.querySelectorAll('.lang-btn').forEach(btn=>{
-                    btn.addEventListener('click',function(){
-                        setLanguage(this.dataset.lang);
-                        const items=filteredTransactions.slice((currentPage-1)*pageSize,currentPage*pageSize);
-                        renderTable(items);
-                        updatePaginationInfo();
-                        renderPageButtons();
-                        updateCategorySummary();
-                    });
-                });
+                document.querySelectorAll('.lang-btn').forEach(btn=>{btn.addEventListener('click',function(){setLanguage(this.dataset.lang);const items=filteredTransactions.slice((currentPage-1)*pageSize,currentPage*pageSize);renderTable(items);updatePaginationInfo();renderPageButtons();updateCategorySummary();});});
 
                 document.getElementById('logoutBtn').addEventListener('click',showLogoutModal);
                 document.getElementById('logoutModalClose').addEventListener('click',hideLogoutModal);
@@ -2638,13 +2137,8 @@
                 document.getElementById('typeFilter').addEventListener('change',applyFilters);
                 document.getElementById('yearFilter').addEventListener('change',applyFilters);
 
-                document.getElementById('prevPage').addEventListener('click',function(){
-                    if(currentPage>1)goToPage(currentPage-1);
-                });
-                document.getElementById('nextPage').addEventListener('click',function(){
-                    const totalPages=Math.ceil(filteredTransactions.length/pageSize);
-                    if(currentPage<totalPages)goToPage(currentPage+1);
-                });
+                document.getElementById('prevPage').addEventListener('click',function(){if(currentPage>1)goToPage(currentPage-1);});
+                document.getElementById('nextPage').addEventListener('click',function(){const totalPages=Math.ceil(filteredTransactions.length/pageSize);if(currentPage<totalPages)goToPage(currentPage+1);});
 
                 await loadSessionTimeoutFromSettings();
                 startSessionTimer();
