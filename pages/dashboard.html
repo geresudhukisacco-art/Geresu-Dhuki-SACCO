@@ -891,7 +891,7 @@
                         <div class="stat-info">
                             <span class="stat-label" data-i18n="statProfit">Net Profit (ETB)</span>
                             <span class="stat-value" id="profitValue">0</span>
-                            <span class="stat-change" id="profitChange">Interest + Reg. Fee + Other Deposits</span>
+                            <span class="stat-change" id="profitChange">Interest + Reg. Fee + Other Deposits − Service Withdrawals</span>
                         </div>
                     </div>
 
@@ -1043,6 +1043,19 @@
                             <span class="ds-slider"></span>
                         </label>
                     </div>
+
+                    <div class="ds-toggle-row">
+                        <div class="ds-toggle-text">
+                            <div class="ds-toggle-title">Deduct SACCO Service Withdrawals</div>
+                            <div class="ds-toggle-desc">
+                                Subtract approved / pending / completed <code>service_withdrawal</code> transactions from Net Profit.
+                            </div>
+                        </div>
+                        <label class="ds-toggle-switch">
+                            <input type="checkbox" id="dsIncludeServiceWithdrawals" />
+                            <span class="ds-slider"></span>
+                        </label>
+                    </div>
                 </div>
 
                 <div class="ds-section">
@@ -1110,6 +1123,7 @@
                     <div class="ds-summary-line"><span>Deposit statuses:</span> <strong id="dsPreviewDepositStatuses">—</strong></div>
                     <div class="ds-summary-line"><span>Repayment statuses:</span> <strong id="dsPreviewRepaymentStatuses">—</strong></div>
                     <div class="ds-summary-line"><span>Share buys affect Net Saving:</span> <strong id="dsPreviewShareBuys">—</strong></div>
+                    <div class="ds-summary-line"><span>Deduct Service Withdrawals:</span> <strong id="dsPreviewServiceWithdrawals">—</strong></div>
                 </div>
 
             </div>
@@ -1156,21 +1170,19 @@
 
         // ============================================================
         // DEFAULT DASHBOARD SETTINGS
+        // Net Profit = Paid Interest + Registration Fee + All Other Income Deposits
+        //              − SACCO Service Withdrawals
         // ============================================================
         const DEFAULT_DASHBOARD_SETTINGS = {
-            // Net Profit = Paid Interest + Registration Fee + All Other Income Deposits
             includeRegistrationFee: true,
             includeOtherIncome: true,
             includePaidInterest: true,
-            // Deposit — any of these = "already deposited"
+            includeServiceWithdrawals: true,   // ← NEW: subtract service withdrawals
             depositStatuses: ['approved', 'printed', 'completed', 'done', 'paid'],
-            // Repayment
             repaymentStatuses: ['approved', 'printed', 'paid', 'done'],
-            // Net Saving / Shares
             deductShareBuys: true,
             countShareTransfers: true,
             shareStatuses: ['approved'],
-            // Share payment source detection
             savingsPaymentValues: ['savings', 'saving', 'from_savings', 'savings_account',
                                    'member_savings', 'account', 'sacco_savings', 'from_saving'],
             externalPaymentValues: ['cash', 'bank', 'bank_transfer', 'transfer',
@@ -1189,8 +1201,6 @@
                 if (doc.exists) {
                     const data = doc.data();
                     if (data && data.dashboard && typeof data.dashboard === 'object') {
-                        // Merge deposit statuses from defaults + saved, so
-                        // old saved settings can't accidentally hide records.
                         const mergedStatuses = new Set([
                             ...(DEFAULT_DASHBOARD_SETTINGS.depositStatuses || []),
                             ...((data.dashboard.depositStatuses) || [])
@@ -1264,7 +1274,6 @@
             return { principal: principalPart, interest: interestPart };
         }
 
-        // Registration fee detector
         function isRegistrationFee(incomeType) {
             const type = (incomeType || '').toLowerCase().trim();
             return type.includes('registration') ||
@@ -1273,16 +1282,25 @@
                    type === 'membership fee';
         }
 
-        // Everything else that lands as a deposit counts as "Other" income
         function isOtherIncome(incomeType) {
             if (isRegistrationFee(incomeType)) return false;
             return true;
         }
 
         // ============================================================
+        // SERVICE WITHDRAWAL STATUS RULES
+        // Pending, approved, and completed all reduce available profit.
+        // ============================================================
+        const ACTIVE_SERVICE_WITHDRAWAL_STATUSES = ['pending', 'approved', 'completed'];
+
+        function isServiceWithdrawalCounted(sw) {
+            if (!sw) return false;
+            const s = String(sw.status || '').toLowerCase().trim();
+            return ACTIVE_SERVICE_WITHDRAWAL_STATUSES.includes(s);
+        }
+
+        // ============================================================
         // DEPOSIT STATUS RULES
-        // Any of these statuses (or a printed flag) = "already deposited"
-        // and therefore counted toward Net Profit.
         // ============================================================
         const ALWAYS_COUNTED_DEPOSIT_STATUSES = [
             'approved', 'printed', 'completed', 'done', 'paid'
@@ -1948,7 +1966,9 @@
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
                 // ============================================================
-                // ALL-YEARS NET PROFIT = Registration Fee + Other Income + Paid Interest
+                // ALL-YEARS NET PROFIT
+                //   = Registration Fee + Other Income + Paid Interest
+                //   − SACCO Service Withdrawals
                 // ============================================================
                 let allYearsRegistrationFee = 0;
                 if (dashboardSettings.includeRegistrationFee) {
@@ -1978,8 +1998,20 @@
                     allYearsPaidInterest = Math.round(allYearsPaidInterest * 100) / 100;
                 }
 
+                // ---- SACCO Service Withdrawals (all years) ----
+                let allYearsServiceWithdrawals = 0;
+                if (dashboardSettings.includeServiceWithdrawals !== false) {
+                    allYearsServiceWithdrawals = allServiceWithdrawals
+                        .filter(isServiceWithdrawalCounted)
+                        .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+                    allYearsServiceWithdrawals = Math.round(allYearsServiceWithdrawals * 100) / 100;
+                }
+
                 const totalIncomeAllYears = Math.round(
-                    (allYearsRegistrationFee + allYearsOtherIncome + allYearsPaidInterest) * 100
+                    (allYearsRegistrationFee
+                     + allYearsOtherIncome
+                     + allYearsPaidInterest
+                     - allYearsServiceWithdrawals) * 100
                 ) / 100;
 
                 // ============================================================
@@ -2029,8 +2061,21 @@
                 yearlyPaidPrincipal = Math.round(yearlyPaidPrincipal * 100) / 100;
                 yearlyPaidInterest = Math.round(yearlyPaidInterest * 100) / 100;
 
+                // ---- SACCO Service Withdrawals (this year) ----
+                let yearlyServiceWithdrawals = 0;
+                if (dashboardSettings.includeServiceWithdrawals !== false) {
+                    yearlyServiceWithdrawals = allServiceWithdrawals
+                        .filter(s => isInYear(s.date || s.timestamp || s.createdAt, year))
+                        .filter(isServiceWithdrawalCounted)
+                        .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+                    yearlyServiceWithdrawals = Math.round(yearlyServiceWithdrawals * 100) / 100;
+                }
+
                 const totalIncomeYearly = Math.round(
-                    (yearlyRegistrationFee + yearlyOtherIncome + yearlyPaidInterest) * 100
+                    (yearlyRegistrationFee
+                     + yearlyOtherIncome
+                     + yearlyPaidInterest
+                     - yearlyServiceWithdrawals) * 100
                 ) / 100;
 
                 const dividendEntries = profitWithdrawalData.filter(w => w.reason === 'Dividend');
@@ -2186,7 +2231,17 @@
                         prevPaidInterest += splitRepayment(Number(r.amount) || 0, loan).interest;
                     });
                 }
-                const prevTotalIncome = Math.round((prevRegFee + prevOther + prevPaidInterest) * 100) / 100;
+                // Also subtract previous year's service withdrawals for accurate comparison
+                let prevServiceWithdrawals = 0;
+                if (dashboardSettings.includeServiceWithdrawals !== false) {
+                    prevServiceWithdrawals = allServiceWithdrawals
+                        .filter(s => isInYear(s.date || s.timestamp || s.createdAt, prevYear))
+                        .filter(isServiceWithdrawalCounted)
+                        .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+                }
+                const prevTotalIncome = Math.round(
+                    (prevRegFee + prevOther + prevPaidInterest - prevServiceWithdrawals) * 100
+                ) / 100;
                 const profitChange = prevTotalIncome > 0 ? ((totalIncomeYearly - prevTotalIncome) / prevTotalIncome * 100) : 0;
                 updateChange('profitChange', profitChange);
 
@@ -2340,6 +2395,7 @@
             document.getElementById('dsIncludeRegistrationFee').checked = !!dashboardSettings.includeRegistrationFee;
             document.getElementById('dsIncludeOtherIncome').checked = !!dashboardSettings.includeOtherIncome;
             document.getElementById('dsIncludePaidInterest').checked = !!dashboardSettings.includePaidInterest;
+            document.getElementById('dsIncludeServiceWithdrawals').checked = dashboardSettings.includeServiceWithdrawals !== false;
             document.getElementById('dsDeductShareBuys').checked = !!dashboardSettings.deductShareBuys;
             document.getElementById('dsCountShareTransfers').checked = !!dashboardSettings.countShareTransfers;
             document.getElementById('dsDepositStatuses').value = statusesArrayToString(dashboardSettings.depositStatuses);
@@ -2358,12 +2414,15 @@
                 document.getElementById('dsRepaymentStatuses').value || '—';
             document.getElementById('dsPreviewShareBuys').textContent =
                 document.getElementById('dsDeductShareBuys').checked ? 'Yes' : 'No';
+            document.getElementById('dsPreviewServiceWithdrawals').textContent =
+                document.getElementById('dsIncludeServiceWithdrawals').checked ? 'Yes' : 'No';
         }
         function readDashSettingsForm() {
             return {
                 includeRegistrationFee: document.getElementById('dsIncludeRegistrationFee').checked,
                 includeOtherIncome: document.getElementById('dsIncludeOtherIncome').checked,
                 includePaidInterest: document.getElementById('dsIncludePaidInterest').checked,
+                includeServiceWithdrawals: document.getElementById('dsIncludeServiceWithdrawals').checked,
                 deductShareBuys: document.getElementById('dsDeductShareBuys').checked,
                 countShareTransfers: document.getElementById('dsCountShareTransfers').checked,
                 depositStatuses: stringToStatusesArray(document.getElementById('dsDepositStatuses').value),
@@ -2389,6 +2448,7 @@
             document.getElementById('dsIncludeRegistrationFee').checked = dashboardSettings.includeRegistrationFee;
             document.getElementById('dsIncludeOtherIncome').checked = dashboardSettings.includeOtherIncome;
             document.getElementById('dsIncludePaidInterest').checked = dashboardSettings.includePaidInterest;
+            document.getElementById('dsIncludeServiceWithdrawals').checked = dashboardSettings.includeServiceWithdrawals;
             document.getElementById('dsDeductShareBuys').checked = dashboardSettings.deductShareBuys;
             document.getElementById('dsCountShareTransfers').checked = dashboardSettings.countShareTransfers;
             document.getElementById('dsDepositStatuses').value = statusesArrayToString(dashboardSettings.depositStatuses);
@@ -2465,6 +2525,7 @@
                 document.getElementById('dsSaveBtn').addEventListener('click', saveDashSettings);
                 document.getElementById('dsResetBtn').addEventListener('click', resetDashSettingsForm);
                 ['dsIncludeRegistrationFee', 'dsIncludeOtherIncome', 'dsIncludePaidInterest',
+                 'dsIncludeServiceWithdrawals',
                  'dsDeductShareBuys', 'dsCountShareTransfers',
                  'dsDepositStatuses', 'dsRepaymentStatuses', 'dsShareStatuses'
                 ].forEach(id => {
