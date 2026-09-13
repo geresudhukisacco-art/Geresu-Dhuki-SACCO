@@ -444,14 +444,6 @@
         }
         .a4-summary-strip .item .val { font-size: 12.5px; font-weight: 800; color: #1a6e3a; }
 
-        .a4-section-bar {
-            font-size: 11.5px; font-weight: 800; color: #fff;
-            background: #2d7a3d; padding: 5px 10px;
-            border-radius: 4px; margin: 10px 0 6px;
-            letter-spacing: 0.5px; text-transform: uppercase;
-        }
-        .a4-section-bar.alt { background: #4a5b50; }
-
         .a4-page table { width: 100%; border-collapse: collapse; font-size: 11px; }
         .a4-page thead th {
             background: #2d7a3d; color: #fff; padding: 7px 8px;
@@ -471,8 +463,6 @@
 
         .a4-page td.tx-buy { color: #1a6e3a; font-weight: 700; }
         .a4-page td.tx-sell { color: #c0392b; font-weight: 700; }
-        .a4-page td.tx-transfer-in { color: #1976d2; font-weight: 700; }
-        .a4-page td.tx-transfer-out { color: #6a1b9a; font-weight: 700; }
 
         .a4-page-footer {
             position: absolute; bottom: 6mm; left: 14mm; right: 14mm;
@@ -641,7 +631,7 @@
                     <span id="yearStatusText" class="open" data-i18n="open">Open</span>
                 </span>
                 <div class="year-actions">
-                    <button class="btn-secondary btn-sm" id="printYearlyBtn" title="Print Yearly Share Report">
+                    <button class="btn-secondary btn-sm" id="printYearlyBtn" title="Print Yearly Report">
                         <i class="fas fa-print"></i> <span>Print Yearly Report (A4)</span>
                     </button>
                 </div>
@@ -991,6 +981,7 @@
             isClosed: false, totalIncome: 0, dividendsTotal: 0, membersCount: 0,
             avgDividend: 0, dividendEntries: [], previewData: [],
             totalShares: 0, dividendPerShare: 0,
+            totalSharesOpening: 0, totalSharesBought: 0, totalSharesSold: 0, totalSharesClosing: 0,
             yearlyShareTransactions: []
         };
         let pendingDeleteId = null;
@@ -1322,15 +1313,14 @@
             if (dividendEntries.length > 0) totalIncomeYearly = 0;
 
             // ============================================================
-            // SHARES PER CUSTOMER — Opening, Bought, Sold, Closing
+            // SHARES PER CUSTOMER
             // ============================================================
-            const customerSharesData = {}; // { customerId: { opening, bought, sold, closing } }
+            const customerSharesData = {};
             let totalSharesOpening = 0;
             let totalSharesBought = 0;
             let totalSharesSold = 0;
             let totalSharesClosing = 0;
 
-            // Yearly share transactions (for detailed history page)
             const yearlyShareTransactions = [];
 
             allShares.forEach(s => {
@@ -1341,7 +1331,7 @@
                 const txDate = toDate(s.date || s.timestamp || s.createdAt);
                 if (!txDate) return;
                 const txYear = txDate.getFullYear();
-                if (txYear > year) return; // future
+                if (txYear > year) return;
 
                 const sharesCount = getShareCount(s);
                 if (sharesCount <= 0) return;
@@ -1353,22 +1343,16 @@
                 const cd = customerSharesData[customerId];
 
                 if (txYear < year) {
-                    // Before the year → opening
                     if (ty === 'share_buy' || ty === 'share_transfer_in') cd.opening += sharesCount;
                     else if (ty === 'share_sell' || ty === 'share_transfer_out') cd.opening -= sharesCount;
                 } else if (txYear === year) {
-                    // During the year → bought/sold + log for history page
                     if (ty === 'share_buy' || ty === 'share_transfer_in') {
                         cd.bought += sharesCount;
                         yearlyShareTransactions.push({
-                            id: s.id,
-                            date: txDate,
-                            customerId,
+                            id: s.id, date: txDate, customerId,
                             customerName: customersList.find(c => c.id === customerId)?.fullName || s.customerName || 'Unknown',
                             customerIdShort: customersList.find(c => c.id === customerId)?.customerId || '',
-                            type: 'buy',
-                            rawType: ty,
-                            shares: sharesCount,
+                            type: 'buy', rawType: ty, shares: sharesCount,
                             amount: Number(s.amount) || 0,
                             note: s.note || s.description || '',
                             createdBy: s.createdByName || s.createdBy || s.createdByEmail || 'Admin'
@@ -1376,14 +1360,10 @@
                     } else if (ty === 'share_sell' || ty === 'share_transfer_out') {
                         cd.sold += sharesCount;
                         yearlyShareTransactions.push({
-                            id: s.id,
-                            date: txDate,
-                            customerId,
+                            id: s.id, date: txDate, customerId,
                             customerName: customersList.find(c => c.id === customerId)?.fullName || s.customerName || 'Unknown',
                             customerIdShort: customersList.find(c => c.id === customerId)?.customerId || '',
-                            type: 'sell',
-                            rawType: ty,
-                            shares: sharesCount,
+                            type: 'sell', rawType: ty, shares: sharesCount,
                             amount: Number(s.amount) || 0,
                             note: s.note || s.description || '',
                             createdBy: s.createdByName || s.createdBy || s.createdByEmail || 'Admin'
@@ -1392,7 +1372,6 @@
                 }
             });
 
-            // Compute closing per customer & totals
             Object.keys(customerSharesData).forEach(cid => {
                 const cd = customerSharesData[cid];
                 if (cd.opening < 0) cd.opening = 0;
@@ -1408,12 +1387,8 @@
             totalSharesSold = Math.round(totalSharesSold * 10000) / 10000;
             totalSharesClosing = Math.round(totalSharesClosing * 10000) / 10000;
 
-            // Sort transactions chronologically (oldest first)
             yearlyShareTransactions.sort((a, b) => a.date - b.date);
 
-            // ============================================================
-            // DIVIDEND PER SHARE
-            // ============================================================
             const dividendPerShare = totalSharesClosing > 0 && totalIncomeYearly > 0
                 ? totalIncomeYearly / totalSharesClosing
                 : 0;
@@ -1806,15 +1781,31 @@
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     note: `Year ${year} closed by ${createdByName}`
                 });
-                await logAudit('created', 'transactions', docRef.id, { year: { old: null, new: year } }, `Year ${year} closed`);
+                await audit(`Year ${year} closed`, 'created', docRef.id);
                 showToast(`Year ${year} closed!`, 'success');
                 await loadYearData(year);
             } catch (error) { showToast('Close error: ' + error.message, 'error'); }
             finally { btn.disabled = false; btn.innerHTML = originalHtml; }
         }
 
+        async function audit(details, action, id) {
+            try {
+                const user = auth.currentUser;
+                await db.collection('audit').add({
+                    action: action || 'updated',
+                    collection: 'transactions',
+                    documentId: id || '',
+                    details: details,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    userEmail: user?.email || 'system',
+                    userName: user?.displayName || user?.email || 'System',
+                    userDisplayName: user?.displayName || 'System'
+                });
+            } catch (e) { }
+        }
+
         // ============================================================
-        // PRINT — YEARLY BROKEN-DOWN REPORT
+        // PRINT — YEARLY REPORT (A4, Multi-Page)
         // ============================================================
         function printYearlyReport() {
             const sheet = document.getElementById('dividendSlipContainer');
@@ -1834,9 +1825,6 @@
             const grandDividend = data.reduce((s, c) => s + (c.dividendAmount || 0), 0);
             const dps = yearData.dividendPerShare || 0;
 
-            // ============================================================
-            // BUILD ALL PAGES
-            // ============================================================
             const SUMMARY_ROWS_PER_PAGE = 22;
             const TX_ROWS_PER_PAGE = 26;
 
@@ -1847,7 +1835,7 @@
 
             let allPagesHtml = '';
 
-            // ---------- SUMMARY PAGES ----------
+            // ============ SUMMARY PAGES ============
             for (let p = 0; p < summaryPages; p++) {
                 currentPageNum++;
                 const start = p * SUMMARY_ROWS_PER_PAGE;
@@ -1876,7 +1864,6 @@
                     });
                 }
 
-                // Grand total on last summary page
                 let totalRow = '';
                 if (isLastSummaryPage) {
                     totalRow = `
@@ -1900,10 +1887,6 @@
                     </div>
                 ` : '';
 
-                const sectionTitle = isFirstPage
-                    ? 'Section A — Shareholder Summary (Opening / Bought / Sold / Closing)'
-                    : 'Section A (continued) — Shareholder Summary';
-
                 allPagesHtml += `
                     <div class="a4-page">
                         <div class="a4-page-header">
@@ -1923,8 +1906,6 @@
                         </div>
 
                         ${summaryStrip}
-
-                        <div class="a4-section-bar">${sectionTitle}</div>
 
                         <table>
                             <thead>
@@ -1954,20 +1935,19 @@
 
                         <div class="a4-page-footer">
                             <div class="thanks">Thank you for being a valued member.</div>
-                            <div>Year ${selectedYear} · Section A · Page ${currentPageNum}/${totalPages}</div>
+                            <div>Year ${selectedYear} · Shareholder Summary · Page ${currentPageNum}/${totalPages}</div>
                         </div>
                     </div>
                 `;
             }
 
-            // ---------- TRANSACTION HISTORY PAGES ----------
+            // ============ TRANSACTION HISTORY PAGES ============
             if (txs.length > 0) {
                 for (let p = 0; p < txPages; p++) {
                     currentPageNum++;
                     const start = p * TX_ROWS_PER_PAGE;
                     const end = Math.min(start + TX_ROWS_PER_PAGE, txs.length);
                     const items = txs.slice(start, end);
-                    const isFirstTxPage = p === 0;
                     const isLastTxPage = p === txPages - 1;
 
                     let rows = '';
@@ -1995,7 +1975,6 @@
                         `;
                     });
 
-                    // Totals on last tx page
                     let txTotalRow = '';
                     if (isLastTxPage) {
                         txTotalRow = `
@@ -2006,10 +1985,6 @@
                             </tr>
                         `;
                     }
-
-                    const sectionTitle = isFirstTxPage
-                        ? 'Section B — Detailed Share Transaction History (Chronological)'
-                        : 'Section B (continued) — Transaction History';
 
                     allPagesHtml += `
                         <div class="a4-page">
@@ -2028,8 +2003,6 @@
                                     <div>Printed: ${printedAt}</div>
                                 </div>
                             </div>
-
-                            <div class="a4-section-bar alt">${sectionTitle}</div>
 
                             <table>
                                 <thead>
@@ -2060,7 +2033,7 @@
 
                             <div class="a4-page-footer">
                                 <div class="thanks">Thank you for being a valued member.</div>
-                                <div>Year ${selectedYear} · Section B · Page ${currentPageNum}/${totalPages}</div>
+                                <div>Year ${selectedYear} · Transaction History · Page ${currentPageNum}/${totalPages}</div>
                             </div>
                         </div>
                     `;
@@ -2205,7 +2178,6 @@
                 document.getElementById('distributeBtn')?.addEventListener('click', showDistributionModal);
                 document.getElementById('closeYearBtn')?.addEventListener('click', closeYear);
 
-                // Print buttons — all generate the yearly broken history report
                 document.getElementById('printYearlyBtn')?.addEventListener('click', printYearlyReport);
                 document.getElementById('printPreviewBtn')?.addEventListener('click', printYearlyReport);
                 document.getElementById('printHistoryBtn')?.addEventListener('click', printYearlyReport);
