@@ -723,8 +723,12 @@
                     <span class="value red" id="unpaidLoansValue">0.00</span>
                 </div>
                 <div class="summary-card">
-                    <span class="label" data-i18n="paidLoansLabel">✅ Paid Loans</span>
-                    <span class="value green" id="paidLoansValue">0.00</span>
+                    <span class="label" data-i18n="principalPaidLabel">💵 Principal Paid</span>
+                    <span class="value green" id="principalPaidValue">0.00</span>
+                </div>
+                <div class="summary-card">
+                    <span class="label" data-i18n="interestPaidLabel">📈 Interest Paid</span>
+                    <span class="value blue" id="interestPaidValue">0.00</span>
                 </div>
             </div>
 
@@ -1155,6 +1159,7 @@
                 existingLoans: 'Existing Loans', availableToBorrow: 'Available to Borrow',
                 totalLoansLabel: 'Total Loans', totalPenaltiesLabel: 'Total Penalties',
                 unpaidLoansLabel: 'Unpaid Loans', paidLoansLabel: 'Paid Loans',
+                principalPaidLabel: 'Principal Paid', interestPaidLabel: 'Interest Paid',
                 printAgreement: 'Print Agreement', payLoan: 'Pay Loan',
                 agreementOnProgress: 'Agreement On Progress', loanPaymentDone: 'Loan Payment is Done',
                 motto: 'If We Work Together, We Grow Together!'
@@ -1203,6 +1208,7 @@
                 existingLoans: 'ነባር ብድሮች', availableToBorrow: 'ለመበደር የሚገኝ',
                 totalLoansLabel: 'ጠቅላላ ብድር', totalPenaltiesLabel: 'ጠቅላላ ቅጣት',
                 unpaidLoansLabel: 'ያልተከፈለ ብድር', paidLoansLabel: 'የተከፈለ ብድር',
+                principalPaidLabel: 'የተከፈለ ዋና ገንዘብ', interestPaidLabel: 'የተከፈለ ወለድ',
                 printAgreement: 'ውል አትም', payLoan: 'ብድር ክፈል',
                 agreementOnProgress: 'ውል በሂደት ላይ', loanPaymentDone: 'የብድር ክፍያ ተጠናቋል',
                 motto: 'አብረን ብንሰራ አብረን እናድጋለን!'
@@ -1251,6 +1257,7 @@
                 existingLoans: 'Liqii Jiru', availableToBorrow: 'Liqii Argamu',
                 totalLoansLabel: 'Liqii Waliigalaa', totalPenaltiesLabel: 'Adaboota Waliigalaa',
                 unpaidLoansLabel: 'Liqii Hin Kaffalamne', paidLoansLabel: 'Liqii Kaffalame',
+                principalPaidLabel: 'Bu\'aa Kaffalame', interestPaidLabel: 'Dhala Kaffalame',
                 printAgreement: 'Waliigaltee Maxxansi', payLoan: 'Liqii Kaffali',
                 agreementOnProgress: 'Waliigaltee Toleefame', loanPaymentDone: 'Kaffaltiin Liqii Xumurame',
                 motto: 'Yoo Walii Waliin Hojjannu, Walii Waliin Guddina!'
@@ -1716,6 +1723,8 @@
         let maxLoanMultiplier = 3;
         let penaltyRate = 5;
         let gracePeriod = 7;
+        // Session timeout default (ms). Overwritten from settings/system.
+        window.sessionTimeoutMs = 5 * 60 * 1000;
 
         async function loadSettings() {
             try {
@@ -1727,6 +1736,19 @@
                     maxLoanMultiplier = data.maxLoanMultiplier || 3;
                     penaltyRate = data.penaltyRate || 5;
                     gracePeriod = data.gracePeriod || 7;
+
+                    // ✅ Load session timeout from settings/system (value is in MINUTES)
+                    // Accept either `sessionTimeout` (minutes) or `sessionTimeoutMinutes`.
+                    const rawSession = data.sessionTimeout ?? data.sessionTimeoutMinutes;
+                    if (rawSession !== undefined && rawSession !== null && rawSession !== '') {
+                        const minutes = Number(rawSession);
+                        if (!isNaN(minutes) && minutes > 0) {
+                            window.sessionTimeoutMs = minutes * 60 * 1000;
+                            if (typeof window.setSessionTimeout === 'function') {
+                                window.setSessionTimeout(window.sessionTimeoutMs);
+                            }
+                        }
+                    }
                 }
                 const interestInput = document.getElementById('interestRate');
                 if (interestInput) {
@@ -2346,7 +2368,8 @@
         }
 
         async function updateLoanSummary() {
-            let totalApproved = 0, totalPenalties = 0, totalUnpaid = 0, totalRepayments = 0;
+            let totalApproved = 0, totalPenalties = 0, totalUnpaid = 0;
+            let totalPrincipalPaid = 0, totalInterestPaid = 0;
             const approvedLoans = allLoans.filter(loan => loan.status === 'active' || loan.status === 'paid' || loan.status === 'approved');
             for (const loan of approvedLoans) {
                 const amount = Number(loan.amount) || 0;
@@ -2354,7 +2377,13 @@
                 const repay = await getLoanRepayments(loan.id);
                 const totalPayable = loan.totalPayable ? Number(loan.totalPayable) : calculateTotalPayable(Number(loan.amount) || 0, Number(loan.interestRate) || 0, Number(loan.repaymentPeriod) || 0, loan.loanType || 'simple');
                 const remaining = Math.max(0, totalPayable - repay.total);
-                totalRepayments += repay.total;
+
+                // ✅ Split repaid amount into principal + interest portions
+                const principalPaid = Math.min(repay.total, amount);
+                const interestPaid = Math.max(0, repay.total - amount);
+                totalPrincipalPaid += principalPaid;
+                totalInterestPaid += interestPaid;
+
                 let penaltyAmount = 0;
                 if (loan.status === 'active') {
                     const monthlyPayment = calculateMonthlyPayment(amount, Number(loan.interestRate) || 0, Number(loan.repaymentPeriod) || 0, loan.loanType || 'simple');
@@ -2365,7 +2394,8 @@
             document.getElementById('totalApprovedValue').textContent = totalApproved.toLocaleString();
             document.getElementById('totalPenaltiesValue').textContent = totalPenalties.toFixed(2);
             document.getElementById('unpaidLoansValue').textContent = totalUnpaid.toFixed(2);
-            document.getElementById('paidLoansValue').textContent = totalRepayments.toFixed(2);
+            document.getElementById('principalPaidValue').textContent = totalPrincipalPaid.toFixed(2);
+            document.getElementById('interestPaidValue').textContent = totalInterestPaid.toFixed(2);
         }
 
         function applySearch() {
@@ -2753,19 +2783,32 @@
 
     <script>
         (function() {
-            const SESSION_TIMEOUT = 5 * 60 * 1000;
-            const WARNING_TIMEOUT = SESSION_TIMEOUT - 30 * 1000;
+            const DEFAULT_SESSION_TIMEOUT = 5 * 60 * 1000; // 5 minutes fallback
+            const WARNING_BUFFER = 30 * 1000;              // show warning 30s before expiry
             let timer = null, warningTimer = null, warningToast = null, countdownInterval = null;
+            let currentTimeout = (typeof window.sessionTimeoutMs === 'number' && window.sessionTimeoutMs > 0)
+                ? window.sessionTimeoutMs
+                : DEFAULT_SESSION_TIMEOUT;
+
+            function getTimeout() {
+                return (typeof window.sessionTimeoutMs === 'number' && window.sessionTimeoutMs > 0)
+                    ? window.sessionTimeoutMs
+                    : DEFAULT_SESSION_TIMEOUT;
+            }
+
             function resetTimer() {
                 clearTimeout(timer); clearTimeout(warningTimer); clearInterval(countdownInterval);
                 if (warningToast) { warningToast.remove(); warningToast = null; }
-                warningTimer = setTimeout(showWarning, WARNING_TIMEOUT);
-                timer = setTimeout(forceLogout, SESSION_TIMEOUT);
+                currentTimeout = getTimeout();
+                const warningDelay = Math.max(0, currentTimeout - WARNING_BUFFER);
+                warningTimer = setTimeout(showWarning, warningDelay);
+                timer = setTimeout(forceLogout, currentTimeout);
             }
+
             function showWarning() {
                 const t = translations[currentLang] || {};
                 const message = t.sessionTimeout || 'Your session will expire in {seconds} seconds.';
-                let seconds = 30;
+                let seconds = Math.max(1, Math.round(WARNING_BUFFER / 1000));
                 warningToast = document.createElement('div');
                 warningToast.style.cssText = `position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#f39c12;color:#fff;padding:16px 24px;border-radius:12px;font-size:15px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.2);z-index:99999;max-width:500px;text-align:center;display:flex;align-items:center;gap:12px;`;
                 warningToast.innerHTML = `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
@@ -2777,16 +2820,29 @@
                     if (seconds <= 0) clearInterval(countdownInterval);
                 }, 1000);
             }
+
             function forceLogout() {
                 clearInterval(countdownInterval);
                 if (warningToast) warningToast.remove();
                 if (auth) auth.signOut().then(() => window.location.href = '../login.html').catch(() => window.location.href = '../login.html');
                 else window.location.href = '../login.html';
             }
+
             const events = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
             function handleActivity() { resetTimer(); }
             events.forEach(evt => document.addEventListener(evt, handleActivity));
+
+            // Expose controls so loadSettings() can apply the value from Firestore
+            window.setSessionTimeout = function(ms) {
+                if (typeof ms === 'number' && ms > 0) {
+                    window.sessionTimeoutMs = ms;
+                    resetTimer();
+                }
+            };
+            window.restartSessionTimer = resetTimer;
+
             resetTimer();
+
             window.addEventListener('beforeunload', function() {
                 clearTimeout(timer); clearTimeout(warningTimer); clearInterval(countdownInterval);
                 if (warningToast) warningToast.remove();
