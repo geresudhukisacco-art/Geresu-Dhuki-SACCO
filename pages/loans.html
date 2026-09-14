@@ -341,6 +341,10 @@
         .guarantee-count { font-weight: 600; color: var(--primary); cursor: default; }
         .guarantee-item-list { font-size: 12px; color: var(--text-secondary); }
 
+        /* Principal / Interest coloring */
+        .cell-principal { color: #1a6e3a; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .cell-interest { color: #b8860b; font-weight: 700; font-variant-numeric: tabular-nums; }
+
         .action-btn {
             border: none; padding: 6px 10px; border-radius: 8px;
             font-size: 13px; font-weight: 600; cursor: pointer;
@@ -460,6 +464,8 @@
         .view-detail-row { display: flex; padding: 6px 0; border-bottom: 1px solid var(--border-color); font-size: 14px; }
         .view-detail-row .label { font-weight: 600; width: 140px; flex-shrink: 0; color: var(--text-secondary); }
         .view-detail-row .value { flex: 1; color: var(--text-primary); }
+        .view-detail-row .value.principal { color: #1a6e3a; font-weight: 700; }
+        .view-detail-row .value.interest { color: #b8860b; font-weight: 700; }
 
         .logout-modal-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -762,6 +768,8 @@
                                 <th>#</th>
                                 <th data-i18n="customer">Customer</th>
                                 <th data-i18n="amount">Amount</th>
+                                <th data-i18n="principal">Principal</th>
+                                <th data-i18n="interest">Interest</th>
                                 <th data-i18n="interestRate">Interest %</th>
                                 <th data-i18n="loanType">Type</th>
                                 <th data-i18n="period">Period</th>
@@ -778,7 +786,7 @@
                             </tr>
                         </thead>
                         <tbody id="loansBody">
-                            <tr><td colspan="16" style="text-align:center; padding:40px; color:var(--text-secondary);" data-i18n="noLoans">No loans found.</td></tr>
+                            <tr><td colspan="18" style="text-align:center; padding:40px; color:var(--text-secondary);" data-i18n="noLoans">No loans found.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1160,6 +1168,7 @@
                 totalLoansLabel: 'Total Loans', totalPenaltiesLabel: 'Total Penalties',
                 unpaidLoansLabel: 'Unpaid Loans', paidLoansLabel: 'Paid Loans',
                 principalPaidLabel: 'Principal Paid', interestPaidLabel: 'Interest Paid',
+                principal: 'Principal', interest: 'Interest',
                 printAgreement: 'Print Agreement', payLoan: 'Pay Loan',
                 agreementOnProgress: 'Agreement On Progress', loanPaymentDone: 'Loan Payment is Done',
                 motto: 'If We Work Together, We Grow Together!'
@@ -1209,6 +1218,7 @@
                 totalLoansLabel: 'ጠቅላላ ብድር', totalPenaltiesLabel: 'ጠቅላላ ቅጣት',
                 unpaidLoansLabel: 'ያልተከፈለ ብድር', paidLoansLabel: 'የተከፈለ ብድር',
                 principalPaidLabel: 'የተከፈለ ዋና ገንዘብ', interestPaidLabel: 'የተከፈለ ወለድ',
+                principal: 'ዋና ገንዘብ', interest: 'ወለድ',
                 printAgreement: 'ውል አትም', payLoan: 'ብድር ክፈል',
                 agreementOnProgress: 'ውል በሂደት ላይ', loanPaymentDone: 'የብድር ክፍያ ተጠናቋል',
                 motto: 'አብረን ብንሰራ አብረን እናድጋለን!'
@@ -1258,6 +1268,7 @@
                 totalLoansLabel: 'Liqii Waliigalaa', totalPenaltiesLabel: 'Adaboota Waliigalaa',
                 unpaidLoansLabel: 'Liqii Hin Kaffalamne', paidLoansLabel: 'Liqii Kaffalame',
                 principalPaidLabel: 'Bu\'aa Kaffalame', interestPaidLabel: 'Dhala Kaffalame',
+                principal: 'Bu\'aa', interest: 'Dhala',
                 printAgreement: 'Waliigaltee Maxxansi', payLoan: 'Liqii Kaffali',
                 agreementOnProgress: 'Waliigaltee Toleefame', loanPaymentDone: 'Kaffaltiin Liqii Xumurame',
                 motto: 'Yoo Walii Waliin Hojjannu, Walii Waliin Guddina!'
@@ -2025,6 +2036,7 @@
             const interest = Number(loan.interestRate) || 0;
             const period = Number(loan.repaymentPeriod) || 0;
             const loanType = loan.loanType || 'simple';
+            const totalInterest = calculateInterest(amount, interest, period, loanType);
             const totalPayable = loan.totalPayable ? Number(loan.totalPayable) : calculateTotalPayable(amount, interest, period, loanType);
             const dateObj = loan.date ? (loan.date.toDate ? loan.date.toDate() : new Date(loan.date)) : new Date();
             const dateStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }).replace(/(\d{2}) (\w+)/, '$1, $2');
@@ -2068,6 +2080,7 @@
                         <p>I, Mr./Ms. <span class="field-line">${customer.fullName}</span>, a member of Geresu Dhuki Savings and Credit Cooperative, residing in <span class="field-line">${customer.address || '________'}, ${customer.city || '________'}</span>, Ethiopia, hereby acknowledge that I have received a loan of:</p>
                         <p><strong>ETB <span class="field-line">${amount.toLocaleString()}</span> (<span class="field-line">${amountWords}</span>)</strong></p>
                         <p>from Geresu Dhuki Savings and Credit Cooperative for my personal financial need, in accordance with the applicable Cooperative rules and the relevant references <span class="legal-ref">S/H/H/L/ 1679, 1721, 1731, 2005/2006</span>.</p>
+                        <p><strong>Loan Breakdown:</strong> Principal: ETB <span class="field-line">${amount.toLocaleString()}</span> | Interest (${interest}% for ${period} months): ETB <span class="field-line">${totalInterest.toLocaleString()}</span> | Total Payable: ETB <span class="field-line">${totalPayable.toLocaleString()}</span></p>
                         <p>I undertake to repay the loan together with applicable interest and charges in accordance with the Cooperative's approved repayment terms.</p>
                         <p>The following members have agreed to stand as guarantors for the above-mentioned loan:</p>
                         <ul style="list-style: none; padding-left: 20px; margin: 6px 0;">${guarantorListHtml}</ul>
@@ -2172,7 +2185,7 @@
             const tbody = document.getElementById('loansBody');
             const t = translations[currentLang];
             if (!items || items.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="16" style="text-align:center; padding:40px; color:var(--text-secondary);">${t.noLoans}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="18" style="text-align:center; padding:40px; color:var(--text-secondary);">${t.noLoans}</td></tr>`;
                 return;
             }
             let html = '';
@@ -2190,6 +2203,10 @@
                 const statusClass = loan.status || 'pending';
                 const statusLabel = loan.status === 'active' ? t.active : loan.status === 'pending' ? t.pending : loan.status === 'paid' ? t.paid : loan.status === 'rejected' ? t.rejected : t.pending;
                 const approvedByName = loan.approvedBy || '—';
+
+                // ✅ Principal = loan amount; Interest = total payable - principal
+                const principalValue = amount;
+                const interestValue = Math.round((calculateTotalPayable(amount, interest, period, loanType) - amount) * 100) / 100;
                 const totalPayable = loan.totalPayable ? Number(loan.totalPayable) : calculateTotalPayable(amount, interest, period, loanType);
                 const monthlyPayment = calculateMonthlyPayment(amount, interest, period, loanType);
                 const typeLabels = { simple: t.simpleInterest, compound: t.compoundInterest, fixed: t.fixedRate, reducing: t.reducingBalance };
@@ -2225,7 +2242,9 @@
                 html += `<tr>
                     <td>${(currentPage-1)*pageSize + i + 1}</td>
                     <td>${customerName}</td>
-                    <td>${amount.toLocaleString()}</td>
+                    <td><strong>${amount.toLocaleString()}</strong></td>
+                    <td class="cell-principal">${principalValue.toLocaleString()}</td>
+                    <td class="cell-interest">${interestValue.toLocaleString()}</td>
                     <td>${interest}%</td>
                     <td><span style="font-size:12px; background:var(--border-color); padding:2px 8px; border-radius:12px;">${typeLabel}</span></td>
                     <td>${period} mos</td>
@@ -2452,6 +2471,7 @@
             const period = Number(loan.repaymentPeriod) || 0;
             const loanType = loan.loanType || 'simple';
             const totalPayable = loan.totalPayable ? Number(loan.totalPayable) : calculateTotalPayable(amount, interest, period, loanType);
+            const interestValue = Math.round((totalPayable - amount) * 100) / 100;
             const monthlyPayment = calculateMonthlyPayment(amount, interest, period, loanType);
             const dateStr = loan.date ? (loan.date.toDate ? loan.date.toDate().toLocaleString() : new Date(loan.date).toLocaleString()) : '—';
             const statusLabel = loan.status === 'active' ? translations[currentLang].active : loan.status === 'pending' ? translations[currentLang].pending : loan.status === 'paid' ? translations[currentLang].paid : loan.status === 'rejected' ? translations[currentLang].rejected : translations[currentLang].pending;
@@ -2472,7 +2492,9 @@
                 <div class="view-detail-row"><span class="label">Transaction ID</span><span class="value">${loan.id}</span></div>
                 <div class="view-detail-row"><span class="label">Customer</span><span class="value">${customerName}</span></div>
                 <div class="view-detail-row"><span class="label">Customer ID</span><span class="value">${customerIdDisplay}</span></div>
-                <div class="view-detail-row"><span class="label">Amount</span><span class="value">ETB ${amount.toLocaleString()}</span></div>
+                <div class="view-detail-row"><span class="label">Amount</span><span class="value"><strong>ETB ${amount.toLocaleString()}</strong></span></div>
+                <div class="view-detail-row"><span class="label">Principal</span><span class="value principal">ETB ${amount.toLocaleString()}</span></div>
+                <div class="view-detail-row"><span class="label">Interest (Total)</span><span class="value interest">ETB ${interestValue.toLocaleString()}</span></div>
                 <div class="view-detail-row"><span class="label">Interest Rate</span><span class="value">${interest}%</span></div>
                 <div class="view-detail-row"><span class="label">Loan Type</span><span class="value">${typeLabel}</span></div>
                 <div class="view-detail-row"><span class="label">Repayment Period</span><span class="value">${period} months</span></div>
