@@ -727,7 +727,7 @@
                         <div class="stat-info">
                             <span class="stat-label">Net Saving</span>
                             <span class="stat-value" id="netSavingsValue">0</span>
-                            <span class="stat-change" id="netSavingsChange">Savings + Div + TrIn + ShareBuy − Outflows</span>
+                            <span class="stat-change" id="netSavingsChange">Gross Savings − Share Bought − Customer Leaving − Withdrawals</span>
                         </div>
                     </div>
 
@@ -1953,49 +1953,26 @@
 
                 // ============================================================
                 // YEARLY — NET SAVING
-                // Net Saving = (savings + dividends + transfer_in + share_buy)
-                //            − (transfer_out + share_sell + withdrawals + leaving)
+                // Net Saving = Gross Savings − Share Bought − Customer Leaving − Withdrawals
                 // ============================================================
                 const totalSavings = savingsData.reduce((s, item) => s + (Number(item.amount) || 0), 0);
                 const totalWithdrawalsYearly = withdrawalsData.reduce((s, w) => s + (Number(w.amount) || 0), 0);
-
-                const yearlyDividends = dividendEntries
-                    .reduce((s, d) => s + (Number(d.amount) || 0), 0);
-
-                const yearlyTransferIn = allTransferIn
-                    .filter(t => isInYear(t.date || t.timestamp, year))
-                    .filter(t => t.status === 'approved' || t.status === 'completed')
-                    .reduce((s, t) => s + (Number(t.amount) || 0), 0);
-
-                const yearlyTransferOut = allTransferOut
-                    .filter(t => isInYear(t.date || t.timestamp, year))
-                    .filter(t => t.status === 'approved' || t.status === 'completed')
-                    .reduce((s, t) => s + (Number(t.amount) || 0), 0);
 
                 const yearlyLeaving = allLeavingWithdrawals
                     .filter(w => isInYear(w.date || w.timestamp, year))
                     .filter(w => w.status === 'approved' || w.status === 'completed')
                     .reduce((s, w) => s + (Number(w.amount) || 0), 0);
 
-                let yearlyShareBuy = 0, yearlyShareSell = 0;
+                let yearlyShareBuy = 0;
                 allShares.forEach(s => {
                     if (!dashboardSettings.shareStatuses.includes(s.status)) return;
                     if (!isInYear(s.date || s.timestamp, year)) return;
                     const amt = Number(s.amount) || 0;
                     const ty = String(s.type || '').toLowerCase();
                     if (ty === 'share_buy') yearlyShareBuy += amt;
-                    else if (ty === 'share_sell') yearlyShareSell += amt;
                 });
 
-                let netSavingYearly =
-                    totalSavings
-                    + yearlyDividends
-                    + yearlyTransferIn
-                    + yearlyShareBuy
-                    - yearlyTransferOut
-                    - yearlyShareSell
-                    - totalWithdrawalsYearly
-                    - yearlyLeaving;
+                let netSavingYearly = totalSavings - yearlyShareBuy - yearlyLeaving - totalWithdrawalsYearly;
                 netSavingYearly = Math.round(netSavingYearly * 100) / 100;
 
                 const totalBalanceYearly = Math.round(
@@ -2013,40 +1990,19 @@
                     .filter(w => w.status === 'approved' || w.status === 'completed')
                     .reduce((s, w) => s + (Number(w.amount) || 0), 0);
 
-                const allYearsDividends = allProfitWithdrawal
-                    .filter(w => w.reason === 'Dividend')
-                    .reduce((s, w) => s + (Number(w.amount) || 0), 0);
-
-                const allYearsTransferIn = allTransferIn
-                    .filter(t => t.status === 'approved' || t.status === 'completed')
-                    .reduce((s, t) => s + (Number(t.amount) || 0), 0);
-
-                const allYearsTransferOut = allTransferOut
-                    .filter(t => t.status === 'approved' || t.status === 'completed')
-                    .reduce((s, t) => s + (Number(t.amount) || 0), 0);
-
                 const allYearsLeaving = allLeavingWithdrawals
                     .filter(w => w.status === 'approved' || w.status === 'completed')
                     .reduce((s, w) => s + (Number(w.amount) || 0), 0);
 
-                let allYearsShareBuy = 0, allYearsShareSell = 0;
+                let allYearsShareBuy = 0;
                 allShares.forEach(s => {
                     if (!dashboardSettings.shareStatuses.includes(s.status)) return;
                     const amt = Number(s.amount) || 0;
                     const ty = String(s.type || '').toLowerCase();
                     if (ty === 'share_buy') allYearsShareBuy += amt;
-                    else if (ty === 'share_sell') allYearsShareSell += amt;
                 });
 
-                let netSavingAllYears =
-                    totalSavingsAllYears
-                    + allYearsDividends
-                    + allYearsTransferIn
-                    + allYearsShareBuy
-                    - allYearsTransferOut
-                    - allYearsShareSell
-                    - totalWithdrawalsAllYears
-                    - allYearsLeaving;
+                let netSavingAllYears = totalSavingsAllYears - allYearsShareBuy - allYearsLeaving - totalWithdrawalsAllYears;
                 netSavingAllYears = Math.round(netSavingAllYears * 100) / 100;
 
                 const totalBalanceAllYears = Math.round(
@@ -2064,7 +2020,7 @@
                 document.getElementById('savingsValue').textContent = totalSavings.toLocaleString();
                 document.getElementById('netSavingsValue').textContent = netSavingYearly.toLocaleString();
                 document.getElementById('netSavingsChange').innerHTML =
-                    `<span class="neutral">Savings + Div + TrIn + ShareBuy − Outflows</span>`;
+                    `<span class="neutral">Gross Savings − Share Bought − Customer Leaving − Withdrawals</span>`;
                 document.getElementById('loansValue').textContent = totalLoans.toLocaleString();
                 document.getElementById('repaymentsValue').textContent = totalRepayments.toLocaleString();
                 document.getElementById('repaymentsChange').innerHTML =
@@ -2089,7 +2045,6 @@
                 document.getElementById('shareValueChange').innerHTML =
                     `<span class="neutral">Total value held by active members</span>`;
 
-                // Change percentages (previous-year comparisons)
                 const currentMonth = new Date().getMonth();
                 const currentYear = year;
                 const prevYear = year - 1;
@@ -2145,7 +2100,6 @@
                 document.getElementById('totalProfitChange').innerHTML = `<span class="neutral">—</span>`;
                 document.getElementById('totalBalanceAllChange').innerHTML = `<span class="neutral">—</span>`;
 
-                // Charts
                 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 const loansMonthly = months.map((_, i) => getMonthlyTotal(loansData.filter(l => l.status === 'active' || l.status === 'paid'), 'amount', year, i));
                 const repaymentsMonthly = months.map((_, i) => getMonthlyTotal(repaymentsData, 'amount', year, i));
