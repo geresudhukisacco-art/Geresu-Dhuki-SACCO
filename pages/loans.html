@@ -660,7 +660,6 @@
                 <li><a href="repayments.html"><i class="fas fa-undo-alt"></i> <span data-i18n="navRepayments">Repayments</span></a></li>
                 <li><a href="withdrawals.html"><i class="fas fa-money-bill-wave"></i> <span data-i18n="navWithdrawals">Withdrawals</span></a></li>
                 <li><a href="dividends.html"><i class="fas fa-gift"></i> <span data-i18n="navDividends">Dividends</span></a></li>
-                <!-- ✅ NEW: SHARES LINK -->
                 <li><a href="share.html"><i class="fas fa-chart-pie"></i> <span data-i18n="navShares">Shares</span></a></li>
                 <li><a href="reports.html"><i class="fas fa-chart-bar"></i> <span data-i18n="navReports">Reports</span></a></li>
                 <li><a href="penalties.html"><i class="fas fa-exclamation-triangle" style="color:#e67e22;"></i> <span data-i18n="navPenalties">Penalties</span></a></li>
@@ -1157,6 +1156,7 @@
                 maxLoanHint: 'Maximum loan is {multiplier}× customer\'s total savings, capped by global setting.',
                 totalLoanLimitReached: 'Total loans (active + pending) already reached limit. Cannot apply for more.',
                 hasActiveOrPendingLoan: 'This customer already has an active or pending loan. Please settle the existing loan before applying for a new one.',
+                maxLoansPerCustomerReached: 'This customer already reached the maximum number of active/pending loans ({max}).',
                 addGuaranteeFirst: 'Please add at least one guarantee before applying for a loan.',
                 unauthorized: 'You are not authorized to perform this action.',
                 allYears: 'All Years', selectYear: 'Select Year',
@@ -1207,6 +1207,7 @@
                 maxLoanHint: 'ከፍተኛ ብድር {multiplier}× የደንበኛ ጠቅላላ ቁጠባ ነው፣ በአለምአቀፍ ቅንጅት የተገደበ።',
                 totalLoanLimitReached: 'አጠቃላይ ብድር (ንቁ + በመጠበቅ ላይ) ገደቡን አግኝቷል። ተጨማሪ ማመልከት አይቻልም።',
                 hasActiveOrPendingLoan: 'ይህ ደንበኛ ቀድሞ ንቁ ወይም በመጠበቅ ላይ ያለ ብድር አለው። አዲስ ብድር ከመጠየቅዎ በፊት ያለውን ብድር ያጽዱ።',
+                maxLoansPerCustomerReached: 'ይህ ደንበኛ ከፍተኛውን የንቁ/በመጠበቅ ላይ ብድሮች ቁጥር ({max}) ደርሷል።',
                 addGuaranteeFirst: 'ብድር ከመጠየቅዎ በፊት እባክዎ ቢያንስ አንድ ዋስትና ያክሉ።',
                 unauthorized: 'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም።',
                 allYears: 'ሁሉም ዓመታት', selectYear: 'ዓመት ይምረጡ',
@@ -1257,6 +1258,7 @@
                 maxLoanHint: 'Liqii olaanaa {multiplier}× kuusaa maamila, daangaa addunyaan daangeffame.',
                 totalLoanLimitReached: 'Liqii waliigalaa (hojii irra + eegamaa) daangaa ga\'eera. Dabaluu hin dandeenye.',
                 hasActiveOrPendingLoan: 'Maamilichi kun duraan liqii hojii irra jira ykn eegamaa qaba. Liqii haaraa itti fayyadamuu dura kan duraa haqi.',
+                maxLoansPerCustomerReached: 'Maamilichi kun baay\'ina liqii hojii irra/eegamaa olaanaa ({max}) ga\'eera.',
                 addGuaranteeFirst: 'Maaloo liqii itti fayyadamuu dura mirkaneessa tokko ykn isaa ol idaahi.',
                 unauthorized: 'Gochaa kana raawwachuuf hayyamamtee hin jirtu.',
                 allYears: 'Waggaa Hunda', selectYear: 'Waggaa Filadhu',
@@ -1519,17 +1521,39 @@
             } catch (error) { return 0; }
         }
 
-        async function customerHasActiveOrPendingLoan(customerId, excludeLoanId = null) {
+        // ✅ Count active/pending loans (respects configurable max loans per customer)
+        async function countCustomerActiveOrPendingLoans(customerId, excludeLoanId = null) {
+            if (!customerId) return 0;
             try {
                 const [snap1, snap2] = await Promise.all([
                     db.collection('transactions').where('customerId', '==', customerId).where('type', '==', 'loan').where('status', 'in', ['active', 'pending']).get(),
                     db.collection('transactions').where('memberId', '==', customerId).where('type', '==', 'loan').where('status', 'in', ['active', 'pending']).get()
                 ]);
-                let has = false;
-                snap1.forEach(doc => { if (excludeLoanId && doc.id === excludeLoanId) return; has = true; });
-                if (!has) snap2.forEach(doc => { if (excludeLoanId && doc.id === excludeLoanId) return; has = true; });
-                return has;
-            } catch (error) { return false; }
+                const seen = new Set();
+                let count = 0;
+                snap1.forEach(doc => {
+                    if (excludeLoanId && doc.id === excludeLoanId) return;
+                    if (seen.has(doc.id)) return;
+                    seen.add(doc.id);
+                    count++;
+                });
+                snap2.forEach(doc => {
+                    if (excludeLoanId && doc.id === excludeLoanId) return;
+                    if (seen.has(doc.id)) return;
+                    seen.add(doc.id);
+                    count++;
+                });
+                return count;
+            } catch (error) {
+                console.error('Error counting active/pending loans:', error);
+                return 0;
+            }
+        }
+
+        // Legacy helper kept for backward compatibility (not used by default anymore)
+        async function customerHasActiveOrPendingLoan(customerId, excludeLoanId = null) {
+            const n = await countCustomerActiveOrPendingLoans(customerId, excludeLoanId);
+            return n > 0;
         }
 
         async function getCustomerAllLoans(customerId) {
@@ -1730,8 +1754,9 @@
         }
 
         let defaultInterestRate = 10;
-        let maxLoanAmountSetting = 50000;
-        let maxLoanMultiplier = 3;
+        let maxLoanAmountSetting = 50000;   // max ETB amount per loan
+        let maxLoanMultiplier = 3;          // × savings
+        let maxLoansPerCustomer = 1;        // ✅ max concurrent active/pending loans per customer
         let penaltyRate = 5;
         let gracePeriod = 7;
         // Session timeout default (ms). Overwritten from settings/system.
@@ -1742,14 +1767,22 @@
                 const doc = await db.collection('settings').doc('system').get();
                 if (doc.exists) {
                     const data = doc.data();
-                    defaultInterestRate = data.defaultInterestRate || 10;
-                    maxLoanAmountSetting = data.maxLoanAmount || 50000;
-                    maxLoanMultiplier = data.maxLoanMultiplier || 3;
+                    defaultInterestRate   = data.defaultInterestRate || 10;
+                    maxLoanAmountSetting  = data.maxLoanAmount      || 50000;
+                    maxLoanMultiplier     = data.maxLoanMultiplier  || 3;
+
+                    // ✅ NEW: max number of concurrent loans per customer (default = 1)
+                    // Accepts either `maxLoansPerCustomer` or `maxLoansToBorrow`.
+                    const rawMaxLoans = data.maxLoansPerCustomer ?? data.maxLoansToBorrow;
+                    if (rawMaxLoans !== undefined && rawMaxLoans !== null && rawMaxLoans !== '') {
+                        const n = Number(rawMaxLoans);
+                        if (!isNaN(n) && n >= 1) maxLoansPerCustomer = Math.floor(n);
+                    }
+
                     penaltyRate = data.penaltyRate || 5;
                     gracePeriod = data.gracePeriod || 7;
 
                     // ✅ Load session timeout from settings/system (value is in MINUTES)
-                    // Accept either `sessionTimeout` (minutes) or `sessionTimeoutMinutes`.
                     const rawSession = data.sessionTimeout ?? data.sessionTimeoutMinutes;
                     if (rawSession !== undefined && rawSession !== null && rawSession !== '') {
                         const minutes = Number(rawSession);
@@ -1986,6 +2019,19 @@
                 return;
             }
 
+            // ✅ Enforce max loans per customer when re-activating / keeping pending
+            if (newStatus === 'active' || newStatus === 'pending') {
+                const othersCount = await countCustomerActiveOrPendingLoans(customerId, loanId);
+                if (othersCount >= maxLoansPerCustomer) {
+                    showToast(
+                        `This customer already has ${othersCount} other active/pending loan(s). ` +
+                        `Maximum allowed is ${maxLoansPerCustomer}.`,
+                        'warning'
+                    );
+                    return;
+                }
+            }
+
             const btn = document.getElementById('updateLoanBtn');
             const original = btn.innerHTML;
             btn.disabled = true;
@@ -2206,8 +2252,8 @@
 
                 // ✅ Principal = loan amount; Interest = total payable - principal
                 const principalValue = amount;
-                const interestValue = Math.round((calculateTotalPayable(amount, interest, period, loanType) - amount) * 100) / 100;
                 const totalPayable = loan.totalPayable ? Number(loan.totalPayable) : calculateTotalPayable(amount, interest, period, loanType);
+                const interestValue = Math.round((totalPayable - amount) * 100) / 100;
                 const monthlyPayment = calculateMonthlyPayment(amount, interest, period, loanType);
                 const typeLabels = { simple: t.simpleInterest, compound: t.compoundInterest, fixed: t.fixedRate, reducing: t.reducingBalance };
                 const typeLabel = typeLabels[loanType] || loanType;
@@ -2342,7 +2388,7 @@
                 populateYearFilter();
                 applySearch();
                 updateTotalCount();
-                updateLoanSummary();
+                await updateLoanSummary();
                 overlay.classList.remove('active');
             } catch (error) {
                 showToast(translations[currentLang].loadError + error.message, 'error');
@@ -2386,30 +2432,87 @@
             return Math.round((monthlyPayment * penaltyRateSetting * overdueMonths) * 100) / 100;
         }
 
+        // ============================================================
+        // ✅ UPDATED LOAN SUMMARY
+        // Principal Paid / Interest Paid now read from actual repayment splits
+        // (same rule as repayments page: only approved / printed count)
+        // ============================================================
         async function updateLoanSummary() {
             let totalApproved = 0, totalPenalties = 0, totalUnpaid = 0;
             let totalPrincipalPaid = 0, totalInterestPaid = 0;
-            const approvedLoans = allLoans.filter(loan => loan.status === 'active' || loan.status === 'paid' || loan.status === 'approved');
+
+            const approvedLoans = allLoans.filter(loan =>
+                loan.status === 'active' || loan.status === 'paid' || loan.status === 'approved'
+            );
+
+            // ✅ Fetch ALL repayments in one query and group by loanId
+            const repaymentsByLoan = {};
+            try {
+                const snap = await db.collection('transactions')
+                    .where('type', '==', 'repayment')
+                    .get();
+                snap.forEach(doc => {
+                    const r = { id: doc.id, ...doc.data() };
+                    if (!r.loanId) return;
+                    const isApproved = r.status === 'approved' || r.status === 'printed' || r.printed === true;
+                    if (!isApproved) return;
+                    if (!repaymentsByLoan[r.loanId]) repaymentsByLoan[r.loanId] = [];
+                    repaymentsByLoan[r.loanId].push(r);
+                });
+            } catch (e) {
+                console.error('Error loading repayments for loan summary:', e);
+            }
+
             for (const loan of approvedLoans) {
                 const amount = Number(loan.amount) || 0;
-                totalApproved += amount;
-                const repay = await getLoanRepayments(loan.id);
-                const totalPayable = loan.totalPayable ? Number(loan.totalPayable) : calculateTotalPayable(Number(loan.amount) || 0, Number(loan.interestRate) || 0, Number(loan.repaymentPeriod) || 0, loan.loanType || 'simple');
-                const remaining = Math.max(0, totalPayable - repay.total);
+                const rate = Number(loan.interestRate) || 0;
+                const period = Number(loan.repaymentPeriod) || 0;
+                const loanType = loan.loanType || 'simple';
 
-                // ✅ Split repaid amount into principal + interest portions
-                const principalPaid = Math.min(repay.total, amount);
-                const interestPaid = Math.max(0, repay.total - amount);
+                totalApproved += amount;
+
+                const loanReps = repaymentsByLoan[loan.id] || [];
+                const totalRepaid = loanReps.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+                const totalPayable = loan.totalPayable
+                    ? Number(loan.totalPayable)
+                    : calculateTotalPayable(amount, rate, period, loanType);
+                const remaining = Math.max(0, totalPayable - totalRepaid);
+
+                // ✅ Sum Principal / Interest from the actual repayment split
+                let principalPaid = 0;
+                let interestPaid = 0;
+
+                loanReps.forEach(r => {
+                    const amt = Number(r.amount) || 0;
+                    if (typeof r.principalPortion === 'number' && typeof r.interestPortion === 'number') {
+                        principalPaid += Number(r.principalPortion) || 0;
+                        interestPaid += Number(r.interestPortion) || 0;
+                    } else {
+                        // Fallback for legacy records without stored portions
+                        let monthlyInterest = 0;
+                        if (period > 0) {
+                            const totalInterest = calculateInterest(amount, rate, period, loanType);
+                            monthlyInterest = totalInterest / period;
+                        }
+                        const iPart = Math.min(amt, monthlyInterest);
+                        const pPart = Math.max(0, amt - iPart);
+                        principalPaid += pPart;
+                        interestPaid += iPart;
+                    }
+                });
+
                 totalPrincipalPaid += principalPaid;
                 totalInterestPaid += interestPaid;
 
+                // Penalties for active loans with outstanding balance
                 let penaltyAmount = 0;
                 if (loan.status === 'active') {
-                    const monthlyPayment = calculateMonthlyPayment(amount, Number(loan.interestRate) || 0, Number(loan.repaymentPeriod) || 0, loan.loanType || 'simple');
-                    penaltyAmount = calculatePenalty(loan, repay.list, monthlyPayment);
+                    const monthlyPayment = calculateMonthlyPayment(amount, rate, period, loanType);
+                    penaltyAmount = calculatePenalty(loan, loanReps, monthlyPayment);
                 }
                 if (remaining > 0) { totalUnpaid += remaining; totalPenalties += penaltyAmount; }
             }
+
             document.getElementById('totalApprovedValue').textContent = totalApproved.toLocaleString();
             document.getElementById('totalPenaltiesValue').textContent = totalPenalties.toFixed(2);
             document.getElementById('unpaidLoansValue').textContent = totalUnpaid.toFixed(2);
@@ -2572,8 +2675,15 @@
             if (!amount || amount <= 0) { showToast('Please enter a valid amount.', 'warning'); return; }
             if (!date) { showToast('Please select a date.', 'warning'); return; }
 
-            const hasActiveOrPending = await customerHasActiveOrPendingLoan(customerId);
-            if (hasActiveOrPending) { showToast(translations[currentLang].hasActiveOrPendingLoan, 'warning'); return; }
+            // ✅ Enforce configurable max loans per customer
+            const activeCount = await countCustomerActiveOrPendingLoans(customerId);
+            if (activeCount >= maxLoansPerCustomer) {
+                const t = translations[currentLang];
+                const msg = (t.maxLoansPerCustomerReached || 'This customer already reached the maximum number of active/pending loans ({max}).')
+                    .replace('{max}', maxLoansPerCustomer);
+                showToast(`${msg} (Current: ${activeCount})`, 'warning');
+                return;
+            }
 
             const savings = await getCustomerSavings(customerId);
             const existingExposure = await getCustomerTotalLoanExposure(customerId);
@@ -2854,7 +2964,6 @@
             function handleActivity() { resetTimer(); }
             events.forEach(evt => document.addEventListener(evt, handleActivity));
 
-            // Expose controls so loadSettings() can apply the value from Firestore
             window.setSessionTimeout = function(ms) {
                 if (typeof ms === 'number' && ms > 0) {
                     window.sessionTimeoutMs = ms;
