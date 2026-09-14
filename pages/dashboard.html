@@ -727,7 +727,7 @@
                         <div class="stat-info">
                             <span class="stat-label">Net Saving</span>
                             <span class="stat-value" id="netSavingsValue">0</span>
-                            <span class="stat-change" id="netSavingsChange">Gross Savings − Share Bought − Customer Leaving − Withdrawals</span>
+                            <span class="stat-change" id="netSavingsChange">Gross Savings − Share Buys − Individual Withdrawals − Customer Leaving</span>
                         </div>
                     </div>
 
@@ -767,12 +767,12 @@
                         </div>
                     </div>
 
-                    <div class="stat-card balance" title="Net Saving + Net Profit + Net Share Value">
+                    <div class="stat-card balance" title="Net Saving + Net Profit + Net Share Value (this year)">
                         <div class="stat-icon"><i class="fas fa-wallet"></i></div>
                         <div class="stat-info">
                             <span class="stat-label" data-i18n="statBalance">Total Balance (ETB)</span>
                             <span class="stat-value" id="balanceValue">0</span>
-                            <span class="stat-change" id="balanceChange">Net Saving + Net Profit + Net Share</span>
+                            <span class="stat-change" id="balanceChange">Net Saving + Net Profit + Net Share Value (this year)</span>
                         </div>
                     </div>
 
@@ -1954,6 +1954,7 @@
                 // ============================================================
                 // YEARLY — NET SAVING
                 // Net Saving = Gross Savings − Share Bought − Customer Leaving − Withdrawals
+                // (Service withdrawals are deducted from Net Profit — NOT from Net Saving.)
                 // ============================================================
                 const totalSavings = savingsData.reduce((s, item) => s + (Number(item.amount) || 0), 0);
                 const totalWithdrawalsYearly = withdrawalsData.reduce((s, w) => s + (Number(w.amount) || 0), 0);
@@ -1964,19 +1965,36 @@
                     .reduce((s, w) => s + (Number(w.amount) || 0), 0);
 
                 let yearlyShareBuy = 0;
+                let yearlyNetShareValue = 0; // Net share value transacted this year (for Total Balance card)
                 allShares.forEach(s => {
                     if (!dashboardSettings.shareStatuses.includes(s.status)) return;
                     if (!isInYear(s.date || s.timestamp, year)) return;
                     const amt = Number(s.amount) || 0;
                     const ty = String(s.type || '').toLowerCase();
-                    if (ty === 'share_buy') yearlyShareBuy += amt;
+                    if (ty === 'share_buy') {
+                        yearlyShareBuy += amt;
+                        yearlyNetShareValue += amt;
+                    } else if (ty === 'share_sell') {
+                        yearlyNetShareValue -= amt;
+                    } else if (ty === 'share_transfer_in') {
+                        yearlyNetShareValue += amt;
+                    } else if (ty === 'share_transfer_out') {
+                        yearlyNetShareValue -= amt;
+                    }
                 });
+                yearlyNetShareValue = Math.round(yearlyNetShareValue * 100) / 100;
 
-                let netSavingYearly = totalSavings - yearlyShareBuy - yearlyLeaving - totalWithdrawalsYearly;
+                let netSavingYearly = totalSavings
+                                    - yearlyShareBuy
+                                    - yearlyLeaving
+                                    - totalWithdrawalsYearly;
                 netSavingYearly = Math.round(netSavingYearly * 100) / 100;
 
+                // Total Balance (this year) = Net Saving (year)
+                //                           + Net Profit (year)
+                //                           + Net Share Value transacted in the year
                 const totalBalanceYearly = Math.round(
-                    (netSavingYearly + totalIncomeYearly + netShareValue) * 100
+                    (netSavingYearly + totalIncomeYearly + yearlyNetShareValue) * 100
                 ) / 100;
 
                 // ============================================================
@@ -2002,7 +2020,10 @@
                     if (ty === 'share_buy') allYearsShareBuy += amt;
                 });
 
-                let netSavingAllYears = totalSavingsAllYears - allYearsShareBuy - allYearsLeaving - totalWithdrawalsAllYears;
+                let netSavingAllYears = totalSavingsAllYears
+                                      - allYearsShareBuy
+                                      - allYearsLeaving
+                                      - totalWithdrawalsAllYears;
                 netSavingAllYears = Math.round(netSavingAllYears * 100) / 100;
 
                 const totalBalanceAllYears = Math.round(
@@ -2020,7 +2041,7 @@
                 document.getElementById('savingsValue').textContent = totalSavings.toLocaleString();
                 document.getElementById('netSavingsValue').textContent = netSavingYearly.toLocaleString();
                 document.getElementById('netSavingsChange').innerHTML =
-                    `<span class="neutral">Gross Savings − Share Bought − Customer Leaving − Withdrawals</span>`;
+                    `<span class="neutral">Gross Savings − Share Buys − Individual Withdrawals − Customer Leaving</span>`;
                 document.getElementById('loansValue').textContent = totalLoans.toLocaleString();
                 document.getElementById('repaymentsValue').textContent = totalRepayments.toLocaleString();
                 document.getElementById('repaymentsChange').innerHTML =
