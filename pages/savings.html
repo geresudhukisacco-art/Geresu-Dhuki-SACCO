@@ -777,7 +777,6 @@
                     </div>
                 </div>
 
-                <!-- ✅ Conditional fields with BANK DROPDOWN -->
                 <div class="conditional-fields" id="conditionalFields">
                     <div class="form-row two">
                         <div class="form-group">
@@ -877,10 +876,9 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // ✅ BANKS & MOBILE MONEY PROVIDERS (Ethiopia)
+        // BANKS & MOBILE MONEY PROVIDERS (Ethiopia)
         // ============================================================
         const BANKS_LIST = [
-            // ===== Mobile Money Providers =====
             { value: 'telebirr',       label: '📱 Tele Birr (Ethio Telecom)',              type: 'mobile' },
             { value: 'mpesa',          label: '📱 M-Pesa (Safaricom Ethiopia)',            type: 'mobile' },
             { value: 'amole',          label: '📱 Amole (Bank of Abyssinia)',              type: 'mobile' },
@@ -893,7 +891,6 @@
             { value: 'maya',           label: '📱 Maya Cash',                             type: 'mobile' },
             { value: 'coopay',         label: '📱 Coopay-Ebirr',                          type: 'mobile' },
 
-            // ===== Commercial Banks =====
             { value: 'cbe',            label: '🏦 Commercial Bank of Ethiopia (CBE)',     type: 'bank' },
             { value: 'awash',          label: '🏦 Awash Bank',                            type: 'bank' },
             { value: 'dashen',         label: '🏦 Dashen Bank',                           type: 'bank' },
@@ -923,8 +920,6 @@
             { value: 'sidama',         label: '🏦 Sidama Bank',                           type: 'bank' },
             { value: 'oromia_bank',    label: '🏦 Oromia Bank',                           type: 'bank' },
             { value: 'bank_of_abyssinia', label: '🏦 Bank of Abyssinia',                   type: 'bank' },
-
-            // ===== Other / Manual =====
             { value: 'other',          label: '➕ Other (Enter manually)',                 type: 'other' }
         ];
 
@@ -978,16 +973,6 @@
             return selectedOpt ? selectedOpt.textContent.replace(/^[📱🏦➕]\s*/, '').trim() : '';
         }
 
-        // ============================================================
-        // TRANSLATIONS (minimal)
-        // ============================================================
-        const translations = {
-            en: {
-                sessionTimeout: 'Your session will expire in {seconds} seconds.',
-                connectionSuccess: '✅ Connection successful!',
-                connectionFailed: '❌ Connection failed: '
-            }
-        };
         let currentLang = 'en';
         let currentUserRole = 'viewer';
         let currentUserDisplayName = 'Admin';
@@ -1185,24 +1170,56 @@
             return value;
         }
 
+        // ============================================================
+        // ✅ FIXED: Share payment method detection
+        // ============================================================
+        function isSharePaidFromSavings(share) {
+            const raw = share.paymentMethod || share.paymentSource || share.paidFrom ||
+                        share.source || share.fundingSource || share.method || share.paymentType || '';
+            const m = String(raw).toLowerCase().trim();
+            // Empty means default = savings (per dashboard logic)
+            if (!m) return true;
+            const savingsValues = ['savings', 'saving', 'from_savings', 'savings_account',
+                                   'member_savings', 'account', 'sacco_savings', 'from_saving'];
+            return savingsValues.includes(m);
+        }
+
+        // ============================================================
+        // ✅ FIXED: Customer shares — includes transfers in/out
+        // ============================================================
         function getCustomerShares(customerId) {
             let qty = 0, value = 0, history = [];
             allShares.forEach(s => {
                 if (s.status !== 'approved') return;
-                const isMine = s.customerId === customerId || s.fromCustomerId === customerId || s.toCustomerId === customerId;
-                if (!isMine) return;
                 const shares = Number(s.shares) || (Number(s.amount) ? (Number(s.amount) / 1000) : 0);
                 const amt = Number(s.amount) || 0;
                 const ty = String(s.type || '').toLowerCase();
-                const isSell = ty === 'share_sell' || ty === 'share_transfer_out';
-                const isBuy = ty === 'share_buy' || ty === 'share_transfer_in';
-                if (s.customerId === customerId) {
-                    if (isBuy) { qty += shares; value += amt; }
-                    else if (isSell) { qty -= shares; value -= amt; }
+
+                // Determine ownership direction
+                const isOwner     = s.customerId === customerId;
+                const isSender    = s.fromCustomerId === customerId;
+                const isReceiver  = s.toCustomerId === customerId;
+
+                if (isOwner) {
+                    if (ty === 'share_buy')            { qty += shares; value += amt; }
+                    else if (ty === 'share_sell')      { qty -= shares; value -= amt; }
+                    else if (ty === 'share_transfer_in')  { qty += shares; value += amt; }
+                    else if (ty === 'share_transfer_out') { qty -= shares; value -= amt; }
+                } else if (isSender && ty === 'share_transfer_out') {
+                    qty -= shares; value -= amt;
+                } else if (isReceiver && ty === 'share_transfer_in') {
+                    qty += shares; value += amt;
                 }
-                history.push({
-                    id: s.id, type: s.type, shares, amount: amt, date: s.date || s.timestamp
-                });
+
+                // History: include any transaction involving this customer
+                if (isOwner || isSender || isReceiver) {
+                    history.push({
+                        id: s.id, type: s.type, shares, amount: amt,
+                        date: s.date || s.timestamp,
+                        direction: (isSender && !isOwner) ? 'out' :
+                                   (isReceiver && !isOwner) ? 'in' : 'own'
+                    });
+                }
             });
             history.sort((a, b) => {
                 const da = toDate(a.date); const db2 = toDate(b.date);
@@ -1218,22 +1235,48 @@
                 const shares = Number(s.shares) || (Number(s.amount) ? (Number(s.amount) / 1000) : 0);
                 const amt = Number(s.amount) || 0;
                 const ty = String(s.type || '').toLowerCase();
-                if (ty === 'share_buy' || ty === 'share_transfer_in') { qty += shares; val += amt; }
-                else if (ty === 'share_sell' || ty === 'share_transfer_out') { qty -= shares; val -= amt; }
+                if (ty === 'share_buy') { qty += shares; val += amt; }
+                // share_sell / share_transfer_* do NOT change total in circulation
             });
             return { qty: Math.max(0, Math.round(qty * 10000) / 10000), value: Math.max(0, Math.round(val * 100) / 100) };
         }
 
+        // ============================================================
+        // ✅ FIXED: Net Savings per customer
+        // Deducts share_buy (from savings) AND share_transfer_out (from savings)
+        // Adds   share_transfer_in
+        // ============================================================
         function getNetSavings(customerId) {
             const gross = allSavings
                 .filter(s => s.customerId === customerId && s.status === 'approved')
                 .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
-            const shareDeduction = allShares
-                .filter(sb => sb.customerId === customerId && sb.status === 'approved' &&
-                    String(sb.type || '').toLowerCase() === 'share_buy' &&
-                    sb.paymentMethod === 'savings')
-                .reduce((sum, sb) => sum + (Number(sb.amount) || 0), 0);
-            return Math.max(0, gross - shareDeduction);
+
+            let shareAdjustment = 0;
+            allShares.forEach(sb => {
+                if (sb.status !== 'approved') return;
+                const ty  = String(sb.type || '').toLowerCase();
+                const amt = Number(sb.amount) || 0;
+
+                if (ty === 'share_buy') {
+                    if (sb.customerId === customerId && isSharePaidFromSavings(sb)) {
+                        shareAdjustment -= amt;
+                    }
+                } else if (ty === 'share_transfer_out') {
+                    const isOwner = sb.customerId === customerId;
+                    const isSender = sb.fromCustomerId === customerId;
+                    if ((isOwner || isSender) && isSharePaidFromSavings(sb)) {
+                        shareAdjustment -= amt;
+                    }
+                } else if (ty === 'share_transfer_in') {
+                    const isOwner = sb.customerId === customerId;
+                    const isReceiver = sb.toCustomerId === customerId;
+                    if (isOwner || isReceiver) {
+                        shareAdjustment += amt;
+                    }
+                }
+            });
+
+            return Math.max(0, gross + shareAdjustment);
         }
 
         function getPendingSavings(customerId) {
@@ -1490,7 +1533,6 @@
             const block = document.getElementById('penaltyBlock');
             const blockAmount = document.getElementById('penaltyBlockAmount');
             const saveBtn = document.getElementById('saveBtn');
-            const formSection = document.querySelector('.form-section') || document.getElementById('savingsModal');
             const penaltyDetails = document.getElementById('penaltyDetails');
 
             if (allPenalties.total > 0) {
@@ -1732,18 +1774,34 @@
             tbody.innerHTML = html;
         }
 
+        // ============================================================
+        // ✅ FIXED updateStats() — Net Saving includes share transfers
+        // ============================================================
         function updateStats() {
             const grossApproved = allSavings
                 .filter(s => s.status === 'approved')
                 .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
 
-            const shareDeduction = allShares
-                .filter(sb => sb.status === 'approved' &&
-                    String(sb.type || '').toLowerCase() === 'share_buy' &&
-                    sb.paymentMethod === 'savings')
-                .reduce((sum, sb) => sum + (Number(sb.amount) || 0), 0);
+            // Share adjustment across all customers:
+            // share_buy (from savings) → deduct
+            // share_transfer_out (from savings) → deduct
+            // share_transfer_in → add
+            let shareAdjustment = 0;
+            allShares.forEach(sb => {
+                if (sb.status !== 'approved') return;
+                const ty  = String(sb.type || '').toLowerCase();
+                const amt = Number(sb.amount) || 0;
 
-            const netSavings = Math.max(0, grossApproved - shareDeduction);
+                if (ty === 'share_buy') {
+                    if (isSharePaidFromSavings(sb)) shareAdjustment -= amt;
+                } else if (ty === 'share_transfer_out') {
+                    if (isSharePaidFromSavings(sb)) shareAdjustment -= amt;
+                } else if (ty === 'share_transfer_in') {
+                    shareAdjustment += amt;
+                }
+            });
+
+            const netSavings = Math.max(0, grossApproved + shareAdjustment);
             const pending = allSavings.filter(s => s.status === 'pending').reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
             const rejected = allSavings.filter(s => s.status === 'rejected').reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
 
@@ -1953,7 +2011,6 @@
             toggleConditionalFields();
             populateBankDropdown(transferType);
 
-            // Restore bank selection
             (function restoreBankSelection() {
                 const savedBank = (savings.bankName || '').trim();
                 const bankSelect = document.getElementById('bankName');
@@ -2034,7 +2091,7 @@
             const transferType = document.getElementById('transferType').value;
             const ttNumber = document.getElementById('ttNumber').value.trim();
             const transferDate = document.getElementById('transferDate').value;
-            const bankName = getFinalBankName();  // ✅ use helper
+            const bankName = getFinalBankName();
             const note = document.getElementById('noteInput').value.trim();
             const editId = document.getElementById('editId').value;
 
@@ -2133,7 +2190,6 @@
             document.getElementById('amountInput').min = minSavingsAmount;
             document.getElementById('amountInput').placeholder = minSavingsAmount > 0 ? `Min: ${minSavingsAmount.toFixed(2)}` : '0.00';
 
-            // ✅ Reset bank dropdown
             document.getElementById('bankName').innerHTML = '<option value="">-- Select Bank / Provider --</option>';
             document.getElementById('bankNameOther').value = '';
             document.getElementById('bankNameOther').style.display = 'none';
@@ -2228,10 +2284,7 @@
                 await loadCustomers();
                 setupCustomerSearch();
 
-                // ✅ Transfer type change → re-populate bank dropdown
                 document.getElementById('transferType').addEventListener('change', toggleConditionalFields);
-
-                // ✅ Bank dropdown change → show/hide "Other" input
                 document.getElementById('bankName').addEventListener('change', handleBankOtherToggle);
 
                 document.getElementById('amountInput').addEventListener('input', function() {
