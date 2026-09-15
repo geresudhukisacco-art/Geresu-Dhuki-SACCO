@@ -1172,12 +1172,12 @@
 
         // ============================================================
         // ✅ FIXED: Share payment method detection
+        // Empty paymentMethod = treat as savings (matches Dashboard default)
         // ============================================================
         function isSharePaidFromSavings(share) {
             const raw = share.paymentMethod || share.paymentSource || share.paidFrom ||
                         share.source || share.fundingSource || share.method || share.paymentType || '';
             const m = String(raw).toLowerCase().trim();
-            // Empty means default = savings (per dashboard logic)
             if (!m) return true;
             const savingsValues = ['savings', 'saving', 'from_savings', 'savings_account',
                                    'member_savings', 'account', 'sacco_savings', 'from_saving'];
@@ -1195,7 +1195,6 @@
                 const amt = Number(s.amount) || 0;
                 const ty = String(s.type || '').toLowerCase();
 
-                // Determine ownership direction
                 const isOwner     = s.customerId === customerId;
                 const isSender    = s.fromCustomerId === customerId;
                 const isReceiver  = s.toCustomerId === customerId;
@@ -1211,7 +1210,6 @@
                     qty += shares; value += amt;
                 }
 
-                // History: include any transaction involving this customer
                 if (isOwner || isSender || isReceiver) {
                     history.push({
                         id: s.id, type: s.type, shares, amount: amt,
@@ -1236,7 +1234,6 @@
                 const amt = Number(s.amount) || 0;
                 const ty = String(s.type || '').toLowerCase();
                 if (ty === 'share_buy') { qty += shares; val += amt; }
-                // share_sell / share_transfer_* do NOT change total in circulation
             });
             return { qty: Math.max(0, Math.round(qty * 10000) / 10000), value: Math.max(0, Math.round(val * 100) / 100) };
         }
@@ -1245,6 +1242,7 @@
         // ✅ FIXED: Net Savings per customer
         // Deducts share_buy (from savings) AND share_transfer_out (from savings)
         // Adds   share_transfer_in
+        // External share buys (cash/bank/mobile) are NOT deducted
         // ============================================================
         function getNetSavings(customerId) {
             const gross = allSavings
@@ -1262,13 +1260,13 @@
                         shareAdjustment -= amt;
                     }
                 } else if (ty === 'share_transfer_out') {
-                    const isOwner = sb.customerId === customerId;
+                    const isOwner  = sb.customerId === customerId;
                     const isSender = sb.fromCustomerId === customerId;
                     if ((isOwner || isSender) && isSharePaidFromSavings(sb)) {
                         shareAdjustment -= amt;
                     }
                 } else if (ty === 'share_transfer_in') {
-                    const isOwner = sb.customerId === customerId;
+                    const isOwner    = sb.customerId === customerId;
                     const isReceiver = sb.toCustomerId === customerId;
                     if (isOwner || isReceiver) {
                         shareAdjustment += amt;
@@ -1776,16 +1774,13 @@
 
         // ============================================================
         // ✅ FIXED updateStats() — Net Saving includes share transfers
+        // Only share_buy / share_transfer_out paid FROM SAVINGS reduce it
         // ============================================================
         function updateStats() {
             const grossApproved = allSavings
                 .filter(s => s.status === 'approved')
                 .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
 
-            // Share adjustment across all customers:
-            // share_buy (from savings) → deduct
-            // share_transfer_out (from savings) → deduct
-            // share_transfer_in → add
             let shareAdjustment = 0;
             allShares.forEach(sb => {
                 if (sb.status !== 'approved') return;
