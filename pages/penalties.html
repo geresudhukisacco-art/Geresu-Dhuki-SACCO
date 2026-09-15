@@ -57,7 +57,6 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         .loading-overlay p { color: var(--text-secondary); font-weight: 500; }
 
-        /* SIDEBAR */
         .sidebar {
             width: var(--sidebar-width); background: var(--bg-sidebar);
             color: #e8f0ea; height: 100vh; position: fixed; top: 0; left: 0;
@@ -126,7 +125,6 @@
         .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 999; }
         .sidebar-overlay.active { display: block; }
 
-        /* MAIN */
         .main-content { margin-left: var(--sidebar-width); flex: 1; min-height: 100vh; display: flex; flex-direction: column; transition: margin-left 0.3s ease; }
         .sidebar.collapsed~.main-content { margin-left: var(--sidebar-collapsed-width); }
         .top-header {
@@ -254,7 +252,6 @@
         .pagination-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
         .pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* MODALS */
         .modal-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.5); z-index: 10001;
@@ -299,6 +296,14 @@
         .duplicate-warning i { margin-right: 8px; }
         .conditional-fields { display: none; border-top: 1px dashed var(--border-color); padding-top: 12px; margin-top: 4px; }
         .conditional-fields.show { display: block; }
+
+        .savings-balance-info {
+            display: none; padding: 10px 14px;
+            background: var(--bg-primary); border: 1px solid var(--border-color);
+            border-radius: 8px; margin-bottom: 12px;
+            font-size: 13px; line-height: 1.5;
+        }
+        .savings-balance-info.show { display: block; }
 
         .view-detail-row { display: flex; padding: 6px 0; border-bottom: 1px solid var(--border-color); font-size: 14px; }
         .view-detail-row .label { font-weight: 600; width: 160px; flex-shrink: 0; color: var(--text-secondary); }
@@ -424,7 +429,6 @@
                 <li><a href="repayments.html"><i class="fas fa-undo-alt"></i> <span data-i18n="navRepayments">Repayments</span></a></li>
                 <li><a href="withdrawals.html"><i class="fas fa-money-bill-wave"></i> <span data-i18n="navWithdrawals">Withdrawals</span></a></li>
                 <li><a href="dividends.html"><i class="fas fa-gift"></i> <span data-i18n="navDividends">Dividends</span></a></li>
-                <!-- ✅ NEW: SHARES LINK -->
                 <li><a href="share.html"><i class="fas fa-chart-pie"></i> <span data-i18n="navShares">Shares</span></a></li>
                 <li><a href="reports.html"><i class="fas fa-chart-bar"></i> <span data-i18n="navReports">Reports</span></a></li>
                 <li class="active"><a href="penalties.html"><i class="fas fa-exclamation-triangle" style="color:#e67e22;"></i> <span data-i18n="navPenalties">Penalties</span></a></li>
@@ -613,6 +617,9 @@
                     <input type="text" id="payUnpaidMonths" disabled style="background:var(--bg-primary);" />
                 </div>
 
+                <!-- ✅ Savings balance info shown when "Pay from Savings" is selected -->
+                <div class="savings-balance-info" id="savingsBalanceInfo"></div>
+
                 <div class="form-group">
                     <label data-i18n="paymentMethod">Payment Method / Transfer Type <span class="required">*</span></label>
                     <select id="paymentMethod" required></select>
@@ -631,7 +638,6 @@
                     </div>
                     <div class="form-group">
                         <label data-i18n="bankName">Bank / Provider Name <span class="required" id="bankRequired">*</span></label>
-                        <!-- ✅ NEW: BANK DROPDOWN -->
                         <select id="bankName">
                             <option value="">-- Select Bank / Provider --</option>
                         </select>
@@ -753,7 +759,6 @@
         </div>
     </div>
 
-    <!-- LOGOUT & DELETE MODALS -->
     <div class="logout-modal-overlay" id="logoutModal">
         <div class="logout-modal">
             <div class="modal-icon"><i class="fas fa-sign-out-alt"></i></div>
@@ -782,9 +787,6 @@
     <div id="toast-container" class="toast-container"></div>
 
     <script>
-        // ============================================================
-        // FIREBASE CONFIG
-        // ============================================================
         const firebaseConfig = {
             apiKey: "AIzaSyBeQv8YLNfFFaTEZ6pxXaAy_K8n3u8V5X4",
             authDomain: "geresu-dhuki-sacco-75329.firebaseapp.com",
@@ -799,11 +801,7 @@
         const db = firebase.firestore();
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
-        // ============================================================
-        // ✅ BANKS & MOBILE MONEY PROVIDERS
-        // ============================================================
         const BANKS_LIST = [
-            // Mobile Money
             { value: 'telebirr', label: '📱 Tele Birr (Ethio Telecom)', type: 'mobile' },
             { value: 'mpesa', label: '📱 M-Pesa (Safaricom Ethiopia)', type: 'mobile' },
             { value: 'amole', label: '📱 Amole (Bank of Abyssinia)', type: 'mobile' },
@@ -815,7 +813,6 @@
             { value: 'ebirr', label: '📱 E-Birr', type: 'mobile' },
             { value: 'maya', label: '📱 Maya Cash', type: 'mobile' },
             { value: 'coopay', label: '📱 Coopay-Ebirr', type: 'mobile' },
-            // Commercial Banks
             { value: 'cbe', label: '🏦 Commercial Bank of Ethiopia (CBE)', type: 'bank' },
             { value: 'awash', label: '🏦 Awash Bank', type: 'bank' },
             { value: 'dashen', label: '🏦 Dashen Bank', type: 'bank' },
@@ -844,7 +841,6 @@
             { value: 'zamzam', label: '🏦 Zamzam Bank', type: 'bank' },
             { value: 'sidama', label: '🏦 Sidama Bank', type: 'bank' },
             { value: 'oromia_bank', label: '🏦 Oromia Bank', type: 'bank' },
-            // Other
             { value: 'other', label: '➕ Other (Enter manually)', type: 'other' }
         ];
 
@@ -898,9 +894,6 @@
             return selectedOpt ? selectedOpt.textContent.replace(/^[📱🏦➕]\s*/, '').trim() : '';
         }
 
-        // ============================================================
-        // TRANSLATIONS
-        // ============================================================
         const translations = {
             en: {
                 brandSub: 'SACCO Banking',
@@ -934,13 +927,20 @@
                 editSuccess: 'Penalty updated successfully.', editError: 'Error updating penalty: ',
                 sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.',
                 cash: 'Cash', bankTransfer: 'Bank Transfer', mobileMoney: 'Mobile Money',
+                payFromSavings: 'Pay from Savings',
                 duplicateWarning: 'This TT number and transfer date combination already exists. Please check.',
                 duplicateError: 'Duplicate TT number and transfer date found!',
                 recordedBy: 'Recorded By', approvedByLabel: 'Approved By', required: 'Required',
                 note: 'Note (optional)', paymentMethod: 'Payment Method / Transfer Type',
                 ttNumber: 'TT Number', transferDate: 'Transfer Date',
                 bankName: 'Bank / Provider Name', paymentApproved: 'Payment Approved',
-                paymentRejected: 'Payment Rejected', rejectReason: 'Rejection Reason'
+                paymentRejected: 'Payment Rejected', rejectReason: 'Rejection Reason',
+                savingsAvailable: "Customer's Available Savings",
+                savingsSufficient: '✓ sufficient',
+                savingsInsufficient: '⚠ insufficient for this penalty',
+                savingsPaidAuto: 'Penalty paid automatically from savings!',
+                savingsPaidPending: 'Payment from savings submitted! Awaiting admin approval.',
+                insufficientSavings: 'Insufficient savings'
             },
             am: {
                 brandSub: 'ባንክ ስርዓት',
@@ -976,6 +976,7 @@
                 editSuccess: 'ቅጣቱ በተሳካ ሁኔታ ተሻሽሏል።', editError: 'ቅጣት በማሻሻል ላይ ስህተት: ',
                 sessionTimeout: 'የእርስዎ ክፍለ-ጊዜ በ{seconds} ሰከንዶች ውስጥ ያበቃል።',
                 cash: 'ጥሬ ገንዘብ', bankTransfer: 'የባንክ ዝውውር', mobileMoney: 'ሞባይል ገንዘብ',
+                payFromSavings: 'ከቁጠባ ክፈል',
                 duplicateWarning: 'ይህ ቲቲ ቁጥር እና የዝውውር ቀን ቀድሞ አለ።',
                 duplicateError: 'የተደጋገመ ቲቲ ቁጥር እና ቀን ተገኝቷል!',
                 recordedBy: 'የተመዘገበው በ', approvedByLabel: 'ያጸደቀው',
@@ -983,7 +984,13 @@
                 paymentMethod: 'የክፍያ ዘዴ / የዝውውር አይነት',
                 ttNumber: 'ቲቲ ቁጥር', transferDate: 'የዝውውር ቀን',
                 bankName: 'ባንክ', paymentApproved: 'ክፍያ ጸድቋል',
-                paymentRejected: 'ክፍያ ውድቅ ተደርጓል', rejectReason: 'የውድቅ ምክንያት'
+                paymentRejected: 'ክፍያ ውድቅ ተደርጓል', rejectReason: 'የውድቅ ምክንያት',
+                savingsAvailable: 'የደንበኛው የሚገኝ ቁጠባ',
+                savingsSufficient: '✓ በቂ ነው',
+                savingsInsufficient: '⚠ ለዚህ ቅጣት አይበቃም',
+                savingsPaidAuto: 'ቅጣቱ ከቁጠባ በራስ-ሰር ተከፍሏል!',
+                savingsPaidPending: 'ከቁጠባ ክፍያ ገብቷል! በአስተዳዳሪ ማጽደቅ በመጠበቅ ላይ።',
+                insufficientSavings: 'ቁጠባ አይበቃም'
             },
             om: {
                 brandSub: 'Sirna Baankii',
@@ -1019,6 +1026,7 @@
                 editSuccess: 'Adabni sirriitti fooyyeffame.', editError: 'Adaba fooyyeessuuf dogoggora: ',
                 sessionTimeout: 'Yeroo keessan {seconds} sekondii keessatti xumura.',
                 cash: 'Saaphanaa', bankTransfer: 'Sochoosa Baankii', mobileMoney: 'Maallaqa Moobayilaa',
+                payFromSavings: 'Kusaa irraa Kaffali',
                 duplicateWarning: 'Lakkoofsi TT fi guyyaan sochoosaa kana duraan jira.',
                 duplicateError: 'Lakkoofsi TT fi guyyaan sochoosaa lama!',
                 recordedBy: 'Galmeesse', approvedByLabel: 'Mirkaneesse',
@@ -1026,7 +1034,13 @@
                 paymentMethod: 'Haala Kaffaltii / Gosa Sochoosaa',
                 ttNumber: 'Lakkoofsa TT', transferDate: 'Guyyaa Sochoosaa',
                 bankName: 'Maqaa Baankii', paymentApproved: 'Kaffaltiin Mirkanaafame',
-                paymentRejected: 'Kaffaltiin Garfame', rejectReason: 'Sababa Garfamuu'
+                paymentRejected: 'Kaffaltiin Garfame', rejectReason: 'Sababa Garfamuu',
+                savingsAvailable: 'Kusaa Maamilaa Argamu',
+                savingsSufficient: '✓ ga\'aa',
+                savingsInsufficient: '⚠ adaba kanaaf hin gahu',
+                savingsPaidAuto: 'Adabni kusaa irraa ofumaan kaffalame!',
+                savingsPaidPending: 'Kaffaltiin kusaa irraa ergame! Mirkaneessa bulchaa eegaa jira.',
+                insufficientSavings: 'Kusaan hin gahu'
             }
         };
 
@@ -1042,6 +1056,8 @@
         let filterStatus = 'all';
         let filteredPenalties = [];
         let loansPenaltyRate = 0.05;
+        let allowPenaltyFromSavings = true;         // ✅ Setting: show "Pay from Savings" option
+        let autoApprovePenaltyFromSavings = false;  // ✅ Setting: auto-approve savings payments
         let pendingPayId = null;
         let pendingDeleteId = null;
         let pendingApproveId = null;
@@ -1139,6 +1155,9 @@
                 if (doc.exists) {
                     const data = doc.data();
                     loansPenaltyRate = data.loansPenaltyRate !== undefined ? data.loansPenaltyRate / 100 : (data.penaltyRate || 5) / 100;
+                    // ✅ Read savings-based penalty settings
+                    if (data.allowPenaltyFromSavings !== undefined) allowPenaltyFromSavings = !!data.allowPenaltyFromSavings;
+                    if (data.autoApprovePenaltyFromSavings !== undefined) autoApprovePenaltyFromSavings = !!data.autoApprovePenaltyFromSavings;
                 }
                 document.getElementById('penaltyRateDisplay').textContent = `${(loansPenaltyRate * 100).toFixed(1)}%`;
                 return loansPenaltyRate;
@@ -1200,6 +1219,28 @@
             }
         }
 
+        // ============================================================
+        // ✅ Get customer's available savings (approved deposits only)
+        // Used when paying a penalty from savings.
+        // ============================================================
+        async function getCustomerAvailableSavings(customerId) {
+            try {
+                const id = extractIdFromAny(customerId) || customerId;
+                if (!id) return 0;
+                const [snap1, snap2] = await Promise.all([
+                    db.collection('transactions').where('customerId', '==', id).where('type', '==', 'savings').where('status', '==', 'approved').get(),
+                    db.collection('transactions').where('memberId', '==', id).where('type', '==', 'savings').where('status', '==', 'approved').get()
+                ]);
+                let total = 0;
+                snap1.forEach(doc => total += Number(doc.data().amount) || 0);
+                snap2.forEach(doc => total += Number(doc.data().amount) || 0);
+                return Math.round(total * 100) / 100;
+            } catch (e) {
+                console.error('Error fetching savings:', e);
+                return 0;
+            }
+        }
+
         function buildPaymentMethodOptions() {
             const select = document.getElementById('paymentMethod');
             if (!select) return;
@@ -1221,6 +1262,13 @@
             mobileOpt.value = 'mobile';
             mobileOpt.textContent = t.mobileMoney || 'Mobile Money';
             select.appendChild(mobileOpt);
+            // ✅ Add "Pay from Savings" option (only if enabled in settings)
+            if (allowPenaltyFromSavings) {
+                const savingsOpt = document.createElement('option');
+                savingsOpt.value = 'savings';
+                savingsOpt.textContent = '💾 ' + (t.payFromSavings || 'Pay from Savings');
+                select.appendChild(savingsOpt);
+            }
             if ([...select.options].some(o => o.value === currentVal)) select.value = currentVal;
             else select.value = isAdminManager ? 'cash' : 'bank';
             toggleConditionalFields();
@@ -1236,10 +1284,12 @@
             const transferDateInput = document.getElementById('transferDate');
             const bankSelect = document.getElementById('bankName');
             const bankOther = document.getElementById('bankNameOther');
+            const savingsInfo = document.getElementById('savingsBalanceInfo');
 
             if (!fields || !ttInput || !transferDateInput || !bankSelect) return;
 
-            if (method === 'cash') {
+            // ✅ Hide TT fields for cash OR savings
+            if (method === 'cash' || method === 'savings') {
                 fields.style.display = 'none';
                 ttInput.removeAttribute('required');
                 transferDateInput.removeAttribute('required');
@@ -1258,6 +1308,16 @@
                 if (bankRequired) bankRequired.textContent = '*';
                 populateBankDropdown(method);
                 handleBankOtherToggle();
+            }
+
+            // ✅ Show/hide savings balance info
+            if (savingsInfo) {
+                if (method === 'savings') {
+                    savingsInfo.classList.add('show');
+                } else {
+                    savingsInfo.classList.remove('show');
+                    savingsInfo.innerHTML = '';
+                }
             }
         }
 
@@ -1468,7 +1528,7 @@
                 <div class="view-detail-row"><span class="label">${t.approvedBy}</span><span class="value">${approvedBy}</span></div>
                 <div class="view-detail-row"><span class="label">${t.createdDate}</span><span class="value">${dateStr}</span></div>
                 <div class="view-detail-row"><span class="label">Description</span><span class="value">${penalty.description || '—'}</span></div>
-                ${penalty.payment_method ? `<div class="view-detail-row"><span class="label">${t.paymentMethod}</span><span class="value">${penalty.payment_method}</span></div>` : ''}
+                ${penalty.payment_method ? `<div class="view-detail-row"><span class="label">${t.paymentMethod}</span><span class="value">${penalty.payment_method === 'savings' ? '💾 ' + (t.payFromSavings || 'Pay from Savings') : penalty.payment_method}</span></div>` : ''}
                 ${penalty.ttNumber ? `<div class="view-detail-row"><span class="label">${t.ttNumber}</span><span class="value">${penalty.ttNumber}</span></div>` : ''}
                 ${penalty.transferDate ? `<div class="view-detail-row"><span class="label">${t.transferDate}</span><span class="value">${penalty.transferDate.toDate ? penalty.transferDate.toDate().toLocaleDateString() : new Date(penalty.transferDate).toLocaleDateString()}</span></div>` : ''}
                 ${penalty.bankName ? `<div class="view-detail-row"><span class="label">${t.bankName}</span><span class="value">${penalty.bankName}</span></div>` : ''}
@@ -1512,6 +1572,9 @@
             document.getElementById('payNote').value = '';
             document.getElementById('duplicateWarning').classList.remove('show');
 
+            const savingsInfo = document.getElementById('savingsBalanceInfo');
+            if (savingsInfo) { savingsInfo.classList.remove('show'); savingsInfo.innerHTML = ''; }
+
             toggleConditionalFields();
 
             document.getElementById('payPenaltyModal').classList.add('active');
@@ -1524,6 +1587,32 @@
             pendingPayId = null;
         }
 
+        // ✅ Refresh savings balance when method changes to "savings"
+        async function refreshSavingsBalance() {
+            const method = document.getElementById('paymentMethod').value;
+            const savingsInfo = document.getElementById('savingsBalanceInfo');
+            if (!savingsInfo || method !== 'savings') return;
+            const penalty = allPenalties.find(p => p.id === pendingPayId);
+            if (!penalty) return;
+            const t = translations[currentLang];
+            savingsInfo.classList.add('show');
+            savingsInfo.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Loading…`;
+            try {
+                const bal = await getCustomerAvailableSavings(penalty.memberId);
+                const penaltyAmt = Number(penalty.amount) || 0;
+                const sufficient = bal >= penaltyAmt;
+                savingsInfo.innerHTML =
+                    `<i class="fas fa-piggy-bank" style="color:${sufficient ? 'var(--success)' : 'var(--danger)'};"></i> ` +
+                    `${t.savingsAvailable || "Customer's Available Savings"}: ` +
+                    `<strong style="color:${sufficient ? 'var(--success)' : 'var(--danger)'};">ETB ${bal.toFixed(2)}</strong> ` +
+                    (sufficient
+                        ? `<span style="color:var(--success);">${t.savingsSufficient || '✓ sufficient'}</span>`
+                        : `<span style="color:var(--danger);">${t.savingsInsufficient || '⚠ insufficient'}</span>`);
+            } catch (e) {
+                savingsInfo.innerHTML = `<span style="color:var(--danger);">Error loading savings</span>`;
+            }
+        }
+
         async function confirmPayPenalty() {
             if (!pendingPayId) { showToast('No penalty selected.', 'error'); return; }
             const penalty = allPenalties.find(p => p.id === pendingPayId);
@@ -1532,12 +1621,92 @@
             if (penalty.payment_status) { showToast('A payment has already been submitted for this penalty.', 'warning'); return; }
 
             const paymentMethod = document.getElementById('paymentMethod').value;
-            const ttNumber = document.getElementById('ttNumber').value.trim();
-            const transferDate = document.getElementById('transferDate').value;
-            const bankName = getFinalBankName();  // ✅ use helper
             const note = document.getElementById('payNote').value.trim();
+            const t = translations[currentLang];
 
             if (!paymentMethod) { showToast('Please select a payment method.', 'warning'); return; }
+
+            // ============================================================
+            // ✅ "Pay from Savings" branch
+            // ============================================================
+            if (paymentMethod === 'savings') {
+                const penaltyAmount = Number(penalty.amount) || 0;
+                const availableSavings = await getCustomerAvailableSavings(penalty.memberId);
+                if (availableSavings < penaltyAmount) {
+                    showToast(`❌ ${t.insufficientSavings || 'Insufficient savings'}. Available: ETB ${availableSavings.toFixed(2)}, Required: ETB ${penaltyAmount.toFixed(2)}`, 'error');
+                    return;
+                }
+                try {
+                    const user = auth.currentUser;
+                    const submittedBy = user?.displayName || user?.email || currentUserDisplayName || 'System';
+                    const now = firebase.firestore.FieldValue.serverTimestamp();
+
+                    if (autoApprovePenaltyFromSavings) {
+                        // ✅ Auto-approve: mark PAID immediately
+                        await db.collection('transactions').doc(pendingPayId).update({
+                            status: 'paid',
+                            payment_status: 'approved',
+                            payment_method: 'savings',
+                            paidFrom: 'savings',
+                            paymentSource: 'savings',
+                            payment_note: note || 'Paid automatically from customer savings',
+                            paidBy: submittedBy,
+                            paidAt: now,
+                            approvedBy: submittedBy,
+                            approvedAt: now,
+                            payment_submitted_by: submittedBy,
+                            payment_submitted_at: now
+                        });
+                        await db.collection('audit').add({
+                            action: 'payment_from_savings',
+                            collection: 'transactions',
+                            documentId: pendingPayId,
+                            changes: { status: { old: 'pending', new: 'paid' }, paidFrom: { old: null, new: 'savings' } },
+                            details: `Penalty paid automatically from savings by ${submittedBy} (ETB ${penaltyAmount.toFixed(2)})`,
+                            timestamp: now,
+                            userEmail: user?.email || 'system',
+                            userName: submittedBy,
+                            userDisplayName: submittedBy
+                        });
+                        showToast(`✅ ${t.savingsPaidAuto || 'Penalty paid automatically from savings!'} (ETB ${penaltyAmount.toFixed(2)})`, 'success');
+                    } else {
+                        // ✅ Submit for admin approval
+                        await db.collection('transactions').doc(pendingPayId).update({
+                            payment_status: 'pending',
+                            payment_method: 'savings',
+                            paidFrom: 'savings',
+                            paymentSource: 'savings',
+                            payment_note: note || 'Requested to pay from savings',
+                            payment_submitted_by: submittedBy,
+                            payment_submitted_at: now
+                        });
+                        await db.collection('audit').add({
+                            action: 'payment_submitted',
+                            collection: 'transactions',
+                            documentId: pendingPayId,
+                            changes: { payment_status: { old: null, new: 'pending' }, paidFrom: { old: null, new: 'savings' } },
+                            details: `Penalty payment from savings submitted by ${submittedBy} (ETB ${penaltyAmount.toFixed(2)})`,
+                            timestamp: now,
+                            userEmail: user?.email || 'system',
+                            userName: submittedBy,
+                            userDisplayName: submittedBy
+                        });
+                        showToast(`✅ ${t.savingsPaidPending || 'Payment from savings submitted! Awaiting admin approval.'}`, 'success');
+                    }
+                    closePayModal();
+                    await loadPenalties();
+                } catch (error) {
+                    showToast('Error processing savings payment: ' + error.message, 'error');
+                }
+                return;
+            }
+
+            // ============================================================
+            // Cash / bank / mobile — existing logic
+            // ============================================================
+            const ttNumber = document.getElementById('ttNumber').value.trim();
+            const transferDate = document.getElementById('transferDate').value;
+            const bankName = getFinalBankName();
 
             if (paymentMethod !== 'cash') {
                 if (!ttNumber) { showToast('TT number is required.', 'warning'); return; }
@@ -1592,7 +1761,8 @@
             document.getElementById('approvePenaltyId').value = id;
             document.getElementById('approveMemberName').textContent = penalty.customerName || 'Unknown';
             document.getElementById('approveAmount').textContent = `ETB ${Number(penalty.amount).toLocaleString()}`;
-            document.getElementById('approveMethod').textContent = penalty.payment_method || '—';
+            const methodLabel = penalty.payment_method === 'savings' ? '💾 ' + (translations[currentLang].payFromSavings || 'Pay from Savings') : (penalty.payment_method || '—');
+            document.getElementById('approveMethod').textContent = methodLabel;
             document.getElementById('approveTT').textContent = penalty.ttNumber || '—';
             document.getElementById('approveTransferDate').textContent = penalty.transferDate && penalty.transferDate.toDate ? penalty.transferDate.toDate().toLocaleDateString() : (penalty.transferDate ? new Date(penalty.transferDate).toLocaleDateString() : '—');
             document.getElementById('approveSubmittedBy').textContent = penalty.payment_submitted_by || '—';
@@ -1614,16 +1784,24 @@
             try {
                 const user = auth.currentUser;
                 const approvedBy = user?.displayName || user?.email || currentUserDisplayName || 'System';
-                await db.collection('transactions').doc(pendingApproveId).update({
-                    status: 'paid', payment_status: 'approved',
+                const updateData = {
+                    status: 'paid',
+                    payment_status: 'approved',
                     paidAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    paidBy: approvedBy, approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    paidBy: approvedBy,
+                    approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
                     approvedBy: approvedBy
-                });
+                };
+                // ✅ Preserve savings source when approving savings-based payment
+                if (penalty.payment_method === 'savings') {
+                    updateData.paidFrom = 'savings';
+                    updateData.paymentSource = 'savings';
+                }
+                await db.collection('transactions').doc(pendingApproveId).update(updateData);
                 await db.collection('audit').add({
                     action: 'payment_approved', collection: 'transactions', documentId: pendingApproveId,
                     changes: { status: { old: 'pending', new: 'paid' }, payment_status: { old: 'pending', new: 'approved' } },
-                    details: `Penalty payment approved by ${approvedBy}`,
+                    details: `Penalty payment approved by ${approvedBy}${penalty.payment_method === 'savings' ? ' (from savings)' : ''}`,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp(),
                     userEmail: user?.email || 'system', userName: approvedBy, userDisplayName: approvedBy
                 });
@@ -1642,7 +1820,8 @@
             document.getElementById('rejectPenaltyId').value = id;
             document.getElementById('rejectMemberName').textContent = penalty.customerName || 'Unknown';
             document.getElementById('rejectAmount').textContent = `ETB ${Number(penalty.amount).toLocaleString()}`;
-            document.getElementById('rejectMethod').textContent = penalty.payment_method || '—';
+            const methodLabel = penalty.payment_method === 'savings' ? '💾 ' + (translations[currentLang].payFromSavings || 'Pay from Savings') : (penalty.payment_method || '—');
+            document.getElementById('rejectMethod').textContent = methodLabel;
             document.getElementById('rejectSubmittedBy').textContent = penalty.payment_submitted_by || '—';
             document.getElementById('rejectReason').value = '';
             document.getElementById('rejectPaymentModal').classList.add('active');
@@ -1666,7 +1845,8 @@
                 const user = auth.currentUser;
                 const rejectedBy = user?.displayName || user?.email || currentUserDisplayName || 'System';
                 await db.collection('transactions').doc(pendingRejectId).update({
-                    payment_status: 'rejected', rejection_reason: reason,
+                    payment_status: 'rejected',
+                    rejection_reason: reason,
                     rejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
                     rejectedBy: rejectedBy
                 });
@@ -1776,6 +1956,7 @@
             overlay.classList.add('active');
             try {
                 await loadCustomers();
+                await loadSettings();
                 await loadPenalties();
                 showToast('Penalties refreshed successfully.', 'success');
             } catch (e) { showToast('Error refreshing: ' + e.message, 'error'); }
@@ -1817,8 +1998,8 @@
                     currentUserRole = 'viewer';
                     currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'Admin';
                 }
-                updateUserInfo();
                 await loadSettings();
+                updateUserInfo();
                 initLanguage();
                 loadSidebarState();
 
@@ -1851,13 +2032,15 @@
                 document.getElementById('cancelPayBtn').addEventListener('click', closePayModal);
                 document.getElementById('confirmPayBtn').addEventListener('click', confirmPayPenalty);
 
-                // ✅ Payment method change listener
+                // ✅ Payment method change → refresh savings balance if "savings" selected
                 document.getElementById('paymentMethod').addEventListener('change', function() {
                     toggleConditionalFields();
                     document.getElementById('duplicateWarning').classList.remove('show');
+                    if (this.value === 'savings') {
+                        refreshSavingsBalance();
+                    }
                 });
 
-                // ✅ Bank dropdown change listener
                 document.getElementById('bankName').addEventListener('change', handleBankOtherToggle);
 
                 document.getElementById('ttNumber').addEventListener('blur', async function() {
