@@ -754,7 +754,7 @@
                         <div class="stat-info">
                             <span class="stat-label" data-i18n="statProfit">Net Profit (ETB)</span>
                             <span class="stat-value" id="profitValue">0</span>
-                            <span class="stat-change" id="profitChange">Interest + Reg. Fee + Other Deposits − Service Withdrawals</span>
+                            <span class="stat-change" id="profitChange">Interest + Reg. Fee + Other Deposits + Paid Penalties − Service Withdrawals</span>
                         </div>
                     </div>
 
@@ -908,6 +908,19 @@
 
                     <div class="ds-toggle-row">
                         <div class="ds-toggle-text">
+                            <div class="ds-toggle-title">Include Paid Penalties</div>
+                            <div class="ds-toggle-desc">
+                                Count all <strong>paid penalties</strong> (cash, bank, mobile, or savings) as income.
+                            </div>
+                        </div>
+                        <label class="ds-toggle-switch">
+                            <input type="checkbox" id="dsIncludePaidPenalties" />
+                            <span class="ds-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="ds-toggle-row">
+                        <div class="ds-toggle-text">
                             <div class="ds-toggle-title">Deduct SACCO Service Withdrawals</div>
                             <div class="ds-toggle-desc">
                                 Subtract approved / pending / completed <code>service_withdrawal</code> transactions from Net Profit.
@@ -1011,6 +1024,7 @@
                     <div class="ds-summary-title"><i class="fas fa-eye"></i> Live Preview</div>
                     <div class="ds-summary-line"><span>Deposit statuses:</span> <strong id="dsPreviewDepositStatuses">—</strong></div>
                     <div class="ds-summary-line"><span>Repayment statuses:</span> <strong id="dsPreviewRepaymentStatuses">—</strong></div>
+                    <div class="ds-summary-line"><span>Include Paid Penalties:</span> <strong id="dsPreviewPaidPenalties">—</strong></div>
                     <div class="ds-summary-line"><span>Share buys affect Net Saving:</span> <strong id="dsPreviewShareBuys">—</strong></div>
                     <div class="ds-summary-line"><span>Deduct Service Withdrawals:</span> <strong id="dsPreviewServiceWithdrawals">—</strong></div>
                     <div class="ds-summary-line"><span>Deduct Penalties from Savings:</span> <strong id="dsPreviewPenaltyFromSavings">—</strong></div>
@@ -1066,6 +1080,7 @@
             includeOtherIncome: true,
             includePaidInterest: true,
             includeServiceWithdrawals: true,
+            includePaidPenalties: true,           // ✅ NEW
             depositStatuses: ['approved', 'printed', 'completed', 'done', 'paid'],
             repaymentStatuses: ['approved', 'printed', 'paid', 'done'],
             deductShareBuys: true,
@@ -1233,7 +1248,7 @@
             return list.includes(m);
         }
 
-        // ✅ NEW: Detect whether a penalty was paid from the customer's savings
+        // ✅ Detect whether a penalty was paid from the customer's savings
         function isPenaltyPaidFromSavings(penalty) {
             if (!penalty) return false;
             const raw = penalty.paymentMethod || penalty.paidFrom || penalty.paymentSource ||
@@ -1243,7 +1258,7 @@
             return penaltyPaymentSources.includes(m);
         }
 
-        // ✅ NEW: Check whether a penalty counts as paid
+        // ✅ Check whether a penalty counts as paid
         function isPenaltyPaid(penalty) {
             if (!penalty) return false;
             const s = String(penalty.status || '').toLowerCase();
@@ -1892,16 +1907,15 @@
                 const paidPenaltiesAmount = paidPenaltiesAllYears
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-                // ✅ Penalties paid FROM SAVINGS (all years)
+                // Penalties paid FROM SAVINGS (all years) — always computed
                 let paidFromSavingsAllYears = 0;
-                if (deductPenaltyFromSavings) {
-                    allPenalties.forEach(p => {
-                        if (!isPenaltyPaid(p)) return;
-                        if (!isPenaltyPaidFromSavings(p)) return;
-                        paidFromSavingsAllYears += Number(p.amount) || 0;
-                    });
-                    paidFromSavingsAllYears = Math.round(paidFromSavingsAllYears * 100) / 100;
-                }
+                allPenalties.forEach(p => {
+                    if (!isPenaltyPaid(p)) return;
+                    if (!isPenaltyPaidFromSavings(p)) return;
+                    paidFromSavingsAllYears += Number(p.amount) || 0;
+                });
+                paidFromSavingsAllYears = Math.round(paidFromSavingsAllYears * 100) / 100;
+
                 const paidExternalAllYears = Math.round((paidPenaltiesAmount - paidFromSavingsAllYears) * 100) / 100;
 
                 // ============================================================
@@ -1943,10 +1957,17 @@
                     allYearsServiceWithdrawals = Math.round(allYearsServiceWithdrawals * 100) / 100;
                 }
 
+                // ✅ NEW: All paid penalties count as income (from any source)
+                let allYearsPaidPenalties = 0;
+                if (dashboardSettings.includePaidPenalties !== false) {
+                    allYearsPaidPenalties = paidPenaltiesAmount;
+                }
+
                 const totalIncomeAllYears = Math.round(
                     (allYearsRegistrationFee
                      + allYearsOtherIncome
                      + allYearsPaidInterest
+                     + allYearsPaidPenalties
                      - allYearsServiceWithdrawals) * 100
                 ) / 100;
 
@@ -2006,10 +2027,23 @@
                     yearlyServiceWithdrawals = Math.round(yearlyServiceWithdrawals * 100) / 100;
                 }
 
+                // ✅ NEW: Yearly paid penalties (from any source)
+                let yearlyPaidPenalties = 0;
+                if (dashboardSettings.includePaidPenalties !== false) {
+                    allPenalties.forEach(p => {
+                        if (!isPenaltyPaid(p)) return;
+                        const when = toDate(p.paidAt || p.approvedAt || p.date || p.createdAt || p.timestamp);
+                        if (!when || when.getFullYear() !== year) return;
+                        yearlyPaidPenalties += Number(p.amount) || 0;
+                    });
+                    yearlyPaidPenalties = Math.round(yearlyPaidPenalties * 100) / 100;
+                }
+
                 const totalIncomeYearly = Math.round(
                     (yearlyRegistrationFee
                      + yearlyOtherIncome
                      + yearlyPaidInterest
+                     + yearlyPaidPenalties
                      - yearlyServiceWithdrawals) * 100
                 ) / 100;
 
@@ -2019,7 +2053,7 @@
                 // YEARLY — NET SAVING
                 // Gross Savings − Savings-based Share Buys
                 //             − Individual Withdrawals − Customer Leaving
-                //             − Penalties Paid FROM SAVINGS      ← NEW
+                //             − Penalties Paid FROM SAVINGS
                 // ============================================================
                 const totalSavings = savingsData.reduce((s, item) => s + (Number(item.amount) || 0), 0);
                 const totalWithdrawalsYearly = withdrawalsData.reduce((s, w) => s + (Number(w.amount) || 0), 0);
@@ -2054,7 +2088,7 @@
                 yearlyNetShareValue = Math.round(yearlyNetShareValue * 100) / 100;
                 yearlyShareSavingAdjustment = Math.round(yearlyShareSavingAdjustment * 100) / 100;
 
-                // ✅ NEW: Penalties paid FROM SAVINGS this year
+                // Penalties paid FROM SAVINGS this year
                 let yearlyPenaltyFromSavings = 0;
                 if (deductPenaltyFromSavings) {
                     allPenalties.forEach(p => {
@@ -2201,8 +2235,17 @@
                         .filter(isServiceWithdrawalCounted)
                         .reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
                 }
+                let prevPaidPenalties = 0;
+                if (dashboardSettings.includePaidPenalties !== false) {
+                    allPenalties.forEach(p => {
+                        if (!isPenaltyPaid(p)) return;
+                        const when = toDate(p.paidAt || p.approvedAt || p.date || p.createdAt || p.timestamp);
+                        if (!when || when.getFullYear() !== prevYear) return;
+                        prevPaidPenalties += Number(p.amount) || 0;
+                    });
+                }
                 const prevTotalIncome = Math.round(
-                    (prevRegFee + prevOther + prevPaidInterest - prevServiceWithdrawals) * 100
+                    (prevRegFee + prevOther + prevPaidInterest + prevPaidPenalties - prevServiceWithdrawals) * 100
                 ) / 100;
                 const profitChange = prevTotalIncome > 0 ? ((totalIncomeYearly - prevTotalIncome) / prevTotalIncome * 100) : 0;
                 updateChange('profitChange', profitChange);
@@ -2358,12 +2401,12 @@
             document.getElementById('dsIncludeOtherIncome').checked = !!dashboardSettings.includeOtherIncome;
             document.getElementById('dsIncludePaidInterest').checked = !!dashboardSettings.includePaidInterest;
             document.getElementById('dsIncludeServiceWithdrawals').checked = dashboardSettings.includeServiceWithdrawals !== false;
+            document.getElementById('dsIncludePaidPenalties').checked = dashboardSettings.includePaidPenalties !== false;
             document.getElementById('dsDeductShareBuys').checked = !!dashboardSettings.deductShareBuys;
             document.getElementById('dsCountShareTransfers').checked = !!dashboardSettings.countShareTransfers;
             document.getElementById('dsDepositStatuses').value = statusesArrayToString(dashboardSettings.depositStatuses);
             document.getElementById('dsRepaymentStatuses').value = statusesArrayToString(dashboardSettings.repaymentStatuses);
             document.getElementById('dsShareStatuses').value = statusesArrayToString(dashboardSettings.shareStatuses);
-            // ✅ Penalty from savings controls
             document.getElementById('dsDeductPenaltyFromSavings').checked = deductPenaltyFromSavings !== false;
             document.getElementById('dsPenaltyPaymentSources').value = Array.isArray(penaltyPaymentSources)
                 ? penaltyPaymentSources.join(', ') : 'savings, from_savings, member_savings';
@@ -2382,6 +2425,11 @@
                 document.getElementById('dsDeductShareBuys').checked ? 'Yes' : 'No';
             document.getElementById('dsPreviewServiceWithdrawals').textContent =
                 document.getElementById('dsIncludeServiceWithdrawals').checked ? 'Yes' : 'No';
+            const previewPaidPenalties = document.getElementById('dsPreviewPaidPenalties');
+            if (previewPaidPenalties) {
+                previewPaidPenalties.textContent =
+                    document.getElementById('dsIncludePaidPenalties').checked ? 'Yes' : 'No';
+            }
             const previewPenalty = document.getElementById('dsPreviewPenaltyFromSavings');
             if (previewPenalty) {
                 previewPenalty.textContent = document.getElementById('dsDeductPenaltyFromSavings').checked ? 'Yes' : 'No';
@@ -2393,6 +2441,7 @@
                 includeOtherIncome: document.getElementById('dsIncludeOtherIncome').checked,
                 includePaidInterest: document.getElementById('dsIncludePaidInterest').checked,
                 includeServiceWithdrawals: document.getElementById('dsIncludeServiceWithdrawals').checked,
+                includePaidPenalties: document.getElementById('dsIncludePaidPenalties').checked,   // ✅ NEW
                 deductShareBuys: document.getElementById('dsDeductShareBuys').checked,
                 countShareTransfers: document.getElementById('dsCountShareTransfers').checked,
                 depositStatuses: stringToStatusesArray(document.getElementById('dsDepositStatuses').value),
@@ -2405,7 +2454,6 @@
             const newSettings = readDashSettingsForm();
             dashboardSettings = { ...dashboardSettings, ...newSettings };
 
-            // ✅ Read penalty-from-savings form values
             deductPenaltyFromSavings = document.getElementById('dsDeductPenaltyFromSavings').checked;
             penaltyPaymentSources = stringToStatusesArray(document.getElementById('dsPenaltyPaymentSources').value)
                 .map(s => s.toLowerCase());
@@ -2428,6 +2476,7 @@
             document.getElementById('dsIncludeOtherIncome').checked = dashboardSettings.includeOtherIncome;
             document.getElementById('dsIncludePaidInterest').checked = dashboardSettings.includePaidInterest;
             document.getElementById('dsIncludeServiceWithdrawals').checked = dashboardSettings.includeServiceWithdrawals;
+            document.getElementById('dsIncludePaidPenalties').checked = dashboardSettings.includePaidPenalties;
             document.getElementById('dsDeductShareBuys').checked = dashboardSettings.deductShareBuys;
             document.getElementById('dsCountShareTransfers').checked = dashboardSettings.countShareTransfers;
             document.getElementById('dsDepositStatuses').value = statusesArrayToString(dashboardSettings.depositStatuses);
@@ -2504,7 +2553,7 @@
                 document.getElementById('dsSaveBtn').addEventListener('click', saveDashSettings);
                 document.getElementById('dsResetBtn').addEventListener('click', resetDashSettingsForm);
                 ['dsIncludeRegistrationFee', 'dsIncludeOtherIncome', 'dsIncludePaidInterest',
-                 'dsIncludeServiceWithdrawals',
+                 'dsIncludeServiceWithdrawals', 'dsIncludePaidPenalties',
                  'dsDeductShareBuys', 'dsCountShareTransfers',
                  'dsDepositStatuses', 'dsRepaymentStatuses', 'dsShareStatuses',
                  'dsDeductPenaltyFromSavings', 'dsPenaltyPaymentSources'
