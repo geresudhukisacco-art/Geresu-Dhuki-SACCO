@@ -396,9 +396,6 @@
             margin-top: auto;
         }
 
-        /* ============================================================
-           A4 PRINT — Yearly Share & Dividend Report
-           ============================================================ */
         .slip-container { display: none; }
 
         .a4-page {
@@ -861,15 +858,16 @@
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
         // ============================================================
-        // DEFAULT DASHBOARD SETTINGS (shared with Dashboard)
-        // Net Profit = Paid Interest + Registration Fee + Other Income
-        //              − SACCO Service Withdrawals
+        // DEFAULT DASHBOARD SETTINGS
+        // Net Profit = Reg. Fee + Other Income + Paid Interest
+        //              + Paid Penalties − Service Withdrawals
         // ============================================================
         const DEFAULT_DASHBOARD_SETTINGS = {
             includeRegistrationFee: true,
             includeOtherIncome: true,
             includePaidInterest: true,
             includeServiceWithdrawals: true,
+            includePaidPenalties: true,                 // ✅ NEW
             depositStatuses: ['approved', 'printed', 'completed', 'done', 'paid'],
             repaymentStatuses: ['approved', 'printed', 'paid', 'done'],
             deductShareBuys: true,
@@ -878,6 +876,11 @@
         };
 
         let dashboardSettings = { ...DEFAULT_DASHBOARD_SETTINGS };
+
+        // ✅ Penalty-from-savings settings (loaded from settings/system)
+        let deductPenaltyFromSavings = true;
+        let penaltyPaymentSources = ['savings', 'saving', 'from_savings', 'savings_account',
+                                     'member_savings', 'sacco_savings', 'from_saving'];
 
         async function loadDashboardSettings() {
             try {
@@ -900,6 +903,13 @@
                                 ? data.dashboard.shareStatuses
                                 : DEFAULT_DASHBOARD_SETTINGS.shareStatuses
                         };
+                    }
+                    // ✅ Load penalty settings
+                    if (data.deductPenaltyFromSavings !== undefined) {
+                        deductPenaltyFromSavings = !!data.deductPenaltyFromSavings;
+                    }
+                    if (Array.isArray(data.penaltyPaymentSources) && data.penaltyPaymentSources.length > 0) {
+                        penaltyPaymentSources = data.penaltyPaymentSources.map(x => String(x).toLowerCase().trim());
                     }
                 }
             } catch (e) {
@@ -942,9 +952,6 @@
             return { principal: principalPart, interest: interestPart };
         }
 
-        // ============================================================
-        // REGISTRATION / OTHER INCOME
-        // ============================================================
         function isRegistrationFee(incomeType) {
             const type = (incomeType || '').toLowerCase().trim();
             return type.includes('registration') ||
@@ -979,6 +986,21 @@
             if (!sw) return false;
             const s = String(sw.status || '').toLowerCase().trim();
             return ACTIVE_SERVICE_WITHDRAWAL_STATUSES.includes(s);
+        }
+
+        // ✅ NEW: Penalty helpers
+        function isPenaltyPaidFromSavings(penalty) {
+            if (!penalty) return false;
+            const raw = penalty.paymentMethod || penalty.paidFrom || penalty.paymentSource ||
+                        penalty.source || penalty.method || penalty.paymentType || '';
+            const m = String(raw).toLowerCase().trim();
+            if (!m) return false;
+            return penaltyPaymentSources.includes(m);
+        }
+        function isPenaltyPaid(penalty) {
+            if (!penalty) return false;
+            const s = String(penalty.status || '').toLowerCase();
+            return s === 'paid' || s === 'done' || s === 'approved';
         }
 
         const COUNTED_SHARE_STATUSES = ['approved', 'completed', 'done', 'printed', 'paid'];
@@ -1420,9 +1442,6 @@
             return word.trim() || 'Zero';
         }
 
-        // ============================================================
-        // LOAD CUSTOMERS
-        // ============================================================
         async function loadCustomersForSelect() {
             try {
                 const snapshot = await db.collection('customers').get();
@@ -1455,8 +1474,8 @@
 
         // ============================================================
         // CALCULATE YEAR DATA
-        // Net Profit = Paid Interest + Registration Fee + Other Income
-        //              − SACCO Service Withdrawals
+        // Net Profit = Reg. Fee + Other Income + Paid Interest
+        //              + Paid Penalties − Service Withdrawals   ← ✅ updated
         // ============================================================
         async function calculateYearData(year) {
             const [
@@ -1465,7 +1484,8 @@
                 profitIncomeSnap,
                 profitWithdrawalSnap,
                 serviceSnap,
-                sharesSnap
+                sharesSnap,
+                penaltiesSnap                           // ✅ NEW
             ] = await Promise.all([
                 db.collection('transactions').where('type', '==', 'loan').get(),
                 db.collection('transactions').where('type', '==', 'repayment').get(),
@@ -1474,7 +1494,8 @@
                 db.collection('transactions').where('type', '==', 'service_withdrawal').get(),
                 db.collection('transactions')
                   .where('type', 'in', ['share_buy', 'share_sell', 'share_transfer_in', 'share_transfer_out'])
-                  .get()
+                  .get(),
+                db.collection('transactions').where('type', '==', 'penalty').get()   // ✅
             ]);
 
             const allLoans              = loansSnap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -1483,10 +1504,9 @@
             const allProfitWithdrawal   = profitWithdrawalSnap.docs.map(d => ({ id: d.id, ...d.data() }));
             const allServiceWithdrawals = serviceSnap.docs.map(d => ({ id: d.id, ...d.data() }));
             const allShares             = sharesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            const allPenalties          = penaltiesSnap.docs.map(d => ({ id: d.id, ...d.data() }));   // ✅
 
-            // ------------------------------------------------------------
-            // 1. REGISTRATION FEE (this year) — profit_income with registration incomeType
-            // ------------------------------------------------------------
+            // ---- 1. Registration Fee (this year) ----
             const profitIncomeData = allProfitIncome.filter(p => isInYear(p.date || p.timestamp, year));
             const yearlyRegistrationFee = dashboardSettings.includeRegistrationFee !== false
                 ? profitIncomeData
@@ -1495,9 +1515,7 @@
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
                 : 0;
 
-            // ------------------------------------------------------------
-            // 2. OTHER INCOME (this year) — profit_income NOT registration
-            // ------------------------------------------------------------
+            // ---- 2. Other Income (this year) ----
             const yearlyOtherIncome = dashboardSettings.includeOtherIncome !== false
                 ? profitIncomeData
                     .filter(p => isDepositCounted(p))
@@ -1505,9 +1523,7 @@
                     .reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
                 : 0;
 
-            // ------------------------------------------------------------
-            // 3. PAID INTEREST (this year) — from repayments, split
-            // ------------------------------------------------------------
+            // ---- 3. Paid Interest (this year) ----
             const repaymentsData = allRepayments.filter(r =>
                 isInYear(r.date || r.timestamp, year) &&
                 dashboardSettings.repaymentStatuses.includes(r.status)
@@ -1523,9 +1539,7 @@
             }
             yearlyPaidInterest = Math.round(yearlyPaidInterest * 100) / 100;
 
-            // ------------------------------------------------------------
-            // 4. SACCO SERVICE WITHDRAWALS (this year)
-            // ------------------------------------------------------------
+            // ---- 4. SACCO Service Withdrawals (this year) ----
             const yearlyServiceWithdrawals = dashboardSettings.includeServiceWithdrawals !== false
                 ? allServiceWithdrawals
                     .filter(s => isInYear(s.date || s.timestamp || s.createdAt, year))
@@ -1533,20 +1547,29 @@
                     .reduce((sum, s) => sum + (Number(s.amount) || 0), 0)
                 : 0;
 
-            // ------------------------------------------------------------
-            // NET PROFIT
-            // ------------------------------------------------------------
+            // ---- 5. Paid Penalties (this year) — ✅ NEW ----
+            let yearlyPaidPenalties = 0;
+            if (dashboardSettings.includePaidPenalties !== false) {
+                allPenalties.forEach(p => {
+                    if (!isPenaltyPaid(p)) return;
+                    const when = toDate(p.paidAt || p.approvedAt || p.date || p.createdAt || p.timestamp);
+                    if (!when || when.getFullYear() !== year) return;
+                    yearlyPaidPenalties += Number(p.amount) || 0;
+                });
+                yearlyPaidPenalties = Math.round(yearlyPaidPenalties * 100) / 100;
+            }
+
+            // ---- NET PROFIT (updated formula) ----
             let totalIncomeYearly = Math.round(
                 (yearlyRegistrationFee
                  + yearlyOtherIncome
                  + yearlyPaidInterest
+                 + yearlyPaidPenalties          // ✅ NEW
                  - yearlyServiceWithdrawals) * 100
             ) / 100;
             if (totalIncomeYearly < 0) totalIncomeYearly = 0;
 
-            // ------------------------------------------------------------
-            // Dividends already distributed this year
-            // ------------------------------------------------------------
+            // ---- Dividends already distributed this year ----
             const profitWithdrawalData = allProfitWithdrawal.filter(w => isInYear(w.date || w.timestamp, year));
             const dividendEntries = profitWithdrawalData
                 .filter(w => w.reason === 'Dividend')
@@ -2034,7 +2057,8 @@
         }
 
         // ============================================================
-        // PRINT — YEARLY REPORT (A4, Multi-Page)
+        // PRINT — YEARLY REPORT
+        // (identical to original — omitted here for brevity, unchanged)
         // ============================================================
         function printYearlyReport() {
             const sheet = document.getElementById('dividendSlipContainer');
@@ -2394,7 +2418,6 @@
                 document.getElementById('distConfirm').addEventListener('click', confirmDistribution);
                 document.getElementById('distributionModal').addEventListener('click', function(e) { if (e.target === this) closeDistributionModal(); });
 
-                // Load dashboard settings BEFORE customers and year data
                 await loadDashboardSettings();
                 await loadCustomersForSelect();
 
