@@ -617,7 +617,6 @@
                     <input type="text" id="payUnpaidMonths" disabled style="background:var(--bg-primary);" />
                 </div>
 
-                <!-- ✅ Savings balance info shown when "Pay from Savings" is selected -->
                 <div class="savings-balance-info" id="savingsBalanceInfo"></div>
 
                 <div class="form-group">
@@ -935,7 +934,7 @@
                 ttNumber: 'TT Number', transferDate: 'Transfer Date',
                 bankName: 'Bank / Provider Name', paymentApproved: 'Payment Approved',
                 paymentRejected: 'Payment Rejected', rejectReason: 'Rejection Reason',
-                savingsAvailable: "Customer's Available Savings",
+                savingsAvailable: "Customer's Available Net Savings",
                 savingsSufficient: '✓ sufficient',
                 savingsInsufficient: '⚠ insufficient for this penalty',
                 savingsPaidAuto: 'Penalty paid automatically from savings!',
@@ -985,7 +984,7 @@
                 ttNumber: 'ቲቲ ቁጥር', transferDate: 'የዝውውር ቀን',
                 bankName: 'ባንክ', paymentApproved: 'ክፍያ ጸድቋል',
                 paymentRejected: 'ክፍያ ውድቅ ተደርጓል', rejectReason: 'የውድቅ ምክንያት',
-                savingsAvailable: 'የደንበኛው የሚገኝ ቁጠባ',
+                savingsAvailable: 'የደንበኛው የሚገኝ የተጣራ ቁጠባ',
                 savingsSufficient: '✓ በቂ ነው',
                 savingsInsufficient: '⚠ ለዚህ ቅጣት አይበቃም',
                 savingsPaidAuto: 'ቅጣቱ ከቁጠባ በራስ-ሰር ተከፍሏል!',
@@ -1035,7 +1034,7 @@
                 ttNumber: 'Lakkoofsa TT', transferDate: 'Guyyaa Sochoosaa',
                 bankName: 'Maqaa Baankii', paymentApproved: 'Kaffaltiin Mirkanaafame',
                 paymentRejected: 'Kaffaltiin Garfame', rejectReason: 'Sababa Garfamuu',
-                savingsAvailable: 'Kusaa Maamilaa Argamu',
+                savingsAvailable: 'Kusaa Qulqulluu Maamilaa Argamu',
                 savingsSufficient: '✓ ga\'aa',
                 savingsInsufficient: '⚠ adaba kanaaf hin gahu',
                 savingsPaidAuto: 'Adabni kusaa irraa ofumaan kaffalame!',
@@ -1056,8 +1055,8 @@
         let filterStatus = 'all';
         let filteredPenalties = [];
         let loansPenaltyRate = 0.05;
-        let allowPenaltyFromSavings = true;         // ✅ Setting: show "Pay from Savings" option
-        let autoApprovePenaltyFromSavings = false;  // ✅ Setting: auto-approve savings payments
+        let allowPenaltyFromSavings = true;
+        let autoApprovePenaltyFromSavings = false;
         let pendingPayId = null;
         let pendingDeleteId = null;
         let pendingApproveId = null;
@@ -1155,7 +1154,6 @@
                 if (doc.exists) {
                     const data = doc.data();
                     loansPenaltyRate = data.loansPenaltyRate !== undefined ? data.loansPenaltyRate / 100 : (data.penaltyRate || 5) / 100;
-                    // ✅ Read savings-based penalty settings
                     if (data.allowPenaltyFromSavings !== undefined) allowPenaltyFromSavings = !!data.allowPenaltyFromSavings;
                     if (data.autoApprovePenaltyFromSavings !== undefined) autoApprovePenaltyFromSavings = !!data.autoApprovePenaltyFromSavings;
                 }
@@ -1220,23 +1218,91 @@
         }
 
         // ============================================================
-        // ✅ Get customer's available savings (approved deposits only)
-        // Used when paying a penalty from savings.
+        // ✅ Get customer's NET savings
+        //   Net Savings = Gross approved savings
+        //               − share purchases funded FROM savings
+        //               − penalties already settled FROM savings
+        // (matches the "Net Savings" figure shown on Savings & Profile pages)
         // ============================================================
         async function getCustomerAvailableSavings(customerId) {
             try {
                 const id = extractIdFromAny(customerId) || customerId;
                 if (!id) return 0;
-                const [snap1, snap2] = await Promise.all([
+
+                const SHARE_BUY_TYPES = ['share', 'shares', 'share_purchase', 'share_buy', 'share_deposit',
+                    'share_subscription', 'share_buying', 'equity', 'capital_share', 'shares_purchase'];
+                const SAVINGS_PAYMENT_SOURCES = ['savings', 'saving', 'from_savings', 'savings_account',
+                                                 'member_savings', 'sacco_savings', 'from_saving', 'account'];
+                const BAD_STATUS = ['pending', 'review', 'approval', 'rejected',
+                                    'cancelled', 'canceled', 'failed', 'declined'];
+
+                function isShareFromSavings(tx) {
+                    const raw = tx.paymentMethod || tx.paymentSource || tx.paidFrom || tx.source ||
+                                tx.fundingSource || tx.method || tx.paymentType || '';
+                    const m = String(raw).toLowerCase().trim();
+                    if (m) return SAVINGS_PAYMENT_SOURCES.includes(m);
+                    const tt = String(tx.transferType || '').toLowerCase().trim();
+                    if (['cash', 'mobile', 'bank', 'mobile_banking', 'bank_deposit'].includes(tt)) return false;
+                    return true; // legacy records — assume savings
+                }
+
+                function isPenaltyFromSavings(p) {
+                    const raw = p.paymentMethod || p.paidFrom || p.source || p.paymentSource || p.method || '';
+                    const m = String(raw).toLowerCase().trim();
+                    if (!m) return false;
+                    return SAVINGS_PAYMENT_SOURCES.includes(m);
+                }
+
+                // Pull savings + all of this customer's transactions (for share buys) + penalties
+                const [savSnap1, savSnap2, allByCustomer, allByMember, penSnap1, penSnap2] = await Promise.all([
                     db.collection('transactions').where('customerId', '==', id).where('type', '==', 'savings').where('status', '==', 'approved').get(),
-                    db.collection('transactions').where('memberId', '==', id).where('type', '==', 'savings').where('status', '==', 'approved').get()
+                    db.collection('transactions').where('memberId', '==', id).where('type', '==', 'savings').where('status', '==', 'approved').get(),
+                    db.collection('transactions').where('customerId', '==', id).get(),
+                    db.collection('transactions').where('memberId', '==', id).get(),
+                    db.collection('transactions').where('customerId', '==', id).where('type', '==', 'penalty').get(),
+                    db.collection('transactions').where('memberId', '==', id).where('type', '==', 'penalty').get()
                 ]);
-                let total = 0;
-                snap1.forEach(doc => total += Number(doc.data().amount) || 0);
-                snap2.forEach(doc => total += Number(doc.data().amount) || 0);
-                return Math.round(total * 100) / 100;
+
+                // ---- Gross approved savings ----
+                const seen = new Set();
+                let grossSavings = 0;
+                savSnap1.forEach(doc => { if (!seen.has(doc.id)) { seen.add(doc.id); grossSavings += Number(doc.data().amount) || 0; } });
+                savSnap2.forEach(doc => { if (!seen.has(doc.id)) { seen.add(doc.id); grossSavings += Number(doc.data().amount) || 0; } });
+
+                // ---- Share buys paid FROM savings ----
+                const seenShare = new Set();
+                let shareBuyFromSavings = 0;
+                const scanShare = (doc) => {
+                    if (seenShare.has(doc.id)) return;
+                    seenShare.add(doc.id);
+                    const tx = doc.data();
+                    const ty = String(tx.type || '').toLowerCase();
+                    const st = String(tx.status || '').toLowerCase();
+                    if (!SHARE_BUY_TYPES.includes(ty)) return;
+                    if (BAD_STATUS.includes(st)) return;
+                    if (isShareFromSavings(tx)) shareBuyFromSavings += Number(tx.amount) || 0;
+                };
+                allByCustomer.forEach(scanShare);
+                allByMember.forEach(scanShare);
+
+                // ---- Penalties already settled FROM savings ----
+                const seenPen = new Set();
+                let penaltyFromSavings = 0;
+                const scanPen = (doc) => {
+                    if (seenPen.has(doc.id)) return;
+                    seenPen.add(doc.id);
+                    const p = doc.data();
+                    const st = String(p.status || '').toLowerCase();
+                    if (!['paid', 'done', 'completed', 'approved'].includes(st)) return;
+                    if (isPenaltyFromSavings(p)) penaltyFromSavings += Number(p.amount) || 0;
+                };
+                penSnap1.forEach(scanPen);
+                penSnap2.forEach(scanPen);
+
+                const net = Math.max(0, grossSavings - shareBuyFromSavings - penaltyFromSavings);
+                return Math.round(net * 100) / 100;
             } catch (e) {
-                console.error('Error fetching savings:', e);
+                console.error('Error fetching net savings:', e);
                 return 0;
             }
         }
@@ -1587,7 +1653,7 @@
             pendingPayId = null;
         }
 
-        // ✅ Refresh savings balance when method changes to "savings"
+        // ✅ Refresh net savings balance when method changes to "savings"
         async function refreshSavingsBalance() {
             const method = document.getElementById('paymentMethod').value;
             const savingsInfo = document.getElementById('savingsBalanceInfo');
@@ -1603,7 +1669,7 @@
                 const sufficient = bal >= penaltyAmt;
                 savingsInfo.innerHTML =
                     `<i class="fas fa-piggy-bank" style="color:${sufficient ? 'var(--success)' : 'var(--danger)'};"></i> ` +
-                    `${t.savingsAvailable || "Customer's Available Savings"}: ` +
+                    `${t.savingsAvailable || "Customer's Available Net Savings"}: ` +
                     `<strong style="color:${sufficient ? 'var(--success)' : 'var(--danger)'};">ETB ${bal.toFixed(2)}</strong> ` +
                     (sufficient
                         ? `<span style="color:var(--success);">${t.savingsSufficient || '✓ sufficient'}</span>`
@@ -1627,7 +1693,7 @@
             if (!paymentMethod) { showToast('Please select a payment method.', 'warning'); return; }
 
             // ============================================================
-            // ✅ "Pay from Savings" branch
+            // ✅ "Pay from Savings" branch — uses NET savings
             // ============================================================
             if (paymentMethod === 'savings') {
                 const penaltyAmount = Number(penalty.amount) || 0;
@@ -1642,7 +1708,6 @@
                     const now = firebase.firestore.FieldValue.serverTimestamp();
 
                     if (autoApprovePenaltyFromSavings) {
-                        // ✅ Auto-approve: mark PAID immediately
                         await db.collection('transactions').doc(pendingPayId).update({
                             status: 'paid',
                             payment_status: 'approved',
@@ -1670,7 +1735,6 @@
                         });
                         showToast(`✅ ${t.savingsPaidAuto || 'Penalty paid automatically from savings!'} (ETB ${penaltyAmount.toFixed(2)})`, 'success');
                     } else {
-                        // ✅ Submit for admin approval
                         await db.collection('transactions').doc(pendingPayId).update({
                             payment_status: 'pending',
                             payment_method: 'savings',
@@ -1792,7 +1856,6 @@
                     approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
                     approvedBy: approvedBy
                 };
-                // ✅ Preserve savings source when approving savings-based payment
                 if (penalty.payment_method === 'savings') {
                     updateData.paidFrom = 'savings';
                     updateData.paymentSource = 'savings';
@@ -2032,7 +2095,6 @@
                 document.getElementById('cancelPayBtn').addEventListener('click', closePayModal);
                 document.getElementById('confirmPayBtn').addEventListener('click', confirmPayPenalty);
 
-                // ✅ Payment method change → refresh savings balance if "savings" selected
                 document.getElementById('paymentMethod').addEventListener('change', function() {
                     toggleConditionalFields();
                     document.getElementById('duplicateWarning').classList.remove('show');
