@@ -291,7 +291,7 @@
         .modal-box .modal-icon.warning { background: rgba(243,156,18,0.15); color: var(--warning); }
         .modal-box .modal-icon.success { background: rgba(45,122,61,0.12); color: var(--success); }
         .modal-box h3 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
-        .modal-box p { font-size: 15px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.6; }
+        .modal-box p { font-size: 15px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.6; white-space: pre-line; }
         .modal-box .modal-actions { display: flex; gap: 12px; justify-content: center; }
         .modal-box .modal-actions .btn { padding: 10px 24px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; font-family: inherit; min-width: 110px; }
         .modal-box .modal-actions .btn-cancel { background: var(--border-color); color: var(--text-primary); }
@@ -688,7 +688,7 @@
                                     <label class="toggle-switch"><input type="checkbox" id="allowPartialRepayment" /><span class="slider"></span></label>
                                 </div>
 
-                                <!-- ===== Repayment Rules (used by repayments.html) ===== -->
+                                <!-- ===== Repayment Rules ===== -->
                                 <h4 style="font-size:14px;font-weight:700;margin:22px 0 8px;color:var(--text-primary);display:flex;align-items:center;gap:8px;">
                                     <i class="fas fa-undo-alt" style="color:var(--primary);"></i>
                                     <span data-i18n="repaymentRulesSection">Repayment Rules</span>
@@ -775,7 +775,6 @@
                                     </div>
                                 </div>
 
-                                <!-- ===== NEW: Savings Penalty Rate ===== -->
                                 <div class="settings-form-row three">
                                     <div class="settings-form-group">
                                         <label data-i18n="savingsPenaltyRate">Savings Penalty Rate <span class="required">*</span></label>
@@ -1145,6 +1144,18 @@
                                     <button class="btn-secondary" id="importSettingsBtn" style="justify-content:center;"><i class="fas fa-file-import"></i> <span data-i18n="importSettings">Import Settings (JSON)</span></button>
                                 </div>
 
+                                <!-- NEW: Full backup import -->
+                                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-top:12px;">
+                                    <button class="btn-danger" id="importFullBackupBtn" style="justify-content:center;">
+                                        <i class="fas fa-upload"></i>
+                                        <span data-i18n="importFullBackup">Import Full Backup (JSON)</span>
+                                    </button>
+                                    <button class="btn-warning" id="mergeFullBackupBtn" style="justify-content:center;">
+                                        <i class="fas fa-code-branch"></i>
+                                        <span data-i18n="mergeFullBackup">Merge Backup (Keep Existing)</span>
+                                    </button>
+                                </div>
+
                                 <div style="margin-top:14px; padding:12px 16px; background:var(--bg-primary); border-radius:var(--radius-sm); border:1px solid var(--border-color); font-size:12.5px; color:var(--text-secondary); line-height:1.6;">
                                     <i class="fas fa-info-circle" style="color:var(--info);"></i>
                                     <strong data-i18n="backupInfoTitle">Full JSON backup</strong>
@@ -1152,6 +1163,7 @@
                                 </div>
 
                                 <input type="file" id="importSettingsFile" accept=".json" style="display:none;" />
+                                <input type="file" id="importFullBackupFile" accept=".json" style="display:none;" />
                             </div>
                             <div class="settings-card-actions">
                                 <span class="save-state-hint" data-section="backup"><i class="fas fa-check-circle"></i><span data-i18n="allChangesSaved">All changes saved</span></span>
@@ -1264,7 +1276,7 @@
             saccoAddress: '',
             currency: 'ETB',
             defaultLanguage: 'en',
-            // Financial — shares: value + min/max count
+            // Financial
             shareValue: 100,
             minShares: 5,
             maxShares: 1000,
@@ -1281,7 +1293,7 @@
             maxLoanAmount: 500000,
             requireApprovalLoans: true,
             allowPartialRepayment: true,
-            // Repayment rules (used by repayments.html)
+            // Repayment rules
             minMonthsForRepayAll: 6,
             allowInterestWaiver: true,
             waiverRequiresMinMonths: true,
@@ -1474,6 +1486,24 @@
                 importSettings: 'Import Settings (JSON)',
                 backupInfoTitle: 'Full JSON backup',
                 backupInfoDesc: ' includes customers, all transactions (savings, loans, repayments, withdrawals, penalties, dividends, shares), settings, users, and audit logs in a single file.',
+                importFullBackup: 'Import Full Backup (JSON)',
+                mergeFullBackup: 'Merge Backup (Keep Existing)',
+                confirmImportFullTitle: 'Import Full Backup?',
+                confirmImportFullMsg: 'This will REPLACE all existing customers, transactions, users, and audit logs with the contents of the backup file. This action CANNOT be undone. Are you sure?',
+                confirmMergeFullTitle: 'Merge Full Backup?',
+                confirmMergeFullMsg: 'This will ADD records from the backup file. Existing records with the same ID will be updated (merged). Continue?',
+                importInProgress: 'Importing backup... please wait.',
+                importSuccess: 'Backup imported successfully!',
+                importMergeSuccess: 'Backup merged successfully!',
+                importFullError: 'Backup import error: ',
+                invalidBackupFormat: 'Invalid backup format. Expected GERESU_DHUKI_FULL_BACKUP_v1.',
+                backupSummaryLabel: 'Backup contains',
+                backupSummaryCustomers: 'customers',
+                backupSummaryTransactions: 'transactions',
+                backupSummaryUsers: 'users',
+                backupSummaryAudit: 'audit records',
+                backupImportedCounts: 'Imported {c} customers, {t} transactions, {u} users, {a} audit records.',
+                backupImportWarningNoData: 'The backup file contains no customers or transactions.',
                 dangerZone: 'Danger Zone', dangerZoneDesc: 'Irreversible and destructive actions — proceed with caution',
                 resetToDefaults: 'Reset all settings to defaults', resetToDefaultsDesc: 'Revert every configuration value back to its factory default. Your data is NOT affected.',
                 clearCache: 'Clear application cache', clearCacheDesc: 'Clear locally cached data. All users will re-fetch fresh data on next load.',
@@ -1602,6 +1632,24 @@
                 importSettings: 'ቅንብሮችን ከውጭ አስገባ (JSON)',
                 backupInfoTitle: 'ሙሉ JSON ምትኬ',
                 backupInfoDesc: ' ደንበኞች፣ ሁሉንም ግብይቶች (ቁጠባ፣ ብድር፣ ክፍያ፣ መውጫ፣ ቅጣት፣ ክፍፍል፣ አክሲዮን)፣ ቅንብሮች፣ ተጠቃሚዎች እና የኦዲት ምዝግብ በአንድ ፋይል ያካትታል።',
+                importFullBackup: 'ሙሉ ምትኬ አስገባ (JSON)',
+                mergeFullBackup: 'ምትኬ አዋህድ (ያለውን አቆይ)',
+                confirmImportFullTitle: 'ሙሉ ምትኬ አስገባ?',
+                confirmImportFullMsg: 'ይህ ሁሉንም ነባር ደንበኞች፣ ግብይቶች፣ ተጠቃሚዎች እና የኦዲት ምዝግቦችን በምትኬ ፋይል ይተካል። ሊቀለበስ አይችልም።',
+                confirmMergeFullTitle: 'ሙሉ ምትኬ አዋህድ?',
+                confirmMergeFullMsg: 'ይህ ከምትኬ ፋይል መዝገቦችን ይጨምራል። ነባር መዝገቦች ይዘመናሉ።',
+                importInProgress: 'ምትኬ በማስገባት ላይ... እባክዎ ይጠብቁ።',
+                importSuccess: 'ምትኬ በተሳካ ሁኔታ ገብቷል!',
+                importMergeSuccess: 'ምትኬ በተሳካ ሁኔታ ተዋህዷል!',
+                importFullError: 'የምትኬ ማስገባት ስህተት: ',
+                invalidBackupFormat: 'ልክ ያልሆነ የምትኬ ቅርጸት።',
+                backupSummaryLabel: 'ምትኬ ይዟል',
+                backupSummaryCustomers: 'ደንበኞች',
+                backupSummaryTransactions: 'ግብይቶች',
+                backupSummaryUsers: 'ተጠቃሚዎች',
+                backupSummaryAudit: 'የኦዲት መዝገቦች',
+                backupImportedCounts: '{c} ደንበኞች፣ {t} ግብይቶች፣ {u} ተጠቃሚዎች፣ {a} የኦዲት መዝገቦች ገብተዋል።',
+                backupImportWarningNoData: 'የምትኬ ፋይሉ ምንም ደንበኞች ወይም ግብይቶች የለውም።',
                 dangerZone: 'አደገኛ ክፍል', dangerZoneDesc: 'የማይቀለበሱ እና አጥፊ እርምጃዎች — በጥንቃቄ ይቀጥሉ',
                 resetToDefaults: 'ሁሉንም ቅንብሮች ወደ ነባሪ መልስ', resetToDefaultsDesc: 'እያንዳንዱን የማዋቀሪያ እሴት ወደ ፋብሪካ ነባሪው መልስ። ውሂብዎ አይነካም።',
                 clearCache: 'የመተግበሪያ መሸጎጫን አጽዳ', clearCacheDesc: 'በአካባቢው የተሸጎጠ ውሂብን አጽዳ።',
@@ -1729,6 +1777,24 @@
                 importSettings: 'Qindeessaa Galchi (JSON)',
                 backupInfoTitle: 'Kuusaa JSON guutuu',
                 backupInfoDesc: ' maamiltoota, daldala hunda (kusaa, liqii, kaffaltii, baasii, adaba, qooda, hirmaata), qindeessaa, fayyadamtoota fi galmee waliigaltee faayilii tokkotti dabalata.',
+                importFullBackup: 'Kuusaa Guutuu Galchi (JSON)',
+                mergeFullBackup: 'Kuusaa Walmakaa (Jiru Tursiisi)',
+                confirmImportFullTitle: 'Kuusaa Guutuu Galchuu?',
+                confirmImportFullMsg: 'Kun maamiltoota, daldala, fayyadamtoota fi galmee waliigaltee jiran hunda faayilii kuusaadhaan bakka buusa. Hin deebi\'u.',
+                confirmMergeFullTitle: 'Kuusaa Guutuu Walmakaa?',
+                confirmMergeFullMsg: 'Kun galmee faayilii kuusaa irraa dabalata. Galmeen jiru haaromfama.',
+                importInProgress: 'Kuusaa galchaa jira... maaloo eegi.',
+                importSuccess: 'Kuusaan sirriitti galche!',
+                importMergeSuccess: 'Kuusaan sirriitti walmakame!',
+                importFullError: 'Dogoggora kuusaa galchuu: ',
+                invalidBackupFormat: 'Bifa kuusaa sirrii hin taane.',
+                backupSummaryLabel: 'Kuusaan qaba',
+                backupSummaryCustomers: 'maamiltoota',
+                backupSummaryTransactions: 'daldala',
+                backupSummaryUsers: 'fayyadamtoota',
+                backupSummaryAudit: 'galmee waliigaltee',
+                backupImportedCounts: 'Maamiltoota {c}, daldala {t}, fayyadamtoota {u}, galmee {a} galche.',
+                backupImportWarningNoData: 'Faayilii kuusaa maamiltoota yookaan daldala hin qabu.',
                 dangerZone: 'Naannoo Balaa', dangerZoneDesc: 'Gochoota hin deebi\'an fi balleessaa — eegumsaan itti fufi',
                 resetToDefaults: 'Qindeessaa hunda durtiitti deebisi', resetToDefaultsDesc: 'Gatii qindeessaa hunda durtii faabrikaatti deebisi. Daataan keessan hin tuqamu.',
                 clearCache: 'Kaashii appilikeeshinii haqi', clearCacheDesc: 'Daataa naannoo kaashii keessa jiru haqi.',
@@ -1882,7 +1948,7 @@
                 });
             });
 
-            ['resetAllSettingsBtn', 'clearCacheBtn', 'deleteAllTransactionsBtn', 'importSettingsBtn', 'exportAllDataBtn', 'exportAllDataJsonBtn', 'exportSettingsBtn'].forEach(id => {
+            ['resetAllSettingsBtn', 'clearCacheBtn', 'deleteAllTransactionsBtn', 'importSettingsBtn', 'exportAllDataBtn', 'exportAllDataJsonBtn', 'exportSettingsBtn', 'importFullBackupBtn', 'mergeFullBackupBtn'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) { el.disabled = !isAdmin; el.style.opacity = !isAdmin ? '0.5' : ''; }
             });
@@ -2071,7 +2137,6 @@
             document.getElementById('maxLoanAmount').value = settings.maxLoanAmount ?? 500000;
             document.getElementById('requireApprovalLoans').checked = !!settings.requireApprovalLoans;
             document.getElementById('allowPartialRepayment').checked = !!settings.allowPartialRepayment;
-            // Repayment rules
             document.getElementById('minMonthsForRepayAll').value = (settings.minMonthsForRepayAll ?? 6);
             document.getElementById('allowInterestWaiver').checked = settings.allowInterestWaiver !== false;
             document.getElementById('waiverRequiresMinMonths').checked = settings.waiverRequiresMinMonths !== false;
@@ -2162,7 +2227,6 @@
             data.maxLoanAmount = parseFloat(document.getElementById('maxLoanAmount').value) || 0;
             data.requireApprovalLoans = document.getElementById('requireApprovalLoans').checked;
             data.allowPartialRepayment = document.getElementById('allowPartialRepayment').checked;
-            // Repayment rules
             data.minMonthsForRepayAll = Math.max(0, parseInt(document.getElementById('minMonthsForRepayAll').value) || 0);
             data.allowInterestWaiver = document.getElementById('allowInterestWaiver').checked;
             data.waiverRequiresMinMonths = document.getElementById('waiverRequiresMinMonths').checked;
@@ -2612,9 +2676,6 @@
             finally { overlay.classList.remove('active'); }
         }
 
-        // ============================================================
-        // EXPORT ALL DATA — FULL JSON BACKUP
-        // ============================================================
         async function exportAllDataJSON() {
             if (!isAdmin) return;
             const t = translations[currentLang];
@@ -2639,19 +2700,16 @@
                     summary: {}
                 };
 
-                // -------- Settings --------
                 try {
                     const settingsDoc = await db.collection('settings').doc('system').get();
                     backup.settings = settingsDoc.exists ? settingsDoc.data() : { ...DEFAULT_SETTINGS };
                 } catch (e) { backup.settings = { ...DEFAULT_SETTINGS }; }
 
-                // -------- Customers --------
                 const custSnap = await db.collection('customers').get();
                 custSnap.forEach(doc => {
                     backup.customers.push({ _id: doc.id, ...serializeForJSON(doc.data()) });
                 });
 
-                // -------- Users --------
                 try {
                     const usersSnap = await db.collection('users').get();
                     usersSnap.forEach(doc => {
@@ -2663,13 +2721,11 @@
                     });
                 } catch (e) { /* permission may block; ignore */ }
 
-                // -------- Transactions (all types) --------
                 const txSnap = await db.collection('transactions').get();
                 txSnap.forEach(doc => {
                     backup.transactions.push({ _id: doc.id, ...serializeForJSON(doc.data()) });
                 });
 
-                // -------- Audit log --------
                 try {
                     const auditSnap = await db.collection('audit').orderBy('timestamp', 'desc').limit(5000).get();
                     auditSnap.forEach(doc => {
@@ -2677,7 +2733,6 @@
                     });
                 } catch (e) { /* ignore if permission denied */ }
 
-                // -------- Summary --------
                 const txByType = {};
                 backup.transactions.forEach(tx => {
                     txByType[tx.type] = (txByType[tx.type] || 0) + 1;
@@ -2690,7 +2745,6 @@
                     transactionsByType: txByType
                 };
 
-                // -------- Download --------
                 const jsonStr = JSON.stringify(backup, null, 2);
                 const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
@@ -2728,7 +2782,6 @@
             }
         }
 
-        // Helper — convert Firestore Timestamp / Date / nested values to plain JSON
         function serializeForJSON(value) {
             if (value === null || value === undefined) return value;
             if (typeof value === 'object') {
@@ -2791,6 +2844,206 @@
                 await logAudit('imported', 'settings', 'system', {}, 'Settings imported from JSON file');
                 showToast(t.settingsImported, 'success');
             } catch (e) { showToast(t.invalidSettingsFile + ' ' + e.message, 'error'); }
+            e.target.value = '';
+        }
+
+        // ============================================================
+        // IMPORT FULL JSON BACKUP
+        // ============================================================
+
+        async function writeCollectionBatch(collectionName, records, mode = 'merge', onProgress = null) {
+            if (!Array.isArray(records) || records.length === 0) return 0;
+            const col = db.collection(collectionName);
+            let written = 0;
+
+            if (mode === 'replace') {
+                const existing = await col.get();
+                const refs = existing.docs.map(d => d.ref);
+                for (let i = 0; i < refs.length; i += 500) {
+                    const batch = db.batch();
+                    refs.slice(i, i + 500).forEach(r => batch.delete(r));
+                    await batch.commit();
+                }
+            }
+
+            for (let i = 0; i < records.length; i += 400) {
+                const chunk = records.slice(i, i + 400);
+                const batch = db.batch();
+                chunk.forEach(rec => {
+                    const id = rec._id || rec.id;
+                    const { _id, id: _ignoredId, ...data } = rec;
+                    const ref = id ? col.doc(String(id)) : col.doc();
+                    batch.set(ref, data, { merge: mode === 'merge' });
+                });
+                await batch.commit();
+                written += chunk.length;
+                if (typeof onProgress === 'function') onProgress(written, records.length);
+            }
+            return written;
+        }
+
+        function deserializeFromJSON(value) {
+            if (value === null || value === undefined) return value;
+            if (typeof value === 'object') {
+                if (value._type === 'geopoint' && value.lat !== undefined && value.lng !== undefined) {
+                    return new firebase.firestore.GeoPoint(value.lat, value.lng);
+                }
+                if (value._type === 'reference' && value.path) {
+                    return db.doc(value.path);
+                }
+                if (Array.isArray(value)) return value.map(deserializeFromJSON);
+                const out = {};
+                Object.keys(value).forEach(k => { out[k] = deserializeFromJSON(value[k]); });
+                return out;
+            }
+            return value;
+        }
+
+        function validateFullBackup(backup) {
+            if (!backup || typeof backup !== 'object') return 'File is not a JSON object.';
+            const fmt = backup?.meta?.format;
+            if (fmt !== 'GERESU_DHUKI_FULL_BACKUP_v1') {
+                const hasShape = backup.settings || backup.customers || backup.transactions || backup.users;
+                if (!hasShape) return 'Missing required sections (customers/transactions/users/settings).';
+            }
+            return null;
+        }
+
+        function summarizeBackup(backup) {
+            return {
+                customers: Array.isArray(backup.customers) ? backup.customers.length : 0,
+                transactions: Array.isArray(backup.transactions) ? backup.transactions.length : 0,
+                users: Array.isArray(backup.users) ? backup.users.length : 0,
+                audit: Array.isArray(backup.audit) ? backup.audit.length : 0
+            };
+        }
+
+        function triggerImportFullBackup(mode) {
+            if (!isAdmin) {
+                showToast(translations[currentLang].unauthorized, 'error');
+                return;
+            }
+            const input = document.getElementById('importFullBackupFile');
+            input.dataset.mode = mode;
+            input.value = '';
+            input.click();
+        }
+
+        async function handleImportFullBackup(e) {
+            if (!isAdmin) return;
+            const t = translations[currentLang];
+            const file = e.target.files[0];
+            if (!file) return;
+            const mode = e.target.dataset.mode === 'replace' ? 'replace' : 'merge';
+
+            let backup;
+            try {
+                const text = await file.text();
+                backup = JSON.parse(text);
+            } catch (err) {
+                showToast(t.invalidBackupFormat + ' ' + err.message, 'error');
+                e.target.value = '';
+                return;
+            }
+
+            const validationError = validateFullBackup(backup);
+            if (validationError) {
+                showToast(t.invalidBackupFormat + ' ' + validationError, 'error');
+                e.target.value = '';
+                return;
+            }
+
+            const summary = summarizeBackup(backup);
+            if (summary.customers === 0 && summary.transactions === 0 && summary.users === 0) {
+                showToast(t.backupImportWarningNoData, 'warning');
+            }
+
+            const summaryLine =
+                `${t.backupSummaryLabel}: ${summary.customers} ${t.backupSummaryCustomers}, ` +
+                `${summary.transactions} ${t.backupSummaryTransactions}, ` +
+                `${summary.users} ${t.backupSummaryUsers}, ` +
+                `${summary.audit} ${t.backupSummaryAudit}.`;
+
+            const title = mode === 'replace' ? t.confirmImportFullTitle : t.confirmMergeFullTitle;
+            const msg = (mode === 'replace' ? t.confirmImportFullMsg : t.confirmMergeFullMsg) + '\n\n' + summaryLine;
+
+            showConfirmModal(title, msg, mode === 'replace' ? 'danger' : 'warning', async () => {
+                const overlay = document.getElementById('loadingOverlay');
+                const loadingText = overlay.querySelector('p');
+                const originalLoadingText = loadingText ? loadingText.textContent : '';
+                if (loadingText) loadingText.textContent = t.importInProgress;
+                overlay.classList.add('active');
+
+                const report = { customers: 0, transactions: 0, users: 0, audit: 0, settings: false, errors: [] };
+
+                try {
+                    if (backup.settings && typeof backup.settings === 'object') {
+                        const settingsData = deserializeFromJSON(backup.settings);
+                        await db.collection('settings').doc('system').set(
+                            { ...DEFAULT_SETTINGS, ...settingsData },
+                            { merge: true }
+                        );
+                        report.settings = true;
+                    }
+
+                    if (Array.isArray(backup.customers) && backup.customers.length > 0) {
+                        const clean = backup.customers.map(deserializeFromJSON);
+                        report.customers = await writeCollectionBatch('customers', clean, mode);
+                    }
+
+                    if (Array.isArray(backup.users) && backup.users.length > 0) {
+                        const clean = backup.users.map(u => {
+                            const r = deserializeFromJSON(u);
+                            delete r.password;
+                            delete r.passwordHash;
+                            return r;
+                        });
+                        report.users = await writeCollectionBatch('users', clean, mode);
+                    }
+
+                    if (Array.isArray(backup.transactions) && backup.transactions.length > 0) {
+                        const clean = backup.transactions.map(deserializeFromJSON);
+                        report.transactions = await writeCollectionBatch('transactions', clean, mode);
+                    }
+
+                    if (Array.isArray(backup.audit) && backup.audit.length > 0) {
+                        const clean = backup.audit.map(deserializeFromJSON);
+                        report.audit = await writeCollectionBatch('audit', clean, mode);
+                    }
+
+                    try {
+                        await db.collection('audit').add({
+                            action: mode === 'replace' ? 'imported_replace' : 'imported_merge',
+                            collection: 'settings',
+                            documentId: 'system',
+                            changes: report,
+                            details: `Full backup imported (${mode}): ${report.customers} customers, ${report.transactions} transactions, ${report.users} users, ${report.audit} audit records`,
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                            userEmail: auth.currentUser?.email || 'system',
+                            userName: currentUserDisplayName || 'System'
+                        });
+                    } catch (_) { /* ignore audit write failure */ }
+
+                    await loadSettings();
+                    applyPermissions();
+                    updateDirtyIndicators();
+
+                    const doneMsg = (mode === 'replace' ? t.importSuccess : t.importMergeSuccess) + ' ' +
+                        t.backupImportedCounts
+                            .replace('{c}', report.customers)
+                            .replace('{t}', report.transactions)
+                            .replace('{u}', report.users)
+                            .replace('{a}', report.audit);
+                    showToast(doneMsg, 'success');
+                } catch (err) {
+                    console.error('Full backup import error:', err);
+                    showToast(t.importFullError + err.message, 'error');
+                } finally {
+                    if (loadingText) loadingText.textContent = originalLoadingText;
+                    overlay.classList.remove('active');
+                }
+            });
+
             e.target.value = '';
         }
 
@@ -2926,6 +3179,11 @@
                 document.getElementById('importSettingsBtn').addEventListener('click', triggerImportSettings);
                 document.getElementById('importSettingsFile').addEventListener('change', handleImportSettings);
 
+                // NEW: Full backup import
+                document.getElementById('importFullBackupBtn').addEventListener('click', () => triggerImportFullBackup('replace'));
+                document.getElementById('mergeFullBackupBtn').addEventListener('click', () => triggerImportFullBackup('merge'));
+                document.getElementById('importFullBackupFile').addEventListener('change', handleImportFullBackup);
+
                 document.getElementById('testConnectionBtn').addEventListener('click', testConnection);
 
                 document.getElementById('changePasswordBtn').addEventListener('click', changePassword);
@@ -2975,7 +3233,6 @@
                     }
                 });
 
-                // Repayment rules live preview
                 const minMonthsEl = document.getElementById('minMonthsForRepayAll');
                 const allowWaiverEl = document.getElementById('allowInterestWaiver');
                 const waiverMinEl = document.getElementById('waiverRequiresMinMonths');
