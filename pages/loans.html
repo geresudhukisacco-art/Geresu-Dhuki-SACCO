@@ -210,11 +210,12 @@ html.theme-dark .user-btn{background:#1a2433;}
 .progress-bar__fill{height:100%;background:linear-gradient(90deg,#19a974,#34c78e);border-radius:99px;transition:width .3s;}
 .progress-bar__fill.is-warn{background:linear-gradient(90deg,#d4a017,#e8b84b);}
 .progress-bar__fill.is-danger{background:linear-gradient(90deg,#dc2626,#e74c5c);}
-.loan-card__foot{display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid var(--border-soft);font-size:11.5px;color:var(--muted);}
+.loan-card__foot{display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid var(--border-soft);font-size:11.5px;color:var(--muted);flex-wrap:wrap;gap:6px;}
 .loan-card__foot-item{display:flex;align-items:center;gap:5px;font-weight:700;}
 .loan-card__foot-item i{font-size:11px;color:var(--muted);}
 .loan-card__foot-item.warn{color:#b8860b;font-weight:800;}
 .loan-card__foot-item.danger{color:#b42318;font-weight:800;}
+.loan-card__foot-item.pending-rep{background:#fdf5e0;color:#b8860b;padding:2px 8px;border-radius:99px;}
 .status-badge{position:absolute;top:16px;left:16px;display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:var(--r-full);font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;}
 .status-badge--active{background:#ecfdf3;color:#067647;}
 .status-badge--pending{background:#fdf5e0;color:#b8860b;}
@@ -420,6 +421,13 @@ html.theme-dark .user-btn{background:#1a2433;}
   .history-row.header{display:none;}
   .history-totals{grid-template-columns:1fr;}
 }
+.rep-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border-soft);font-size:12.5px;flex-wrap:wrap;}
+.rep-row:last-child{border-bottom:none;}
+.rep-row .date{font-family:ui-monospace,monospace;color:var(--muted);font-size:11px;min-width:70px;}
+.rep-row .amt{font-weight:800;font-family:ui-monospace,monospace;min-width:90px;}
+.rep-row .pp{color:#128a5c;font-family:ui-monospace,monospace;font-size:11px;}
+.rep-row .ip{color:#b8860b;font-family:ui-monospace,monospace;font-size:11px;}
+.rep-row .by{color:var(--muted);font-size:11px;margin-left:auto;}
 .toasts{position:fixed;top:24px;right:24px;z-index:300;display:flex;flex-direction:column;gap:10px;pointer-events:none;max-width:calc(100vw - 48px);}
 .toast{background:var(--text);color:#fff;padding:13px 18px;border-radius:12px;box-shadow:0 12px 32px rgba(20,40,70,.2);font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:12px;pointer-events:auto;animation:toastIn .22s cubic-bezier(.4,0,.2,1);max-width:400px;}
 @keyframes toastIn{from{opacity:0;transform:translateX(24px);}to{opacity:1;transform:translateX(0);}}
@@ -575,7 +583,7 @@ const BANKS_LIST = {
   bank: ['Commercial Bank of Ethiopia (CBE)','Awash Bank','Dashen Bank','Bank of Abyssinia','Wegagen Bank','United Bank','Nib International Bank','Cooperative Bank of Oromia','Buna International Bank','Berhan International Bank','Abay Bank','Zemen Bank','Oromia International Bank','Bunna Bank','Debub Global Bank','Enat Bank','Addis International Bank','Lion International Bank','Ahadu Bank','Tsehay Bank','Goh Betoch Bank','Amhara Bank','Sidama Bank','Omo Bank','Ramis Bank','ZamZam Bank','Hijra Bank','Development Bank of Ethiopia']
 };
 
-/* ============ SESSION (silent, no countdown) ============ */
+/* ============ SESSION (silent) ============ */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
 let SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
@@ -750,7 +758,7 @@ const I18N = {
     repaymentAmount:'Repayment Amount (ETB)', repaymentDate:'Payment Date',
     repaymentMethod:'Payment Method', repaymentRef:'Reference',
     repaymentNotes:'Notes', repaymentTooBig:'Amount is greater than the outstanding balance.',
-    repaymentOk:'Repayment recorded successfully!',
+    repaymentOk:'Repayment recorded — awaiting approval!',
     outstandingLabel:'Outstanding', repaidLabel:'Repaid', totalLabel:'Total Payable',
     methodCash:'Cash', methodBank:'Bank Transfer', methodMobile:'Mobile Money',
     methodCheque:'Cheque', methodOther:'Other',
@@ -787,7 +795,21 @@ const I18N = {
     pleaseSelectDate:'Please select a date.', duplicateError:'Duplicate TT number and transfer date found!',
     cannotExceedRemaining:'Amount cannot exceed the remaining balance.',
     minPaymentNotMet:'Repayment must be at least the monthly installment amount.',
-    pleaseSelectLoan:'Please select a loan.'
+    pleaseSelectLoan:'Please select a loan.',
+    repPending:'Pending', repApproved:'Approved', repRejected:'Rejected',
+    repaymentHistory:'Repayment History',
+    noRepayments:'No repayments recorded yet.',
+    approveRepTitle:'Approve this repayment?',
+    approveRepMsg:'Approving will update the loan balance and mark the repayment as approved.',
+    rejectRepTitle:'Reject this repayment?',
+    rejectRepMsg:'Rejecting will not affect the loan balance.',
+    repApprovedOk:'Repayment approved — loan balance updated.',
+    repRejectedOk:'Repayment rejected — balance unchanged.',
+    repNotFound:'Repayment record not found.',
+    repAlreadyProcessed:'This repayment is already processed.',
+    loanNotFoundMsg:'Linked loan not found.',
+    awaitingApproval:'awaiting approval',
+    pendingRepayments:'{n} pending repayment(s)'
   }
 };
 I18N.am = { ...I18N.en };
@@ -1044,6 +1066,9 @@ async function fetchLoanRepayments(loanId) {
     where('loanId','==',loanId), where('type','==','repayment')));
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
+function pendingRepaymentsForLoan(loanId) {
+  return APP.repayments.filter(r => r.loanId === loanId && String(r.status||'pending').toLowerCase() === 'pending');
+}
 
 /* ============ PENALTY ============ */
 async function checkAndCreatePenalty(loanId, memberId) {
@@ -1058,6 +1083,7 @@ async function checkAndCreatePenalty(loanId, memberId) {
     if (monthsDiff <= 0) return { penaltyAmount: 0, unpaidMonths: 0 };
 
     const reps = await fetchLoanRepayments(loanId);
+    // Only approved repayments count toward the paid months
     const paidMonths = reps.filter(r => r.status === 'approved' || r.status === 'printed').length;
 
     const penSnap = await getDocs(query(collection(db, 'transactions'),
@@ -1207,6 +1233,7 @@ async function generatePaymentHistory(loanId) {
         case 'future': sLabel = t('future'); sCls = 'future'; break;
         default: sLabel = t('pendingLc'); sCls = 'pending';
       }
+      // Only approved/paid count toward totals
       if (st === 'paid' || st === 'penalty-paid') {
         tPrincipal += entry.principal; tInterest += entry.interest; tRepaid += entry.total;
       }
@@ -1371,7 +1398,7 @@ function renderMain() {
   all.forEach(l => {
     const principal = num(l.principal);
     const { total } = calcLoan(principal, l.interestRate, l.duration, l.interestType);
-    const repaid = loanRepaid(l);
+    const repaid = loanRepaid(l);            // ← only reflects approved repayments
     const outstanding = Math.max(0, total - repaid);
     const status = String(l.status || '').toLowerCase();
     if (['approved','active','repaid'].includes(status)) totalDisbursed += principal;
@@ -1419,13 +1446,13 @@ function renderMain() {
         <div class="stat__head"><div class="stat__label">${esc(t('statOutstanding'))}</div>
           <div class="stat__icon"><i class="fas fa-file-invoice-dollar"></i></div></div>
         <div class="stat__value" style="font-size:20px;">${esc(moneyShort(totalOutstanding))}</div>
-        <div class="stat__hint">${esc(t('colOutstanding'))}</div>
+        <div class="stat__hint">${esc(t('colOutstanding'))} · approved only</div>
       </div>
       <div class="stat stat--green">
         <div class="stat__head"><div class="stat__label">${esc(t('statRepaid'))}</div>
           <div class="stat__icon"><i class="fas fa-check-double"></i></div></div>
         <div class="stat__value" style="font-size:20px;">${esc(moneyShort(totalRepaid))}</div>
-        <div class="stat__hint">${esc(t('repaidLabel'))}</div>
+        <div class="stat__hint">${esc(t('repaidLabel'))} · approved only</div>
       </div>
       <div class="stat stat--blue">
         <div class="stat__head"><div class="stat__label">${esc(t('statActive'))}</div>
@@ -1596,7 +1623,7 @@ function renderLoanCard(l) {
   const c = customerById(l.customerId || l.customerDocId);
   const avatar = c?.photoURL ? `<img src="${esc(c.photoURL)}" alt="">` : esc(initials(customerName(c)));
   const { total, monthly } = calcLoan(l.principal, l.interestRate, l.duration, l.interestType);
-  const repaid = loanRepaid(l);
+  const repaid = loanRepaid(l);                     // approved only
   const outstanding = loanOutstanding(l);
   const progress = loanProgress(l);
   const overdue = isOverdue(l);
@@ -1610,6 +1637,7 @@ function renderLoanCard(l) {
   const canA = canApprove() && isPending;
   const canE = canEdit();
   const canD = canDelete();
+  const pendingReps = pendingRepaymentsForLoan(l.id).length;
 
   return `
     <div class="loan-card ${loanCardClass(l)}">
@@ -1657,6 +1685,7 @@ function renderLoanCard(l) {
         <div class="loan-card__foot-item"><i class="fas fa-percent"></i> ${num(l.interestRate).toFixed(2)}%</div>
         <div class="loan-card__foot-item"><i class="fas fa-calendar-alt"></i> ${num(l.duration)} mo</div>
         <div class="loan-card__foot-item"><i class="fas fa-coins"></i> ${esc(moneyShort(monthly))}</div>
+        ${pendingReps > 0 ? `<div class="loan-card__foot-item pending-rep"><i class="fas fa-hourglass-half"></i> ${pendingReps} ${esc(t('awaitingApproval'))}</div>` : ''}
         ${overdue ? `<div class="loan-card__foot-item danger"><i class="fas fa-exclamation-triangle"></i> ${esc(t('overduBadge'))}</div>`
                   : (soon ? `<div class="loan-card__foot-item warn"><i class="fas fa-clock"></i> ${esc(t('soonBadge'))}</div>` : '')}
       </div>
@@ -1695,9 +1724,11 @@ function renderTableView(host, list) {
           const isPending = status === 'pending';
           const isActive = status === 'active' || status === 'approved';
           const progressCls = overdue ? 'is-danger' : (soon ? 'is-warn' : '');
+          const pendingReps = pendingRepaymentsForLoan(l.id).length;
           return `<tr>
             <td><div class="code">${esc(l.serialNumber || l.loanNumber || '—')}</div>
-              <div class="muted" style="margin-top:4px">${esc(fmtDate(l.disbursementDate || l.createdAt))}</div></td>
+              <div class="muted" style="margin-top:4px">${esc(fmtDate(l.disbursementDate || l.createdAt))}</div>
+              ${pendingReps > 0 ? `<div style="margin-top:4px"><span class="tag tag--gold" style="font-size:9.5px"><i class="fas fa-hourglass-half"></i> ${pendingReps} pending</span></div>` : ''}</td>
             <td><div class="cust-cell"><div class="cust-avatar">${avatar}</div>
               <div><div class="name">${esc(customerName(c))}</div>
               <div class="muted">${c?.customerId ? esc(c.customerId) : (l.customerId || '—')}</div></div></div></td>
@@ -1789,7 +1820,7 @@ function handleRowAction(action, id) {
   if (action === 'repay')   openRepaymentModal(l);
 }
 
-/* ============ APPROVE / REJECT ============ */
+/* ============ APPROVE / REJECT LOAN ============ */
 async function approveLoan(l) {
   if (!canApprove()) { toast(t('noPermission'), 'error'); return; }
   try {
@@ -1801,6 +1832,8 @@ async function approveLoan(l) {
       approvedByName: S.name
     });
     toast(t('approvedOk'), 'success');
+    await loadAllData();
+    renderMain();
   } catch (e) {
     toast(t('errorSave') + (e.code === 'permission-denied' ? t('noPermission') : e.message), 'error');
   }
@@ -1815,8 +1848,101 @@ async function rejectLoan(l) {
       approvedByName: S.name
     });
     toast(t('rejectedOk'), 'success');
+    await loadAllData();
+    renderMain();
   } catch (e) {
     toast(t('errorSave') + (e.code === 'permission-denied' ? t('noPermission') : e.message), 'error');
+  }
+}
+
+/* ============================================================
+   ⭐  REPAYMENT APPROVAL — only approved records affect the loan
+   ============================================================ */
+async function approveRepayment(txId) {
+  if (!canApprove()) { toast(t('noPermission'), 'error'); return; }
+  const tx = APP.repayments.find(r => r.id === txId);
+  if (!tx) { toast(t('repNotFound'), 'error'); return; }
+  if (String(tx.status||'pending').toLowerCase() !== 'pending') { toast(t('repAlreadyProcessed'), 'warning'); return; }
+
+  const loan = APP.loans.find(l => l.id === tx.loanId);
+  if (!loan) { toast(t('loanNotFoundMsg'), 'error'); return; }
+
+  try {
+    // 1) Mark the repayment approved
+    await updateDoc(doc(db, 'transactions', txId), {
+      status: 'approved',
+      approvedAt: serverTimestamp(),
+      approvedBy: S.uid,
+      approvedByName: S.name
+    });
+
+    // 2) NOW reflect in the loan balance (only approved counts)
+    const amount = num(tx.amount);
+    const newRepaid = round2(loanRepaid(loan) + amount);
+    const totalPayable = calcLoan(loan.principal, loan.interestRate, loan.duration, loan.interestType).total;
+    const newOutstanding = Math.max(0, round2(totalPayable - newRepaid));
+    const newStatus = newOutstanding <= 0.01 ? 'repaid' : (loan.status || 'active');
+
+    await updateDoc(doc(db, 'loans', loan.id), {
+      amountRepaid: newRepaid,
+      status: newStatus,
+      updatedAt: serverTimestamp(),
+      lastRepaymentAt: serverTimestamp(),
+      lastRepaymentBy: S.uid,
+      lastRepaymentByName: S.name
+    });
+
+    // 3) Audit
+    try {
+      await setDoc(doc(collection(db, 'audit')), {
+        action: 'approved', collection: 'transactions',
+        documentId: txId,
+        changes: { status: { old: 'pending', new: 'approved' }, amount },
+        details: `Repayment approved for loan ${loan.serialNumber || loan.loanNumber || loan.id}`,
+        timestamp: serverTimestamp(),
+        userEmail: S.email, userName: S.name
+      });
+    } catch(e){}
+
+    toast(t('repApprovedOk'), 'success');
+    await loadAllData();
+    renderMain();
+  } catch (err) {
+    toast(t('errorSave') + (err.code === 'permission-denied' ? t('noPermission') : err.message), 'error');
+  }
+}
+
+async function rejectRepayment(txId) {
+  if (!canApprove()) { toast(t('noPermission'), 'error'); return; }
+  const tx = APP.repayments.find(r => r.id === txId);
+  if (!tx) { toast(t('repNotFound'), 'error'); return; }
+  if (String(tx.status||'pending').toLowerCase() !== 'pending') { toast(t('repAlreadyProcessed'), 'warning'); return; }
+
+  try {
+    await updateDoc(doc(db, 'transactions', txId), {
+      status: 'rejected',
+      rejectedAt: serverTimestamp(),
+      rejectedBy: S.uid,
+      rejectedByName: S.name
+    });
+
+    // No loan change — rejected repayments do not affect balance.
+    try {
+      await setDoc(doc(collection(db, 'audit')), {
+        action: 'rejected', collection: 'transactions',
+        documentId: txId,
+        changes: { status: { old: 'pending', new: 'rejected' } },
+        details: `Repayment rejected for loan ${tx.loanId || '—'}`,
+        timestamp: serverTimestamp(),
+        userEmail: S.email, userName: S.name
+      });
+    } catch(e){}
+
+    toast(t('repRejectedOk'), 'success');
+    await loadAllData();
+    renderMain();
+  } catch (err) {
+    toast(t('errorSave') + (err.code === 'permission-denied' ? t('noPermission') : err.message), 'error');
   }
 }
 
@@ -2043,13 +2169,15 @@ function openLoanWizard(loan) {
                 <p class="field__hint" id="wiz-itype-hint">${esc(interestTypeHint(d.interestType))}</p></div>
               <div class="field"><label>${esc(t('statusLabel'))}</label>
                 <select data-field="status">
-                  <option value="pending"   ${d.status === 'pending'   ? 'selected' : ''}>Pending</option>
+                  <option value="pending"   ${d.status === 'pending'   ? 'selected' : ''}>Pending (needs approval)</option>
                   <option value="approved"  ${d.status === 'approved'  ? 'selected' : ''}>Approved</option>
                   <option value="active"    ${d.status === 'active'    ? 'selected' : ''}>Active</option>
                   <option value="repaid"    ${d.status === 'repaid'    ? 'selected' : ''}>Repaid</option>
                   <option value="defaulted" ${d.status === 'defaulted' ? 'selected' : ''}>Defaulted</option>
                   <option value="rejected"  ${d.status === 'rejected'  ? 'selected' : ''}>Rejected</option>
-                </select></div>
+                </select>
+                ${!isEdit ? `<p class="field__hint">Leave as "Pending" to require approval before the loan is active.</p>` : ''}
+              </div>
             </div>
             <div class="field-row-3">
               <div class="field"><label class="field__required">${esc(t('principalLabel'))}</label>
@@ -2223,6 +2351,8 @@ function openLoanWizard(loan) {
               <div class="review__row"><span class="review__k">${esc(t('reviewDisbursement'))}</span><span class="review__v">${esc(fmtDate(d.disbursementDate))}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('reviewMaturity'))}</span><span class="review__v">${esc(fmtDate(d.maturityDate || computeMaturityDate(d.disbursementDate, d.duration)))}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('reviewGuarantees'))}</span><span class="review__v">${gList}</span></div>
+              <div class="review__row"><span class="review__k">${esc(t('reviewStatus'))}</span>
+                <span class="review__v"><span class="tag ${loanStatusCls(d.status)}">${esc(loanStatusLabel(d.status))}</span></span></div>
               <div class="review__row"><span class="review__k">${esc(t('reviewRecordedBy'))}</span><span class="review__v" style="font-weight:800;color:#0b5cab">${esc(recBy)}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('reviewApprovedBy'))}</span><span class="review__v" style="font-weight:800;color:${appBy?'#067647':'var(--muted)'}">${appBy ? esc(appBy) : esc(t('notApprovedYet'))}</span></div>
             </div>`;
@@ -2281,19 +2411,56 @@ function openLoanWizard(loan) {
         payload.printCount = 0; payload.printStatus = 'not_printed';
         await setDoc(doc(collection(db, 'loans')), payload);
       }
+
+      await loadAllData();
+      renderMain();
     }
   });
 }
 
-/* ============ VIEW MODAL ============ */
+/* ============ VIEW MODAL (includes Repayment History) ============ */
 function openViewModal(l) {
   closeModal();
   const c = customerById(l.customerId || l.customerDocId);
   const { interest, total, monthly } = calcLoan(l.principal, l.interestRate, l.duration, l.interestType);
-  const repaid = loanRepaid(l);
+  const repaid = loanRepaid(l);       // approved only
   const outstanding = loanOutstanding(l);
   const progress = loanProgress(l);
   const overdue = isOverdue(l);
+
+  // ── Repayment History ──
+  const loanReps = (APP.repayments || [])
+    .filter(r => r.loanId === l.id)
+    .sort((a,b) => (toDateSafe(b.date)?.getTime()||0) - (toDateSafe(a.date)?.getTime()||0));
+
+  const totalPendingAmount = loanReps.filter(r => String(r.status||'').toLowerCase() === 'pending').reduce((s,r) => s + num(r.amount), 0);
+
+  const repsHtml = loanReps.length ? loanReps.map(r => {
+    const st = String(r.status || 'pending').toLowerCase();
+    const stCls = st === 'approved' ? 'tag--green'
+                : st === 'rejected' ? 'tag--red'
+                : st === 'printed' ? 'tag--blue'
+                : 'tag--gold';
+    const stLabel = st === 'approved' ? t('repApproved')
+                  : st === 'rejected' ? t('repRejected')
+                  : st === 'printed' ? 'Printed'
+                  : t('repPending');
+    let actions = '';
+    if (st === 'pending' && canApprove()) {
+      actions = `<button class="btn btn--success btn--sm" data-approve-rep="${esc(r.id)}" title="Approve" style="height:30px;padding:0 10px;font-size:11px"><i class="fas fa-check"></i></button>
+                 <button class="btn btn--danger btn--sm" data-reject-rep="${esc(r.id)}" title="Reject" style="height:30px;padding:0 10px;font-size:11px"><i class="fas fa-times"></i></button>`;
+    }
+    return `<div class="rep-row">
+      <span class="date">${esc(fmtDate(r.date))}</span>
+      <span class="amt">ETB ${num(r.amount).toLocaleString()}</span>
+      <span class="pp">P ${num(r.principalPortion).toLocaleString()}</span>
+      <span class="ip">I ${num(r.interestPortion).toLocaleString()}${r.interestWaived ? ' ✓' : ''}</span>
+      <span class="tag ${stCls}" style="font-size:9.5px">${stLabel}</span>
+      <span class="by">${esc(r.createdByName || '')}</span>
+      <div style="display:flex;gap:6px;margin-left:auto">${actions}</div>
+    </div>`;
+  }).join('') : `<div style="padding:20px;text-align:center;color:var(--muted);font-size:12.5px">${esc(t('noRepayments'))}</div>`;
+
   const root = document.createElement('div');
   root.className = 'modal-backdrop'; root.id = 'modal-backdrop';
   root.innerHTML = `
@@ -2315,6 +2482,10 @@ function openViewModal(l) {
             <div style="margin-top:6px"><span class="tag ${loanStatusCls(l.status)}">${esc(loanStatusLabel(l.status))}</span></div>
           </div>
         </div>
+        ${totalPendingAmount > 0 ? `<div class="alert alert--warning">
+          <i class="fas fa-hourglass-half"></i>
+          <div>Pending repayments totalling <strong>ETB ${totalPendingAmount.toLocaleString()}</strong> are not yet reflected in the balance. Approve them below.</div>
+        </div>` : ''}
         <div class="review" style="margin-bottom:20px">
           <div class="review__row"><span class="review__k">${esc(t('serialNumber'))}</span><span class="review__v" style="font-family:ui-monospace,monospace;font-weight:800">${esc(l.serialNumber || l.loanNumber || '—')}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('colType'))}</span><span class="review__v">${esc(loanTypeLabel(l.loanType))}</span></div>
@@ -2327,6 +2498,16 @@ function openViewModal(l) {
           <div class="review__row"><span class="review__k">${esc(t('monthlyPayment'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(money(monthly))}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('recordedBy'))}</span><span class="review__v">${esc(l.createdByName || '—')}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('approvedBy'))}</span><span class="review__v">${l.approvedByName ? esc(l.approvedByName) : `<span style="color:var(--muted)">${esc(t('notApprovedYet'))}</span>`}</span></div>
+        </div>
+
+        <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+                    color:var(--muted);margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border-soft);
+                    display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+          <span><i class="fas fa-undo-alt" style="color:var(--primary);margin-right:6px"></i>${esc(t('repaymentHistory'))} (${loanReps.length})</span>
+          ${totalPendingAmount > 0 ? `<span class="tag tag--gold" style="font-size:10px"><i class="fas fa-hourglass-half"></i> ETB ${totalPendingAmount.toLocaleString()} pending</span>` : ''}
+        </div>
+        <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff">
+          ${repsHtml}
         </div>
       </div>
       <div class="modal__foot">
@@ -2346,10 +2527,35 @@ function openViewModal(l) {
   document.getElementById('view-edit-btn')?.addEventListener('click', () => { closeModal(); setTimeout(() => openLoanWizard(l), 100); });
   document.getElementById('view-print-btn')?.addEventListener('click', () => { closeModal(); setTimeout(() => printSlip(l), 120); });
   document.getElementById('view-repay-btn')?.addEventListener('click', () => { closeModal(); setTimeout(() => openRepaymentModal(l), 120); });
+
+  // ── Approve/Reject actions on repayment rows ──
+  root.querySelectorAll('[data-approve-rep]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const ok = confirm(t('approveRepTitle') + '\n\n' + t('approveRepMsg'));
+      if (!ok) return;
+      await approveRepayment(btn.dataset.approveRep);
+      closeModal();
+      const fresh = APP.loans.find(x => x.id === l.id);
+      if (fresh) setTimeout(() => openViewModal(fresh), 200);
+    });
+  });
+  root.querySelectorAll('[data-reject-rep]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const ok = confirm(t('rejectRepTitle') + '\n\n' + t('rejectRepMsg'));
+      if (!ok) return;
+      await rejectRepayment(btn.dataset.rejectRep);
+      closeModal();
+      const fresh = APP.loans.find(x => x.id === l.id);
+      if (fresh) setTimeout(() => openViewModal(fresh), 200);
+    });
+  });
 }
 
 /* ============================================================
-   ⭐  REPAYMENT MODAL — 3-step wizard (Amount → Payment → Review)
+   ⭐  REPAYMENT MODAL — 3-step wizard
+   Note: on save we always write `status: 'pending'`.
+         The loan's amountRepaid is NOT touched here.
+         It is only updated by `approveRepayment()`.
    ============================================================ */
 async function openRepaymentModal(loan) {
   if (!canRepay()) { toast(t('noPermission'), 'error'); return; }
@@ -2359,7 +2565,6 @@ async function openRepaymentModal(loan) {
   const outstanding0 = loanOutstanding(loan);
   if (outstanding0 <= 0) { toast('Nothing to repay.', 'info'); return; }
 
-  // Pre-fetch history + penalty state
   await checkAndCreatePenalty(loan.id, loan.customerId || loan.memberId);
   const [allPending0, historyHtml, list0] = await Promise.all([
     getMemberPenaltiesWithDetails(loan.customerId || loan.memberId),
@@ -2403,8 +2608,7 @@ async function openRepaymentModal(loan) {
     initial,
     steps: [
       {
-        label: 'Amount',
-        title: 'Loan & Amount',
+        label: 'Amount', title: 'Loan & Amount',
         render: (d) => {
           const pending = d._pending;
           const gate = d._approvedCount < APP.settings.minMonthsForRepayAll;
@@ -2413,6 +2617,11 @@ async function openRepaymentModal(loan) {
               <i class="fas fa-lock"></i>
               <div>${esc(t('penaltyBlockedTitle'))} <strong>ETB ${pending.total.toFixed(2)}</strong>. ${esc(t('penaltyBlockPay'))}</div>
             </div>` : ''}
+
+            <div class="alert alert--info">
+              <i class="fas fa-info-circle"></i>
+              <div>This repayment will be saved as <strong>pending</strong>. It only affects the loan balance after approval.</div>
+            </div>
 
             <div class="info-panel show">
               <button type="button" class="info-panel__refresh" id="rpRefreshPenalty" title="${esc(t('refreshPenalty'))}"><i class="fas fa-sync-alt"></i></button>
@@ -2544,8 +2753,7 @@ async function openRepaymentModal(loan) {
         }
       },
       {
-        label: 'Payment',
-        title: 'Payment details',
+        label: 'Payment', title: 'Payment details',
         render: (d) => {
           const isCash = d.method === 'cash';
           const bankOpts = (BANKS_LIST[d.method] || []).map(name =>
@@ -2648,14 +2856,17 @@ async function openRepaymentModal(loan) {
         }
       },
       {
-        label: 'Review',
-        title: 'Review and confirm',
+        label: 'Review', title: 'Review and confirm',
         render: (d) => {
           const amt = num(d.amount);
           const methodLabel = { cash: t('methodCash'), bank: t('methodBank'), mobile: t('methodMobile') }[d.method] || d.method;
           const bankDisplay = d.method === 'cash' ? '—' : (d.bankName === 'other' ? d.bankOther : d.bankName);
           const remainingAfter = Math.max(0, round2(d._outstanding - amt));
           return `
+            <div class="alert alert--warning">
+              <i class="fas fa-hourglass-half"></i>
+              <div>After saving, this repayment will be <strong>pending</strong>. The loan balance stays the same until an admin approves it.</div>
+            </div>
             <div style="padding:16px;background:linear-gradient(135deg,#f0fdf4,#fff);border:1px solid #a7f3d0;border-radius:14px;margin-bottom:18px;display:flex;align-items:center;gap:16px">
               <div style="width:60px;height:60px;border-radius:50%;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#128a5c,#19a974);display:grid;place-items:center;color:#fff;font-weight:800;font-size:22px">
                 ${d._customer?.photoURL ? `<img src="${esc(d._customer.photoURL)}" alt="" style="width:100%;height:100%;object-fit:cover">` : esc(initials(customerName(d._customer)))}
@@ -2663,7 +2874,7 @@ async function openRepaymentModal(loan) {
               <div style="min-width:0">
                 <div style="font-size:16px;font-weight:800">${esc(customerName(d._customer))}</div>
                 ${d._customer?.customerId ? `<div style="font-size:12px;color:var(--muted);font-family:ui-monospace,monospace;margin-top:2px">${esc(d._customer.customerId)}</div>` : ''}
-                <div style="margin-top:6px"><span class="tag tag--green">${esc(methodLabel)}</span></div>
+                <div style="margin-top:6px"><span class="tag tag--gold">Pending</span> <span class="tag tag--green">${esc(methodLabel)}</span></div>
               </div>
               <div style="margin-left:auto;text-align:right">
                 <div style="font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.05em">Repayment</div>
@@ -2672,11 +2883,11 @@ async function openRepaymentModal(loan) {
             </div>
             <div class="review">
               <div class="review__row"><span class="review__k">Loan No.</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(loan.serialNumber || loan.loanNumber || loan.id.slice(0,8))}</span></div>
-              <div class="review__row"><span class="review__k">Outstanding before</span><span class="review__v" style="font-family:ui-monospace,monospace;color:#b42318">${esc(money(d._outstanding))}</span></div>
+              <div class="review__row"><span class="review__k">Outstanding (unchanged)</span><span class="review__v" style="font-family:ui-monospace,monospace;color:#b42318">${esc(money(d._outstanding))}</span></div>
               <div class="review__row"><span class="review__k">Repayment Amount</span><span class="review__v" style="font-family:ui-monospace,monospace;font-weight:800;color:#128a5c">${esc(money(amt))}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('principalPortion'))}</span><span class="review__v" style="font-family:ui-monospace,monospace;color:#128a5c">${esc(money(d.principalPortion))}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('interestPortion'))}</span><span class="review__v" style="font-family:ui-monospace,monospace;color:#b8860b">${esc(money(d.interestPortion))}${d.isRepayAll && APP.settings.allowInterestWaiver ? ` <em style="color:#128a5c">(${t('waived')})</em>` : ''}</span></div>
-              <div class="review__row"><span class="review__k">Outstanding after</span><span class="review__v" style="font-family:ui-monospace,monospace;font-weight:800;color:${remainingAfter <= 0 ? '#067647' : '#b42318'}">${esc(money(remainingAfter))}</span></div>
+              <div class="review__row"><span class="review__k">Outstanding after approval</span><span class="review__v" style="font-family:ui-monospace,monospace;font-weight:800;color:${remainingAfter <= 0 ? '#067647' : '#b42318'}">${esc(money(remainingAfter))}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('repaymentMethod'))}</span><span class="review__v">${esc(methodLabel)}</span></div>
               ${d.method !== 'cash' ? `
                 <div class="review__row"><span class="review__k">${esc(t('bankProvider'))}</span><span class="review__v">${esc(bankDisplay || '—')}</span></div>
@@ -2700,10 +2911,6 @@ async function openRepaymentModal(loan) {
       const amount = num(d.amount);
       if (amount <= 0) throw new Error(t('invalidAmountMsg'));
 
-      const newRepaid = round2(loanRepaid(loan) + amount);
-      const totalPayable = calcLoan(loan.principal, loan.interestRate, loan.duration, loan.interestType).total;
-      const newOutstanding = Math.max(0, round2(totalPayable - newRepaid));
-      const newStatus = newOutstanding <= 0.01 ? 'repaid' : (loan.status || 'active');
       const bankName = d.method === 'cash' ? '' : (d.bankName === 'other' ? d.bankOther : d.bankName);
 
       const txData = {
@@ -2720,7 +2927,7 @@ async function openRepaymentModal(loan) {
         waivedInterest: d.isRepayAll ? Math.max(0, round2(amount - num(d.principalPortion))) : 0,
         date: new Date(d.date),
         note: (d.note || '').trim(),
-        status: 'pending',
+        status: 'pending',                             // ← ALWAYS pending
         paymentMethod: d.method,
         ttNumber: d.method === 'cash' ? '' : (d.ttNumber || '').trim(),
         bankName,
@@ -2734,22 +2941,14 @@ async function openRepaymentModal(loan) {
       };
       if (d.method !== 'cash' && d.transferDate) txData.transferDate = new Date(d.transferDate);
 
+      // ── Save as pending. Loan's amountRepaid is NOT touched.
       await setDoc(doc(collection(db, 'transactions')), txData);
-
-      await updateDoc(doc(db, 'loans', loan.id), {
-        amountRepaid: newRepaid,
-        status: newStatus,
-        updatedAt: serverTimestamp(),
-        lastRepaymentAt: serverTimestamp(),
-        lastRepaymentBy: S.uid,
-        lastRepaymentByName: S.name
-      });
 
       try {
         await setDoc(doc(collection(db, 'audit')), {
           action: 'created', collection: 'transactions',
           documentId: loan.id, changes: txData,
-          details: `Repayment recorded for loan ${loan.serialNumber || loan.loanNumber || loan.id}`,
+          details: `Repayment recorded (pending approval) for loan ${loan.serialNumber || loan.loanNumber || loan.id}`,
           timestamp: serverTimestamp(),
           userEmail: S.email, userName: S.name
         });
@@ -2761,7 +2960,7 @@ async function openRepaymentModal(loan) {
   });
 }
 
-/* ============ DELETE ============ */
+/* ============ DELETE LOAN ============ */
 function openDeleteModal(l) {
   closeModal();
   if (!canDelete()) { toast(t('noPermission'), 'error'); return; }
@@ -2801,6 +3000,8 @@ function openDeleteModal(l) {
       await deleteDoc(doc(db, 'loans', l.id));
       toast(t('deletedOk'), 'success');
       closeModal();
+      await loadAllData();
+      renderMain();
     } catch (err) {
       toast(t('errorDelete') + (err.code === 'permission-denied' ? t('noPermission') : err.message), 'error');
       btn.disabled = false; sp.classList.add('hidden'); lbl.textContent = t('rowDelete');
@@ -3073,6 +3274,8 @@ async function loadAllData() {
 /* Global exports */
 window.viewLoan = openViewModal;
 window.openRepaymentModal = openRepaymentModal;
+window.approveRepayment = approveRepayment;
+window.rejectRepayment = rejectRepayment;
 </script>
 
 </body>
