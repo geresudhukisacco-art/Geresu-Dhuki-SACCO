@@ -374,8 +374,6 @@ html.theme-dark .user-btn{background:#1a2433;}
 .suggestions div{padding:11px 16px;cursor:pointer;font-size:13.5px;border-bottom:1px solid var(--border-soft);color:var(--text);transition:.15s;}
 .suggestions div:last-child{border-bottom:none;}
 .suggestions div:hover{background:var(--bg-soft);color:var(--primary);}
-
-/* Loan info panel (repayment modal) */
 .info-panel{display:none;background:var(--bg-soft);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:18px;position:relative;}
 .info-panel.show{display:block;}
 .info-panel__grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 18px;}
@@ -391,8 +389,6 @@ html.theme-dark .user-btn{background:#1a2433;}
 .info-row .v.due.overdue{color:var(--danger);font-weight:800;}
 .info-panel__refresh{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:50%;background:#fff;border:1px solid var(--border);color:var(--muted);cursor:pointer;display:grid;place-items:center;font-size:13px;transition:.2s;}
 .info-panel__refresh:hover{background:var(--border-soft);color:var(--primary);transform:rotate(90deg);}
-
-/* Payment history */
 .payment-history{margin-top:14px;border-top:1px dashed var(--border);padding-top:14px;}
 .payment-history h5{font-size:12.5px;font-weight:800;margin-bottom:10px;color:var(--text);display:flex;align-items:center;gap:6px;}
 .history-list{max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:#fff;}
@@ -574,7 +570,6 @@ const GUARANTEE_TYPES = [
   { code:'land', name:'Land' }, { code:'equipment', name:'Equipment' }, { code:'other', name:'Other' }
 ];
 
-/* ============ BANKS ============ */
 const BANKS_LIST = {
   mobile: ['Tele Birr','M-Pesa','Amole','HelloCash','CBE Birr','Kaafi Cash','Dashen Amole','Awash Wallet','E-Birr','Maya','Coopay-Ebirr'],
   bank: ['Commercial Bank of Ethiopia (CBE)','Awash Bank','Dashen Bank','Bank of Abyssinia','Wegagen Bank','United Bank','Nib International Bank','Cooperative Bank of Oromia','Buna International Bank','Berhan International Bank','Abay Bank','Zemen Bank','Oromia International Bank','Bunna Bank','Debub Global Bank','Enat Bank','Addis International Bank','Lion International Bank','Ahadu Bank','Tsehay Bank','Goh Betoch Bank','Amhara Bank','Sidama Bank','Omo Bank','Ramis Bank','ZamZam Bank','Hijra Bank','Development Bank of Ethiopia']
@@ -653,7 +648,6 @@ const APP = {
   dataLoaded: false
 };
 const CUSTOMER_MAP = new Map();
-let selectedRepayLoanId = null;
 
 /* ============ I18N ============ */
 const I18N = {
@@ -763,7 +757,6 @@ const I18N = {
     newBalancePreview:'New outstanding after repayment',
     customerScope:'Showing all loans in your scope', memberScope:'Showing your loans only',
     overduBadge:'Overdue', soonBadge:'Due soon',
-    // Repayment-merged labels
     searchLoan:'Search Loan', searchLoanPh:'Search by customer name or loan ID…',
     minRepayHint:'Minimum repayment required',
     repayAll:'Repay All', repayAllUnlocks:'Repay All unlocks after {n} monthly payments (paid: {paid}).',
@@ -822,7 +815,6 @@ const moneyShort = (v) => {
   if (n >= 1e3) return cur + ' ' + (n/1e3).toFixed(1) + 'K';
   return cur + ' ' + n.toLocaleString();
 };
-const fmtCount = (n) => num(n).toLocaleString();
 const toDateSafe = (v) => {
   if (!v) return null;
   if (v instanceof Date) return isNaN(v) ? null : v;
@@ -989,13 +981,6 @@ function generateSerialNumber() {
   for (let i = 0; i < 3; i++) suf += chars[Math.floor(Math.random() * chars.length)];
   return `GD-${yr}-${rnd}-${suf}`;
 }
-function customerSavingsBalance(customer) {
-  if (!customer) return 0;
-  const cid = customer.customerId || customer.id;
-  let total = 0;
-  (APP.customers.length ? [] : []).forEach(()=>{}); // placeholder
-  return total;
-}
 function customerLoanContext(customer, excludeLoanId) {
   if (!customer) return { total:0, active:0, pending:0, paid:0, outstanding:0, exposure:0, loans:[] };
   const cid = customer.customerId || customer.id;
@@ -1053,22 +1038,12 @@ function getRepaymentPrincipal(r, loan) {
   return Math.max(0, amount - interestPart);
 }
 
-/* ============ LOAN REPAYMENTS HELPERS (for repayment modal) ============ */
+/* ============ LOAN REPAYMENTS HELPERS ============ */
 async function fetchLoanRepayments(loanId) {
   const snap = await getDocs(query(collection(db, 'transactions'),
     where('loanId','==',loanId), where('type','==','repayment')));
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
-async function getLoanRepaymentsTotal(loanId) {
-  const list = await fetchLoanRepayments(loanId);
-  return list
-    .filter(r => r.status === 'approved' || r.status === 'printed' || r.printed === true)
-    .reduce((s, r) => s + num(r.amount), 0);
-}
-function getApprovedRepaymentsList(loanId) {
-  return APP.repayments.filter(r => r.loanId === loanId && (r.status === 'approved' || r.status === 'printed' || r.printed === true));
-}
-function getApprovedRepaymentCount(loanId) { return getApprovedRepaymentsList(loanId).length; }
 
 /* ============ PENALTY ============ */
 async function checkAndCreatePenalty(loanId, memberId) {
@@ -1100,8 +1075,8 @@ async function checkAndCreatePenalty(loanId, memberId) {
     const existing = await getDocs(query(collection(db, 'transactions'),
       where('loanId','==',loanId), where('type','==','penalty'), where('status','==','pending')));
     if (!existing.empty) {
-      let t = 0; existing.forEach(d => t += num(d.data().amount));
-      return { penaltyAmount: t, unpaidMonths };
+      let t2 = 0; existing.forEach(d => t2 += num(d.data().amount));
+      return { penaltyAmount: t2, unpaidMonths };
     }
 
     await setDoc(doc(collection(db, 'transactions')), {
@@ -1260,20 +1235,6 @@ async function generatePaymentHistory(loanId) {
     console.error(e);
     return `<p style="color:var(--muted)">Error loading payment history.</p>`;
   }
-}
-
-/* ============ UNPAID PREVIOUS MONTHS ============ */
-function getUnpaidPreviousMonths(loan, repayments) {
-  const loanDate = toDateSafe(loan.date);
-  const period = num(loan.duration);
-  if (!loanDate || period === 0) return { unpaidMonths: 0, totalUnpaid: 0 };
-  const now = new Date();
-  const monthsDiff = (now.getFullYear() - loanDate.getFullYear()) * 12 + (now.getMonth() - loanDate.getMonth());
-  if (monthsDiff <= 0) return { unpaidMonths: 0, totalUnpaid: 0 };
-  const monthly = calcLoan(loan.principal, loan.interestRate, period, loan.interestType || 'simple').monthly;
-  const paidMonths = repayments.filter(r => r.status === 'approved' || r.status === 'printed').length;
-  const unpaidMonths = Math.max(0, monthsDiff - paidMonths);
-  return { unpaidMonths, totalUnpaid: round2(unpaidMonths * monthly) };
 }
 
 /* ============ NAV ============ */
@@ -1825,7 +1786,7 @@ function handleRowAction(action, id) {
   if (action === 'approve') approveLoan(l);
   if (action === 'reject')  rejectLoan(l);
   if (action === 'print')   printSlip(l);
-  if (action === 'repay')   openRepaymentModal(l);   // <-- MERGED: full logic inline
+  if (action === 'repay')   openRepaymentModal(l);
 }
 
 /* ============ APPROVE / REJECT ============ */
@@ -2388,416 +2349,381 @@ function openViewModal(l) {
 }
 
 /* ============================================================
-   ⭐  REPAYMENT MODAL — FULL LOGIC MERGED FROM repayments.html
+   ⭐  REPAYMENT MODAL — 3-step wizard (Amount → Payment → Review)
    ============================================================ */
 async function openRepaymentModal(loan) {
   if (!canRepay()) { toast(t('noPermission'), 'error'); return; }
   if (!loan) { toast(t('pleaseSelectLoan'), 'warning'); return; }
   closeModal();
 
-  const outstanding = loanOutstanding(loan);
-  if (outstanding <= 0) { toast('Nothing to repay.', 'info'); return; }
+  const outstanding0 = loanOutstanding(loan);
+  if (outstanding0 <= 0) { toast('Nothing to repay.', 'info'); return; }
 
-  // Kick off penalty check in background
-  let allPending = { total: 0, details: [] };
-  try { await checkAndCreatePenalty(loan.id, loan.customerId || loan.memberId); allPending = await getMemberPenaltiesWithDetails(loan.customerId || loan.memberId); } catch(e){}
-
+  // Pre-fetch history + penalty state
+  await checkAndCreatePenalty(loan.id, loan.customerId || loan.memberId);
+  const [allPending0, historyHtml, list0] = await Promise.all([
+    getMemberPenaltiesWithDetails(loan.customerId || loan.memberId),
+    generatePaymentHistory(loan.id),
+    fetchLoanRepayments(loan.id).catch(() => [])
+  ]);
+  const monthly0 = calcMonthlyPayment(loan);
+  const minPayment0 = Math.min(monthly0, outstanding0);
+  const approvedCount0 = list0.filter(r => r.status === 'approved' || r.status === 'printed').length;
   const c = customerById(loan.customerId || loan.customerDocId);
+  const initSplit = computeRepaymentSplit(minPayment0, loan, outstanding0);
 
-  const root = document.createElement('div');
-  root.className = 'modal-backdrop'; root.id = 'modal-backdrop';
-  root.innerHTML = `
-    <div class="modal modal--lg">
-      <div class="modal__head">
-        <div>
-          <div class="modal__title"><i class="fas fa-hand-holding-usd"></i>${esc(t('repaymentTitle'))}</div>
-          <div class="modal__sub">${esc(t('repaymentSub'))}</div>
-        </div>
-        <button class="modal__close" data-close><i class="fas fa-times"></i></button>
-      </div>
-      <div class="modal__body">
+  const initial = {
+    amount: minPayment0.toFixed(2),
+    date: new Date().toISOString().slice(0,10),
+    method: ['super_admin','admin','manager'].includes(S.role) ? 'cash' : 'bank',
+    ttNumber: '',
+    transferDate: '',
+    bankName: '',
+    bankOther: '',
+    note: '',
+    principalPortion: initSplit.principal,
+    interestPortion: initSplit.interest,
+    isRepayAll: false,
+    _outstanding: outstanding0,
+    _monthly: monthly0,
+    _minPayment: minPayment0,
+    _approvedCount: approvedCount0,
+    _historyHtml: historyHtml,
+    _customer: c,
+    _pending: allPending0,
+    _list0: list0
+  };
 
-        <input type="hidden" id="rpLoanId" value="${esc(loan.id)}" />
+  openWizard({
+    title: t('repaymentTitle'),
+    subtitle: t('repaymentSub'),
+    finishLabel: t('rowRepay'),
+    successMessage: t('repaymentOk'),
+    size: 'lg',
+    initial,
+    steps: [
+      {
+        label: 'Amount',
+        title: 'Loan & Amount',
+        render: (d) => {
+          const pending = d._pending;
+          const gate = d._approvedCount < APP.settings.minMonthsForRepayAll;
+          return `
+            ${pending.total > 0 ? `<div class="alert alert--error">
+              <i class="fas fa-lock"></i>
+              <div>${esc(t('penaltyBlockedTitle'))} <strong>ETB ${pending.total.toFixed(2)}</strong>. ${esc(t('penaltyBlockPay'))}</div>
+            </div>` : ''}
 
-        <div class="alert alert--warning" id="rpDupWarn" style="display:none">
-          <i class="fas fa-exclamation-triangle"></i><div>${esc(t('duplicateWarn'))}</div>
-        </div>
-
-        <div class="field-row">
-          <div class="field">
-            <label class="field__required">${esc(t('repaymentAmount'))}</label>
-            <div class="amount-row">
-              <input type="number" id="rpAmount" class="amount-input" step="0.01" min="0.01" placeholder="0.00" />
-              <button type="button" class="btn-repay-all" id="rpRepayAllBtn"><i class="fas fa-check-double"></i> ${esc(t('repayAll'))}</button>
+            <div class="info-panel show">
+              <button type="button" class="info-panel__refresh" id="rpRefreshPenalty" title="${esc(t('refreshPenalty'))}"><i class="fas fa-sync-alt"></i></button>
+              <div class="info-panel__grid">
+                <div class="info-row"><span class="k">${esc(t('customer'))}</span><span class="v">${esc(customerName(d._customer))}</span></div>
+                <div class="info-row"><span class="k">${esc(t('loanAmount'))}</span><span class="v">${esc(money(loan.principal))}</span></div>
+                <div class="info-row"><span class="k">${esc(t('totalPayable'))}</span><span class="v">${esc(money(calcLoan(loan.principal, loan.interestRate, loan.duration, loan.interestType).total))}</span></div>
+                <div class="info-row"><span class="k">${esc(t('totalPaid'))}</span><span class="v" style="color:#128a5c">${esc(money(loanRepaid(loan)))}</span></div>
+                <div class="info-row"><span class="k">${esc(t('remaining'))}</span><span class="v" style="color:#b42318">${esc(money(d._outstanding))}</span></div>
+                <div class="info-row"><span class="k">${esc(t('monthlyInstallment'))}</span><span class="v">${esc(money(d._monthly))}</span></div>
+                <div class="info-row"><span class="k">${esc(t('minRepaymentStatus'))}</span><span class="v">Min: ${esc(money(d._minPayment))}</span></div>
+                <div class="info-row"><span class="k">${esc(t('approvedMonthsPaid'))}</span><span class="v">${d._approvedCount} / ${APP.settings.minMonthsForRepayAll}</span></div>
+              </div>
             </div>
-            <small class="field__hint" id="rpMinHint" style="display:none">${esc(t('minRepayHint'))}: <span id="rpMinDisplay">0.00</span> ETB</small>
-          </div>
-          <div class="field">
-            <label class="field__required">${esc(t('repaymentDate'))}</label>
-            <input type="date" id="rpDate" value="${new Date().toISOString().slice(0,10)}" />
-          </div>
-        </div>
 
-        <div class="info-panel show" id="rpLoanInfo">
-          <button class="info-panel__refresh" id="rpRefreshPenalty" title="${esc(t('refreshPenalty'))}"><i class="fas fa-sync-alt"></i></button>
-          <div class="info-panel__grid">
-            <div class="info-row"><span class="k">${esc(t('customer'))}</span><span class="v" id="rpCustomer">${esc(customerName(c))}</span></div>
-            <div class="info-row"><span class="k">${esc(t('loanAmount'))}</span><span class="v">${esc(money(loan.principal))}</span></div>
-            <div class="info-row"><span class="k">${esc(t('totalPayable'))}</span><span class="v">${esc(money(calcLoan(loan.principal, loan.interestRate, loan.duration, loan.interestType).total))}</span></div>
-            <div class="info-row"><span class="k">${esc(t('totalPaid'))}</span><span class="v positive" id="rpTotalPaid">${esc(money(loanRepaid(loan)))}</span></div>
-            <div class="info-row"><span class="k">${esc(t('remaining'))}</span><span class="v ${outstanding > 0 ? 'warning' : 'positive'}" id="rpRemaining">${esc(money(outstanding))}</span></div>
-            <div class="info-row"><span class="k">${esc(t('monthlyInstallment'))}</span><span class="v" id="rpMonthly">${esc(money(calcMonthlyPayment(loan)))}</span></div>
-            <div class="info-row"><span class="k">${esc(t('minRepaymentStatus'))}</span><span class="v" id="rpMinStatus">—</span></div>
-            <div class="info-row"><span class="k">${esc(t('status'))}</span><span class="v">${esc(loanStatusLabel(loan.status))}</span></div>
-            <div class="info-row"><span class="k">${esc(t('nextDueDate'))}</span><span class="v due" id="rpNextDue">—</span></div>
-            <div class="info-row"><span class="k">${esc(t('approvedMonthsPaid'))}</span><span class="v" id="rpMonthsPaid">0</span></div>
-          </div>
-          <div id="rpHistoryBox" class="payment-history" style="display:none;"></div>
-        </div>
+            <div class="field">
+              <label class="field__required">${esc(t('repaymentAmount'))}</label>
+              <div class="amount-row">
+                <input type="number" id="rpAmount" data-field="amount" class="amount-input" step="0.01" min="0.01" placeholder="0.00" value="${esc(d.amount)}" />
+                <button type="button" class="btn-repay-all" id="rpRepayAllBtn" ${gate ? 'disabled style="opacity:.5"' : ''}>
+                  <i class="fas fa-check-double"></i> ${esc(t('repayAll'))}
+                </button>
+              </div>
+              <small class="field__hint">${esc(t('minRepayHint'))}: <strong>${esc(money(d._minPayment))}</strong> ETB</small>
+            </div>
 
-        <div class="field-row" id="rpSplitRow" style="display:none">
-          <div class="field">
-            <label><i class="fas fa-landmark"></i> ${esc(t('principalPortion'))}</label>
-            <input type="text" id="rpPrincipalPortion" class="field__readonly principal" readonly />
-          </div>
-          <div class="field">
-            <label><i class="fas fa-percent"></i> ${esc(t('interestPortion'))}</label>
-            <input type="text" id="rpInterestPortion" class="field__readonly interest" readonly />
-          </div>
-        </div>
+            ${gate ? `<div class="alert alert--warning">
+              <i class="fas fa-lock"></i>
+              <div>${esc(t('repayAllBlocked').replace('{n}', APP.settings.minMonthsForRepayAll).replace('{paid}', d._approvedCount))}</div>
+            </div>` : ''}
 
-        <div class="alert alert--success" id="rpWaiverNote" style="display:none">
-          <i class="fas fa-gift"></i><div id="rpWaiverText"></div>
-        </div>
-        <div class="alert alert--warning" id="rpRepayAllBlock" style="display:none">
-          <i class="fas fa-lock"></i><div id="rpRepayAllBlockText"></div>
-        </div>
-        <div class="alert alert--error" id="rpPenaltyBlock" style="display:none">
-          <i class="fas fa-lock"></i><div>${esc(t('penaltyBlockedTitle'))} <strong id="rpPenaltyBlockAmount">ETB 0.00</strong>. ${esc(t('penaltyBlockPay'))}</div>
-        </div>
+            <div class="alert alert--success" id="rpWaiverNote" style="display:none">
+              <i class="fas fa-gift"></i><div id="rpWaiverText"></div>
+            </div>
 
-        <div class="field-row">
-          <div class="field">
-            <label class="field__required">${esc(t('repaymentMethod'))}</label>
-            <select id="rpMethod">
-              ${['super_admin','admin','manager'].includes(S.role) ? `<option value="cash">${esc(t('methodCash'))}</option>` : ''}
-              <option value="bank" selected>${esc(t('methodBank'))}</option>
-              <option value="mobile">${esc(t('methodMobile'))}</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>${esc(t('repaymentNotes'))}</label>
-            <input type="text" id="rpNote" placeholder="${esc(t('notePlaceholder'))}" />
-          </div>
-        </div>
+            <div class="field-row" id="rpSplitRow">
+              <div class="field">
+                <label><i class="fas fa-landmark"></i> ${esc(t('principalPortion'))}</label>
+                <input type="text" id="rpPrincipalPortion" data-field="principalPortion" class="field__readonly principal" readonly value="${num(d.principalPortion).toFixed(2)}" />
+              </div>
+              <div class="field">
+                <label><i class="fas fa-percent"></i> ${esc(t('interestPortion'))}</label>
+                <input type="text" id="rpInterestPortion" data-field="interestPortion" class="field__readonly interest" readonly value="${num(d.interestPortion).toFixed(2)}" />
+              </div>
+            </div>
 
-        <div id="rpConditionalFields" style="display:none">
-          <div class="field-row">
-            <div class="field"><label class="field__required">${esc(t('ttNumber'))}</label>
-              <input type="text" id="rpTT" placeholder="Enter TT number" /></div>
-            <div class="field"><label class="field__required">${esc(t('transferDate'))}</label>
-              <input type="date" id="rpTransferDate" /></div>
-          </div>
-          <div class="field">
-            <label class="field__required">${esc(t('bankProvider'))}</label>
-            <select id="rpBankName"><option value="">${esc(t('bankPlaceholder'))}</option></select>
-            <input type="text" id="rpBankOther" placeholder="${esc(t('otherBankName'))}" style="display:none;margin-top:6px" />
-          </div>
-        </div>
-      </div>
-      <div class="modal__foot">
-        <button class="btn" data-close>${esc(t('cancel'))}</button>
-        <div class="spacer"></div>
-        <button class="btn btn--success" id="rpSubmit">
-          <span class="spinner-sm hidden"></span>
-          <span class="btn-label">${esc(t('rowRepay'))}</span>
-        </button>
-      </div>
-    </div>`;
-  document.body.appendChild(root);
-  escHandler = (e) => { if (e.key === 'Escape') closeModal(); };
-  document.addEventListener('keydown', escHandler);
-  root.addEventListener('click', (e) => { if (e.target === root) closeModal(); });
-  root.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeModal));
+            <div class="payment-history">${d._historyHtml}</div>
+          `;
+        },
+        validate: (d) => {
+          if (d._pending.total > 0) return `${t('penaltyBlockedTitle')} ETB ${d._pending.total.toFixed(2)}`;
+          const amt = num(d.amount);
+          if (amt <= 0) return t('invalidAmountMsg');
+          if (amt > d._outstanding + 0.01) return t('cannotExceedRemaining');
+          if (!d.isRepayAll && amt + 0.01 < d._minPayment) return `${t('minPaymentNotMet')} (Min: ${d._minPayment.toFixed(2)})`;
+          return null;
+        },
+        after: (root, data, refresh) => {
+          const amtIn = root.querySelector('#rpAmount');
+          const repayAllBtn = root.querySelector('#rpRepayAllBtn');
+          const principalIn = root.querySelector('#rpPrincipalPortion');
+          const interestIn = root.querySelector('#rpInterestPortion');
+          const waiverNote = root.querySelector('#rpWaiverNote');
+          const waiverText = root.querySelector('#rpWaiverText');
 
-  /* ---------- Load async data: history + months paid + penalty + repay-all gate ---------- */
-  async function refreshAll() {
-    // Payment history
-    try {
-      const h = await generatePaymentHistory(loan.id);
-      const hb = root.querySelector('#rpHistoryBox');
-      hb.innerHTML = h; hb.style.display = 'block';
-    } catch(e){}
+          const updateSplit = () => {
+            const amt = num(amtIn.value);
+            if (amt <= 0) { principalIn.value = ''; interestIn.value = ''; return; }
+            if (data.isRepayAll && APP.settings.allowInterestWaiver) {
+              principalIn.value = amt.toFixed(2);
+              interestIn.value = '0.00';
+              return;
+            }
+            const sp = computeRepaymentSplit(amt, loan, data._outstanding);
+            principalIn.value = sp.principal.toFixed(2);
+            interestIn.value = sp.interest.toFixed(2);
+          };
 
-    // Approved months paid
-    const list = await fetchLoanRepayments(loan.id).catch(() => []);
-    const approvedCount = list.filter(r => r.status === 'approved' || r.status === 'printed').length;
-    root.querySelector('#rpMonthsPaid').textContent = `${approvedCount} / ${APP.settings.minMonthsForRepayAll} required`;
+          amtIn.addEventListener('input', () => {
+            data.amount = amtIn.value;
+            if (data.isRepayAll) {
+              data.isRepayAll = false;
+              if (waiverNote) waiverNote.style.display = 'none';
+            }
+            updateSplit();
+          });
 
-    // Next due
-    const startDate = toDateSafe(loan.date || loan.disbursementDate || loan.createdAt);
-    const dueEl = root.querySelector('#rpNextDue');
-    if (startDate && outstanding > 0) {
-      const nextDue = new Date(startDate); nextDue.setMonth(nextDue.getMonth() + approvedCount + 1);
-      const now = new Date();
-      const days = Math.ceil((nextDue - now) / 86400000);
-      if (days >= 0) { dueEl.textContent = `${nextDue.toLocaleDateString()} (${t('daysLeft').replace('{n}', days)})`; dueEl.className = 'v due'; }
-      else { dueEl.textContent = `${nextDue.toLocaleDateString()} (${t('overdueBy').replace('{n}', Math.abs(days))})`; dueEl.className = 'v due overdue'; }
-    } else if (outstanding <= 0) {
-      dueEl.textContent = t('fullyPaidMsg'); dueEl.className = 'v due';
-    }
+          repayAllBtn?.addEventListener('click', () => {
+            if (data._approvedCount < APP.settings.minMonthsForRepayAll) {
+              toast(t('repayAllBlocked').replace('{n}', APP.settings.minMonthsForRepayAll).replace('{paid}', data._approvedCount), 'warning');
+              return;
+            }
+            if (APP.settings.allowInterestWaiver) {
+              const paidPrincipal = data._list0
+                .filter(r => r.status === 'approved' || r.status === 'printed')
+                .reduce((s, r) => s + getRepaymentPrincipal(r, loan), 0);
+              const outstandingPrincipal = Math.max(0, round2(num(loan.principal) - paidPrincipal));
+              const waived = Math.max(0, round2(data._outstanding - outstandingPrincipal));
+              amtIn.value = outstandingPrincipal.toFixed(2);
+              data.amount = outstandingPrincipal.toFixed(2);
+              data.isRepayAll = true;
+              if (waived > 0 && waiverNote && waiverText) {
+                waiverNote.style.display = 'flex';
+                waiverText.textContent = t('interestWaiverNote').replace('{paid}', data._approvedCount).replace('{waived}', waived.toFixed(2));
+              }
+            } else {
+              amtIn.value = data._outstanding.toFixed(2);
+              data.amount = data._outstanding.toFixed(2);
+              data.isRepayAll = false;
+            }
+            updateSplit();
+          });
 
-    // Min status
-    const monthly = calcMonthlyPayment(loan);
-    const minPayment = Math.min(monthly, outstanding);
-    root.querySelector('#rpMinDisplay').textContent = minPayment.toFixed(2);
-    root.querySelector('#rpMinHint').style.display = 'block';
-    root.querySelector('#rpMinStatus').textContent = 'Min: ' + minPayment.toFixed(2) + ' ETB';
+          root.querySelector('#rpRefreshPenalty')?.addEventListener('click', async (e) => {
+            const btn = e.currentTarget;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+            try {
+              await checkAndCreatePenalty(loan.id, loan.customerId || loan.memberId);
+              data._pending = await getMemberPenaltiesWithDetails(loan.customerId || loan.memberId);
+              toast('Penalty status refreshed.', 'success');
+              refresh();
+            } catch (err) {
+              toast('Could not refresh penalty.', 'error');
+              btn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+              btn.disabled = false;
+            }
+          });
+        }
+      },
+      {
+        label: 'Payment',
+        title: 'Payment details',
+        render: (d) => {
+          const isCash = d.method === 'cash';
+          const bankOpts = (BANKS_LIST[d.method] || []).map(name =>
+            `<option value="${esc(name)}" ${d.bankName === name ? 'selected' : ''}>${esc(name)}</option>`
+          ).join('');
+          return `
+            <div class="field-row">
+              <div class="field">
+                <label class="field__required">${esc(t('repaymentMethod'))}</label>
+                <select data-field="method" id="rpMethod">
+                  ${['super_admin','admin','manager'].includes(S.role) ? `<option value="cash" ${d.method==='cash'?'selected':''}>${esc(t('methodCash'))}</option>` : ''}
+                  <option value="bank" ${d.method==='bank'?'selected':''}>${esc(t('methodBank'))}</option>
+                  <option value="mobile" ${d.method==='mobile'?'selected':''}>${esc(t('methodMobile'))}</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field__required">${esc(t('repaymentDate'))}</label>
+                <input type="date" data-field="date" value="${esc(d.date)}" />
+              </div>
+            </div>
 
-    // Repay-All gating
-    const repayAllBtn = root.querySelector('#rpRepayAllBtn');
-    const blockNote = root.querySelector('#rpRepayAllBlock');
-    const blockTxt = root.querySelector('#rpRepayAllBlockText');
-    if (approvedCount < APP.settings.minMonthsForRepayAll) {
-      repayAllBtn.disabled = true; repayAllBtn.style.opacity = '0.5';
-      blockNote.style.display = 'flex';
-      blockTxt.textContent = t('repayAllBlocked').replace('{n}', APP.settings.minMonthsForRepayAll).replace('{paid}', approvedCount);
-    } else {
-      repayAllBtn.disabled = false; repayAllBtn.style.opacity = '1';
-      blockNote.style.display = 'none';
-    }
+            ${!isCash ? `
+              <div class="field-row">
+                <div class="field"><label class="field__required">${esc(t('ttNumber'))}</label>
+                  <input type="text" data-field="ttNumber" id="rpTT" placeholder="Enter TT number" value="${esc(d.ttNumber)}" /></div>
+                <div class="field"><label class="field__required">${esc(t('transferDate'))}</label>
+                  <input type="date" data-field="transferDate" id="rpTransferDate" value="${esc(d.transferDate)}" /></div>
+              </div>
+              <div class="field">
+                <label class="field__required">${esc(t('bankProvider'))}</label>
+                <select data-field="bankName" id="rpBankName">
+                  <option value="">${esc(t('bankPlaceholder'))}</option>
+                  ${bankOpts}
+                  <option value="other" ${d.bankName==='other'?'selected':''}>➕ Other</option>
+                </select>
+                <input type="text" data-field="bankOther" id="rpBankOther" placeholder="${esc(t('otherBankName'))}" value="${esc(d.bankOther)}" style="display:${d.bankName==='other'?'block':'none'};margin-top:6px" />
+              </div>
+            ` : ''}
 
-    // Penalty block
-    const pb = root.querySelector('#rpPenaltyBlock');
-    const pa = root.querySelector('#rpPenaltyBlockAmount');
-    if (allPending.total > 0) {
-      pb.style.display = 'flex';
-      pa.textContent = 'ETB ' + allPending.total.toFixed(2);
-      root.querySelector('#rpSubmit').disabled = true;
-    } else {
-      pb.style.display = 'none';
-      root.querySelector('#rpSubmit').disabled = false;
-    }
+            <div class="field">
+              <label>${esc(t('repaymentNotes'))}</label>
+              <input type="text" data-field="note" placeholder="${esc(t('notePlaceholder'))}" value="${esc(d.note)}" />
+            </div>
 
-    // Default amount = min payment
-    const amt = root.querySelector('#rpAmount');
-    if (!amt.value) amt.value = minPayment.toFixed(2);
-    updateSplit();
-  }
+            <div class="alert alert--warning" id="rpDupWarn" style="display:none">
+              <i class="fas fa-exclamation-triangle"></i><div>${esc(t('duplicateWarn'))}</div>
+            </div>
+          `;
+        },
+        validate: (d) => {
+          if (!d.date) return t('pleaseSelectDate');
+          if (d.method !== 'cash') {
+            if (!d.ttNumber || !d.ttNumber.trim()) return t('ttRequired');
+            if (!d.transferDate) return t('transferRequired');
+            const bank = d.bankName === 'other' ? d.bankOther : d.bankName;
+            if (!bank || !bank.trim()) return t('bankRequired');
+          }
+          return null;
+        },
+        after: (root, data, refresh) => {
+          const methodSel = root.querySelector('#rpMethod');
+          methodSel?.addEventListener('change', () => {
+            data.method = methodSel.value;
+            if (data.method === 'cash') {
+              data.ttNumber = ''; data.transferDate = ''; data.bankName = ''; data.bankOther = '';
+            }
+            refresh();
+          });
 
-  /* ---------- Split display + Recalc ---------- */
-  let isRepayAllFlag = false;
-  function updateSplit() {
-    const amount = num(root.querySelector('#rpAmount').value);
-    const splitRow = root.querySelector('#rpSplitRow');
-    if (amount <= 0) { splitRow.style.display = 'none'; return; }
-    splitRow.style.display = 'grid';
-    if (isRepayAllFlag && APP.settings.allowInterestWaiver) {
-      root.querySelector('#rpPrincipalPortion').value = amount.toFixed(2);
-      root.querySelector('#rpInterestPortion').value = '0.00 (waived)';
-      return;
-    }
-    const remText = root.querySelector('#rpRemaining').textContent.replace(/[^\d.]/g, '');
-    const remaining = num(remText);
-    const split = computeRepaymentSplit(amount, loan, remaining);
-    root.querySelector('#rpPrincipalPortion').value = split.principal.toFixed(2);
-    root.querySelector('#rpInterestPortion').value = split.interest.toFixed(2);
-  }
+          const bankSel = root.querySelector('#rpBankName');
+          const bankOther = root.querySelector('#rpBankOther');
+          bankSel?.addEventListener('change', () => {
+            data.bankName = bankSel.value;
+            if (bankSel.value === 'other') bankOther.style.display = 'block';
+            else { bankOther.style.display = 'none'; data.bankOther = ''; }
+          });
+          bankOther?.addEventListener('input', () => { data.bankOther = bankOther.value; });
 
-  /* ---------- Repay All handler ---------- */
-  root.querySelector('#rpRepayAllBtn').addEventListener('click', async () => {
-    const list = await fetchLoanRepayments(loan.id).catch(() => []);
-    const approvedCount = list.filter(r => r.status === 'approved' || r.status === 'printed').length;
-    if (approvedCount < APP.settings.minMonthsForRepayAll) {
-      toast(t('repayAllBlocked').replace('{n}', APP.settings.minMonthsForRepayAll).replace('{paid}', approvedCount), 'warning');
-      return;
-    }
-    const outstanding = loanOutstanding(loan);
-    const paidPrincipal = list
-      .filter(r => r.status === 'approved' || r.status === 'printed')
-      .reduce((s, r) => s + getRepaymentPrincipal(r, loan), 0);
-    const outstandingPrincipal = Math.max(0, round2(num(loan.principal) - paidPrincipal));
-    const waived = Math.max(0, round2(outstanding - outstandingPrincipal));
-
-    const amt = root.querySelector('#rpAmount');
-    if (APP.settings.allowInterestWaiver) {
-      amt.value = outstandingPrincipal.toFixed(2);
-      isRepayAllFlag = true;
-      if (waived > 0) {
-        const wn = root.querySelector('#rpWaiverNote');
-        wn.style.display = 'flex';
-        root.querySelector('#rpWaiverText').textContent = t('interestWaiverNote').replace('{paid}', approvedCount).replace('{waived}', waived.toFixed(2));
+          const ttIn = root.querySelector('#rpTT');
+          const tdIn = root.querySelector('#rpTransferDate');
+          const dupWarn = root.querySelector('#rpDupWarn');
+          const checkDup = async () => {
+            const tt = (data.ttNumber || '').trim();
+            const td = data.transferDate;
+            if (!tt || !td || !dupWarn) return;
+            const cid = loan.customerId || loan.memberId;
+            try {
+              const parts = td.split('-').map(Number);
+              const start = new Date(Date.UTC(parts[0], parts[1]-1, parts[2], 0, 0, 0));
+              const end = new Date(Date.UTC(parts[0], parts[1]-1, parts[2], 23, 59, 59, 999));
+              const snap = await getDocs(query(collection(db, 'transactions'),
+                where('customerId','==',cid), where('ttNumber','==',tt),
+                where('transferDate','>=',start), where('transferDate','<=',end)));
+              dupWarn.style.display = snap.empty ? 'none' : 'flex';
+            } catch (e) { dupWarn.style.display = 'none'; }
+          };
+          ttIn?.addEventListener('input', () => { data.ttNumber = ttIn.value; });
+          ttIn?.addEventListener('blur', checkDup);
+          tdIn?.addEventListener('change', () => { data.transferDate = tdIn.value; checkDup(); });
+        }
+      },
+      {
+        label: 'Review',
+        title: 'Review and confirm',
+        render: (d) => {
+          const amt = num(d.amount);
+          const methodLabel = { cash: t('methodCash'), bank: t('methodBank'), mobile: t('methodMobile') }[d.method] || d.method;
+          const bankDisplay = d.method === 'cash' ? '—' : (d.bankName === 'other' ? d.bankOther : d.bankName);
+          const remainingAfter = Math.max(0, round2(d._outstanding - amt));
+          return `
+            <div style="padding:16px;background:linear-gradient(135deg,#f0fdf4,#fff);border:1px solid #a7f3d0;border-radius:14px;margin-bottom:18px;display:flex;align-items:center;gap:16px">
+              <div style="width:60px;height:60px;border-radius:50%;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#128a5c,#19a974);display:grid;place-items:center;color:#fff;font-weight:800;font-size:22px">
+                ${d._customer?.photoURL ? `<img src="${esc(d._customer.photoURL)}" alt="" style="width:100%;height:100%;object-fit:cover">` : esc(initials(customerName(d._customer)))}
+              </div>
+              <div style="min-width:0">
+                <div style="font-size:16px;font-weight:800">${esc(customerName(d._customer))}</div>
+                ${d._customer?.customerId ? `<div style="font-size:12px;color:var(--muted);font-family:ui-monospace,monospace;margin-top:2px">${esc(d._customer.customerId)}</div>` : ''}
+                <div style="margin-top:6px"><span class="tag tag--green">${esc(methodLabel)}</span></div>
+              </div>
+              <div style="margin-left:auto;text-align:right">
+                <div style="font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.05em">Repayment</div>
+                <div style="font-size:24px;font-weight:800;font-family:ui-monospace,monospace;color:#128a5c">${esc(money(amt))}</div>
+              </div>
+            </div>
+            <div class="review">
+              <div class="review__row"><span class="review__k">Loan No.</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(loan.serialNumber || loan.loanNumber || loan.id.slice(0,8))}</span></div>
+              <div class="review__row"><span class="review__k">Outstanding before</span><span class="review__v" style="font-family:ui-monospace,monospace;color:#b42318">${esc(money(d._outstanding))}</span></div>
+              <div class="review__row"><span class="review__k">Repayment Amount</span><span class="review__v" style="font-family:ui-monospace,monospace;font-weight:800;color:#128a5c">${esc(money(amt))}</span></div>
+              <div class="review__row"><span class="review__k">${esc(t('principalPortion'))}</span><span class="review__v" style="font-family:ui-monospace,monospace;color:#128a5c">${esc(money(d.principalPortion))}</span></div>
+              <div class="review__row"><span class="review__k">${esc(t('interestPortion'))}</span><span class="review__v" style="font-family:ui-monospace,monospace;color:#b8860b">${esc(money(d.interestPortion))}${d.isRepayAll && APP.settings.allowInterestWaiver ? ` <em style="color:#128a5c">(${t('waived')})</em>` : ''}</span></div>
+              <div class="review__row"><span class="review__k">Outstanding after</span><span class="review__v" style="font-family:ui-monospace,monospace;font-weight:800;color:${remainingAfter <= 0 ? '#067647' : '#b42318'}">${esc(money(remainingAfter))}</span></div>
+              <div class="review__row"><span class="review__k">${esc(t('repaymentMethod'))}</span><span class="review__v">${esc(methodLabel)}</span></div>
+              ${d.method !== 'cash' ? `
+                <div class="review__row"><span class="review__k">${esc(t('bankProvider'))}</span><span class="review__v">${esc(bankDisplay || '—')}</span></div>
+                <div class="review__row"><span class="review__k">${esc(t('ttNumber'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(d.ttNumber || '—')}</span></div>
+                <div class="review__row"><span class="review__k">${esc(t('transferDate'))}</span><span class="review__v">${esc(fmtDate(d.transferDate))}</span></div>
+              ` : ''}
+              <div class="review__row"><span class="review__k">${esc(t('repaymentDate'))}</span><span class="review__v">${esc(fmtDate(d.date))}</span></div>
+              ${d.note ? `<div class="review__row"><span class="review__k">${esc(t('repaymentNotes'))}</span><span class="review__v">${esc(d.note)}</span></div>` : ''}
+              <div class="review__row"><span class="review__k">${esc(t('recordedBy'))}</span><span class="review__v" style="font-weight:800;color:#0b5cab">${esc(S.name)}</span></div>
+            </div>
+          `;
+        }
       }
-    } else {
-      amt.value = outstanding.toFixed(2);
-      isRepayAllFlag = false;
-      root.querySelector('#rpWaiverNote').style.display = 'none';
-    }
-    updateSplit();
-  });
-
-  root.querySelector('#rpAmount').addEventListener('input', () => {
-    if (isRepayAllFlag) {
-      const expected = parseFloat(root.querySelector('#rpAmount').dataset.repayAllValue || '0');
-      // Clear waiver flag if user edits amount
-      isRepayAllFlag = false;
-      root.querySelector('#rpWaiverNote').style.display = 'none';
-    }
-    updateSplit();
-  });
-
-  /* ---------- Payment method → conditional fields ---------- */
-  function toggleCond() {
-    const m = root.querySelector('#rpMethod').value;
-    const cf = root.querySelector('#rpConditionalFields');
-    if (m === 'cash') { cf.style.display = 'none'; }
-    else {
-      cf.style.display = 'block';
-      populateBank(m);
-    }
-  }
-  root.querySelector('#rpMethod').addEventListener('change', toggleCond);
-
-  function populateBank(method) {
-    const sel = root.querySelector('#rpBankName');
-    const cur = sel.value;
-    sel.innerHTML = `<option value="">${esc(t('bankPlaceholder'))}</option>`;
-    (BANKS_LIST[method] || []).forEach(name => {
-      const o = document.createElement('option'); o.value = name; o.textContent = name; sel.appendChild(o);
-    });
-    const other = document.createElement('option'); other.value = 'other'; other.textContent = '➕ Other';
-    sel.appendChild(other);
-    if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
-  }
-  root.querySelector('#rpBankName').addEventListener('change', () => {
-    const sel = root.querySelector('#rpBankName');
-    const other = root.querySelector('#rpBankOther');
-    if (sel.value === 'other') { other.style.display = 'block'; }
-    else { other.style.display = 'none'; other.value = ''; }
-  });
-
-  /* ---------- Refresh penalty ---------- */
-  root.querySelector('#rpRefreshPenalty').addEventListener('click', async () => {
-    const btn = root.querySelector('#rpRefreshPenalty');
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; btn.disabled = true;
-    try {
-      await checkAndCreatePenalty(loan.id, loan.customerId || loan.memberId);
-      allPending = await getMemberPenaltiesWithDetails(loan.customerId || loan.memberId);
-      await refreshAll();
-      toast('Penalty status refreshed.', 'success');
-    } finally {
-      btn.innerHTML = '<i class="fas fa-sync-alt"></i>'; btn.disabled = false;
-    }
-  });
-
-  /* ---------- TT duplicate ---------- */
-  async function checkDup() {
-    const m = root.querySelector('#rpMethod').value;
-    if (m === 'cash') return false;
-    const cid = loan.customerId || loan.memberId;
-    const tt = root.querySelector('#rpTT').value.trim();
-    const td = root.querySelector('#rpTransferDate').value;
-    if (!tt || !td) return false;
-    try {
-      const parts = td.split('-').map(Number);
-      const start = new Date(Date.UTC(parts[0], parts[1]-1, parts[2], 0, 0, 0));
-      const end = new Date(Date.UTC(parts[0], parts[1]-1, parts[2], 23, 59, 59, 999));
-      const snap = await getDocs(query(collection(db, 'transactions'),
-        where('customerId','==',cid), where('ttNumber','==',tt),
-        where('transferDate','>=',start), where('transferDate','<=',end)));
-      return !snap.empty;
-    } catch(e) { return false; }
-  }
-  root.querySelector('#rpTT')?.addEventListener('blur', async () => {
-    const dup = await checkDup();
-    root.querySelector('#rpDupWarn').style.display = dup ? 'flex' : 'none';
-  });
-  root.querySelector('#rpTransferDate')?.addEventListener('change', async () => {
-    const dup = await checkDup();
-    root.querySelector('#rpDupWarn').style.display = dup ? 'flex' : 'none';
-  });
-
-  /* ---------- Submit ---------- */
-  root.querySelector('#rpSubmit').addEventListener('click', async () => {
-    const btn = root.querySelector('#rpSubmit');
-    const sp = btn.querySelector('.spinner-sm');
-    const lbl = btn.querySelector('.btn-label');
-
-    if (allPending.total > 0) {
-      toast(`${t('penaltyBlockedTitle')} ETB ${allPending.total.toFixed(2)}`, 'warning');
-      return;
-    }
-
-    const amount = num(root.querySelector('#rpAmount').value);
-    if (amount <= 0) { toast(t('invalidAmountMsg'), 'warning'); return; }
-
-    const outstandingNow = loanOutstanding(loan);
-    const monthly = calcMonthlyPayment(loan);
-    const minPayment = Math.min(monthly, outstandingNow);
-    if (!isRepayAllFlag && amount + 0.01 < minPayment) {
-      toast(`${t('minPaymentNotMet')} (Min: ${minPayment.toFixed(2)})`, 'warning'); return;
-    }
-    if (amount > outstandingNow + 0.01) { toast(t('cannotExceedRemaining'), 'warning'); return; }
-
-    const method = root.querySelector('#rpMethod').value;
-    const tt = root.querySelector('#rpTT').value.trim();
-    const transferDate = root.querySelector('#rpTransferDate').value;
-    const bankName = root.querySelector('#rpBankName').value === 'other'
-      ? root.querySelector('#rpBankOther').value.trim()
-      : root.querySelector('#rpBankName').value;
-
-    if (method !== 'cash') {
-      if (!tt) { toast(t('ttRequired'), 'warning'); return; }
-      if (!transferDate) { toast(t('transferRequired'), 'warning'); return; }
-      if (!bankName) { toast(t('bankRequired'), 'warning'); return; }
-      if (await checkDup()) { toast(t('duplicateError'), 'error'); root.querySelector('#rpDupWarn').style.display = 'flex'; return; }
-    }
-
-    const dateVal = root.querySelector('#rpDate').value || new Date().toISOString().slice(0,10);
-
-    btn.disabled = true; sp.classList.remove('hidden'); lbl.textContent = 'Saving…';
-
-    try {
-      // Compute split
-      let split;
-      let interestWaived = false;
-      let waivedInterest = 0;
-      if (isRepayAllFlag && APP.settings.allowInterestWaiver) {
-        const list = await fetchLoanRepayments(loan.id);
-        const paidPrincipal = list.filter(r => r.status === 'approved' || r.status === 'printed')
-          .reduce((s,r) => s + getRepaymentPrincipal(r, loan), 0);
-        const outstandingPrincipal = Math.max(0, round2(num(loan.principal) - paidPrincipal));
-        split = { principal: outstandingPrincipal, interest: 0 };
-        interestWaived = true;
-        waivedInterest = Math.max(0, round2(amount - outstandingPrincipal));
-      } else {
-        split = computeRepaymentSplit(amount, loan, outstandingNow);
+    ],
+    onFinish: async (d) => {
+      const freshPending = await getMemberPenaltiesWithDetails(loan.customerId || loan.memberId);
+      if (freshPending.total > 0) {
+        throw new Error(`${t('penaltyBlockedTitle')} ETB ${freshPending.total.toFixed(2)}`);
       }
+
+      const amount = num(d.amount);
+      if (amount <= 0) throw new Error(t('invalidAmountMsg'));
 
       const newRepaid = round2(loanRepaid(loan) + amount);
       const totalPayable = calcLoan(loan.principal, loan.interestRate, loan.duration, loan.interestType).total;
       const newOutstanding = Math.max(0, round2(totalPayable - newRepaid));
       const newStatus = newOutstanding <= 0.01 ? 'repaid' : (loan.status || 'active');
+      const bankName = d.method === 'cash' ? '' : (d.bankName === 'other' ? d.bankOther : d.bankName);
 
-      // 1) Create the repayment transaction
       const txData = {
         type: 'repayment',
         loanId: loan.id,
         customerId: loan.customerId || loan.memberId,
         memberId: loan.customerId || loan.memberId,
         customerDocId: loan.customerDocId || null,
-        customerName: loan.customerName || customerName(c) || '',
+        customerName: loan.customerName || customerName(d._customer) || '',
         amount,
-        principalPortion: split.principal,
-        interestPortion: split.interest,
-        interestWaived,
-        waivedInterest,
-        date: new Date(dateVal),
-        note: (root.querySelector('#rpNote').value || '').trim(),
+        principalPortion: num(d.principalPortion),
+        interestPortion: num(d.interestPortion),
+        interestWaived: !!d.isRepayAll && APP.settings.allowInterestWaiver,
+        waivedInterest: d.isRepayAll ? Math.max(0, round2(amount - num(d.principalPortion))) : 0,
+        date: new Date(d.date),
+        note: (d.note || '').trim(),
         status: 'pending',
-        paymentMethod: method,
-        ttNumber: method === 'cash' ? '' : tt,
-        bankName: method === 'cash' ? '' : bankName,
+        paymentMethod: d.method,
+        ttNumber: d.method === 'cash' ? '' : (d.ttNumber || '').trim(),
+        bankName,
         districtId: loan.districtId || null,
         districtName: loan.districtName || null,
         branchId: loan.branchId || null,
@@ -2806,10 +2732,10 @@ async function openRepaymentModal(loan) {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       };
-      if (method !== 'cash' && transferDate) txData.transferDate = new Date(transferDate);
+      if (d.method !== 'cash' && d.transferDate) txData.transferDate = new Date(d.transferDate);
+
       await setDoc(doc(collection(db, 'transactions')), txData);
 
-      // 2) Update the loan balance
       await updateDoc(doc(db, 'loans', loan.id), {
         amountRepaid: newRepaid,
         status: newStatus,
@@ -2819,7 +2745,6 @@ async function openRepaymentModal(loan) {
         lastRepaymentByName: S.name
       });
 
-      // 3) Audit
       try {
         await setDoc(doc(collection(db, 'audit')), {
           action: 'created', collection: 'transactions',
@@ -2830,21 +2755,10 @@ async function openRepaymentModal(loan) {
         });
       } catch(e){}
 
-      toast(t('repaymentOk'), 'success');
-      closeModal();
-      // reload loans to refresh UI
       await loadAllData();
       renderMain();
-    } catch (err) {
-      console.error(err);
-      toast(t('errorSave') + (err.code === 'permission-denied' ? t('noPermission') : err.message), 'error');
-      btn.disabled = false; sp.classList.add('hidden'); lbl.textContent = t('rowRepay');
     }
   });
-
-  /* ---------- Initial render ---------- */
-  toggleCond();
-  await refreshAll();
 }
 
 /* ============ DELETE ============ */
@@ -3079,7 +2993,6 @@ async function loadAllData() {
     if (c.memberId) CUSTOMER_MAP.set(c.memberId, rec);
   });
 
-  // Loans + Repayments (scoped)
   try {
     const loansSnap = await getDocs(collection(db, 'loans'));
     APP.loans = loansSnap.docs.map(d => ({ id: d.id, ...d.data() }));
