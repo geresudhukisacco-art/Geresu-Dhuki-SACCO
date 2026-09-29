@@ -820,9 +820,9 @@ function isPenaltyPaidFromSavings(p) {
 }
 
 /* ============================================================
-   CUSTOMER SAVINGS — matches dashboard/withdrawals/savings:
-     Savings + Deposits − Withdrawals − Leaving
-     − Penalties paid FROM SAVINGS
+   CUSTOMER SAVINGS — matches dashboard / withdrawals / savings:
+     Savings + Deposits − Withdrawals − Individual Withdrawals
+     − Leaving − Penalties paid FROM SAVINGS
    ============================================================ */
 function customerSavings(customer) {
   if (!customer) return 0;
@@ -833,7 +833,7 @@ function customerSavings(customer) {
     const type = String(tx.type || '').toLowerCase();
     const amt = num(tx.amount);
     if (type === 'savings' || type === 'deposit') total += amt;
-    else if (type === 'withdrawal' || type === 'leaving_withdrawal') total -= amt;
+    else if (type === 'withdrawal' || type === 'individual_withdrawal' || type === 'leaving_withdrawal') total -= amt;
     else if (type === 'penalty') {
       if (!isPenaltyPaid(tx)) return;
       if (!isPenaltyPaidFromSavings(tx)) return;
@@ -1272,12 +1272,22 @@ function openViewModal(customer) {
   const active = (c.status || 'active') === 'active';
   const district = c.districtName || districtById(c.districtId)?.name || '—';
   const branch   = c.branchName || branchById(c.branchId)?.name || '—';
-  const txs = APP.transactions.filter(tx => txBelongsToCustomer(tx, c)).filter(tx => { const ty = String(tx.type || '').toLowerCase(); return ty === 'savings' || ty === 'deposit' || ty === 'withdrawal' || ty === 'leaving_withdrawal'; }).sort((a, b) => { const da = toDate(b.createdAt || b.date)?.getTime() || 0; const db2 = toDate(a.createdAt || a.date)?.getTime() || 0; return da - db2; });
+  const txs = APP.transactions.filter(tx => txBelongsToCustomer(tx, c)).filter(tx => {
+    const ty = String(tx.type || '').toLowerCase();
+    return ty === 'savings' || ty === 'deposit'
+        || ty === 'withdrawal' || ty === 'individual_withdrawal'
+        || ty === 'leaving_withdrawal';
+  }).sort((a, b) => { const da = toDate(b.createdAt || b.date)?.getTime() || 0; const db2 = toDate(a.createdAt || a.date)?.getTime() || 0; return da - db2; });
   const shs = allShareDocs().filter(sh => txBelongsToCustomer(sh, c)).sort((a, b) => { const da = toDate(b.createdAt || b.date)?.getTime() || 0; const db2 = toDate(a.createdAt || a.date)?.getTime() || 0; return da - db2; });
   const savings = customerSavings(c), shares = customerShares(c);
   const penFromSav = customerPenaltiesFromSavings(c);
   let totalDeposit = 0, totalWithdraw = 0;
-  txs.forEach(tx => { if (!isTxCounted(tx)) return; const type = String(tx.type || '').toLowerCase(); if (type === 'savings' || type === 'deposit') totalDeposit += num(tx.amount); else if (type === 'withdrawal' || type === 'leaving_withdrawal') totalWithdraw += num(tx.amount); });
+  txs.forEach(tx => {
+    if (!isTxCounted(tx)) return;
+    const type = String(tx.type || '').toLowerCase();
+    if (type === 'savings' || type === 'deposit') totalDeposit += num(tx.amount);
+    else if (type === 'withdrawal' || type === 'individual_withdrawal' || type === 'leaving_withdrawal') totalWithdraw += num(tx.amount);
+  });
   const root = document.createElement('div');
   root.className = 'modal-backdrop';
   root.id = 'modal-backdrop';
