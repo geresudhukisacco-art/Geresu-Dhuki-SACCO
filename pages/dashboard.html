@@ -1370,7 +1370,11 @@ function computeSharesAllYears() {
 }
 
 /* ============================================================
-   COMPUTE
+   COMPUTE  — corrected formulas
+   Net Saving    = Gross Saving − Withdrawals − Leaving − Penalty(from savings)
+   Net Profit    = Interest Paid + Paid Penalties + Registration Fee + Other Income
+   Share Value   = Net Share Value
+   Total Balance = Net Saving + Net Profit + Share Value − SACCO Service Withdrawals
    ============================================================ */
 function computeYearNumbers() {
   const y = APP.currentYear;
@@ -1388,7 +1392,10 @@ function computeYearNumbers() {
   const totalPenalties = penaltiesY.reduce((s,p) => s + num(p.amount), 0);
   const penFromSav = penaltiesY.filter(isPenaltyPaidFromSavings).reduce((s,p) => s + num(p.amount), 0);
   const penExternal = totalPenalties - penFromSav;
+
+  /* Net Saving = Gross Saving − Withdrawals − Penalty(from savings) − Leaving */
   const netSavingY = round2(grossSavings - totalWithdrawals - penFromSav - totalLeaving);
+
   const repaymentsY = filterWorkareaTxns(APP.txn.repayments).filter(r => isInYear(r.date||r.createdAt, y) && isRepaymentCounted(r));
   const totalRepayments = repaymentsY.reduce((s,x) => s + num(x.amount), 0);
 
@@ -1414,17 +1421,23 @@ function computeYearNumbers() {
   const totalDividends = divY.reduce((s,x) => s + num(x.netAmount != null ? x.netAmount : x.amount), 0);
   const svcY = filterWorkareaTxns(APP.txn.serviceWithdrawals).filter(s => isInYear(s.date||s.createdAt, y)).filter(isServiceWithdrawalCounted);
   const totalSvc = svcY.reduce((s,x) => s + num(x.amount), 0);
+
   const SHR = computeSharesYearNumbers(y);
   const netShareValueY = SHR.netShareValue;
   const shareBuyAmount = SHR.shareBuyAmount;
   const shareCount = SHR.shareCount;
 
-  /* SACCO income from deposits (profit_income) — counted as profit, not tied to a customer */
+  /* SACCO income from deposits (profit_income) */
   const incomeY = filterWorkareaTxns(APP.txn.profitIncome).filter(p => isInYear(p.date||p.createdAt, y));
   const regFee = incomeY.filter(isSavingsCounted).filter(p => isRegistrationFeeIncome(p.incomeType)).reduce((s,p) => s + num(p.amount), 0);
   const otherIncome = incomeY.filter(isSavingsCounted).filter(p => !isRegistrationFeeIncome(p.incomeType)).reduce((s,p) => s + num(p.amount), 0);
-  const netProfitY = Math.max(0, round2(regFee + otherIncome + paidInterest + totalPenalties - totalSvc));
-  const currentBalance = round2(netSavingY + netProfitY + netShareValueY);
+
+  /* Net Profit = Interest Paid + Paid Penalties + Total Income (Reg Fee + Other Income)
+     NOTE: Service Withdrawals are NOT subtracted here — they reduce Total Balance instead. */
+  const netProfitY = round2(regFee + otherIncome + paidInterest + totalPenalties);
+
+  /* Total Balance = Net Saving + Net Profit + Share Value − SACCO Service Withdrawals */
+  const currentBalance = round2(netSavingY + netProfitY + netShareValueY - totalSvc);
 
   const loansAll = filterWorkareaTxns(APP.txn.loans);
   const totalLoansEver = loansAll.reduce((s,l) => s + num(l.amount), 0);
@@ -1455,11 +1468,16 @@ function computeAllYearNumbers() {
   const totalWithdrawals = withdrawalsAll.reduce((s,x) => s + num(x.amount), 0);
   const leavingAll = filterWorkareaTxns(APP.txn.leaving).filter(isWithdrawalCounted);
   const totalLeaving = leavingAll.reduce((s,x) => s + num(x.amount), 0);
+
   const SHR = computeSharesAllYears();
   const netShareValueAll = SHR.netShareValue;
   const shareBuyAll = SHR.shareBuyAmount;
+
   const penFromSavAll = filterWorkareaTxns(APP.txn.penalties).filter(isPenaltyPaid).filter(isPenaltyPaidFromSavings).reduce((s,p) => s + num(p.amount), 0);
+
+  /* Net Saving (All Years) */
   const netSavingAll = round2(totalSavings - totalWithdrawals - totalLeaving - penFromSavAll);
+
   let interestAll = 0;
   filterWorkareaTxns(APP.txn.repayments).filter(isRepaymentCounted).forEach(r => {
     if (typeof r.interestPortion === 'number') { interestAll += num(r.interestPortion); return; }
@@ -1468,14 +1486,20 @@ function computeAllYearNumbers() {
     interestAll += splitRepayment(num(r.amount), loan).interest;
   });
   interestAll = round2(interestAll);
+
   const incomeAll = filterWorkareaTxns(APP.txn.profitIncome).filter(isSavingsCounted);
   const regFeeAll = incomeAll.filter(p => isRegistrationFeeIncome(p.incomeType)).reduce((s,p) => s + num(p.amount), 0);
   const otherIncomeAll = incomeAll.filter(p => !isRegistrationFeeIncome(p.incomeType)).reduce((s,p) => s + num(p.amount), 0);
   const penaltiesAll = filterWorkareaTxns(APP.txn.penalties).filter(isPenaltyPaid).reduce((s,p) => s + num(p.amount), 0);
   const svcAll = filterWorkareaTxns(APP.txn.serviceWithdrawals).filter(isServiceWithdrawalCounted).reduce((s,x) => s + num(x.amount), 0);
-  const netProfitAll = Math.max(0, round2(regFeeAll + otherIncomeAll + interestAll + penaltiesAll - svcAll));
-  const totalBalanceAll = round2(netSavingAll + netProfitAll + netShareValueAll);
-  return { netSavingAll, netProfitAll, netShareValueAll, totalBalanceAll, shareBuyAll, shareCountAll: SHR.shareCount };
+
+  /* Net Profit (All Years) = Interest Paid + Paid Penalties + Total Income (Reg Fee + Other) */
+  const netProfitAll = round2(regFeeAll + otherIncomeAll + interestAll + penaltiesAll);
+
+  /* Total Balance (All Years) = Net Saving + Net Profit + Share Value − Service Withdrawals */
+  const totalBalanceAll = round2(netSavingAll + netProfitAll + netShareValueAll - svcAll);
+
+  return { netSavingAll, netProfitAll, netShareValueAll, totalBalanceAll, shareBuyAll, shareCountAll: SHR.shareCount, svcAll };
 }
 function renderStatsValues() {
   const Y = computeYearNumbers();
@@ -1518,12 +1542,23 @@ function renderStatsValues() {
     setStat('s-shareVal',     moneyFull(Y.netShareValueY));
     setStat('s-share-count',  fmtCount(Y.shareCount));
     setStat('s-share-amount', moneyFull(Y.shareBuyAmount));
+
+    /* Net Saving hint: Gross − Withdrawals − Penalty(from savings) − Leaving */
     setHint('s-netSav',
       `<span style="font-family:ui-monospace,monospace;font-size:10.5px">` +
       `Gross ${esc(money(Y.grossSavings))} − W ${esc(money(Y.totalWithdrawals))} − Pen ${esc(money(Y.penFromSav))} − Leave ${esc(money(Y.totalLeaving))}` +
       `</span>`);
+
+    /* Net Profit hint: Interest Paid + Paid Penalties + Registration Fee + Other Income
+       (No service withdrawals — those hit Total Balance instead) */
     setHint('s-netProfit',
-      `<span>Reg ${esc(money(Y.regFee))} + Other ${esc(money(Y.otherIncome))} + Int ${esc(money(Y.paidInterest))} + Pen ${esc(money(Y.totalPenalties))} − Svc ${esc(money(Y.totalSvc))}</span>`);
+      `<span>Int ${esc(money(Y.paidInterest))} + Pen ${esc(money(Y.totalPenalties))} + Reg ${esc(money(Y.regFee))} + Other ${esc(money(Y.otherIncome))}</span>`);
+
+    /* Total Balance hint: Net Saving + Net Profit + Share Value − Service Withdrawals */
+    setHint('s-curBalance',
+      `<span style="font-family:ui-monospace,monospace;font-size:10.5px">` +
+      `NetSave ${esc(money(Y.netSavingY))} + NetProfit ${esc(money(Y.netProfitY))} + Share ${esc(money(Y.netShareValueY))} − Svc ${esc(money(Y.totalSvc))}` +
+      `</span>`);
   }
   if (!isMember()) {
     setStat('s-netProfitAll',   moneyFull(A.netProfitAll));
@@ -1532,6 +1567,11 @@ function renderStatsValues() {
     setStat('s-netShareVal',    moneyFull(A.netShareValueAll));
     setStat('s-netShare-count', fmtCount(A.shareCountAll));
     setStat('s-netShare-buy',   moneyFull(A.shareBuyAll));
+
+    setHint('s-balanceAll',
+      `<span style="font-family:ui-monospace,monospace;font-size:10.5px">` +
+      `NetSave ${esc(money(A.netSavingAll))} + NetProfit ${esc(money(A.netProfitAll))} + Share ${esc(money(A.netShareValueAll))} − Svc ${esc(money(A.svcAll||0))}` +
+      `</span>`);
   }
   fillDistrictChips();
 }
@@ -1632,7 +1672,7 @@ function drawGroupedBars(container, labels, series) {
 }
 
 /* ============================================================
-   ACTIVITY — includes SACCO income from deposits (profit_income)
+   ACTIVITY
    ============================================================ */
 const MAX_ACTIVITY = 10;
 function renderActivity() {
@@ -1648,7 +1688,7 @@ function renderActivity() {
     let action = '', icon = 'fa-file-text', color = 'blue';
 
     if (ty === 'savings' || ty === 'deposit') { action = moneyFull(amt) + ' ' + t('savingsDeposit'); icon='fa-piggy-bank'; color='green'; }
-    else if (ty === 'withdrawal' || ty === 'leaving_withdrawal') { action = moneyFull(amt) + ' ' + t('withdrawalTxt'); icon='fa-arrow-up'; color='red'; }
+    else if (ty === 'withdrawal' || ty === 'individual_withdrawal' || ty === 'leaving_withdrawal') { action = moneyFull(amt) + ' ' + t('withdrawalTxt'); icon='fa-arrow-up'; color='red'; }
     else if (ty === 'repayment' || ty === 'loan_repayment') {
       const loan = LOANS_BY_ID.get(x.loanId);
       const sp = loan ? splitRepayment(amt, loan) : { principal: amt, interest: 0 };
@@ -1657,13 +1697,11 @@ function renderActivity() {
     }
     else if (ty === 'loan') { action = moneyFull(amt) + ' ' + t('loanIssued'); icon='fa-wallet'; color='blue'; }
     else if (ty === 'profit_income') {
-      /* SACCO-level deposit income — new */
       const incLabel = x.incomeType || 'Income';
       const saccoTag = x.isSaccoIncome ? ' (' + t('saccoIncomeTag') + ')' : '';
       action = moneyFull(amt) + ' · ' + incLabel + saccoTag;
       icon = 'fa-vault';
       color = 'teal';
-      /* If it's tied to a customer, show that name; otherwise show SACCO Income */
       if (!x.customerId && !x.isSaccoIncome) x.isSaccoIncome = true;
     }
     else if (ty === 'dividend') { action = moneyFull(x.netAmount != null ? x.netAmount : amt) + ' ' + t('dividendTxt'); icon='fa-gift'; color='gold'; }
@@ -1679,7 +1717,6 @@ function renderActivity() {
     events.push({ name: displayName, action, icon, color, at: x.createdAt || x.date });
   });
 
-  /* Loans from the `loans` collection — show as loan issued */
   filterWorkareaTxns(APP.txn.loans)
     .filter(l => isInYear(l.date || l.createdAt || l.disbursementDate, y))
     .slice(0, 20)
@@ -1952,9 +1989,11 @@ async function loadAllData() {
   APP.txn.savings           = byType(['savings','saving','deposit']);
   APP.txn.loans             = [...byType(['loan']), ...normalizedLoans];
   APP.txn.repayments        = byType(['repayment','loan_repayment']);
-  APP.txn.profitIncome      = byType(['profit_income']);     /* SACCO income from deposits */
+  APP.txn.profitIncome      = byType(['profit_income']);
   APP.txn.profitWithdrawal  = byType(['profit_withdrawal','dividend']);
-  APP.txn.withdrawals       = byType(['withdrawal']);
+  /* IMPORTANT: include 'individual_withdrawal' so the withdrawals page records
+     are correctly subtracted inside Net Saving. */
+  APP.txn.withdrawals       = byType(['withdrawal','individual_withdrawal']);
   APP.txn.leaving           = byType(['leaving_withdrawal']);
   APP.txn.penalties         = byType(['penalty']);
   APP.txn.serviceWithdrawals= byType(['service_withdrawal']);
