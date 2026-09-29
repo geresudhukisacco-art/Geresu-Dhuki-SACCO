@@ -362,7 +362,6 @@ const db    = getFirestore(fbApp);
 const LOGIN_URL = "../index.html";
 const LOGO_URL  = "../images/logo.png";
 const DEFAULT_SACCO_NAME = 'GERESU DHUKI SACCO';
-
 let S = null;
 
 /* ============================================================
@@ -415,12 +414,13 @@ async function loadSessionTimeout() {
 }
 
 /* ============================================================
-   I18N — English
+   I18N
    ============================================================ */
 const I18N = {
   en: {
     brandSub:'SACCO Management',
-    navOverview:'Overview', navNetwork:'Network', navOperations:'Operations', navFinance:'Finance', navAdmin:'Administration',
+    navSecOverview:'Overview', navSecNetwork:'Network', navSecOperations:'Operations',
+    navSecFinance:'Finance', navSecAdmin:'Administration',
     dashboard:'Dashboard', districts:'Districts', branches:'Branches', customers:'Customers',
     savings:'Savings', deposits:'Deposits', loans:'Loans', repayments:'Repayments',
     withdrawals:'Withdrawals', dividends:'Dividends', shares:'Shares', reports:'Reports',
@@ -460,17 +460,16 @@ const I18N = {
     shareBuySavings:'share purchase (savings)', penaltyTxt:'penalty',
     serviceWithdrawal:'service withdrawal', newCustomer:'joined',
     justNow:'just now', minAgo:'{n}m ago', hourAgo:'{n}h ago', dayAgo:'{n}d ago',
-    viewAll:'View all →', noDistrictsInScope:'No districts in scope'
+    viewAll:'View all →', noDistrictsInScope:'No districts in scope',
+    saccoIncome:'SACCO income', saccoIncomeTag:'SACCO'
   }
 };
 
-/* ============================================================
-   I18N — አማርኛ (Amharic)
-   ============================================================ */
 I18N.am = {
   ...I18N.en,
   brandSub:'የሳኮ አስተዳደር',
-  navOverview:'አጠቃላይ እይታ', navNetwork:'ኔትወርክ', navOperations:'ክንውኖች', navFinance:'ፋይናንስ', navAdmin:'አስተዳደር',
+  navSecOverview:'አጠቃላይ እይታ', navSecNetwork:'ኔትወርክ', navSecOperations:'ክንውኖች',
+  navSecFinance:'ፋይናንስ', navSecAdmin:'አስተዳደር',
   dashboard:'ዳሽቦርድ', districts:'ወረዳዎች', branches:'ቅርንጫፎች', customers:'ደንበኞች',
   savings:'ቁጠባ', deposits:'ተቀማጭ', loans:'ብድር', repayments:'ክፍያዎች',
   withdrawals:'መውጫዎች', dividends:'ክፍፍል', shares:'አክሲዮን', reports:'ሪፖርቶች',
@@ -510,16 +509,15 @@ I18N.am = {
   shareBuySavings:'የአክሲዮን ግዢ (ቁጠባ)', penaltyTxt:'ቅጣት',
   serviceWithdrawal:'የአገልግሎት መውጫ', newCustomer:'ተቀላቅሏል',
   justNow:'አሁን', minAgo:'ከ{n} ደቂቃ በፊት', hourAgo:'ከ{n} ሰዓት በፊት', dayAgo:'ከ{n} ቀን በፊት',
-  viewAll:'ሁሉንም ተመልከት →', noDistrictsInScope:'በክልል ውስጥ ወረዳዎች የሉም'
+  viewAll:'ሁሉንም ተመልከት →', noDistrictsInScope:'በክልል ውስጥ ወረዳዎች የሉም',
+  saccoIncome:'የሳኮ ገቢ', saccoIncomeTag:'ሳኮ'
 };
 
-/* ============================================================
-   I18N — Afaan Oromoo (Oromo)
-   ============================================================ */
 I18N.om = {
   ...I18N.en,
   brandSub:'Bulchiinsa SACCO',
-  navOverview:'Aguuggama', navNetwork:'Networkii', navOperations:'Hojimaata', navFinance:'Faayinaansii', navAdmin:'Bulchiinsa',
+  navSecOverview:'Aguuggama', navSecNetwork:'Networkii', navSecOperations:'Hojimaata',
+  navSecFinance:'Faayinaansii', navSecAdmin:'Bulchiinsa',
   dashboard:'Daashboordii', districts:'Aanaalee', branches:'Dameewwan', customers:'Maamiltoota',
   savings:'Qusannaa', deposits:'Kaasaa', loans:'Liqii', repayments:'Kaffaltuu',
   withdrawals:'Baasii', dividends:'Qooda', shares:'Hirmaata', reports:'Gabaasa',
@@ -559,7 +557,8 @@ I18N.om = {
   shareBuySavings:'bittaa hirmaataa (qusannaa)', penaltyTxt:'adaba',
   serviceWithdrawal:'baasii tajaajilaa', newCustomer:'makame',
   justNow:'amma', minAgo:'daqiiqaa {n} dura', hourAgo:"sa'aatii {n} dura", dayAgo:'guyyaa {n} dura',
-  viewAll:'Hunda ilaali →', noDistrictsInScope:'Aanaan naannoo keessatti hin jiru'
+  viewAll:'Hunda ilaali →', noDistrictsInScope:'Aanaan naannoo keessatti hin jiru',
+  saccoIncome:'Galii SACCO', saccoIncomeTag:'SACCO'
 };
 
 const SUPPORTED = ['en','am','om'];
@@ -588,6 +587,7 @@ const money = (n) => {
 };
 const moneyFull = (n) => { const v = num(n); return (v<0?'-':'') + 'ETB ' + Math.abs(v).toLocaleString(undefined,{maximumFractionDigits:2}); };
 const fmtCount = (n) => num(n).toLocaleString();
+
 const toDateSafe = (v) => {
   if (!v) return null;
   if (v instanceof Date) return isNaN(v) ? null : v;
@@ -611,7 +611,7 @@ function toast(msg, type='success') {
   const wrap = document.getElementById('toast-container'); if (!wrap) return;
   const el = document.createElement('div');
   el.className = 'toast toast--' + type;
-  const icons = {success:'fa-check-circle', error:'fa-exclamation-circle', warning:'fa-exclamation-triangle'};
+  const icons = {success:'fa-check-circle', error:'fa-exclamation-circle', warning:'fa-exclamation-triangle', info:'fa-info-circle'};
   el.innerHTML = `<i class="fas ${icons[type] || 'fa-info-circle'}"></i><span>${esc(msg)}</span>`;
   wrap.appendChild(el);
   setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; }, 3800);
@@ -660,9 +660,8 @@ function calculateInterest(P, rate, months, type) {
   if (type === 'reducing') { if (mr === 0) return 0; const f = Math.pow(1+mr, n); const emi = p*mr*f/(f-1); return (emi*n) - p; }
   return p * r * (n/12);
 }
-function getLoanInterest(loan) { if (!loan) return 0; return calculateInterest(loan.amount, loan.interestRate, loan.repaymentPeriod, loan.loanType || 'simple'); }
 
-/* splitRepayment — matches loans.html per-month formula */
+/* splitRepayment — matches loans.html's per-month formula */
 function splitRepayment(amount, loan) {
   if (!loan) return { principal: num(amount), interest: 0 };
   const period = num(loan.repaymentPeriod);
@@ -678,11 +677,9 @@ function splitRepayment(amount, loan) {
 /* ============================================================
    ROLES
    ============================================================ */
-const ROLE_LABELS = {
-  super_admin:'role_super_admin', admin:'role_admin', manager:'role_manager',
+const ROLE_LABELS = { super_admin:'role_super_admin', admin:'role_admin', manager:'role_manager',
   cashier:'role_cashier', teller:'role_cashier', accountant:'role_cashier',
-  auditor:'role_auditor', member:'role_member', viewer:'role_member'
-};
+  auditor:'role_auditor', member:'role_member', viewer:'role_member' };
 const roleLabel = (r) => t(ROLE_LABELS[r]) || (r||'').replace(/_/g,' ');
 const isSuper      = () => S?.role === 'super_admin';
 const isDistrict   = () => S?.role === 'admin';
@@ -818,25 +815,25 @@ function scopeDistricts() {
    NAV
    ============================================================ */
 const NAV = [
-  { section:'navOverview', items:[{ key:'dashboard', label:'dashboard', icon:'fa-th-large', href:'dashboard.html', roles:['*'] }]},
-  { section:'navNetwork', items:[
+  { section:'navSecOverview', items:[{ key:'dashboard', label:'dashboard', icon:'fa-th-large', href:'dashboard.html', roles:['*'] }]},
+  { section:'navSecNetwork', items:[
     { key:'districts', label:'districts', icon:'fa-map-marked-alt', href:'districts.html', roles:['super_admin','admin','auditor'] },
     { key:'branches',  label:'branches',  icon:'fa-code-branch',    href:'branches.html', roles:['super_admin','admin','auditor','manager','cashier','teller','accountant'] }
   ]},
-  { section:'navOperations', items:[
+  { section:'navSecOperations', items:[
     { key:'customers', label:'customers', icon:'fa-users',        href:'customers.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
     { key:'savings',   label:'savings',   icon:'fa-piggy-bank',   href:'savings.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor','member'] },
     { key:'loans',     label:'loans',     icon:'fa-file-invoice', href:'loans.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor','member'] },
     { key:'shares',    label:'shares',    icon:'fa-chart-pie',    href:'share.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor','member'] }
   ]},
-  { section:'navFinance', items:[
+  { section:'navSecFinance', items:[
     { key:'deposits',    label:'deposits',    icon:'fa-hand-holding-usd', href:'deposits.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
-    { key:'repayments',  label:'repayments',  icon:'fa-undo-alt',         href:'repayments.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
+    { key:'repayments',  label:'repayments',  icon:'fa-undo-alt',         href:'repayments.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor','member'] },
     { key:'withdrawals', label:'withdrawals', icon:'fa-money-bill-wave',  href:'withdrawals.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
     { key:'dividends',   label:'dividends',   icon:'fa-gift',             href:'dividends.html', roles:['super_admin','admin','manager','accountant','auditor'] },
     { key:'penalties',   label:'penalties',   icon:'fa-exclamation-triangle', href:'penalties.html', roles:['super_admin','admin','manager','cashier'] }
   ]},
-  { section:'navAdmin', items:[
+  { section:'navSecAdmin', items:[
     { key:'reports', label:'reports', icon:'fa-chart-bar',      href:'reports.html', roles:['super_admin','admin','manager','accountant','auditor'] },
     { key:'audit',   label:'audit',   icon:'fa-clipboard-list', href:'audit.html', roles:['super_admin','admin','auditor'] },
     { key:'users',   label:'users',   icon:'fa-user-cog',       href:'users.html', roles:['super_admin','admin'] },
@@ -905,7 +902,7 @@ function renderShell() {
       <main class="main" id="mainContent"></main>
     </div>
   `;
-  document.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => { setLang(b.dataset.lang); }));
+  document.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
   document.getElementById('sbCollapseBtn')?.addEventListener('click', (e) => {
     e.stopPropagation();
     const c = !document.body.classList.contains('sidebar-collapsed');
@@ -1133,15 +1130,10 @@ function renderDiagnostics() {
   if (total > 0) { host.innerHTML = ''; return; }
   host.innerHTML = `
     <div class="diag-box">
-      <strong>⚠️ No data loaded. Everything below reads 0.</strong>
-      Diagnose with these steps:
+      <strong>⚠️ No data loaded.</strong>
       <div style="margin-top:8px">
-      1. Open DevTools → <b>Console</b> and look for <code>[load]</code> lines — they list every collection fetched.<br>
-      2. Check Firestore rules — the role you're logged in as must have <code>read</code> on <code>transactions</code>.<br>
-      3. In Console, run:<br>
-      <code>await getDocs(collection(db, 'transactions')).then(s =&gt; console.log(s.size))</code><br>
-      If it prints a number &gt; 0, the collection has data and the issue is a scope filter.
-      If it prints 0, the collection is empty or blocked by rules.
+      1. Open DevTools → Console and check <code>[fetch]</code> warnings.<br>
+      2. Verify Firestore rules for your role on <code>transactions</code> and <code>loans</code>.
       </div>
     </div>`;
 }
@@ -1400,7 +1392,7 @@ function computeYearNumbers() {
   const repaymentsY = filterWorkareaTxns(APP.txn.repayments).filter(r => isInYear(r.date||r.createdAt, y) && isRepaymentCounted(r));
   const totalRepayments = repaymentsY.reduce((s,x) => s + num(x.amount), 0);
 
-  /* Paid Principal / Paid Interest — prefer stored portions */
+  /* Paid Principal / Interest — prefer stored portions */
   let paidPrincipal = 0, paidInterest = 0;
   repaymentsY.forEach(r => {
     const amt = num(r.amount);
@@ -1425,13 +1417,15 @@ function computeYearNumbers() {
   const SHR = computeSharesYearNumbers(y);
   const netShareValueY = SHR.netShareValue;
   const shareBuyAmount = SHR.shareBuyAmount;
-  const shareSellAmount = SHR.shareSellAmount;
   const shareCount = SHR.shareCount;
+
+  /* SACCO income from deposits (profit_income) — counted as profit, not tied to a customer */
   const incomeY = filterWorkareaTxns(APP.txn.profitIncome).filter(p => isInYear(p.date||p.createdAt, y));
   const regFee = incomeY.filter(isSavingsCounted).filter(p => isRegistrationFeeIncome(p.incomeType)).reduce((s,p) => s + num(p.amount), 0);
   const otherIncome = incomeY.filter(isSavingsCounted).filter(p => !isRegistrationFeeIncome(p.incomeType)).reduce((s,p) => s + num(p.amount), 0);
   const netProfitY = Math.max(0, round2(regFee + otherIncome + paidInterest + totalPenalties - totalSvc));
   const currentBalance = round2(netSavingY + netProfitY + netShareValueY);
+
   const loansAll = filterWorkareaTxns(APP.txn.loans);
   const totalLoansEver = loansAll.reduce((s,l) => s + num(l.amount), 0);
   let totalPrincipalRepaid = 0;
@@ -1445,13 +1439,13 @@ function computeYearNumbers() {
   const loansOutstanding = Math.max(0, round2(totalLoansEver - totalPrincipalRepaid));
   const wc = applyWorkareaToAllCustomers();
   const totalCustomerShares = wc.reduce((s,c) => s + num(c.shares), 0) || shareCount;
-  const totalSavingsBalance = wc.reduce((s,c) => s + num(c.savingsBalance), 0);
+
   return {
     grossSavings, totalWithdrawals, totalLeaving, totalRepayments, totalLoansIssued, totalDividends, totalSvc,
     paidPrincipal, paidInterest, netSavingY, netProfitY, currentBalance,
     totalPenalties, penFromSav, penExternal, regFee, otherIncome,
-    netShareValueY, shareBuyAmount, shareSellAmount, shareCount,
-    loansOutstanding, totalCustomerShares, totalSavingsBalance
+    netShareValueY, shareBuyAmount, shareCount, loansOutstanding,
+    totalCustomerShares
   };
 }
 function computeAllYearNumbers() {
@@ -1464,7 +1458,6 @@ function computeAllYearNumbers() {
   const SHR = computeSharesAllYears();
   const netShareValueAll = SHR.netShareValue;
   const shareBuyAll = SHR.shareBuyAmount;
-  const shareSellAll = SHR.shareSellAmount;
   const penFromSavAll = filterWorkareaTxns(APP.txn.penalties).filter(isPenaltyPaid).filter(isPenaltyPaidFromSavings).reduce((s,p) => s + num(p.amount), 0);
   const netSavingAll = round2(totalSavings - totalWithdrawals - totalLeaving - penFromSavAll);
   let interestAll = 0;
@@ -1482,7 +1475,7 @@ function computeAllYearNumbers() {
   const svcAll = filterWorkareaTxns(APP.txn.serviceWithdrawals).filter(isServiceWithdrawalCounted).reduce((s,x) => s + num(x.amount), 0);
   const netProfitAll = Math.max(0, round2(regFeeAll + otherIncomeAll + interestAll + penaltiesAll - svcAll));
   const totalBalanceAll = round2(netSavingAll + netProfitAll + netShareValueAll);
-  return { netSavingAll, netProfitAll, netShareValueAll, totalBalanceAll, shareBuyAll, shareSellAll, shareCountAll: SHR.shareCount };
+  return { netSavingAll, netProfitAll, netShareValueAll, totalBalanceAll, shareBuyAll, shareCountAll: SHR.shareCount };
 }
 function renderStatsValues() {
   const Y = computeYearNumbers();
@@ -1639,7 +1632,7 @@ function drawGroupedBars(container, labels, series) {
 }
 
 /* ============================================================
-   ACTIVITY
+   ACTIVITY — includes SACCO income from deposits (profit_income)
    ============================================================ */
 const MAX_ACTIVITY = 10;
 function renderActivity() {
@@ -1653,6 +1646,7 @@ function renderActivity() {
     const amt = num(x.amount);
     const name = customerNameOf(x);
     let action = '', icon = 'fa-file-text', color = 'blue';
+
     if (ty === 'savings' || ty === 'deposit') { action = moneyFull(amt) + ' ' + t('savingsDeposit'); icon='fa-piggy-bank'; color='green'; }
     else if (ty === 'withdrawal' || ty === 'leaving_withdrawal') { action = moneyFull(amt) + ' ' + t('withdrawalTxt'); icon='fa-arrow-up'; color='red'; }
     else if (ty === 'repayment' || ty === 'loan_repayment') {
@@ -1662,14 +1656,30 @@ function renderActivity() {
       icon='fa-undo-alt'; color='teal';
     }
     else if (ty === 'loan') { action = moneyFull(amt) + ' ' + t('loanIssued'); icon='fa-wallet'; color='blue'; }
+    else if (ty === 'profit_income') {
+      /* SACCO-level deposit income — new */
+      const incLabel = x.incomeType || 'Income';
+      const saccoTag = x.isSaccoIncome ? ' (' + t('saccoIncomeTag') + ')' : '';
+      action = moneyFull(amt) + ' · ' + incLabel + saccoTag;
+      icon = 'fa-vault';
+      color = 'teal';
+      /* If it's tied to a customer, show that name; otherwise show SACCO Income */
+      if (!x.customerId && !x.isSaccoIncome) x.isSaccoIncome = true;
+    }
     else if (ty === 'dividend') { action = moneyFull(x.netAmount != null ? x.netAmount : amt) + ' ' + t('dividendTxt'); icon='fa-gift'; color='gold'; }
     else if (BUY_SHARE_TYPES.includes(ty)) { action = moneyFull(getShareAmount(x)) + ' ' + (isSharePaidFromSavings(x) ? t('shareBuySavings') : t('shareBuyCash')); icon='fa-chart-pie'; color='violet'; }
     else if (SELL_SHARE_TYPES.includes(ty)) { action = moneyFull(getShareAmount(x)) + ' ' + t('shareSell'); icon='fa-arrow-up'; color='pink'; }
     else if (ty === 'penalty') { action = moneyFull(amt) + ' ' + t('penaltyTxt'); icon='fa-exclamation-triangle'; color='orange'; }
     else if (ty === 'service_withdrawal') { action = moneyFull(amt) + ' ' + t('serviceWithdrawal'); icon='fa-arrow-up'; color='orange'; }
     else return;
-    events.push({ name, action, icon, color, at: x.createdAt || x.date });
+
+    const isSaccoIncome = ty === 'profit_income' && !x.customerId;
+    const displayName = isSaccoIncome ? t('saccoIncome') : name;
+
+    events.push({ name: displayName, action, icon, color, at: x.createdAt || x.date });
   });
+
+  /* Loans from the `loans` collection — show as loan issued */
   filterWorkareaTxns(APP.txn.loans)
     .filter(l => isInYear(l.date || l.createdAt || l.disbursementDate, y))
     .slice(0, 20)
@@ -1681,6 +1691,7 @@ function renderActivity() {
         at: l.createdAt || l.disbursementDate || l.date
       });
     });
+
   APP.shareRecords
     .filter(s => isInYear(s.date || s.createdAt || s.approvedAt, y))
     .slice(0, 20)
@@ -1694,6 +1705,7 @@ function renderActivity() {
       else return;
       events.push({ name, action, icon:'fa-chart-pie', color, at: s.createdAt || s.date || s.approvedAt });
     });
+
   applyWorkareaToAllCustomers()
     .filter(c => isInYear(c.createdAt, y))
     .sort((a,b) => (toDateSafe(b.createdAt)?.getTime() || 0) - (toDateSafe(a.createdAt)?.getTime() || 0))
@@ -1704,6 +1716,7 @@ function renderActivity() {
         icon:'fa-user-plus', color:'blue', at: c.createdAt
       });
     });
+
   events.sort((a,b) => (toDateSafe(b.at)?.getTime() || 0) - (toDateSafe(a.at)?.getTime() || 0));
   const top = events.slice(0, MAX_ACTIVITY);
   if (!top.length) {
@@ -1740,6 +1753,7 @@ function renderQuickActions() {
     a.push({k:'savings',h:'savings.html',i:'fa-piggy-bank',c:'green'});
     a.push({k:'loans',h:'loans.html',i:'fa-wallet',c:'red'});
     a.push({k:'repayments',h:'repayments.html',i:'fa-undo-alt',c:'teal'});
+    a.push({k:'deposits',h:'deposits.html',i:'fa-vault',c:'green'});
     a.push({k:'withdrawals',h:'withdrawals.html',i:'fa-arrow-up',c:'red'});
     a.push({k:'shares',h:'share.html',i:'fa-chart-pie',c:'violet'});
     a.push({k:'penalties',h:'penalties.html',i:'fa-exclamation-triangle',c:'orange'});
@@ -1752,6 +1766,7 @@ function renderQuickActions() {
     a.push({k:'savings',h:'savings.html',i:'fa-piggy-bank',c:'green'});
     a.push({k:'loans',h:'loans.html',i:'fa-wallet',c:'red'});
     a.push({k:'repayments',h:'repayments.html',i:'fa-undo-alt',c:'teal'});
+    a.push({k:'deposits',h:'deposits.html',i:'fa-vault',c:'green'});
     a.push({k:'withdrawals',h:'withdrawals.html',i:'fa-arrow-up',c:'red'});
     a.push({k:'shares',h:'share.html',i:'fa-chart-pie',c:'violet'});
     a.push({k:'penalties',h:'penalties.html',i:'fa-exclamation-triangle',c:'orange'});
@@ -1762,6 +1777,7 @@ function renderQuickActions() {
     a.push({k:'savings',h:'savings.html',i:'fa-piggy-bank',c:'green'});
     a.push({k:'loans',h:'loans.html',i:'fa-wallet',c:'red'});
     a.push({k:'repayments',h:'repayments.html',i:'fa-undo-alt',c:'teal'});
+    a.push({k:'deposits',h:'deposits.html',i:'fa-vault',c:'green'});
     a.push({k:'withdrawals',h:'withdrawals.html',i:'fa-arrow-up',c:'red'});
     a.push({k:'penalties',h:'penalties.html',i:'fa-exclamation-triangle',c:'orange'});
     a.push({k:'shares',h:'share.html',i:'fa-chart-pie',c:'violet'});
@@ -1772,6 +1788,7 @@ function renderQuickActions() {
     a.push({k:'customers',h:'customers.html',i:'fa-users',c:'blue'});
     a.push({k:'withdrawals',h:'withdrawals.html',i:'fa-arrow-up',c:'red'});
     a.push({k:'repayments',h:'repayments.html',i:'fa-undo-alt',c:'teal'});
+    a.push({k:'deposits',h:'deposits.html',i:'fa-vault',c:'green'});
     a.push({k:'penalties',h:'penalties.html',i:'fa-exclamation-triangle',c:'orange'});
   } else if (isMember()) {
     a.push({k:'savings',h:'savings.html',i:'fa-piggy-bank',c:'green'});
@@ -1890,6 +1907,7 @@ function wireMainEvents() {
    LOAD
    ============================================================ */
 async function loadAllData() {
+  /* districts / branches / customers */
   const [districts, branches] = await Promise.all([
     fetchAllNoScope('districts'),
     fetchAllNoScope('branches')
@@ -1908,8 +1926,12 @@ async function loadAllData() {
     if (c.memberCode)  CUSTOMER_MAP.set(c.memberCode, rec);
     if (c.customerCode)CUSTOMER_MAP.set(c.customerCode, rec);
   });
+
+  /* transactions */
   const txns = await scopedFetchAll('transactions', [limit(3000)]);
   APP.txn.allTxns = txns;
+
+  /* loans — separate collection, normalised */
   const loansRaw = await scopedFetchAll('loans');
   const normalizedLoans = loansRaw.map(l => {
     const principal = num(l.principal) || num(l.amount);
@@ -1920,20 +1942,25 @@ async function loadAllData() {
       date: l.disbursementDate || l.date || l.createdAt,
       createdAt: l.createdAt || l.disbursementDate || l.date };
   });
+
+  /* shares */
   const shareRecords = await fetchAllNoScope('shares');
   APP.shareRecords = shareRecords;
+
   const byType = (names) => txns.filter(t => names.includes(String(t.type || '').toLowerCase()));
-  APP.txn.savings           = byType(['savings', 'saving', 'deposit']);
+
+  APP.txn.savings           = byType(['savings','saving','deposit']);
   APP.txn.loans             = [...byType(['loan']), ...normalizedLoans];
-  APP.txn.repayments        = byType(['repayment', 'loan_repayment']);
-  APP.txn.profitIncome      = byType(['profit_income']);
-  APP.txn.profitWithdrawal  = byType(['profit_withdrawal', 'dividend']);
+  APP.txn.repayments        = byType(['repayment','loan_repayment']);
+  APP.txn.profitIncome      = byType(['profit_income']);     /* SACCO income from deposits */
+  APP.txn.profitWithdrawal  = byType(['profit_withdrawal','dividend']);
   APP.txn.withdrawals       = byType(['withdrawal']);
   APP.txn.leaving           = byType(['leaving_withdrawal']);
   APP.txn.penalties         = byType(['penalty']);
   APP.txn.serviceWithdrawals= byType(['service_withdrawal']);
   APP.txn.dividends         = byType(['dividend']);
   APP.txn.shares            = byType([...BUY_SHARE_TYPES, ...SELL_SHARE_TYPES, ...IN_SHARE_TYPES, ...OUT_SHARE_TYPES]);
+
   APP.txn.pendingLoans = [
     ...txns.filter(t => String(t.type || '').toLowerCase() === 'loan' && String(t.status || '').toLowerCase() === 'pending'),
     ...normalizedLoans.filter(l => String(l.status || '').toLowerCase() === 'pending')
@@ -1943,8 +1970,11 @@ async function loadAllData() {
     const tb = toDateSafe(a.createdAt || a.date)?.getTime() || 0;
     return ta - tb;
   }).slice(0, 200);
+
   LOANS_BY_ID.clear();
   APP.txn.loans.forEach(l => LOANS_BY_ID.set(l.id, l));
+
+  /* available years */
   const dataYears = new Set();
   const scan = (arr) => arr.forEach(x => {
     const d = toDateSafe(x.date || x.createdAt || x.timestamp || x.approvedAt || x.disbursementDate);
@@ -1954,14 +1984,17 @@ async function loadAllData() {
   scan(APP.txn.withdrawals); scan(APP.txn.leaving); scan(APP.txn.penalties);
   scan(APP.txn.profitIncome); scan(APP.txn.profitWithdrawal); scan(APP.txn.dividends);
   scan(APP.txn.shares); scan(APP.txn.serviceWithdrawals); scan(APP.shareRecords);
+
   const cy = new Date().getFullYear();
   const yearsWithData = Array.from(dataYears).filter(y => y >= 2020).sort((a, b) => b - a);
   const merged = new Set(yearsWithData);
   for (let i = -2; i <= 2; i++) merged.add(cy + i);
   APP.availableYears = Array.from(merged).sort((a, b) => b - a);
+
   if (dataYears.has(cy)) APP.currentYear = cy;
   else if (yearsWithData.length) APP.currentYear = yearsWithData[0];
   else APP.currentYear = cy;
+
   APP.dataLoaded = true;
 }
 
@@ -1975,6 +2008,7 @@ async function loadAllData() {
   LANG = SUPPORTED.includes(saved) ? saved : (SUPPORTED.includes(b) ? b : 'en');
   document.documentElement.lang = LANG;
   document.body.classList.toggle('lang-am', LANG === 'am');
+
   const sess = readSession();
   const hasMis = sessionStorage.getItem('loggedIn') === 'true' && sessionStorage.getItem('uid');
   if (!isSessionRecordValid(sess) && !hasMis) {
@@ -2041,8 +2075,6 @@ async function loadAllData() {
       </div>`;
   }
 })();
-
-console.log('[sacco] dashboard loaded');
 </script>
 </body>
 </html>
