@@ -631,7 +631,8 @@ const APP = {
   penaltySettings: { penaltyPaymentSources: ['savings','saving','from_savings','savings_account','member_savings','sacco_savings','from_saving','account'] },
   unsubs: [],
   filters: { search: '', districtId: '', branchId: '', status: '' },
-  view: 'grid', page: 1, pageSize: 12
+  view: 'grid', page: 1, pageSize: 12,
+  diag: { customersLoaded: 0, customersError: '', preload: '', primaryFallback: false }
 };
 let LANG = 'en';
 
@@ -819,11 +820,7 @@ function isPenaltyPaidFromSavings(p) {
   return !!m && sources.includes(m);
 }
 
-/* ============================================================
-   CUSTOMER SAVINGS — matches dashboard / withdrawals / savings:
-     Savings + Deposits − Withdrawals − Individual Withdrawals
-     − Leaving − Penalties paid FROM SAVINGS
-   ============================================================ */
+/* CUSTOMER SAVINGS */
 function customerSavings(customer) {
   if (!customer) return 0;
   let total = 0;
@@ -1112,7 +1109,7 @@ function renderMain() {
     </div>
     <div class="section-title">${esc(t('pageTitle'))}</div>
     <section class="stats">
-      <div class="stat stat--green"><div class="stat__head"><div class="stat__label">${esc(t('statTotal'))}</div><div class="stat__icon"><i class="fas fa-users"></i></div></div><div class="stat__value">${all.length}</div><div class="stat__hint">${esc(t('scopeAll'))}</div></div>
+      <div class="stat stat--green"><div class="stat__head"><div class="stat__label">${esc(t('statTotal'))}</div><div class="stat__icon"><i class="fas fa-users"></i></div></div><div class="stat__value">${all.length}</div><div class="stat__hint">${esc(t('scopeAll'))} · Role: ${esc(APP.profile?.role || '?')}</div></div>
       <div class="stat stat--blue"><div class="stat__head"><div class="stat__label">${esc(t('statActive'))}</div><div class="stat__icon"><i class="fas fa-user-check"></i></div></div><div class="stat__value">${active}</div><div class="stat__hint">${all.length ? Math.round(active/all.length*100) : 0}%</div></div>
       <div class="stat stat--gold"><div class="stat__head"><div class="stat__label">${esc(t('statTotalSavings'))}</div><div class="stat__icon"><i class="fas fa-piggy-bank"></i></div></div><div class="stat__value" style="font-size:20px;">${esc(moneyShort(totalSavings))}</div><div class="stat__hint">${esc(t('colSavings'))} (net)</div></div>
       <div class="stat stat--violet"><div class="stat__head"><div class="stat__label">${esc(t('statTotalShares'))}</div><div class="stat__icon"><i class="fas fa-chart-pie"></i></div></div><div class="stat__value">${fmtNum(totalShares)}</div><div class="stat__hint">${esc(t('statInactive'))}: ${all.length - active}</div></div>
@@ -1155,7 +1152,34 @@ function renderContent() {
   const list = filteredCustomers();
   if (!list.length) {
     const isFiltered = APP.filters.search || APP.filters.districtId || APP.filters.branchId || APP.filters.status;
-    host.innerHTML = `<div class="empty"><i class="fas ${isFiltered ? 'fa-search' : 'fa-user-plus'}"></i><div class="empty__title">${isFiltered ? esc(t('noMatch')) : esc(t('noCustomers'))}</div><div class="empty__text">${isFiltered ? esc(t('noMatchText')) : esc(t('noCustomersText'))}</div></div>`;
+    const role = APP.profile?.role || '?';
+    const scopeMsg = role === 'super_admin' || role === 'auditor'
+      ? 'Full system access.'
+      : (role === 'admin'
+          ? 'Scoped to district "' + (APP.profile?.districtId || '—') + '".'
+          : (['manager','cashier','teller','accountant'].includes(role)
+              ? 'Scoped to branch "' + (APP.profile?.branchId || '—') + '".'
+              : 'Role: ' + role + '.'));
+    host.innerHTML = `
+      <div class="empty">
+        <i class="fas ${isFiltered ? 'fa-search' : 'fa-users'}"></i>
+        <div class="empty__title">${isFiltered ? esc(t('noMatch')) : esc(t('noCustomers'))}</div>
+        <div class="empty__text">
+          ${isFiltered ? esc(t('noMatchText')) : esc(t('noCustomersText'))}
+        </div>
+        ${!isFiltered ? `
+          <div style="margin-top:16px;padding:12px 16px;max-width:560px;margin-left:auto;margin-right:auto;
+                      background:#fdf5e0;border:1px solid #f0dcb0;border-radius:12px;
+                      font-size:12px;line-height:1.6;color:#7a5210;text-align:left">
+            <strong style="display:block;margin-bottom:6px">Diagnostics</strong>
+            Role: <code>${esc(role)}</code><br>
+            ${esc(scopeMsg)}<br>
+            Customers in memory: <strong>${APP.customers.length}</strong><br>
+            Preload status: <strong>${esc(APP.diag.preload || 'n/a')}</strong><br>
+            ${APP.diag.customersError ? 'Error: <code>' + esc(APP.diag.customersError) + '</code><br>' : ''}
+            Open DevTools → Console and check <code>[listen] customers</code> and <code>[boot] customers</code>.
+          </div>` : ''}
+      </div>`;
     return;
   }
   if (APP.view === 'table') renderTableView(host, list); else renderGridView(host, list);
@@ -1700,19 +1724,91 @@ function setLang(lang) {
   renderMain();
 }
 
-/* LISTENERS */
+/* ============================================================
+   LISTENERS — role-scoped with fallback and diagnostics
+   ============================================================ */
+let _customerFallbackUsed = false;
+
+function buildCustomersQuery() {
+  const role = APP.profile?.role || 'unknown';
+  const cons = [];
+  if (role === 'admin' && APP.profile?.districtId) {
+    cons.push(where('districtId', '==', APP.profile.districtId));
+  } else if (['manager','cashier','teller','accountant'].includes(role) && APP.profile?.branchId) {
+    cons.push(where('branchId', '==', APP.profile.branchId));
+  }
+  const base = collection(db, 'customers');
+  return cons.length ? query(base, ...cons, limit(2000)) : query(base, limit(2000));
+}
+
+async function loadCustomersFallback() {
+  if (_customerFallbackUsed) return;
+  _customerFallbackUsed = true;
+  APP.diag.primaryFallback = true;
+  console.warn('[customers] primary listener failed — trying unscoped getDocs fallback');
+  try {
+    const snap = await getDocs(query(collection(db, 'customers'), limit(3000)));
+    APP.customers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    APP.diag.customersLoaded = APP.customers.length;
+    console.log('[customers] fallback loaded:', APP.customers.length);
+    if (APP.customers.length === 0) {
+      APP.diag.customersError = 'Query returned 0 records for role ' + (APP.profile?.role || '?');
+      toast('No customer records returned. Check Firestore rules on /customers for role "' + (APP.profile?.role || '?') + '".', 'warning');
+    }
+    renderMain();
+  } catch (e2) {
+    APP.diag.customersError = (e2.code || e2.message || 'unknown');
+    console.error('[customers] fallback also failed:', e2.code || e2.message);
+    toast('Cannot read /customers: ' + (e2.code || e2.message), 'error');
+    APP.customers = [];
+    renderMain();
+  }
+}
+
 function attachListeners() {
   stopListeners();
-  const watch = (coll, key, orderField) => {
-    let ref = collection(db, coll);
-    if (orderField) ref = query(ref, orderBy(orderField, 'desc'), limit(500));
+  _customerFallbackUsed = false;
+
+  const watch = (coll, key, orderField, customQueryBuilder = null) => {
+    let ref;
+    try {
+      ref = customQueryBuilder ? customQueryBuilder() : (
+        orderField
+          ? query(collection(db, coll), orderBy(orderField, 'desc'), limit(2000))
+          : collection(db, coll)
+      );
+    } catch (e) {
+      console.warn('[listen]', coll, 'query build failed:', e.message);
+      return;
+    }
+
     const unsub = onSnapshot(ref,
-      (snap) => { APP[key] = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderMain(); },
-      (err) => { console.warn('[listen]', coll, err.code, err.message); renderMain(); }
+      (snap) => {
+        APP[key] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (key === 'customers') {
+          APP.diag.customersLoaded = APP[key].length;
+          APP.diag.customersError = '';
+        }
+        console.log('[listen]', coll, 'loaded:', APP[key].length);
+        if (key === 'customers' && APP[key].length === 0) {
+          console.warn('[listen] customers returned 0 — check rules or filters');
+        }
+        renderMain();
+      },
+      (err) => {
+        console.error('[listen]', coll, 'failed:', err.code, err.message);
+        if (coll === 'customers') {
+          APP.diag.customersError = (err.code || err.message || 'unknown');
+          loadCustomersFallback();
+        } else {
+          renderMain();
+        }
+      }
     );
     APP.unsubs.push(unsub);
   };
-  watch('customers',    'customers');
+
+  watch('customers',    'customers', null, buildCustomersQuery);
   watch('districts',    'districts');
   watch('branches',     'branches');
   watch('transactions', 'transactions', 'createdAt');
@@ -1762,6 +1858,35 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
       }
     }
   } catch(e){}
+
+  /* Preload customers so first render has real data */
+  try {
+    const custQuery = buildCustomersQuery();
+    const custSnap = await getDocs(custQuery);
+    APP.customers = custSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    APP.diag.preload = 'scoped (' + APP.customers.length + ')';
+    console.log('[boot] customers preloaded (scoped):', APP.customers.length);
+    if (APP.customers.length === 0) {
+      const s2 = await getDocs(query(collection(db, 'customers'), limit(3000)));
+      APP.customers = s2.docs.map(d => ({ id: d.id, ...d.data() }));
+      APP.diag.preload = 'unscoped (' + APP.customers.length + ')';
+      console.log('[boot] customers preloaded (unscoped):', APP.customers.length);
+    }
+  } catch (e) {
+    console.error('[boot] customer preload failed:', e.code || e.message);
+    try {
+      const s2 = await getDocs(query(collection(db, 'customers'), limit(3000)));
+      APP.customers = s2.docs.map(d => ({ id: d.id, ...d.data() }));
+      APP.diag.preload = 'unscoped-after-error (' + APP.customers.length + ')';
+      console.log('[boot] customers preloaded (unscoped after error):', APP.customers.length);
+    } catch (e2) {
+      APP.diag.preload = 'failed';
+      APP.diag.customersError = (e2.code || e2.message || 'unknown');
+      console.error('[boot] customer preload fallback also failed:', e2.code || e2.message);
+      toast('Cannot load customers: ' + (e2.code || e2.message), 'error');
+      APP.customers = [];
+    }
+  }
 
   renderShell();
   renderMain();
