@@ -154,9 +154,7 @@ html.theme-dark .workarea-bar{background:#0f172a;border-color:#1e293b;}
 .workarea-bar__fields{display:flex;gap:14px;flex-wrap:wrap;flex:1;}
 .workarea-bar__group{display:flex;flex-direction:column;gap:5px;min-width:180px;}
 .workarea-bar__group label{font-size:10.5px;font-weight:800;color:var(--text-soft);text-transform:uppercase;letter-spacing:.05em;display:inline-flex;align-items:center;gap:5px;}
-.workarea-bar__select{height:40px;padding:0 36px 0 12px;border:1px solid var(--border);border-radius:10px;background:#fff;font-size:13px;font-weight:700;color:var(--text);cursor:pointer;font-family:inherit;appearance:none;min-width:180px;
-  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
-  background-repeat:no-repeat;background-position:right 12px center;}
+.workarea-bar__select{height:40px;padding:0 36px 0 12px;border:1px solid var(--border);border-radius:10px;background:#fff;font-size:13px;font-weight:700;color:var(--text);cursor:pointer;font-family:inherit;appearance:none;min-width:180px;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");background-repeat:no-repeat;background-position:right 12px center;}
 html.theme-dark .workarea-bar__select{background-color:#1a2433;color:#e4e8f0;border-color:#1e293b;}
 .workarea-bar__select:disabled{background:#f8fafc;color:var(--text-soft);cursor:not-allowed;border-style:dashed;}
 .workarea-bar__count{font-size:12px;font-weight:800;color:var(--primary-dark);background:linear-gradient(135deg,#eaf3fc,#fff);border:1px solid #bdd7f2;border-radius:var(--r-full);padding:6px 14px;white-space:nowrap;}
@@ -175,6 +173,7 @@ html.theme-dark .stat{background:#0f172a;border-color:#1e293b;}
 .stat--purple{--c1:linear-gradient(90deg,#6d28d9,#a78bfa);--ic:#f0eaff;--ifc:#5b21b6;}
 .stat--teal  {--c1:linear-gradient(90deg,#0e7490,#4dd4c4);--ic:#e0f5f7;--ifc:#0e7490;}
 .stat--pink  {--c1:linear-gradient(90deg,#db2777,#f472b6);--ic:#fdeef5;--ifc:#be185d;}
+.stat--orange{--c1:linear-gradient(90deg,#e65100,#f57c00);--ic:#fff1e6;--ifc:#bf360c;}
 .stat--indigo{--c1:linear-gradient(90deg,#3949ab,#5c6bc0);--ic:#e8eaf6;--ifc:#283593;}
 .stat__head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;gap:10px;}
 .stat__label{font-size:12.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;line-height:1.35;}
@@ -337,9 +336,7 @@ html.theme-dark .steps{background:#111a2c;border-bottom-color:#1e293b;}
 .field input,.field select,.field textarea{width:100%;height:48px;padding:0 14px;border:1px solid #d9dee7;border-radius:11px;background:#fbfcfe;font-size:14px;font-family:inherit;color:var(--text);}
 html.theme-dark .field input,html.theme-dark .field select,html.theme-dark .field textarea{background:#1a2433;border-color:#1e293b;color:#e4e8f0;}
 .field textarea{height:auto;min-height:80px;padding:12px 14px;resize:vertical;}
-.field select{appearance:none;padding-right:38px;
-  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
-  background-repeat:no-repeat;background-position:right 14px center;}
+.field select{appearance:none;padding-right:38px;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");background-repeat:no-repeat;background-position:right 14px center;}
 .field input:focus,.field select:focus,.field textarea:focus{outline:none;background:#fff;border-color:#70a8d9;box-shadow:0 0 0 4px rgba(11,92,171,.08);}
 html.theme-dark .field input:focus,html.theme-dark .field select:focus,html.theme-dark .field textarea:focus{background:#0f172a;}
 .field input:disabled,.field select:disabled{background:#f1f5f9;color:var(--muted);cursor:not-allowed;}
@@ -972,7 +969,9 @@ function scopeCustomers() {
 }
 function isSavingsTx(tx) {
   const type = String(tx.type || '').toLowerCase();
-  return type === 'savings' || type === 'deposit' || type === 'withdrawal' || type === 'leaving_withdrawal';
+  return type === 'savings' || type === 'deposit'
+      || type === 'withdrawal' || type === 'individual_withdrawal'
+      || type === 'leaving_withdrawal';
 }
 function filterWorkareaTxns(list) {
   const { districtId, branchId } = APP.workarea;
@@ -1012,11 +1011,9 @@ function districtById(id) { return APP.districts.find(d => d.id === id) || null;
 function branchById(id) { return APP.branches.find(b => b.id === id) || null; }
 
 /* ============================================================
-   BALANCE — matches the dashboard's Net Saving:
-     Savings  +  Dividends? (not tracked here)
-              −  Withdrawals
-              −  Leaving
-              −  Penalties paid FROM SAVINGS
+   BALANCE — matches dashboard Net Saving:
+     Savings + Deposits − Withdrawals − Individual Withdrawals − Leaving
+     − Penalties paid FROM SAVINGS
    Only approved records count.
    ============================================================ */
 function customerBalance(customer) {
@@ -1033,7 +1030,7 @@ function customerBalance(customer) {
     const amt = num(tx.amount);
 
     if (type === 'savings' || type === 'deposit') total += amt;
-    else if (type === 'withdrawal' || type === 'leaving_withdrawal') total -= amt;
+    else if (type === 'withdrawal' || type === 'individual_withdrawal' || type === 'leaving_withdrawal') total -= amt;
     else if (type === 'penalty') {
       if (!isPenaltyPaid(tx)) return;
       if (!isPenaltyPaidFromSavings(tx)) return;
@@ -1297,11 +1294,6 @@ function renderMain() {
     return;
   }
 
-  /* ==========================================================
-     TOTALS — only approved records count.
-     Net Savings = Deposits − Withdrawals − Penalties-from-Savings
-     (matches the dashboard's Net Saving).
-     ========================================================== */
   const APPROVED_STATUSES = ['approved','completed','paid','printed','done'];
   const all = filterWorkareaTxns(scopeTransactions());
   let totalDeposits = 0, totalWithdrawals = 0;
@@ -1319,7 +1311,6 @@ function renderMain() {
     }
   });
 
-  /* Penalties paid from savings within scope + workarea */
   const scopeIds = new Set(scopeCustomers().map(c => c.id));
   const scopeCids = new Set(scopeCustomers().map(c => c.customerId).filter(Boolean));
   let penaltiesFromSavings = 0;
@@ -1490,7 +1481,7 @@ function filteredTransactions() {
     list = list.filter(tx => {
       const type = String(tx.type || '').toLowerCase();
       if (APP.filters.type === 'deposit') return type === 'savings' || type === 'deposit';
-      if (APP.filters.type === 'withdrawal') return type === 'withdrawal' || type === 'leaving_withdrawal';
+      if (APP.filters.type === 'withdrawal') return type === 'withdrawal' || type === 'individual_withdrawal' || type === 'leaving_withdrawal';
       return true;
     });
   }
@@ -1743,7 +1734,7 @@ function debounce(fn, ms) {
 function txTypeLabel(type) {
   const s = String(type || '').toLowerCase();
   if (s === 'savings' || s === 'deposit') return t('typeDeposit');
-  if (s === 'withdrawal' || s === 'leaving_withdrawal') return t('typeWithdrawal');
+  if (s === 'withdrawal' || s === 'individual_withdrawal' || s === 'leaving_withdrawal') return t('typeWithdrawal');
   return type || '—';
 }
 function statusLabel(status) {
@@ -1969,7 +1960,7 @@ function openTxWizard(tx) {
     _customerDocId: '',
     type: (() => {
       const s = String(t0.type || '').toLowerCase();
-      if (s === 'withdrawal' || s === 'leaving_withdrawal') return 'withdrawal';
+      if (s === 'withdrawal' || s === 'individual_withdrawal' || s === 'leaving_withdrawal') return 'withdrawal';
       return 'deposit';
     })(),
     amount: t0.amount != null ? String(num(t0.amount)) : '',
@@ -2435,7 +2426,7 @@ function openTxWizard(tx) {
         if (!['approved','completed','paid','printed','done'].includes(st)) return;
         const type2 = String(tx.type || '').toLowerCase();
         if (type2 === 'savings' || type2 === 'deposit') running += num(tx.amount);
-        else if (type2 === 'withdrawal' || type2 === 'leaving_withdrawal') running -= num(tx.amount);
+        else if (type2 === 'withdrawal' || type2 === 'individual_withdrawal' || type2 === 'leaving_withdrawal') running -= num(tx.amount);
       });
       running = Math.max(0, running);
       const newBalAfter = isDep ? running + amt : Math.max(0, running - amt);
