@@ -197,9 +197,6 @@ html.theme-dark .tabs{background:#0f172a;border-color:#1e293b;}
 .tab.is-active{background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;
   box-shadow:0 8px 18px rgba(11,92,171,.22);}
 .tab i{font-size:15px;}
-.tab-panel{display:none;animation:fadeIn .25s ease;}
-.tab-panel.is-active{display:block;}
-@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
 
 .range-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
   background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);
@@ -294,11 +291,6 @@ html.theme-dark .tbl .total-row td{background:#0f2419;}
 html.theme-dark .list__item{border-bottom-color:#1a2433;}
 .list__item:last-child{border-bottom:none;}
 .list__avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#eaf3fc,#bdd7f2);color:var(--primary-dark);display:grid;place-items:center;font-weight:800;font-size:12px;flex-shrink:0;}
-.list__avatar--green{background:#e7f7f0;color:#128a5c;}
-.list__avatar--red{background:#fef3f2;color:#b42318;}
-.list__avatar--gold{background:#fdf5e0;color:#b8860b;}
-.list__avatar--violet{background:#f0eaff;color:#5b21b6;}
-.list__avatar--teal{background:#e0f5f7;color:#0e7490;}
 .list__main{flex:1;min-width:0;}
 .list__title{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .list__meta{font-size:11.5px;color:var(--muted);margin-top:2px;}
@@ -447,12 +439,6 @@ const SESSION_KEY = "sacco.session";
 function readSession(){ try { const r = sessionStorage.getItem(SESSION_KEY); if (!r) return null; const s = JSON.parse(r); return (s && s.uid) ? s : null; } catch(e){ return null; } }
 function clearSession(){ try { sessionStorage.removeItem(SESSION_KEY); } catch(e){} }
 function isSessionRecordValid(s){ return !!(s && s.uid); }
-function forceLogout(reason){
-  try { sessionStorage.clear(); sessionStorage.setItem('__redirectReason', reason || 'expired'); } catch(e){}
-  clearSession();
-  try { signOut(auth); } catch(e){}
-  window.location.replace(LOGIN_URL);
-}
 
 /* ============================================================
    I18N
@@ -736,6 +722,34 @@ function renderBrandTitle(name){
 }
 
 /* ============================================================
+   CUSTOMER NAME RESOLVER
+   ============================================================
+   Prefers the name snapshot stored on the transaction itself
+   (works even when the customer is outside the current admin's
+   district/branch scope), then falls back to the customer map. */
+function customerNameOf(tx) {
+  if (!tx) return '—';
+
+  // 1. Name snapshot on the transaction
+  const snap = tx.customerName || tx.memberName || tx.fullName;
+  if (snap && String(snap).trim()) return String(snap).trim();
+
+  // 2. Look up via any of the ID fields the transaction may carry
+  const keys = [
+    tx.customerId, tx.memberId, tx.customerDocId,
+    tx.customerCode, tx.memberCode, tx.customer_id, tx.member_id
+  ].filter(Boolean);
+
+  for (const k of keys) {
+    const rec = CUSTOMER_MAP.get(k) || CUSTOMER_MAP.get(String(k));
+    if (rec && rec.name) return rec.name;
+  }
+
+  // 3. Last resort — show the first ID we found so the row is never blank
+  return keys[0] ? String(keys[0]) : '—';
+}
+
+/* ============================================================
    CLASSIFIERS (mirror dashboard)
    ============================================================ */
 const COUNTED_SHARE_STATUSES = ['approved','completed','done','printed','paid'];
@@ -933,14 +947,6 @@ function filterWorkareaCustomers(list){
     return true;
   });
 }
-function scopeDistricts(){
-  if (isMember()) return [];
-  const { districtId } = APP.workarea;
-  if (districtId){ const d = APP.districts.find(x => x.id === districtId); return d ? [d] : []; }
-  if (isSuper() || isAuditor()) return APP.districts.slice();
-  if (isDistrict() || isBranchRole()) return APP.districts.filter(d => d.id === S.districtId);
-  return [];
-}
 
 /* ============================================================
    RANGE HELPERS
@@ -1008,23 +1014,18 @@ function computePeriodAggregates(range){
   const inScopeTx = (tx) => inWorkarea(tx);
   const inRangeTx = (tx) => inRange(tx.date || tx.createdAt || tx.timestamp, from, to);
 
-  /* Savings (gross) */
   const savingsList = APP.txn.savings.filter(tx => inScopeTx(tx) && inRangeTx(tx) && isSavingsCounted(tx));
   const grossSavings = savingsList.reduce((s,x) => s + num(x.amount), 0);
 
-  /* Withdrawals (regular + service) — regular for Net Saving */
   const withdrawalsList = APP.txn.withdrawals.filter(tx => inScopeTx(tx) && inRangeTx(tx) && isWithdrawalCounted(tx));
   const totalWithdrawals = withdrawalsList.reduce((s,x) => s + num(x.amount), 0);
 
-  /* Leaving withdrawals */
   const leavingList = APP.txn.leaving.filter(tx => inScopeTx(tx) && inRangeTx(tx) && isWithdrawalCounted(tx));
   const totalLeaving = leavingList.reduce((s,x) => s + num(x.amount), 0);
 
-  /* Service withdrawals */
   const svcList = APP.txn.serviceWithdrawals.filter(tx => inScopeTx(tx) && inRangeTx(tx) && isServiceWithdrawalCounted(tx));
   const totalServiceWithdrawals = svcList.reduce((s,x) => s + num(x.amount), 0);
 
-  /* Penalties (paid) + breakdown */
   const penaltiesPaidList = APP.txn.penalties.filter(p => {
     if (!inScopeTx(p) || !isPenaltyPaid(p)) return false;
     const when = toDateSafe(p.paidAt || p.approvedAt || p.date || p.createdAt);
@@ -1034,10 +1035,8 @@ function computePeriodAggregates(range){
   const penFromSav = penaltiesPaidList.filter(isPenaltyPaidFromSavings).reduce((s,p) => s + num(p.amount), 0);
   const penExternal = totalPenalties - penFromSav;
 
-  /* Net Saving = Gross − Withdrawals − Penalties(from savings) − Leaving */
   const netSaving = round2(grossSavings - totalWithdrawals - penFromSav - totalLeaving);
 
-  /* Repayments */
   const repaymentsList = APP.txn.repayments.filter(r => inScopeTx(r) && inRangeTx(r) && isRepaymentCounted(r));
   const totalRepayments = repaymentsList.reduce((s,x) => s + num(x.amount), 0);
 
@@ -1056,15 +1055,12 @@ function computePeriodAggregates(range){
   paidPrincipal = round2(paidPrincipal);
   paidInterest  = round2(paidInterest);
 
-  /* Loans issued */
   const loansList = APP.txn.loans.filter(l => inScopeTx(l) && inRangeTx(l));
   const totalLoansIssued = loansList.reduce((s,l) => s + num(l.amount), 0);
 
-  /* Dividends */
   const dividendsList = APP.txn.dividends.filter(d => inScopeTx(d) && inRangeTx(d));
   const totalDividends = dividendsList.reduce((s,x) => s + num(x.netAmount != null ? x.netAmount : x.amount), 0);
 
-  /* Shares in range */
   const allShareList = [...(APP.txn.shares || []), ...(APP.shareRecords || [])];
   const seen = new Set();
   const uniqueShares = allShareList.filter(s => {
@@ -1093,34 +1089,15 @@ function computePeriodAggregates(range){
   const netShareValue = round2(shareBuyAmount - shareSellAmount + transferIn - transferOut);
   const shareCount = buyCount - sellCount + transferInCount - transferOutCount;
 
-  /* Profit income */
   const incomeList = APP.txn.profitIncome.filter(p => inScopeTx(p) && inRangeTx(p) && isSavingsCounted(p));
   const regFee = incomeList.filter(p => isRegistrationFeeIncome(p.incomeType)).reduce((s,p) => s + num(p.amount), 0);
   const otherIncome = incomeList.filter(p => !isRegistrationFeeIncome(p.incomeType)).reduce((s,p) => s + num(p.amount), 0);
 
-  /* Net Profit = Interest Paid + Paid Penalties + Reg Fee + Other Income */
   const netProfit = round2(regFee + otherIncome + paidInterest + totalPenalties);
-
-  /* Total Balance = Net Saving + Net Profit + Share Value − Service Withdrawals */
   const totalBalance = round2(netSaving + netProfit + netShareValue - totalServiceWithdrawals);
 
-  /* Loans outstanding (as-of to-date) */
-  let totalPrincipalRepaidEver = 0;
-  filterWorkareaTxns(APP.txn.repayments).forEach(r => {
-    const when = toDateSafe(r.date || r.createdAt);
-    if (!when || !to) return;
-    if (when > new Date(to)) return;
-    const amt = num(r.amount);
-    if (typeof r.principalPortion === 'number'){ totalPrincipalRepaidEver += num(r.principalPortion); return; }
-    const loan = LOANS_BY_ID.get(r.loanId);
-    if (!loan){ totalPrincipalRepaidEver += amt; return; }
-    totalPrincipalRepaidEver += splitRepayment(amt, loan).principal;
-  });
-  const totalLoansEver = filterWorkareaTxns(APP.txn.loans).reduce((s,l) => s + num(l.amount), 0);
-  const loansOutstanding = Math.max(0, round2(totalLoansEver - totalPrincipalRepaidEver));
-
   return {
-    savingsList, withdrawalsList, leavingList, svcList, repaymentsList, loansList, dividendsList, sharesInRange, incomeList,
+    savingsList, withdrawalsList, leavingList, svcList, repaymentsList, loansList, dividendsList, sharesInRange, incomeList, penaltiesPaidList,
     grossSavings: round2(grossSavings),
     totalWithdrawals: round2(totalWithdrawals),
     totalLeaving: round2(totalLeaving),
@@ -1140,28 +1117,10 @@ function computePeriodAggregates(range){
     regFee: round2(regFee),
     otherIncome: round2(otherIncome),
     netProfit,
-    totalBalance,
-    loansOutstanding
+    totalBalance
   };
 }
 function buildYearlyBreakdown(from, to){
-  const { districtId, branchId } = APP.workarea;
-  const district = APP.districts.find(d => d.id === districtId);
-  const inScopeShare = (s) => {
-    if (districtId){
-      if (s.districtId && s.districtId !== districtId) return false;
-      const cid = s.customerId || s.memberId;
-      if (cid){
-        const c = CUSTOMER_MAP.get(cid);
-        if (c){
-          if (district){ if (!customerMatchesDistrict(c.raw || c, district) && c.districtId !== districtId) return false; }
-          else if (c.districtId !== districtId) return false;
-        }
-      }
-    }
-    if (branchId && s.branchId && s.branchId !== branchId) return false;
-    return true;
-  };
   const years = new Set();
   const scan = (arr) => arr.forEach(x => {
     const d = toDateSafe(x.date || x.createdAt || x.timestamp || x.approvedAt || x.disbursementDate);
@@ -1175,7 +1134,6 @@ function buildYearlyBreakdown(from, to){
   scan(APP.txn.profitIncome); scan(APP.txn.dividends);
   scan(APP.txn.serviceWithdrawals);
   [...(APP.txn.shares || []), ...(APP.shareRecords || [])].forEach(s => {
-    if (!isShareCounted(s) || !inScopeShare(s)) return;
     const d = toDateSafe(s.date || s.createdAt || s.approvedAt);
     if (!d) return;
     if (d < new Date(from)) return;
@@ -1183,8 +1141,7 @@ function buildYearlyBreakdown(from, to){
     years.add(d.getFullYear());
   });
   const rows = [];
-  const sorted = Array.from(years).sort((a,b) => b - a);
-  sorted.forEach(yr => {
+  Array.from(years).sort((a,b) => b - a).forEach(yr => {
     const yrFrom = yr === new Date(from).getFullYear() ? from : `${yr}-01-01`;
     const yrTo   = yr === new Date(to).getFullYear()   ? to   : `${yr}-12-31`;
     const A = computePeriodAggregates({ from: yrFrom, to: yrTo });
@@ -1403,11 +1360,10 @@ function renderActiveReport(){
     const aggr = computePeriodAggregates(range);
     const customers = filterWorkareaCustomers(APP.customers);
     const yearly = buildYearlyBreakdown(range.from, range.to);
-    const txRows = collectTxRows(range, aggr);
+    const txRows = collectTxRows(range);
     host.innerHTML = renderReportHTML(range, aggr, customers, yearly, txRows);
     wireReportEvents();
     renderReportCharts(range);
-    // store for print/export
     host._lastReport = { range, aggr, customers, yearly, txRows };
   } catch(e){
     console.error('[report]', e);
@@ -1658,7 +1614,6 @@ function renderReportCharts(range){
   const loansList = filterWorkareaTxns(APP.txn.loans).filter(inRangeTx);
   const repaymentsList = filterWorkareaTxns(APP.txn.repayments).filter(inRangeTx).filter(isRepaymentCounted);
 
-  /* Build month buckets based on the range (daily → 1 bucket, year → 12 buckets) */
   const months = monthsInRange(from, to);
   const bucketize = (list, getAmt) => months.map(m => {
     const sum = list.filter(tx => {
@@ -1715,7 +1670,7 @@ function drawBars(container, labels, series){
 /* ============================================================
    TRANSACTION ROWS
    ============================================================ */
-function collectTxRows(range, A){
+function collectTxRows(range){
   const { from, to } = range;
   const rows = [];
   const inRangeTx = (tx) => inRange(tx.date || tx.createdAt || tx.timestamp, from, to);
@@ -1735,26 +1690,35 @@ function collectTxRows(range, A){
     });
   };
 
-  A.savingsList.forEach(tx => push(tx, t('savings'), tx.status, 'green'));
-  A.withdrawalsList.forEach(tx => push(tx, t('withdrawals'), tx.status, 'red'));
-  A.leavingList.forEach(tx => push(tx, t('leavingWithdrawals'), tx.status, 'red'));
-  A.svcList.forEach(tx => push(tx, 'Service Withdrawal', tx.status, 'orange'));
-  A.repaymentsList.forEach(tx => push(tx, t('repaymentsReceived'), tx.status, 'teal'));
-  A.loansList.forEach(tx => push(tx, t('loansIssued'), tx.status, 'blue'));
-  A.dividendsList.forEach(tx => push(tx, t('dividends'), tx.status, 'violet', tx.netAmount != null ? tx.netAmount : tx.amount));
-  A.penaltiesPaidList?.forEach?.(p => {});
-  APP.txn.penalties.filter(p => isPenaltyPaid(p) && inWorkarea(p) && inRange(p.paidAt || p.approvedAt || p.date || p.createdAt, from, to))
+  APP.txn.savings.filter(tx => inRangeTx(tx) && isSavingsCounted(tx)).forEach(tx => push(tx, t('savings'), tx.status, 'green'));
+  APP.txn.withdrawals.filter(tx => inRangeTx(tx) && isWithdrawalCounted(tx)).forEach(tx => push(tx, t('withdrawals'), tx.status, 'red'));
+  APP.txn.leaving.filter(tx => inRangeTx(tx) && isWithdrawalCounted(tx)).forEach(tx => push(tx, t('leavingWithdrawals'), tx.status, 'red'));
+  APP.txn.serviceWithdrawals.filter(tx => inRangeTx(tx) && isServiceWithdrawalCounted(tx)).forEach(tx => push(tx, 'Service Withdrawal', tx.status, 'orange'));
+  APP.txn.repayments.filter(tx => inRangeTx(tx) && isRepaymentCounted(tx)).forEach(tx => push(tx, t('repaymentsReceived'), tx.status, 'teal'));
+  APP.txn.loans.filter(tx => inRangeTx(tx)).forEach(tx => push(tx, t('loansIssued'), tx.status, 'blue'));
+  APP.txn.dividends.filter(tx => inRangeTx(tx)).forEach(tx => push(tx, t('dividends'), tx.status, 'violet', tx.netAmount != null ? tx.netAmount : tx.amount));
+  APP.txn.penalties.filter(p => isPenaltyPaid(p) && inRange(p.paidAt || p.approvedAt || p.date || p.createdAt, from, to))
     .forEach(p => push(p, t('penaltiesPaid'), p.status, 'orange', p.amount, p.paidAt || p.approvedAt || p.date));
-  A.incomeList.forEach(tx => push(tx, tx.incomeType || t('income'), tx.status, 'gold'));
-  A.sharesInRange.forEach(s => {
-    const ty = String(s.type || '').toLowerCase();
-    let label = t('shares');
-    if (BUY_SHARE_TYPES.includes(ty)) label = t('shares') + ' · Buy';
-    else if (SELL_SHARE_TYPES.includes(ty)) label = t('shares') + ' · Sell';
-    else if (IN_SHARE_TYPES.includes(ty)) label = t('shares') + ' · In';
-    else if (OUT_SHARE_TYPES.includes(ty)) label = t('shares') + ' · Out';
-    push(s, label, s.status, 'violet', getShareAmount(s), s.date || s.createdAt || s.approvedAt);
+  APP.txn.profitIncome.filter(tx => inRangeTx(tx) && isSavingsCounted(tx)).forEach(tx => push(tx, tx.incomeType || t('income'), tx.status, 'gold'));
+
+  const allShareList = [...(APP.txn.shares || []), ...(APP.shareRecords || [])];
+  const seen = new Set();
+  const uniqueShares = allShareList.filter(s => {
+    if (!s) return false;
+    const id = s.id || s.docId || '';
+    if (id){ if (seen.has(id)) return false; seen.add(id); }
+    return true;
   });
+  uniqueShares.filter(s => isShareCounted(s) && inRange(s.date || s.createdAt || s.approvedAt, from, to))
+    .forEach(s => {
+      const ty = String(s.type || '').toLowerCase();
+      let label = t('shares');
+      if (BUY_SHARE_TYPES.includes(ty)) label = t('shares') + ' · Buy';
+      else if (SELL_SHARE_TYPES.includes(ty)) label = t('shares') + ' · Sell';
+      else if (IN_SHARE_TYPES.includes(ty)) label = t('shares') + ' · In';
+      else if (OUT_SHARE_TYPES.includes(ty)) label = t('shares') + ' · Out';
+      push(s, label, s.status, 'violet', getShareAmount(s), s.date || s.createdAt || s.approvedAt);
+    });
 
   rows.sort((a,b) => (b.date?.getTime() || 0) - (a.date?.getTime() || 0));
   rows.forEach(r => { r.dateLabel = r.date ? r.date.toLocaleDateString() : '—'; });
@@ -1820,8 +1784,8 @@ function printActive(){
     <td>${esc(r.by)}</td>
   </tr>`).join('');
 
-  const host_ = document.getElementById('print-host');
-  host_.innerHTML = `
+  const printHost = document.getElementById('print-host');
+  printHost.innerHTML = `
     <style>@page { size: A4 ${orientation}; margin: 12mm 10mm 14mm 10mm; }</style>
     <div class="report-doc">
       <div class="report-header">
@@ -1998,7 +1962,6 @@ async function loadAllData(){
   LOANS_BY_ID.clear();
   APP.txn.loans.forEach(l => LOANS_BY_ID.set(l.id, l));
 
-  /* Available years */
   const dataYears = new Set();
   const scan = (arr) => arr.forEach(x => {
     const d = toDateSafe(x.date || x.createdAt || x.timestamp || x.approvedAt || x.disbursementDate);
@@ -2015,7 +1978,6 @@ async function loadAllData(){
   APP.availableYears = Array.from(merged).sort((a,b) => b - a);
   APP.currentYear = yearsWithData[0] || cy;
 
-  /* Default custom range = current month */
   const now = new Date();
   APP.customFrom = isoDate(new Date(now.getFullYear(), now.getMonth(), 1));
   APP.customTo = isoDate(now);
