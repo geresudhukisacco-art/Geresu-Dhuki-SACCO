@@ -747,7 +747,8 @@ const I18N = {
     showing:'Showing', of:'of', records:'records',
     amountInWords:'Amount in words',
     memberSignature:'Member Signature', officialStamp:'Official Stamp',
-    diagTitle:'Setup diagnostics'
+    diagTitle:'Setup diagnostics',
+    readOnlyBanner:'Read-only mode: your role can view and print dividend reports, but cannot distribute, edit, or delete records. Only Super Admin can distribute dividends across all districts.'
   },
   am: {}, om: {}
 };
@@ -815,6 +816,12 @@ const customerById = (id) => {
     c.memberCode === id ||
     c.customerDocId === id
   ) || null;
+};
+/* ★ Prefer the name embedded on the transaction record (works even when
+   the customer is outside the current admin's district scope). */
+const nameFromTx = (tx) => {
+  if (!tx) return '—';
+  return tx.customerName || tx.memberName || customerName(customerById(tx.customerId));
 };
 const LOGO_FALLBACK = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#d4a017"/><circle cx="50" cy="47" r="25" fill="none" stroke="#fff" stroke-width="3.5"/><text x="50" y="59" font-family="Georgia,serif" font-size="30" font-weight="900" fill="#fff" text-anchor="middle">G</text></svg>`;
 const LOGO_HTML = `<img src="${LOGO_URL}" alt="Geresu Dhuki SACCO" onerror="this.onerror=null; this.outerHTML=this.dataset.fallback;" data-fallback="${LOGO_FALLBACK.replace(/"/g, '&quot;')}">`;
@@ -1405,12 +1412,7 @@ function makeSerial() {
 }
 
 /* ============================================================
- * ★★★ COMBINED BATCH REFRESH (fixes delete/reject/override)
- * ============================================================
- * Called after ANY mutation of a dividend child. Recomputes the
- * batch totals (skipping rejected rows), refreshes the status,
- * and — critically — if NO children remain, deletes the batch
- * AND the yearIndex so the year can be distributed again.
+ * COMBINED BATCH REFRESH — fixes delete / reject / override
  * ============================================================ */
 async function refreshBatchAfterMutation(batchId, year) {
   if (!batchId) return;
@@ -1423,7 +1425,6 @@ async function refreshBatchAfterMutation(batchId, year) {
 
   const batchRef = doc(db, 'dividendBatches', batchId);
 
-  /* ---- nothing left → destroy the batch so the year can be redistributed ---- */
   if (snap.empty) {
     try { await deleteDoc(batchRef); }
     catch (e) { console.warn('[batch] delete failed', e); }
@@ -1436,7 +1437,6 @@ async function refreshBatchAfterMutation(batchId, year) {
     return;
   }
 
-  /* ---- recalc totals + status ---- */
   let g = 0, t2 = 0, n = 0, c = 0;
   let allPaid = true, allResolved = true;
 
@@ -1504,7 +1504,6 @@ async function markChildPaid(childId, user) {
       approvedAt: serverTimestamp(), approvedBy: uid
     });
   }
-  /* ★ Use the combined helper */
   if (tx.batchId) await refreshBatchAfterMutation(tx.batchId, tx.year || tx.fiscalYear);
 }
 
@@ -1525,7 +1524,6 @@ async function rejectChild(childId, reason, user) {
     rejectedBy: uid, rejectedByName: uname,
     rejectionReason: reason.trim()
   });
-  /* ★ Use the combined helper so totals are recalculated too */
   if (tx.batchId) await refreshBatchAfterMutation(tx.batchId, tx.year || tx.fiscalYear);
 }
 
@@ -1554,7 +1552,6 @@ async function overrideChild(childId, patch, reason, user) {
     overrideBy: uid, overrideByName: uname, overrideAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
-  /* ★ Use the combined helper */
   if (tx.batchId) await refreshBatchAfterMutation(tx.batchId, tx.year || tx.fiscalYear);
 }
 
@@ -1573,7 +1570,6 @@ async function deleteChild(childId, user) {
     await wb.commit();
   }
   await deleteDoc(ref);
-  /* ★ Recalc + cleanup batch (and year index if batch is empty) */
   if (tx.batchId) await refreshBatchAfterMutation(tx.batchId, tx.year || tx.fiscalYear);
 }
 
@@ -1608,7 +1604,11 @@ async function assertParentOpen(batchId) {
 }
 
 /* ============================================================
- * ROLES
+ * ROLES — Dividends
+ * ------------------------------------------------------------
+ * super_admin : full control across ALL districts
+ * admin       : view + print only (no distribute, edit, delete, approve,
+ *               reject, override, close year, no manual dividend)
  * ============================================================ */
 const ROLES = {
   super_admin:'role_super_admin', admin:'role_admin', manager:'role_manager',
@@ -1618,12 +1618,12 @@ const ROLES = {
 const roleLabel = (r) => ROLES[r] ? t(ROLES[r]) : (r || '').replace(/_/g,' ');
 const ROLE_GROUPS = {
   viewAll:      ['super_admin','admin','manager','accountant','auditor','cashier','teller','viewer'],
-  createBatch:  ['super_admin','admin','manager'],
-  approveChild: ['super_admin','admin','manager'],
-  overrideChild:['super_admin','admin'],
-  rejectChild:  ['super_admin','admin','manager'],
-  deleteChild:  ['super_admin','admin'],
-  closeYear:    ['super_admin','admin','manager'],
+  createBatch:  ['super_admin'],
+  approveChild: ['super_admin'],
+  overrideChild:['super_admin'],
+  rejectChild:  ['super_admin'],
+  deleteChild:  ['super_admin'],
+  closeYear:    ['super_admin'],
   print:        ['super_admin','admin','manager','accountant','auditor']
 };
 const hasRole = (...roles) => roles.includes(APP.profile?.role);
@@ -1635,6 +1635,8 @@ const canReject     = () => hasRole(...ROLE_GROUPS.rejectChild);
 const canDelete     = () => hasRole(...ROLE_GROUPS.deleteChild);
 const canCloseYear  = () => hasRole(...ROLE_GROUPS.closeYear);
 const canPrint      = () => hasRole(...ROLE_GROUPS.print);
+const isSuperAdmin  = () => APP.profile?.role === 'super_admin';
+const isReadOnly    = () => canView() && !canCreate();   // admin + others
 
 /* ============================================================
  * NAV / SHELL
@@ -1796,6 +1798,12 @@ async function renderMain() {
       <button class="btn btn--sm" id="printYearlyBtn"><i class="fas fa-print"></i> ${esc(t('yearlyReport'))}</button>
     </div>
 
+    ${isReadOnly() ? `
+      <div class="info-banner info-banner--info">
+        <i class="fas fa-eye"></i>
+        <div>${esc(t('readOnlyBanner'))}</div>
+      </div>` : ''}
+
     ${APP.bootIssues.length ? `
       <div class="info-banner info-banner--warning">
         <i class="fas fa-exclamation-triangle"></i>
@@ -1851,9 +1859,6 @@ function renderOverview(ov) {
   const dps = ov.ledger.totals.closing > 0 ? profit.netProfit / ov.ledger.totals.closing : 0;
   const diag = ov.ledger?.diag || null;
 
-  /* ★ Remaining profit = calculated profit − everything already distributed.
-     When a batch is deleted (or emptied by deleting every child) the batch
-     disappears and this climbs back to the full calculated profit. */
   const distributedNet  = num(distTotal);
   const remainingProfit = Math.max(0, round2(profit.netProfit - distributedNet));
 
@@ -2156,7 +2161,7 @@ async function renderChildrenTable(batch) {
     ));
     const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     rows.sort((a,b) => (num(b.netAmount) - num(a.netAmount))
-      || customerName(customerById(a.customerId)).localeCompare(customerName(customerById(b.customerId))));
+      || nameFromTx(a).localeCompare(nameFromTx(b)));
     _childCache.rows = rows;
     _childCache.filtered = rows.slice();
     _renderChildrenRows(host);
@@ -2183,11 +2188,12 @@ function _renderChildrenRows(host) {
 
   const trHtml = slice.map((tx, i) => {
     const c = customerById(tx.customerId);
+    const displayName = nameFromTx(tx);
     const status = String(tx.status || '').toLowerCase();
     const isPending = status === 'pending';
     const isPaid = status === 'paid';
     const isRejected = status === 'rejected';
-    const avatar = c?.photoURL ? `<img src="${esc(c.photoURL)}" alt="">` : esc(initials(customerName(c)));
+    const avatar = c?.photoURL ? `<img src="${esc(c.photoURL)}" alt="">` : esc(initials(displayName));
     const statusTag = isPaid ? 'tag--green' : isRejected ? 'tag--red' : 'tag--gold';
     const statusTxt = isPaid ? t('statusPaid') : isRejected ? t('statusRejected') : t('statusPending');
     const ty = String(tx.payoutType || 'cash').toLowerCase();
@@ -2197,7 +2203,7 @@ function _renderChildrenRows(host) {
         <div class="cust-cell">
           <div class="cust-avatar">${avatar}</div>
           <div>
-            <div class="name">${esc(customerName(c))}</div>
+            <div class="name">${esc(displayName)}</div>
             <div class="muted mono">${esc(tx.serialNumber || '—')}</div>
           </div>
         </div>
@@ -2299,7 +2305,7 @@ function wireOverviewEvents(ov) {
     const q = s.value.trim().toLowerCase();
     _childCache.filtered = !q ? _childCache.rows.slice() : _childCache.rows.filter(tx => {
       const c = customerById(tx.customerId);
-      return customerName(c).toLowerCase().includes(q)
+      return nameFromTx(tx).toLowerCase().includes(q)
           || (tx.serialNumber || '').toLowerCase().includes(q)
           || (tx.customerId || '').toLowerCase().includes(q)
           || (c?.customerId || '').toLowerCase().includes(q);
@@ -2314,11 +2320,26 @@ async function handleChildAction(action, id) {
   const tx = _childCache.rows.find(r => r.id === id);
   if (!tx) return;
   if (action === 'view')   return openViewChildModal(tx);
-  if (action === 'approve') return approveChildFlow(tx);
-  if (action === 'reject')  return openRejectModal(tx);
-  if (action === 'edit')    return openManualDividendModal(tx);
-  if (action === 'delete')  return openDeleteChildModal(tx);
-  if (action === 'print')   return printVoucher(tx);
+  if (action === 'approve') {
+    if (!canApprove()) { toast(t('noPermission'), 'error'); return; }
+    return approveChildFlow(tx);
+  }
+  if (action === 'reject') {
+    if (!canReject()) { toast(t('noPermission'), 'error'); return; }
+    return openRejectModal(tx);
+  }
+  if (action === 'edit') {
+    if (!canOverride()) { toast(t('noPermission'), 'error'); return; }
+    return openManualDividendModal(tx);
+  }
+  if (action === 'delete') {
+    if (!canDelete()) { toast(t('noPermission'), 'error'); return; }
+    return openDeleteChildModal(tx);
+  }
+  if (action === 'print') {
+    if (!canPrint()) { toast(t('noPermission'), 'error'); return; }
+    return printVoucher(tx);
+  }
 }
 async function approveChildFlow(tx) {
   if (!canApprove()) { toast(t('noPermission'), 'error'); return; }
@@ -2381,7 +2402,7 @@ function openDistributionModal(ov) {
         <div class="review__row"><span class="review__k">${esc(t('colNet'))}</span><span class="review__v mono" style="color:#067647;font-weight:800">${esc(money(totalNet))}</span></div>
       </div>
       <label style="display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:700;cursor:pointer">
-        <input type="checkbox" id="${uid}" ${canOverride() ? 'checked' : ''} style="width:18px;height:18px">
+        <input type="checkbox" id="${uid}" checked style="width:18px;height:18px">
         ${esc(t('autoApprove'))}
       </label>`,
     foot: `
@@ -2441,6 +2462,7 @@ function openCloseYearModal(ov) {
 
 function openViewChildModal(tx) {
   const c = customerById(tx.customerId);
+  const displayName = nameFromTx(tx);
   const status = String(tx.status || '').toLowerCase();
   const ty = String(tx.payoutType || 'cash').toLowerCase();
   const statusTag = status === 'paid' ? 'tag--green' : status === 'rejected' ? 'tag--red' : 'tag--gold';
@@ -2454,7 +2476,7 @@ function openViewChildModal(tx) {
         <div class="review__row"><span class="review__k">${esc(t('colSerial'))}</span>
           <span class="review__v mono">${esc(tx.serialNumber || '—')}</span></div>
         <div class="review__row"><span class="review__k">${esc(t('customer'))}</span>
-          <span class="review__v">${esc(customerName(c))}</span></div>
+          <span class="review__v">${esc(displayName)}</span></div>
         <div class="review__row"><span class="review__k">${esc(t('paymentType'))}</span>
           <span class="review__v"><span class="tag ${ty === 'shares' ? 'tag--violet' : 'tag--gold'}">${esc(ty === 'shares' ? t('typeShares') : t('typeCash'))}</span></span></div>
         <div class="review__row"><span class="review__k">${esc(t('fiscalYear'))}</span>
@@ -2536,13 +2558,13 @@ function openRejectModal(tx) {
 
 function openDeleteChildModal(tx) {
   if (!canDelete()) { toast(t('noPermission'), 'error'); return; }
-  const c = customerById(tx.customerId);
+  const displayName = nameFromTx(tx);
   const root = openModal({
     size: 'sm',
     head: `<div class="modal__title">${esc(t('deleteTitle'))}</div>
            <div class="modal__sub">${esc(t('deleteText'))}</div>`,
     body: `
-      <div style="font-weight:800;font-size:15px;margin-bottom:6px">${esc(customerName(c))}</div>
+      <div style="font-weight:800;font-size:15px;margin-bottom:6px">${esc(displayName)}</div>
       <div style="font-size:13px;color:var(--muted)">
         <span class="mono">${esc(tx.serialNumber || '')}</span>
         · <span class="mono">${esc(money(tx.netAmount))}</span>
@@ -3104,7 +3126,7 @@ function closeSlipOverlay() {
 
 function buildVoucherHtml(tx, watermark) {
   const c = customerById(tx.customerId);
-  const cNameRaw = customerName(c);
+  const cNameRaw = nameFromTx(tx);
   const cName = (cNameRaw || '').slice(0, 60);
   const isCopy = watermark === t('printCopy') || watermark === 'COPY';
   const slipNo = tx.serialNumber || ('DV-' + String(tx.id).slice(-8).toUpperCase());
@@ -3223,7 +3245,11 @@ function setLang(lang) {
 }
 
 /* ============================================================
- * LOADERS — WITH ROLE-AWARE FALLBACK
+ * LOADERS
+ * ------------------------------------------------------------
+ * super_admin  → sees ALL districts (no filter)
+ * admin        → scoped to their district
+ * branch roles → scoped to their branch
  * ============================================================ */
 async function loadCustomers() {
   APP.bootIssues = APP.bootIssues.filter(x => !x.startsWith('Customers'));
@@ -3235,6 +3261,7 @@ async function loadCustomers() {
   } else if (['manager','cashier','teller','accountant'].includes(role) && APP.profile?.branchId) {
     conds.push(where('branchId', '==', APP.profile.branchId));
   }
+  /* super_admin: no conditions — loads every customer across all districts */
 
   try {
     const q1 = conds.length
