@@ -619,7 +619,7 @@ const LOGIN_URL = "../index.html";
 const LOGO_URL  = "../images/logo.png";
 
 /* ============================================================
- * SESSION (no countdown)
+ * SESSION
  * ============================================================ */
 const SESSION_KEY = "sacco.session";
 function readSession(){try{const r=sessionStorage.getItem(SESSION_KEY);if(!r)return null;const s=JSON.parse(r);return (s&&s.uid)?s:null;}catch(e){return null;}}
@@ -660,7 +660,7 @@ const APP = {
   overview: null,
   childrenPage: 1, childrenPageSize: 12,
   unsubs: [],
-  bootIssues: []  // diagnostics collected during boot
+  bootIssues: []
 };
 let LANG = 'en';
 
@@ -897,15 +897,6 @@ function isRepaymentCounted(r, cfg) {
   return (cfg.repaymentStatuses || []).includes(String(r.status || '').toLowerCase().trim());
 }
 
-/* ============================================================
- * CUSTOMER ↔ SHARE  ID RESOLUTION
- * ------------------------------------------------------------
- * Shares may store the customer reference under many different
- * field names, and the value may be the Firestore doc id, the
- * business customer code, the member id, etc.  The dividend
- * preview keys everything by the Firestore doc id, so every
- * share reference must be normalised first.
- * ============================================================ */
 const CUSTOMER_KEY_FIELDS = [
   'id','customerId','memberId','customerCode','memberCode',
   'customerDocId','memberDocId','accountNumber','accountNo','uid'
@@ -935,7 +926,7 @@ function resolveCustomerDocId(rawId, keyMap) {
   if (map.has(k)) return map.get(k);
   const lk = k.toLowerCase();
   if (map.has(lk)) return map.get(lk);
-  return k; // not resolvable — keep raw so it shows up as an orphan
+  return k;
 }
 function getShareCustomerKey(s) {
   if (!s) return null;
@@ -957,20 +948,16 @@ function getShareCustomerKey(s) {
   return null;
 }
 
-/* ---------- share status / type / quantity ---------- */
-
-/* Explicit negatives only. Anything not listed here is treated as
-   a valid holding so imported / legacy rows are not silently lost. */
 const EXCLUDED_SHARE_STATUSES = ['rejected','cancelled','canceled','void','deleted','failed','reversed','declined'];
 
 function isShareCounted(s, cfg) {
   if (!s) return false;
   const st = String(s.status || s.state || '').toLowerCase().trim();
-  if (!st) return true;                                   // no status → assume valid
+  if (!st) return true;
   if (COUNTED_SHARE_STATUSES.includes(st)) return true;
   if (EXCLUDED_SHARE_STATUSES.includes(st)) return false;
   if ((cfg && cfg.shareStatuses || []).includes(st)) return true;
-  return true;                                            // active / confirmed / anything else → count
+  return true;
 }
 
 function getShareCount(s) {
@@ -1001,7 +988,7 @@ function classifyShareTx(s, signedCount) {
     for (const h of SHARE_BUY_HINTS)  if (ty.includes(h)) return 'buy';
   }
   if (num(signedCount) < 0) return 'sell';
-  return 'buy';  // default: a share record without a recognisable type is a purchase
+  return 'buy';
 }
 
 function isPenaltyPaid(p) {
@@ -1045,7 +1032,6 @@ function splitRepayment(amount, loan) {
   return { principal: num(amount) - interestPart, interest: interestPart };
 }
 
-/* Build a normalised loan map from BOTH sources (transactions + loans collection) */
 function buildLoanMap(loansTx, loansCol) {
   const m = new Map();
   const add = (l) => {
@@ -1071,7 +1057,6 @@ function buildLoanMap(loansTx, loansCol) {
 async function computeYearProfit(year, settings) {
   const cfg = mergeDashboard(settings);
 
-  // Fetch transactions by type + the dedicated loans collection
   const [incS, repS, loanTxS, loanColS, svcS, penS] = await Promise.all([
     getDocs(query(collection(db,'transactions'), where('type','==','profit_income'))),
     getDocs(query(collection(db,'transactions'), where('type','==','repayment'))),
@@ -1102,10 +1087,7 @@ async function computeYearProfit(year, settings) {
   });
 }
 
-/* Net Profit = Reg Fee + Other Income + Interest Paid + Paid Penalties
-              − SACCO Service Withdrawals */
 function calculateYearProfitFromData({ year, cfg, income, repayments, loansTx = [], loansCol = [], serviceWithdrawals, penalties }) {
-  /* --- Income side --- */
   const yearIncome = (income || []).filter(p => isInYear(p.date || p.timestamp, year));
   const counted = yearIncome.filter(p => isDepositCounted(p, cfg));
 
@@ -1114,7 +1096,6 @@ function calculateYearProfitFromData({ year, cfg, income, repayments, loansTx = 
   const otherIncome = counted.filter(p => isOtherIncome(p.incomeType))
     .reduce((s,p) => s + num(p.amount), 0);
 
-  /* --- Paid Interest --- */
   const loanById = buildLoanMap(loansTx, loansCol);
   let paidInterest = 0;
   let repaymentsWithPortion = 0;
@@ -1125,19 +1106,15 @@ function calculateYearProfitFromData({ year, cfg, income, repayments, loansTx = 
     if (!isInYear(r.date || r.timestamp, year)) continue;
     if (!isRepaymentCounted(r, cfg)) continue;
 
-    /* Prefer stored interest portion if the repayment doc has it */
     if (typeof r.interestPortion === 'number' && r.interestPortion > 0) {
       paidInterest += num(r.interestPortion);
       repaymentsWithPortion++;
       continue;
     }
-    /* If it has principalPortion but no interestPortion, we can't derive interest */
     if (typeof r.principalPortion === 'number' && typeof r.interestPortion !== 'number') {
       repaymentsSkipped++;
       continue;
     }
-
-    /* Fall back to loan-based calculation */
     const loan = loanById.get(r.loanId) || loanById.get(r.loanDocId);
     if (!loan) { repaymentsSkipped++; continue; }
 
@@ -1145,19 +1122,12 @@ function calculateYearProfitFromData({ year, cfg, income, repayments, loansTx = 
     repaymentsComputed++;
   }
   paidInterest = round2(paidInterest);
-  console.log('[dividends] paidInterest:', paidInterest,
-              '| from stored portions:', repaymentsWithPortion,
-              '| computed from loans:', repaymentsComputed,
-              '| skipped (no loan):', repaymentsSkipped,
-              '| loan map size:', loanById.size);
 
-  /* --- Service Withdrawals --- */
   const svcOut = (serviceWithdrawals || [])
     .filter(s => isInYear(s.date || s.timestamp || s.createdAt, year))
     .filter(isServiceWithdrawalCounted)
     .reduce((s,x) => s + num(x.amount), 0);
 
-  /* --- Paid Penalties --- */
   let paidPenalties = 0;
   for (const p of (penalties || [])) {
     if (!isPenaltyPaid(p)) continue;
@@ -1190,16 +1160,6 @@ async function getShareLedgerForYear(year, settings) {
   });
 }
 
-/**
- * Turns the raw /shares documents into per-customer opening / bought /
- * sold / closing buckets for the requested year.
- *
- * Key points:
- *  - customer references are normalised to the Firestore customer doc id
- *  - share type is detected by keyword matching (buy / sell)
- *  - shares belonging to customers that are not loaded are reported as
- *    "orphans" instead of silently diluting the distribution
- */
 function bucketSharesForYear({ year, cfg, shares }) {
   const byCustomer = Object.create(null);
   let tOpen = 0, tBuy = 0, tSell = 0, tClose = 0;
@@ -1239,8 +1199,6 @@ function bucketSharesForYear({ year, cfg, shares }) {
 
     const cid = resolveCustomerDocId(rawCid, keyMap);
 
-    /* If we have a customer list and this id isn't in it, the shares
-       cannot be allocated — exclude them and report it. */
     if (known.size && !known.has(cid)) {
       diag.orphanRows++;
       diag.orphanShares += count;
@@ -1445,6 +1403,69 @@ function makeSerial() {
   for (let i = 0; i < 3; i++) suf += chars[Math.floor(Math.random() * chars.length)];
   return `DV-${yr}-${rnd}-${suf}`;
 }
+
+/* ============================================================
+ * ★★★ COMBINED BATCH REFRESH (fixes delete/reject/override)
+ * ============================================================
+ * Called after ANY mutation of a dividend child. Recomputes the
+ * batch totals (skipping rejected rows), refreshes the status,
+ * and — critically — if NO children remain, deletes the batch
+ * AND the yearIndex so the year can be distributed again.
+ * ============================================================ */
+async function refreshBatchAfterMutation(batchId, year) {
+  if (!batchId) return;
+
+  const snap = await getDocs(query(
+    collection(db,'transactions'),
+    where('batchId','==',batchId),
+    where('type','==','dividend')
+  ));
+
+  const batchRef = doc(db, 'dividendBatches', batchId);
+
+  /* ---- nothing left → destroy the batch so the year can be redistributed ---- */
+  if (snap.empty) {
+    try { await deleteDoc(batchRef); }
+    catch (e) { console.warn('[batch] delete failed', e); }
+
+    if (year) {
+      try { await deleteDoc(doc(db, 'yearIndex', String(year))); }
+      catch (e) { console.warn('[yearIndex] delete failed', e); }
+    }
+    console.log('[batch] emptied → batch + yearIndex removed for year', year);
+    return;
+  }
+
+  /* ---- recalc totals + status ---- */
+  let g = 0, t2 = 0, n = 0, c = 0;
+  let allPaid = true, allResolved = true;
+
+  snap.forEach(d => {
+    const x = d.data();
+    const s = String(x.status || '').toLowerCase();
+    if (s !== 'paid') allPaid = false;
+    if (s !== 'paid' && s !== 'rejected') allResolved = false;
+    if (s === 'rejected') return;
+    g  += num(x.grossAmount);
+    t2 += num(x.taxAmount);
+    n  += num(x.netAmount);
+    c++;
+  });
+
+  const cur = await getDoc(batchRef);
+  if (!cur.exists()) return;
+  if (cur.data().status === 'closed') return;
+
+  await updateDoc(batchRef, {
+    status: (allPaid || allResolved) ? 'paid' : 'pending',
+    'totals.count': c,
+    'totals.gross': round2(g),
+    'totals.tax':   round2(t2),
+    'totals.net':   round2(n),
+    updatedAt: serverTimestamp()
+  });
+}
+
 async function markChildPaid(childId, user) {
   const ref = doc(db, 'transactions', childId);
   const snap = await getDoc(ref);
@@ -1483,8 +1504,10 @@ async function markChildPaid(childId, user) {
       approvedAt: serverTimestamp(), approvedBy: uid
     });
   }
-  if (tx.batchId) await refreshBatchStatus(tx.batchId);
+  /* ★ Use the combined helper */
+  if (tx.batchId) await refreshBatchAfterMutation(tx.batchId, tx.year || tx.fiscalYear);
 }
+
 async function rejectChild(childId, reason, user) {
   if (!reason || reason.trim().length < 3) throw new Error('Rejection reason required.');
   const ref = doc(db, 'transactions', childId);
@@ -1502,8 +1525,10 @@ async function rejectChild(childId, reason, user) {
     rejectedBy: uid, rejectedByName: uname,
     rejectionReason: reason.trim()
   });
-  if (tx.batchId) await refreshBatchStatus(tx.batchId);
+  /* ★ Use the combined helper so totals are recalculated too */
+  if (tx.batchId) await refreshBatchAfterMutation(tx.batchId, tx.year || tx.fiscalYear);
 }
+
 async function overrideChild(childId, patch, reason, user) {
   if (!reason || reason.trim().length < 5) throw new Error('Override reason must be at least 5 characters.');
   const ref = doc(db, 'transactions', childId);
@@ -1529,8 +1554,10 @@ async function overrideChild(childId, patch, reason, user) {
     overrideBy: uid, overrideByName: uname, overrideAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
-  if (tx.batchId) await refreshBatchTotals(tx.batchId);
+  /* ★ Use the combined helper */
+  if (tx.batchId) await refreshBatchAfterMutation(tx.batchId, tx.year || tx.fiscalYear);
 }
+
 async function deleteChild(childId, user) {
   const ref = doc(db, 'transactions', childId);
   const snap = await getDoc(ref);
@@ -1546,46 +1573,10 @@ async function deleteChild(childId, user) {
     await wb.commit();
   }
   await deleteDoc(ref);
-  if (tx.batchId) await refreshBatchStatus(tx.batchId);
+  /* ★ Recalc + cleanup batch (and year index if batch is empty) */
+  if (tx.batchId) await refreshBatchAfterMutation(tx.batchId, tx.year || tx.fiscalYear);
 }
-async function refreshBatchStatus(batchId) {
-  const snap = await getDocs(query(
-    collection(db,'transactions'),
-    where('batchId','==',batchId),
-    where('type','==','dividend')
-  ));
-  if (snap.empty) return;
-  let allPaid = true, allResolved = true;
-  snap.forEach(d => {
-    const s = String(d.data().status || '').toLowerCase();
-    if (s !== 'paid') allPaid = false;
-    if (s !== 'paid' && s !== 'rejected') allResolved = false;
-  });
-  const newStatus = (allPaid || allResolved) ? 'paid' : 'pending';
-  const ref = doc(db, 'dividendBatches', batchId);
-  const cur = await getDoc(ref);
-  if (!cur.exists()) return;
-  if (cur.data().status === 'closed') return;
-  await updateDoc(ref, { status: newStatus, updatedAt: serverTimestamp() });
-}
-async function refreshBatchTotals(batchId) {
-  const snap = await getDocs(query(
-    collection(db,'transactions'),
-    where('batchId','==',batchId),
-    where('type','==','dividend')
-  ));
-  let g = 0, t2 = 0, n = 0, c = 0;
-  snap.forEach(d => {
-    const x = d.data();
-    if (String(x.status).toLowerCase() === 'rejected') return;
-    g += num(x.grossAmount); t2 += num(x.taxAmount); n += num(x.netAmount); c++;
-  });
-  await updateDoc(doc(db, 'dividendBatches', batchId), {
-    'totals.count': c, 'totals.gross': round2(g),
-    'totals.tax': round2(t2), 'totals.net': round2(n),
-    updatedAt: serverTimestamp()
-  });
-}
+
 async function closeYear(year, user) {
   const q = query(collection(db,'dividendBatches'),
     where('year','==',year), where('status','in',['pending','paid']));
@@ -1860,13 +1851,23 @@ function renderOverview(ov) {
   const dps = ov.ledger.totals.closing > 0 ? profit.netProfit / ov.ledger.totals.closing : 0;
   const diag = ov.ledger?.diag || null;
 
+  /* ★ Remaining profit = calculated profit − everything already distributed.
+     When a batch is deleted (or emptied by deleting every child) the batch
+     disappears and this climbs back to the full calculated profit. */
+  const distributedNet  = num(distTotal);
+  const remainingProfit = Math.max(0, round2(profit.netProfit - distributedNet));
+
   const kpisHtml = `
     <section class="stats">
       <div class="stat stat--gold">
         <div class="stat__head"><div class="stat__label">${esc(t('netProfit'))}</div>
           <div class="stat__icon"><i class="fas fa-coins"></i></div></div>
-        <div class="stat__value" style="font-size:19px">${esc(moneyShort(profit.netProfit))}</div>
-        <div class="stat__hint">${esc(money(profit.netProfit))}</div>
+        <div class="stat__value" style="font-size:19px">${esc(moneyShort(remainingProfit))}</div>
+        <div class="stat__hint">
+          ${distributedNet > 0
+            ? `${esc(money(profit.netProfit))} total − ${esc(money(distributedNet))} distributed`
+            : esc(money(profit.netProfit))}
+        </div>
       </div>
       <div class="stat stat--green">
         <div class="stat__head"><div class="stat__label">${esc(t('distributed'))}</div>
@@ -1952,7 +1953,6 @@ function renderOverview(ov) {
       <div><strong>${esc(t('yearClosed'))}.</strong> ${esc(t('yearClosedText'))}</div></div>`;
   }
 
-  /* ---- diagnostics about the share ledger ---- */
   if (diag && diag.orphanShares > 0) {
     bodyHtml += `<div class="info-banner info-banner--warning">
       <i class="fas fa-user-slash"></i>
@@ -3236,7 +3236,6 @@ async function loadCustomers() {
     conds.push(where('branchId', '==', APP.profile.branchId));
   }
 
-  // First attempt: role-filtered
   try {
     const q1 = conds.length
       ? query(collection(db, 'customers'), ...conds, limit(3000))
@@ -3247,14 +3246,12 @@ async function loadCustomers() {
       console.log('[sacco] customers loaded (scoped):', APP.customers.length, 'role:', role);
       return;
     }
-    // Scoped returned 0 — try unscoped fallback
     APP.bootIssues.push(`Customers query with role filter returned 0. Trying unscoped…`);
   } catch (e) {
     console.warn('[loadCustomers] scoped failed:', e.code || e.message);
     APP.bootIssues.push(`Customers query (scoped) failed: <code>${esc(e.code || e.message)}</code>. Trying unscoped…`);
   }
 
-  // Second attempt: unscoped
   try {
     const s2 = await getDocs(query(collection(db, 'customers'), limit(3000)));
     APP.customers = s2.docs.map(d => ({ id: d.id, ...d.data() }));
