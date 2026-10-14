@@ -657,7 +657,7 @@ async function loadSessionTimeout(){
 let S = null; let LANG = 'en';
 const APP = {
   saccoName:'Geresu Dhuki SACCO', currency:'ETB',
-  districts:[], branches:[], customers:[], loans:[], repayments:[],
+  districts:[], branches:[], customers:[], loans:[], repayments:[], penalties:[],
   filters:{search:'',districtId:'',branchId:'',type:'',status:'',overdue:''},
   view:'grid', page:1, pageSize:12,
   settings:{
@@ -847,413 +847,85 @@ const I18N = {
     agrBreachClause:'Any breach of this agreement shall be subject to the applicable penalties and recovery procedures, including the provisions referred to under S/H/H/L 1790 and 1791.',
     agrSignClause:'By signing below, the Borrower and Guarantors confirm that they have read, understood, and voluntarily accepted the terms of this agreement.',
     agrSerial:'Serial No', agrDate:'Date',
+    agrLetterNo:'Letter No',
     agrOfficialStamp:'Official Stamp:',
     agrBorrower:'BORROWER', agrGuarantors:'GUARANTORS', agrCoopApproval:'COOPERATIVE APPROVAL',
     agrSignature:'SIGNATURE', agrName:'Name',
     agrTel:'Tel: +251-91028-5252',
-    agrSlogan:'If We Work Together, We Grow Together!'
+    agrSlogan:'If We Work Together, We Grow Together!',
+    agrRepaymentSummary:'Repayment Summary',
+    agrFirstPenaltyPaid:'First Penalty Paid',
+    agrNextPaymentDue:'Next Payment Due',
+    agrUnpaidMonths:'Unpaid Months',
+    agrNoUnpaidMonths:'No unpaid months — all installments up to date.',
+    agrTotalUnpaid:'Total Unpaid',
+    agrNoneRecorded:'None recorded',
+    agrMonth:'Month',
+    agrDueDate:'Due Date',
+    agrAmountEtb:'Amount (ETB)',
+    agrFullyScheduled:'Fully scheduled — no further monthly installments are pending.',
+    agrNextMonthHeader:'Next Month — Month {m} of {t}',
+    agrPrincipalPortion:'Principal Portion',
+    agrInterestPortion:'Interest Portion',
+    agrMonthlyTotal:'MONTHLY TOTAL',
+    agrFullyPaid:'Fully paid',
+    agrStatusOverdue:'Overdue by {n}d',
+    agrStatusGrace:'Grace: {n}d left'
   }
 };
 
+/* Amharic overrides */
 I18N.am = {
   ...I18N.en,
   brandSub:'የሳኮ አስተዳደር', logout:'ውጣ', loading:'በመጫን ላይ…',
   customer:'ደንበኛ',
-  navSecOverview:'አጠቃላይ እይታ', navSecNetwork:'ኔትወርክ',
-  navSecOperations:'ክንውኖች', navSecFinance:'ፋይናንስ', navSecAdmin:'አስተዳደር',
-  navOverview:'አጠቃላይ እይታ', navNetwork:'ኔትወርክ', navOperations:'ክንውኖች',
-  navFinance:'ፋይናንስ', navAdmin:'አስተዳደር',
-  dashboard:'ዳሽቦርድ', districts:'ወረዳዎች', branches:'ቅርንጫፎች', customers:'ደንበኞች',
-  savings:'ቁጠባ', deposits:'ተቀማጭ', loans:'ብድር', repayments:'ክፍያዎች', withdrawals:'መውጫዎች',
-  dividends:'ክፍፍል', shares:'አክሲዮን', reports:'ሪፖርቶች', penalties:'ቅጣቶች',
-  audit:'የምዝግብ ታሪክ', users:'ተጠቃሚዎች', settings:'ቅንብሮች',
-  role_super_admin:'ዋና አስተዳዳሪ', role_admin:'አስተዳዳሪ', role_manager:'ሥራ አስኪያጅ',
-  role_cashier:'ገንዘብ ተቀባይ', role_teller:'ገንዘብ ተቀባይ', role_accountant:'ሒሳብ ባለሙያ',
-  role_auditor:'ኦዲተር', role_member:'አባል', role_viewer:'ተመልካች',
   pageTitle:'ብድር', pageSub:'የብድር ስርጭት፣ ማጽደቅ እና ክፍያዎችን ያስተዳድሩ',
   breadcrumbHome:'ዳሽቦርድ', breadcrumbLoans:'ብድር', addLoan:'አዲስ ብድር',
-  statTotalDisbursed:'የተሰጠ', statOutstanding:'ቀሪ', statRepaid:'የተከፈለ',
-  statActive:'ንቁ ብድሮች', statOverdue:'ያለፈ', statLoanCount:'ሁሉም ብድሮች',
-  searchPlaceholder:'በደንበኛ፣ በብድር ቁጥር፣ በመታወቂያ ወይም በስልክ ይፈልጉ…',
-  filterAllDistricts:'ሁሉም ወረዳዎች', filterAllBranches:'ሁሉም ቅርንጫፎች',
-  filterAllTypes:'ሁሉም የብድር ዓይነቶች', filterAllStatus:'ሁሉም ሁኔታዎች',
-  filterAllOverdue:'ሁሉም', filterOverdueOnly:'ያለፈ ብቻ', filterDueSoon:'በ30 ቀናት ውስጥ',
-  viewGrid:'ፍርግርግ', viewTable:'ሠንጠረዥ',
-  tableTitle:'ብድሮች', tableSub:'ሁሉም የብድር መዝገቦች',
-  colLoanNo:'የብድር ቁጥር', colCustomer:'ደንበኛ', colType:'ዓይነት',
-  colPrincipal:'ዋና ገንዘብ', colRate:'መጠን', colInterestType:'የወለድ ዓይነት',
-  colDuration:'ጊዜ', colTotalPayable:'ጠቅላላ ተከፋይ', colOutstanding:'ቀሪ',
-  colProgress:'ሂደት', colStatus:'ሁኔታ', colMaturity:'ማብቂያ', colActions:'እርምጃዎች',
-  noLoans:'እስካሁን ብድሮች የሉም',
-  noLoansText:'የመጀመሪያውን ለመመዝገብ "አዲስ ብድር" ን ይጫኑ።',
-  noMatch:'ተመሳሳይ ብድሮች አልተገኙም',
-  noMatchText:'ፍለጋዎን ወይም ማጣሪያዎን ያስተካክሉ።',
-  newLoanTitle:'አዲስ ብድር', editLoanTitle:'ብድር ያስተካክሉ',
-  newLoanSub:'ለደንበኛ አዲስ ብድር ይመዝግቡ።', editLoanSub:'ይህን የብድር መዝገብ ያዘምኑ።',
-  stepCustomer:'ደንበኛ', stepDetails:'የብድር ዝርዝሮች', stepReview:'ግምገማ',
-  stepCustomerTitle:'ደንበኛ ይምረጡ', stepDetailsTitle:'የብድር ዝርዝሮች',
-  stepReviewTitle:'ይገምግሙ እና ያስቀምጡ',
-  chooseCustomer:'እባክዎ ደንበኛ ይምረጡ።', customerSearch:'ደንበኞችን ይፈልጉ…',
-  customerSavings:'ቁጠባ',
-  ctxSavings:'ቁጠባ', ctxMultiplier:'ብዜት', ctxMaxLoan:'ከፍተኛ ብድር',
-  ctxExposure:'ያሉ ብድሮች', ctxAvailable:'ለመበደር ያለ',
-  ctxTotal:'ጠቅላላ ብድሮች', ctxActive:'ንቁ', ctxPending:'በመጠበቅ',
-  ctxPaid:'የተከፈለ', ctxOutstanding:'ቀሪ ቀሪ',
-  ctxBlocked:'ታግዷል — ንቁ/በመጠበቅ ብድር አለ',
-  ctxMaxReached:'ከፍተኛው ንቁ/በመጠበቅ ብድር ላይ ደርሷል ({max})።',
-  ctxActiveCount:'{n} ንቁ/በመጠበቅ',
-  interestTypeLabel:'የወለድ ዓይነት', interestTypeRequired:'እባክዎ የወለድ ዓይነት ይምረጡ።',
-  loanTypeLabel:'የብድር ዓይነት', loanTypeRequired:'እባክዎ የብድር ዓይነት ይምረጡ።',
-  principalLabel:'ዋና ገንዘብ (ብር)', rateLabel:'የወለድ መጠን (% በዓመት)',
-  durationLabel:'ጊዜ (ወራት)',
-  purposeLabel:'የብድር ዓላማ', purposePlaceholder:'የብድር ዓላማውን ይግለጹ…',
-  collateralLabel:'ተያዥ', collateralPlaceholder:'ተያዥን ይግለጹ…',
-  guaranteesLabel:'ዋስትናዎች', guaranteesHint:'ቢያንስ አንድ ዋስትና ይጨምሩ።',
-  addGuarantee:'ዋስትና ይጨምሩ', guaranteeTypeLabel:'ዓይነት',
-  guaranteeNameLabel:'ስም / መግለጫ', guaranteeValueLabel:'ዋጋ (ብር)',
-  guaranteeContactLabel:'የመገኛ ስልክ',
-  guaranteeDescLabel:'ተጨማሪ ዝርዝሮች (አማራጭ)',
-  guaranteesRequired:'እባክዎ ቢያንስ አንድ ዋስትና ይጨምሩ።',
-  disbursementDateLabel:'የስርጭት ቀን', maturityDateLabel:'የማብቂያ ቀን',
-  statusLabel:'ሁኔታ', notesLabel:'ማስታወሻዎች', notesPlaceholder:'አማራጭ ማስታወሻዎች…',
-  interestAmount:'ወለድ', totalPayable:'ጠቅላላ ተከፋይ',
-  monthlyPayment:'ወርሃዊ', newLoanPreview:'የብድር ስሌት ቅድመ እይታ',
-  reviewCustomer:'ደንበኛ', reviewType:'ዓይነት', reviewPrincipal:'ዋና ገንዘብ',
-  reviewRate:'የወለድ መጠን', reviewDuration:'ጊዜ', reviewInterest:'ወለድ',
-  reviewTotal:'ጠቅላላ ተከፋይ', reviewMonthly:'ወርሃዊ',
-  reviewDisbursement:'ስርጭት', reviewMaturity:'ማብቂያ',
-  reviewCollateral:'ተያዥ', reviewGuarantees:'ዋስትናዎች',
-  reviewPurpose:'ዓላማ', reviewStatus:'ሁኔታ', reviewNotes:'ማስታወሻዎች',
-  reviewRecordedBy:'የመዘገበው', reviewApprovedBy:'ያጸደቀው',
-  notApprovedYet:'— እስካሁን አልተጸደቀም —',
-  cancel:'ሰርዝ', save:'አስቀምጥ', create:'ብድር ይፍጠሩ',
-  update:'ለውጦችን አስቀምጥ', next:'ቀጣይ →', back:'← ተመለስ', close:'ዝጋ',
-  deleteTitle:'ብድር ሰርዝ',
-  deleteText:'ይህ ብድር ከFirestore ላይ ለዘላለም ይወገዳል።',
-  confirm:'አረጋግጥ',
-  rowDelete:'ሰርዝ', rowEdit:'አስተካክል', rowView:'ተመልከት',
-  rowApprove:'አጽድቅ', rowReject:'ውድቅ አድርግ',
-  rowPrint:'ስምምነት አትም', rowRepay:'ክፍያ ይመዝግቡ',
-  reset:'እንደነበር', approve:'አጽድቅ', reject:'ውድቅ አድርግ',
-  showing:'በማሳየት ላይ', of:'ከ', loansWord:'ብድሮች',
-  savedOk:'ብድር በተሳካ ሁኔታ ተዘምኗል!',
-  createdOk:'ብድር በተሳካ ሁኔታ ተፈጥሯል!',
-  deletedOk:'ብድር ተሰርዟል።',
-  approvedOk:'ብድር ጸድቋል!', rejectedOk:'ብድር ውድቅ ተደርጓል!',
-  errorSave:'ማስቀመጥ አልተቻለም: ', errorDelete:'መሰረዝ አልተቻለም: ',
-  invalidAmount:'መጠኑ ከዜሮ በላይ መሆን አለበት።',
-  invalidRate:'የወለድ መጠን ዜሮ ወይም ከዚያ በላይ መሆን አለበት።',
-  invalidDuration:'ጊዜ ቢያንስ 1 ወር መሆን አለበት።',
-  maxLoansReached:'ይህ ደንበኛ ከፍተኛው ንቁ/በመጠበቅ ብድር ላይ ደርሷል ({max})።',
-  sessionLabel:'ክፍለ ጊዜ',
-  logoutTitle:'የመውጣት ማረጋገጫ', logoutText:'ለመውጣት እርግጠኛ ነዎት?',
-  accessDenied:'ይህን ገጽ ለማየት ፈቃድ የለዎትም።',
-  accessDeniedText:'ሰራተኞች ብቻ ብድሮችን ማስተዳደር ይችላሉ።',
-  backToDashboard:'ወደ ዳሽቦርድ ተመለስ',
-  noPermission:'ፈቃድ ተከልክሏል። የFirestore ህጎችን ያረጋግጡ።',
-  viewTitle:'የብድር ዝርዝሮች', customerInfo:'የደንበኛ መረጃ', loanInfo:'የብድር መረጃ',
-  progressLabel:'የክፍያ ሂደት',
-  receiptPhoto:'አባሪ', receiptTitle:'ሰነድ አያዝ',
-  receiptHint:'ፎቶ ለመጫን ይጫኑ (JPG/PNG, ከፍተኛ 3MB)',
-  receiptAdded:'ሰነድ ተያይዟል', receiptReplace:'ተካ', receiptRemove:'አስወግድ',
-  upload:'ጫን',
-  printSlip:'ስምምነት አትም', slipPreview:'የብድር ስምምነት · A4',
-  printStatus:'የህትመት ሁኔታ', notPrinted:'አልታተመም',
-  printedOriginal:'ኦሪጅናል', printedCopy:'ኮፒ', printCount:'ኮፒዎች',
-  serialNumber:'መለያ ቁጥር',
-  original:'ኦሪጅናል', copy:'ኮፒ',
-  firstPrint:'የመጀመሪያ ህትመት — ኦሪጅናል',
-  reprint:'እንደገና ህትመት — ኮፒ',
-  printedBy:'ያተመው', printedOn:'የታተመበት',
-  printError:'የህትመት ሁኔታን ማዘመን አልተቻለም',
-  docTitle:'የብድር ስምምነት ቅጽ', amountInWords:'በፊደል',
-  borrowerSign:'የተበዳሪ ፊርማ', recordedBy:'የመዘገበው', approvedBy:'ያጸደቀው',
-  repaymentTitle:'የብድር ክፍያ ይመዝግቡ',
-  repaymentSub:'ለዚህ ብድር የክፍያ መጠን ያስገቡ',
-  repaymentAmount:'የክፍያ መጠን (ብር)', repaymentDate:'የክፍያ ቀን',
-  repaymentMethod:'የክፍያ ዘዴ', repaymentRef:'ማጣቀሻ', repaymentNotes:'ማስታወሻዎች',
-  repaymentTooBig:'መጠኑ ከቀሪው ላይ ይበልጣል።',
-  repaymentOk:'ክፍያ ተመዝግቧል — ማጽደቅ በመጠበቅ ላይ!',
-  outstandingLabel:'ቀሪ', repaidLabel:'የተከፈለ', totalLabel:'ጠቅላላ ተከፋይ',
-  methodCash:'ጥሬ ገንዘብ', methodBank:'የባንክ ዝውውር',
-  methodMobile:'የሞባይል ገንዘብ', methodCheque:'ቼክ', methodOther:'ሌላ',
-  newBalancePreview:'ከክፍያ በኋላ አዲስ ቀሪ',
-  customerScope:'በክልልዎ ውስጥ ያሉ ሁሉም ብድሮች',
-  memberScope:'የእርስዎ ብድሮች ብቻ',
-  overduBadge:'ያለፈ', soonBadge:'በቅርቡ የሚደርስ', graceBadge:'የጸጋ ጊዜ',
-  searchLoan:'ብድር ይፈልጉ',
-  searchLoanPh:'በደንበኛ ስም ወይም በብድር መታወቂያ ይፈልጉ…',
-  minRepayHint:'ዝቅተኛው የክፍያ መጠን',
-  repayAll:'ሁሉንም ክፈል',
-  repayAllUnlocks:'ሁሉንም ክፈል ከ{n} ወርሃዊ ክፍያዎች በኋላ ይከፈታል (የተከፈለ: {paid})።',
-  repayAllBlocked:'ሁሉንም ክፈል ከ{n} ወርሃዊ ክፍያዎች በኋላ ይገኛል። {paid} ወር ከፍለዋል።',
-  loanAmount:'የብድር መጠን',
-  totalPaid:'ጠቅላላ የተከፈለ (የጸደቀ)', remaining:'ቀሪ',
-  monthlyInstallment:'ወርሃዊ ክፍያ',
-  minRepaymentStatus:'ዝቅተኛ ክፍያ ያስፈልጋል',
-  nextDueDate:'ቀጣይ የክፍያ ቀን', approvedMonthsPaid:'የጸደቁ ወራት',
-  fullyPaidMsg:'ሙሉ በሙሉ ተከፍሏል — ተጨማሪ ክፍያ የለም',
-  daysLeft:'{n} ቀናት ቀርተዋል', overdueBy:'በ{n} ቀናት ዘግይቷል',
-  refreshPenalty:'የቅጣት ሁኔታን አድስ',
-  paymentHistory:'የክፍያ ታሪክ', month:'ወር',
-  paid:'ተከፍሏል', penaltyPaid:'ቅጣት ተከፍሏል',
-  penalized:'ቅጣት ተጥሏል', future:'ወደፊት', pendingLc:'በመጠበቅ',
-  graceStatus:'የጸጋ ጊዜ', overdueStatus:'ዘግይቷል',
-  totalPrincipalPaid:'ጠቅላላ የተከፈለ ዋና ገንዘብ',
-  totalInterestPaid:'ጠቅላላ የተከፈለ ወለድ',
-  totalRepaid:'ጠቅላላ የተከፈለ', waived:'ተሰርዟል',
-  principalPortion:'የዋና ገንዘብ ድርሻ', interestPortion:'የወለድ ድርሻ',
-  interestWaiverNote:'የወለድ ስረዛ ተተግብሯል (ከ{paid} ወራት በኋላ): ከቀሪው ወለድ ETB {waived} ተሰርዟል። የቀረውን ዋና ገንዘብ ብቻ ይክፈሉ።',
-  ttNumber:'ቲቲ ቁጥር', transferDate:'የዝውውር ቀን',
-  bankProvider:'ባንክ / አገልግሎት ሰጪ',
-  bankPlaceholder:'-- ባንክ / አገልግሎት ሰጪ ይምረጡ --',
-  otherBankName:'የባንክ ወይም የአገልግሎት ሰጪ ስም ያስገቡ',
-  note:'ማስታወሻ (አማራጭ)', notePlaceholder:'አማራጭ ማስታወሻ…',
-  duplicateWarn:'ይህ የቲቲ ቁጥር እና የዝውውር ቀን ጥምረት ለዚህ ደንበኛ አስቀድሞ አለ።',
-  penaltyBlockedTitle:'ክፍያ ታግዷል — ያልተከፈለ ቅጣት',
-  penaltyBlockText:'ይህ ደንበኛ ያልተከፈለ ቅጣት አለው',
-  penaltyBlockPay:'አዲስ ክፍያ ከመመዝገብዎ በፊት በመጀመሪያ ይክፈሉት።',
-  blocked:'ታግዷል', payPenalty:'ቅጣት ክፈል',
-  unpaidWarningText:'ያልተከፈሉ ቀደምት ወርሃዊ ብድሮች ተገኝተዋል።',
-  upToDate:'ሁሉም ቀደምት ክፍያዎች ወቅታዊ ናቸው።',
-  ttRequired:'የቲቲ ቁጥር ያስፈልጋል።', transferRequired:'የዝውውር ቀን ያስፈልጋል።',
-  bankRequired:'እባክዎ ባንክ ወይም አገልግሎት ሰጪ ይምረጡ።',
-  invalidAmountMsg:'እባክዎ ትክክለኛ መጠን ያስገቡ።',
-  pleaseSelectDate:'እባክዎ ቀን ይምረጡ።',
-  duplicateError:'የተደጋገመ የቲቲ ቁጥር እና የዝውውር ቀን ተገኝቷል!',
-  cannotExceedRemaining:'መጠኑ ከቀሪው ላይ ሊበልጥ አይችልም።',
-  minPaymentNotMet:'ክፍያ ቢያንስ ወርሃዊ የክፍያ መጠን መሆን አለበት።',
-  pleaseSelectLoan:'እባክዎ ብድር ይምረጡ።',
-  repPending:'በመጠበቅ ላይ', repApproved:'የጸደቀ', repRejected:'ውድቅ',
-  repaymentHistory:'የክፍያ ታሪክ',
-  noRepayments:'እስካሁን ምንም ክፍያ አልተመዘገበም።',
-  approveRepTitle:'ይህን ክፍያ ያጽድቁ?',
-  approveRepMsg:'ማጽደቅ የብድር ቀሪን ያዘምናል እና ክፍያውን እንደጸደቀ ያመለክታል።',
-  rejectRepTitle:'ይህን ክፍያ ውድቅ ያድርጉ?',
-  rejectRepMsg:'ውድቅ ማድረግ የብድር ቀሪን አይጎዳም።',
-  repApprovedOk:'ክፍያ ጸድቋል — የብድር ቀሪ ተዘምኗል።',
-  repRejectedOk:'ክፍያ ውድቅ ተደርጓል — ቀሪው አልተለወጠም።',
-  repNotFound:'የክፍያ መዝገብ አልተገኘም።',
-  repAlreadyProcessed:'ይህ ክፍያ አስቀድሞ ተሰርቷል።',
-  loanNotFoundMsg:'የተገናኘው ብድር አልተገኘም።',
-  awaitingApproval:'ማጽደቅ በመጠበቅ ላይ',
-  pendingRepayments:'{n} በመጠበቅ ላይ ያሉ ክፍያዎች',
-  splitPrincipal:'ዋና ገንዘብ', splitInterest:'ወለድ',
-  colRecordedBy:'የመዘገበው', colApprovedBy:'ያጸደቀው',
-  colRepDate:'ቀን', colRepAmount:'መጠን',
-  colRepPrincipal:'ዋና ገንዘብ', colRepInterest:'ወለድ', colRepStatus:'ሁኔታ',
-  printReceipt:'ደረሰኝ አትም', paymentReceipt:'የክፍያ ደረሰኝ',
-  repaymentDetails:'የክፍያ ዝርዝሮች',
-  totalApproved:'ጠቅላላ የጸደቀ (ብድር)', generatedBy:'የተፈጠረው በ',
-  gracePeriod:'የጸጋ ጊዜ', nextDueLbl:'ቀጣይ የክፍያ ቀን', monthsPaidLbl:'የተከፈሉ ወራት',
-  graceDaysLeft:'የጸጋ ጊዜ: {n} ቀናት ቀርተዋል', dueInDays:'በ{n} ቀናት ውስጥ ይከፈላል',
-  dueToday:'ዛሬ ይከፈላል', overdueDays:'በ{n} ቀናት ዘግይቷል'
+  docTitle:'የብድር ስምምነት ቅጽ',
+  agrTitle:'የብድር ስምምነት ቅጽ',
+  agrSubject:'ጉዳዩ: የብድር ስጦታ እና የመክፈል ስምምነት',
+  agrRepaymentSummary:'የክፍያ ማጠቃለያ',
+  agrFirstPenaltyPaid:'የመጀመሪያ ቅጣት ተከፍሏል',
+  agrNextPaymentDue:'ቀጣይ ክፍያ',
+  agrUnpaidMonths:'ያልተከፈሉ ወራት',
+  agrNoUnpaidMonths:'ያልተከፈለ ወር የለም — ሁሉም ክፍያዎች ወቅታዊ ናቸው።',
+  agrTotalUnpaid:'ጠቅላላ ያልተከፈለ',
+  agrNoneRecorded:'ምንም አልተመዘገበም',
+  agrMonth:'ወር',
+  agrDueDate:'የመክፈያ ቀን',
+  agrAmountEtb:'መጠን (ብር)',
+  agrNextMonthHeader:'ቀጣይ ወር — ወር {m} ከ {t}',
+  agrPrincipalPortion:'የዋና ገንዘብ ድርሻ',
+  agrInterestPortion:'የወለድ ድርሻ',
+  agrMonthlyTotal:'ወርሃዊ ጠቅላላ',
+  agrLetterNo:'የደብዳቤ ቁጥር'
 };
 
+/* Oromo overrides */
 I18N.om = {
   ...I18N.en,
   brandSub:'Bulchiinsa SACCO', logout:"Ba'i", loading:"Fe'aa jira…",
   customer:'Maamila',
-  navSecOverview:'Aguuggama', navSecNetwork:'Networkii',
-  navSecOperations:'Hojimaata', navSecFinance:'Faayinaansii', navSecAdmin:'Bulchiinsa',
-  navOverview:'Aguuggama', navNetwork:'Networkii', navOperations:'Hojimaata',
-  navFinance:'Faayinaansii', navAdmin:'Bulchiinsa',
-  dashboard:'Daashboordii', districts:'Aanaalee', branches:'Dameewwan',
-  customers:'Maamiltoota',
-  savings:'Qusannaa', deposits:'Kaasaa', loans:'Liqii', repayments:'Kaffaltuu',
-  withdrawals:'Baasii', dividends:'Qooda', shares:'Hirmaata', reports:'Gabaasa',
-  penalties:'Adaba', audit:'Seenaa Galmee', users:'Fayyadamtoota',
-  settings:"Qindaa'ina",
-  role_super_admin:"Bulchaa Ol'aanaa", role_admin:'Bulchaa', role_manager:'Bulchaa',
-  role_cashier:'Kashierii', role_teller:'Kashierii', role_accountant:'Herregaa',
-  role_auditor:'Ooditera', role_member:'Miseensa', role_viewer:'Daawwataa',
   pageTitle:'Liqii', pageSub:'Kaffaltii liqii, mirkaneessuu fi kaffaltuu bulchi',
   breadcrumbHome:'Daashboordii', breadcrumbLoans:'Liqii', addLoan:'Liqii Haaraa',
-  statTotalDisbursed:'Kenname', statOutstanding:'Haftee', statRepaid:'Kaffalame',
-  statActive:"Liqii Socho'aa", statOverdue:'Darbe', statLoanCount:'Liqii Hunda',
-  searchPlaceholder:'Maamila, lakkoofsa liqii, eenyummaa ykn bilbilaan barbaadi…',
-  filterAllDistricts:'Aanaa hunda', filterAllBranches:'Damee hunda',
-  filterAllTypes:'Gosa liqii hunda', filterAllStatus:'Haala hunda',
-  filterAllOverdue:'Hunda', filterOverdueOnly:'Kan darbe qofa',
-  filterDueSoon:'Guyyaa 30 keessatti',
-  viewGrid:'Grid', viewTable:'Gabatee',
-  tableTitle:'Liqii', tableSub:'Galmee liqii hunda',
-  colLoanNo:'Lakkoofsa Liqii', colCustomer:'Maamila', colType:'Gosa',
-  colPrincipal:"Bu'uura", colRate:'Dhala', colInterestType:'Gosa Dhalaa',
-  colDuration:'Yeroo', colTotalPayable:'Waliigala Kaffalamaa',
-  colOutstanding:'Haftee', colProgress:'Adeemsa', colStatus:'Haala',
-  colMaturity:'Xumura', colActions:'Gocha',
-  noLoans:'Liqiin hin jiru',
-  noLoansText:'Kan jalqabaa galmeessuuf "Liqii Haaraa" tuqi.',
-  noMatch:'Liqiin walsimu hin argamne',
-  noMatchText:'Barbaacha ykn filtarii keessan sirreessi.',
-  newLoanTitle:'Liqii Haaraa', editLoanTitle:'Liqii Gulaali',
-  newLoanSub:'Maamilaaf liqii haaraa galmeessi.',
-  editLoanSub:'Galmee liqii kanaa haaromsi.',
-  stepCustomer:'Maamila', stepDetails:'Ragaa Liqii', stepReview:'Gamaaggama',
-  stepCustomerTitle:'Maamila filadhu', stepDetailsTitle:'Ragaa liqii',
-  stepReviewTitle:'Gamaaggamiitii olkaasi',
-  chooseCustomer:'Maaloo maamila filadhu.', customerSearch:'Maamiltoota barbaadi…',
-  customerSavings:'Qusannaa',
-  ctxSavings:'Qusannaa', ctxMultiplier:'Baayʼina', ctxMaxLoan:'Liqii Olʼaanaa',
-  ctxExposure:'Liqii Jiru', ctxAvailable:'Liqii Argamuu',
-  ctxTotal:'Liqii Waliigalaa', ctxActive:"Socho'aa", ctxPending:'Eegaa',
-  ctxPaid:'Kaffalame', ctxOutstanding:'Haftee',
-  ctxBlocked:"Cufameera — liqii socho'aa/eegaa qaba",
-  ctxMaxReached:'Baayʼina liqii sochoʼaa/eegaa gaʼeera ({max}).',
-  ctxActiveCount:'{n} sochoʼaa/eegaa',
-  interestTypeLabel:'Gosa Dhalaa', interestTypeRequired:'Maaloo gosa dhalaa filadhu.',
-  loanTypeLabel:'Gosa Liqii', loanTypeRequired:'Maaloo gosa liqii filadhu.',
-  principalLabel:"Bu'uura (ETB)", rateLabel:'Dhala (% waggaatti)',
-  durationLabel:"Yeroo (ji'a)",
-  purposeLabel:'Kaayyeffannaa Liqii',
-  purposePlaceholder:'Kaayyeffannaa liqii ibsi…',
-  collateralLabel:'Wabii', collateralPlaceholder:'Wabii ibsi…',
-  guaranteesLabel:'Wabiiwwan', guaranteesHint:'Yoo xiqqaate wabii tokko idaʼi.',
-  addGuarantee:'Wabii Idaʼi', guaranteeTypeLabel:'Gosa',
-  guaranteeNameLabel:'Maqaa / Ibsa', guaranteeValueLabel:'Gatii (ETB)',
-  guaranteeContactLabel:'Bilbila',
-  guaranteeDescLabel:'Ragaa dabalataa (filannoo)',
-  guaranteesRequired:'Maaloo yoo xiqqaate wabii tokko idaʼi.',
-  disbursementDateLabel:'Guyyaa Kennaa', maturityDateLabel:'Guyyaa Xumuraa',
-  statusLabel:'Haala', notesLabel:'Yaadannoowwan',
-  notesPlaceholder:'Yaadannoo filannoo…',
-  interestAmount:'Dhala', totalPayable:'Waliigala Kaffalamaa',
-  monthlyPayment:'Jiʼaan', newLoanPreview:'Dur-ilaala Herrega Liqii',
-  reviewCustomer:'Maamila', reviewType:'Gosa', reviewPrincipal:"Bu'uura",
-  reviewRate:'Dhala', reviewDuration:'Yeroo', reviewInterest:'Dhala',
-  reviewTotal:'Waliigala Kaffalamaa', reviewMonthly:'Jiʼaan',
-  reviewDisbursement:'Kennaa', reviewMaturity:'Xumura',
-  reviewCollateral:'Wabii', reviewGuarantees:'Wabiiwwan',
-  reviewPurpose:'Kaayyeffannaa', reviewStatus:'Haala', reviewNotes:'Yaadannoowwan',
-  reviewRecordedBy:'Kan galmeesse', reviewApprovedBy:'Kan mirkaneesse',
-  notApprovedYet:'— amma ammaatti hin mirkanaaʼe —',
-  cancel:'Haqi', save:'Olkaasi', create:'Liqii Uumi',
-  update:'Jijjiirama Olkaasi', next:'Itti aanu →', back:"← Deebi'i", close:'Cufi',
-  deleteTitle:'Liqii Haqi',
-  deleteText:'Kun liqii kana Firestore irraa bara baraan haqa.',
-  confirm:'Mirkaneessi',
-  rowDelete:'Haqi', rowEdit:'Gulaali', rowView:'Ilaali',
-  rowApprove:'Mirkaneessi', rowReject:'Garfii',
-  rowPrint:'Waliigaltee Maxxansi', rowRepay:'Kaffaltii Galmeessi',
-  reset:'Deebisi', approve:'Mirkaneessi', reject:'Garfii',
-  showing:'Agarsiisaa', of:'keessaa', loansWord:'liqiiwwan',
-  savedOk:'Liqiin milkaaʼinaan haaromfame!',
-  createdOk:'Liqiin milkaaʼinaan uumame!',
-  deletedOk:'Liqiin haqame.',
-  approvedOk:'Liqiin mirkanaaʼe!', rejectedOk:'Liqiin garfame!',
-  errorSave:'Olkaasuu hin dandaʼamne: ', errorDelete:'Haqquu hin dandaʼamne: ',
-  invalidAmount:'Hamma zeeroo caalaa taʼuu qaba.',
-  invalidRate:'Dhalli zeeroo ykn isaa ol taʼuu qaba.',
-  invalidDuration:"Yeroon yoo xiqqaate ji'a 1 taʼuu qaba.",
-  maxLoansReached:'Maamilli kun baayʼina liqii sochoʼaa/eegaa gaʼeera ({max}).',
-  sessionLabel:'Yeroo',
-  logoutTitle:'Mirkaneessa Baʼuu', logoutText:'Dhugumaan baʼuu barbaadda?',
-  accessDenied:'Fuula kana ilaaluuf hayyama hin qabdu.',
-  accessDeniedText:'Hojjettoonni qofa liqii bulchuu dandaʼu.',
-  backToDashboard:'Gara Daashboordii Deebiʼi',
-  noPermission:'Hayyamni dhorkameera. Seerota Firestore ilaali.',
-  viewTitle:'Ragaa Liqii', customerInfo:'Odeeffannoo Maamila', loanInfo:'Odeeffannoo Liqii',
-  progressLabel:'Adeemsa Kaffaltii',
-  receiptPhoto:'Makamaa', receiptTitle:'Sanada makami',
-  receiptHint:'Suuraa olkaasuuf tuqi (JPG/PNG, hanga 3MB)',
-  receiptAdded:'Sanadni makameera', receiptReplace:'Jijjiiri',
-  receiptRemove:'Balleessi', upload:'Olkaasi',
-  printSlip:'Waliigaltee Maxxansi', slipPreview:'Waliigaltee Liqii · A4',
-  printStatus:'Haala Maxxansaa', notPrinted:'Maxxanfame hin jiru',
-  printedOriginal:'Aslii', printedCopy:'Koppii', printCount:'Koppiiwwan',
-  serialNumber:'Lakkoofsa Sirrii',
-  original:'ASLII', copy:'KOPPII',
-  firstPrint:'Maxxansa jalqabaa — Aslii',
-  reprint:'Maxxansa irra deebii — Koppii',
-  printedBy:'Kan maxxanse', printedOn:'Kan maxxanfame',
-  printError:'Haala maxxansaa haaromsuu hin dandaʼamne',
-  docTitle:'UNKA WALIIGALTEE LIQII', amountInWords:'Afaanii',
-  borrowerSign:'Mallattoo Liqeeffataa',
-  recordedBy:'Kan galmeesse', approvedBy:'Kan mirkaneesse',
-  repaymentTitle:'Kaffaltii Liqii Galmeessi',
-  repaymentSub:'Liqii kanaaf hamma kaffaltii galchi',
-  repaymentAmount:'Hamma Kaffaltii (ETB)', repaymentDate:'Guyyaa Kaffaltii',
-  repaymentMethod:'Mala Kaffaltii', repaymentRef:'Wabii',
-  repaymentNotes:'Yaadannoowwan',
-  repaymentTooBig:'Hamni haftee caala.',
-  repaymentOk:'Kaffaltiin galmeeffame — mirkaneessuu eegaa jira!',
-  outstandingLabel:'Haftee', repaidLabel:'Kaffalame',
-  totalLabel:'Waliigala Kaffalamaa',
-  methodCash:'Maallaqa harkaa', methodBank:'Jijjiirama baankii',
-  methodMobile:'Maallaqa mobaayilaa', methodCheque:'Cheekii', methodOther:'Kan biraa',
-  newBalancePreview:'Haftee haaraa kaffaltii booda',
-  customerScope:'Liqii naannoo kee hunda',
-  memberScope:'Liqii kee qofa',
-  overduBadge:'Darbe', soonBadge:'Dhiyootti dhufa', graceBadge:'Yeroo Dhiifamaa',
-  searchLoan:'Liqii Barbaadi',
-  searchLoanPh:'Maqaa maamilaa ykn eenyummaa liqii barbaadi…',
-  minRepayHint:'Kaffaltii xiqqaa barbaachisu',
-  repayAll:'Hunda Kaffali',
-  repayAllUnlocks:'Hunda Kaffali kaffaltii jiʼaa {n} booda banama (kaffalame: {paid}).',
-  repayAllBlocked:'Hunda Kaffali kaffaltii jiʼaa {n} booda argama. Jiʼa {paid} kaffalteetta.',
-  loanAmount:'Hamma Liqii',
-  totalPaid:'Waliigala Kaffalame (mirkanaaʼe)', remaining:'Haftee',
-  monthlyInstallment:'Kaffaltii Jiʼaa',
-  minRepaymentStatus:'Kaffaltii Xiqqaa Barbaachisa',
-  nextDueDate:'Guyyaa Kaffaltii Itti Aanu', approvedMonthsPaid:'Jiʼoota Mirkanaaʼan',
-  fullyPaidMsg:'Guutummaatti kaffalame — kaffaltiin dabalataa hin jiru',
-  daysLeft:'Guyyoota {n} hafan', overdueBy:'Guyyoota {n} tureera',
-  refreshPenalty:'Haala adabaa haaromsi',
-  paymentHistory:'Seenaa Kaffaltii', month:'Jiʼa',
-  paid:'Kaffalame', penaltyPaid:'Adabni Kaffalame', penalized:'Adabame',
-  future:'Gara fuulduraa', pendingLc:'Eegaa',
-  graceStatus:'Yeroo Dhiifamaa', overdueStatus:'Darbe',
-  totalPrincipalPaid:"Bu'uura Waliigalaa Kaffalame",
-  totalInterestPaid:'Dhala Waliigalaa Kaffalame',
-  totalRepaid:'Waliigala Kaffalame', waived:'dhiifame',
-  principalPortion:"Qooda Bu'uuraa", interestPortion:'Qooda Dhalaa',
-  interestWaiverNote:'Dhalli dhiifame (jiʼa {paid} booda): dhala hafe keessaa ETB {waived} dhiifame. Buʼuura hafe qofa kaffali.',
-  ttNumber:'Lakkoofsa TT', transferDate:'Guyyaa Sochoosaa',
-  bankProvider:'Baankii / Dhiyeessaa',
-  bankPlaceholder:'-- Baankii / Dhiyeessaa Filadhu --',
-  otherBankName:'Maqaa baankii ykn dhiyeessaa galchi',
-  note:'Yaadannoo (filannoo)', notePlaceholder:'Yaadannoo filannoo…',
-  duplicateWarn:'Lakkoofsi TT fi guyyaan sochoosaa kun maamilaa kanaaf duraan jira.',
-  penaltyBlockedTitle:'Kaffaltiin Cufame — Adaba Kaffalame hin jiru',
-  penaltyBlockText:'Maamilli kun adaba kaffalame hin qabu',
-  penaltyBlockPay:'Kaffaltii haaraa galmeessuu dura dursa kaffali.',
-  blocked:'Cufame', payPenalty:'Adaba Kaffali',
-  unpaidWarningText:'Liqiiwwan jiʼaa duraani kan hin kaffalamne argamaniiru.',
-  upToDate:'Kaffaltiiwwan duraani hundi yeroon isaanii eegu.',
-  ttRequired:'Lakkoofsi TT barbaachisa.',
-  transferRequired:'Guyyaan sochoosaa barbaachisa.',
-  bankRequired:'Maaloo baankii ykn dhiyeessaa filadhu.',
-  invalidAmountMsg:'Maaloo hamma sirrii galchi.',
-  pleaseSelectDate:'Maaloo guyyaa filadhu.',
-  duplicateError:'Lakkoofsa TT fi guyyaa sochoosaa irra deebiʼan argamaniiru!',
-  cannotExceedRemaining:'Hamni haftee caaluu hin dandaʼu.',
-  minPaymentNotMet:'Kaffaltiin yoo xiqqaate hamma kaffaltii jiʼaa taʼuu qaba.',
-  pleaseSelectLoan:'Maaloo liqii filadhu.',
-  repPending:'Eegaa', repApproved:'Mirkanaaʼe', repRejected:'Garfame',
-  repaymentHistory:'Seenaa Kaffaltii',
-  noRepayments:'Amma ammaatti kaffaltiin hin galmeeffamne.',
-  approveRepTitle:'Kaffaltii kana mirkaneessaa?',
-  approveRepMsg:'Mirkaneessuun haftee liqii haaromsa, kaffaltii akka mirkanaaʼetti mallatteessa.',
-  rejectRepTitle:'Kaffaltii kana garfaa?',
-  rejectRepMsg:'Garfuun haftee liqii hin miidhu.',
-  repApprovedOk:'Kaffaltiin mirkanaaʼe — haftee liqii haaromfame.',
-  repRejectedOk:'Kaffaltiin garfame — haftee hin jijjiiramne.',
-  repNotFound:'Galmeen kaffaltii hin argamne.',
-  repAlreadyProcessed:'Kaffaltiin kun duraan hojjetameera.',
-  loanNotFoundMsg:'Liqiin walitti hidhame hin argamne.',
-  awaitingApproval:'mirkaneessuu eegaa',
-  pendingRepayments:'Kaffaltiiwwan {n} eegaa jiran',
-  splitPrincipal:"Bu'uura", splitInterest:'Dhala',
-  colRecordedBy:'Kan galmeesse', colApprovedBy:'Kan mirkaneesse',
-  colRepDate:'Guyyaa', colRepAmount:'Hamma',
-  colRepPrincipal:"Bu'uura", colRepInterest:'Dhala', colRepStatus:'Haala',
-  printReceipt:'Nagahee Maxxansi', paymentReceipt:'Nagahee Kaffaltii',
-  repaymentDetails:'Ragaa Kaffaltii',
-  totalApproved:'Waliigala Mirkanaaʼe (liqii)', generatedBy:'Kan uume',
-  gracePeriod:'Yeroo Dhiifamaa', nextDueLbl:'Itti aanu', monthsPaidLbl:'Jiʼoota kaffalame',
-  graceDaysLeft:'Yeroo dhiifamaa: guyyoota {n} hafan', dueInDays:'Guyyoota {n} keessatti',
-  dueToday:"Har'a", overdueDays:'Guyyoota {n} tureera'
+  docTitle:'UNKA WALIIGALTEE LIQII',
+  agrTitle:'UNKA WALIIGALTEE LIQII',
+  agrSubject:'Mata-duree: Waliigaltee Kennaa fi Kaffaltii Liqii',
+  agrRepaymentSummary:'Cuunfaa Kaffaltii',
+  agrFirstPenaltyPaid:'Adaba Jalqabaa Kaffalame',
+  agrNextPaymentDue:'Kaffaltii Itti Aanu',
+  agrUnpaidMonths:"Ji'oota Hin Kaffalamne",
+  agrNoUnpaidMonths:"Ji'oonni hin kaffalamne hin jiran — kaffaltiin hundi yeroon isaa eega.",
+  agrTotalUnpaid:'Waliigala Hin Kaffalamne',
+  agrNoneRecorded:'Hin galmeeffamne',
+  agrMonth:"Ji'a",
+  agrDueDate:'Guyyaa Kaffaltii',
+  agrAmountEtb:'Hamma (ETB)',
+  agrNextMonthHeader:"Ji'a Itti Aanu — Ji'a {m} / {t}",
+  agrPrincipalPortion:"Qooda Bu'uura",
+  agrInterestPortion:'Qooda Dhala',
+  agrMonthlyTotal:"Waliigala Ji'aa",
+  agrLetterNo:'Lakkoofsa Xalayaa'
 };
 
 const SUPPORTED = ['en','am','om'];
@@ -1321,7 +993,7 @@ function renderBrandTitle(name){
 }
 
 /* ============================================================
-   NUMBER TO WORDS (for the agreement amount in words)
+   NUMBER TO WORDS
    ============================================================ */
 function numberToWords(input){
   let n = Math.floor(num(input));
@@ -1349,10 +1021,6 @@ function numberToWords(input){
 /* ============ ROLES ============ */
 const ROLE_LABELS={super_admin:'role_super_admin',admin:'role_admin',manager:'role_manager',cashier:'role_cashier',teller:'role_teller',accountant:'role_accountant',auditor:'role_auditor',member:'role_member',viewer:'role_viewer'};
 const roleLabel=(r)=>ROLE_LABELS[r]?t(ROLE_LABELS[r]):(r||'').replace(/_/g,' ');
-const isSuper=()=>S?.role==='super_admin';
-const isDistrict=()=>S?.role==='admin';
-const isAuditor=()=>S?.role==='auditor';
-const isBranchRole=()=>['manager','cashier','teller','accountant'].includes(S?.role);
 const isMember=()=>S?.role==='member';
 const hasRole=(...roles)=>roles.includes(S?.role);
 const ROLE_GROUPS={apply:['super_admin','admin','manager','cashier','teller'],approve:['super_admin','admin','manager'],edit:['super_admin','admin','manager'],delete:['super_admin','admin'],pay:['super_admin','admin','manager','cashier'],print:['super_admin','admin','manager','cashier','teller','accountant'],viewAll:['super_admin','admin','manager','cashier','teller','accountant','auditor','viewer']};
@@ -1441,20 +1109,13 @@ function getRepaymentPrincipal(r,loan){
 }
 
 /* ============================================================
-   FIX #1 — Schedule-aware overdue / due-soon helpers
+   Schedule-aware overdue / due-soon helpers
    ============================================================ */
 const GRACE_DAYS = () => Math.max(0, Math.floor(num(APP?.settings?.gracePeriod) || 7));
 const GRACE_MS  = () => GRACE_DAYS() * 86400000;
 
 function loanStartDate(loan){
   return toDateSafe(loan?.disbursementDate || loan?.date || loan?.createdAt);
-}
-function approvedRepaidForLoan(loanOrId){
-  const id = typeof loanOrId === 'string' ? loanOrId : loanOrId?.id;
-  if(!id) return 0;
-  return (APP.repayments || [])
-    .filter(r => r.loanId === id && (String(r.status||'').toLowerCase()==='approved' || r.printed === true))
-    .reduce((s,r) => s + num(r.amount), 0);
 }
 function approvedMonthsPaid(loanOrId){
   const id = typeof loanOrId === 'string' ? loanOrId : loanOrId?.id;
@@ -1487,15 +1148,15 @@ function isInGrace(loan){
   if(!['active','approved'].includes(String(loan?.status||'').toLowerCase())) return false;
   const nd = nextDueDate(loan);
   if(!nd) return false;
-  const t = Date.now();
-  return t > nd.getTime() && t <= (nd.getTime() + GRACE_MS());
+  const tt = Date.now();
+  return tt > nd.getTime() && tt <= (nd.getTime() + GRACE_MS());
 }
 function isDueSoon(loan){
   if(!['active','approved'].includes(String(loan?.status||'').toLowerCase())) return false;
   const nd = nextDueDate(loan);
   if(!nd) return false;
-  const t = Date.now();
-  return t < nd.getTime() && (nd.getTime() - t) <= 30 * 86400000;
+  const tt = Date.now();
+  return tt < nd.getTime() && (nd.getTime() - tt) <= 30 * 86400000;
 }
 function scheduleStateLabel(loan){
   if(isOverdue(loan)){
@@ -1516,6 +1177,105 @@ function scheduleStateLabel(loan){
   return {kind:'due', text:`${t('nextDueLbl')}: ${fmtDate(nd)}`};
 }
 
+/* ============================================================
+   AGREEMENT HELPERS — letter no, first penalty, unpaid months, next month
+   ============================================================ */
+function generateLetterNumber(loanOrId){
+  const yr = new Date().getFullYear();
+  const raw = String(
+    (loanOrId && (loanOrId.serialNumber || loanOrId.loanNumber)) ||
+    (typeof loanOrId === 'string' ? loanOrId : '') || ''
+  );
+  const digits = raw.replace(/\D/g,'').slice(-4).padStart(4,'0') || String(Math.floor(Math.random()*9000)+1000);
+  return `GD/LTR/${yr}/${digits}`;
+}
+
+function firstPaidPenalty(loanId){
+  if(!loanId) return null;
+  const list = (APP.penalties||[])
+    .filter(p => p.loanId === loanId && String(p.status||'').toLowerCase()==='paid')
+    .sort((a,b) => (toDateSafe(a.date||a.createdAt)?.getTime()||0) - (toDateSafe(b.date||b.createdAt)?.getTime()||0));
+  return list[0] || null;
+}
+
+function totalPaidPrincipal(loan){
+  if(!loan?.id) return 0;
+  return (APP.repayments||[])
+    .filter(r => r.loanId === loan.id && (String(r.status||'').toLowerCase()==='approved' || r.printed===true))
+    .reduce((s,r) => s + getRepaymentPrincipal(r, loan), 0);
+}
+
+function unpaidPrincipalAmount(loan){
+  const paid = totalPaidPrincipal(loan);
+  return Math.max(0, round2(num(loan?.principal) - paid));
+}
+
+function nextMonthBreakdown(loan){
+  const start = loanStartDate(loan);
+  if(!start) return null;
+  const period = Math.max(1, Math.floor(num(loan.duration)||1));
+  const paid = approvedMonthsPaid(loan);
+  if(paid >= period) return null;
+  const calc = calcLoan(loan.principal, loan.interestRate, period, loan.interestType);
+  const monthlyInterest  = round2(calc.interest / period);
+  const monthlyPrincipal = round2(Math.max(0, calc.monthly - monthlyInterest));
+  return {
+    monthIndex: paid + 1,
+    totalMonths: period,
+    dueDate: nextDueDate(loan),
+    monthlyTotal: calc.monthly,
+    principal: monthlyPrincipal,
+    interest: monthlyInterest,
+    remainingPrincipal: unpaidPrincipalAmount(loan)
+  };
+}
+
+function unpaidMonthsList(loan){
+  const start = loanStartDate(loan);
+  if(!start) return [];
+  const period = Math.max(1, Math.floor(num(loan.duration)||1));
+  const calc   = calcLoan(loan.principal, loan.interestRate, period, loan.interestType);
+  const monthlyInterest  = round2(calc.interest / period);
+  const monthlyPrincipal = round2(Math.max(0, calc.monthly - monthlyInterest));
+
+  const paidIdx = new Set(
+    (APP.repayments||[])
+      .filter(r => r.loanId === loan.id && (String(r.status||'').toLowerCase()==='approved' || r.printed===true))
+      .map(r => {
+        const d = toDateSafe(r.date);
+        if(!d) return -1;
+        return (d.getFullYear()-start.getFullYear())*12 + (d.getMonth()-start.getMonth());
+      })
+      .filter(i => i >= 0)
+  );
+
+  const now = Date.now();
+  const graceMs = GRACE_MS();
+  const out = [];
+  for(let i=0; i<period; i++){
+    if(paidIdx.has(i)) continue;
+    const due = new Date(start);
+    due.setMonth(due.getMonth() + i + 1);
+    const dueMs = due.getTime();
+    let status;
+    if(now > dueMs + graceMs)      status = 'overdue';
+    else if(now > dueMs)           status = 'grace';
+    else                           continue;
+    out.push({
+      monthIndex: i + 1,
+      totalMonths: period,
+      dueDate: due,
+      status,
+      daysLate: status==='overdue' ? Math.floor((now - dueMs - graceMs)/86400000) : 0,
+      daysLeft: status==='grace'   ? Math.ceil((dueMs + graceMs - now)/86400000) : 0,
+      principal: monthlyPrincipal,
+      interest: monthlyInterest,
+      monthly: calc.monthly
+    });
+  }
+  return out;
+}
+
 /* ============ LOAN REPAYMENTS HELPERS ============ */
 async function fetchLoanRepayments(loanId){
   const snap=await getDocs(query(collection(db,'transactions'),where('loanId','==',loanId),where('type','==','repayment')));
@@ -1524,7 +1284,7 @@ async function fetchLoanRepayments(loanId){
 function pendingRepaymentsForLoan(loanId){return APP.repayments.filter(r=>r.loanId===loanId&&String(r.status||'pending').toLowerCase()==='pending');}
 
 /* ============================================================
-   FIX #2 — checkAndCreatePenalty() reads from `loans` collection
+   checkAndCreatePenalty() reads from `loans` collection
    ============================================================ */
 async function checkAndCreatePenalty(loanId, memberId){
   try {
@@ -1611,7 +1371,7 @@ async function getMemberPenaltiesWithDetails(memberId){
 }
 
 /* ============================================================
-   FIX #3 — generatePaymentHistory() with Grace / Overdue classification
+   generatePaymentHistory()
    ============================================================ */
 async function generatePaymentHistory(loanId){
   try{
@@ -2331,6 +2091,7 @@ function openLoanWizard(loan){
     duration:l0.duration!=null?String(num(l0.duration)):'12',
     purpose:l0.purpose||'',collateral:l0.collateral||'',
     reference:l0.reference||'',
+    letterNumber:l0.letterNumber||'',
     disbursementDate:l0.disbursementDate||new Date().toISOString().slice(0,10),
     maturityDate:l0.maturityDate||computeMaturityDate(l0.disbursementDate||new Date().toISOString().slice(0,10),l0.duration||12),
     status:l0.status||'pending',notes:l0.notes||'',_attachment:l0.attachment||null
@@ -2414,7 +2175,10 @@ function openLoanWizard(loan){
               <div class="field"><label>${esc(t('maturityDateLabel'))}</label><input data-field="maturityDate" id="wiz-matdate" type="date" value="${esc(d.maturityDate||'')}"></div>
             </div>
             <div class="field"><label>${esc(t('purposeLabel'))}</label><textarea data-field="purpose" placeholder="${esc(t('purposePlaceholder'))}">${esc(d.purpose||'')}</textarea></div>
-            <div class="field"><label>Reference (S/H/H/L)</label><input data-field="reference" type="text" placeholder="e.g. S/H/H/L/ 1679, 1721, 1731, 2005/2006" value="${esc(d.reference||'')}"></div>
+            <div class="field-row">
+              <div class="field"><label>Reference (S/H/H/L)</label><input data-field="reference" type="text" placeholder="e.g. S/H/H/L/ 1679, 1721, 1731, 2005/2006" value="${esc(d.reference||'')}"></div>
+              <div class="field"><label>${esc(t('agrLetterNo'))}</label><input data-field="letterNumber" type="text" placeholder="Auto-generated if left blank" value="${esc(d.letterNumber||'')}"></div>
+            </div>
             <div class="field"><label>${esc(t('collateralLabel'))}</label><textarea data-field="collateral" placeholder="${esc(t('collateralPlaceholder'))}">${esc(d.collateral||'')}</textarea></div>
             <div class="field"><label class="field__required">${esc(t('guaranteesLabel'))}</label><div class="guarantee-wrap" id="wiz-guarantee-list">${guaranteesHtml}</div><button type="button" class="guarantee-add-btn" id="wiz-guarantee-add"><i class="fas fa-plus-circle"></i> ${esc(t('addGuarantee'))}</button></div>
             <div class="field"><label>${esc(t('receiptPhoto'))}</label><div class="receipt-upload ${d._attachment?'has-img':''}" id="wiz-receipt-upload"><div class="receipt-upload__preview">${d._attachment?`<img src="${esc(d._attachment)}" alt="">`:''}<i class="fas fa-file-invoice"></i></div><div class="receipt-upload__main"><div class="receipt-upload__title">${d._attachment?esc(t('receiptAdded')):esc(t('receiptTitle'))}</div><div class="receipt-upload__hint">${esc(t('receiptHint'))}</div></div><input type="file" id="wiz-receipt-input" accept="image/*" style="display:none"></div></div>
@@ -2484,6 +2248,7 @@ function openLoanWizard(loan){
               <div class="review__row"><span class="review__k">${esc(t('reviewTotal'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(money(total))}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('reviewDisbursement'))}</span><span class="review__v">${esc(fmtDate(d.disbursementDate))}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('reviewMaturity'))}</span><span class="review__v">${esc(fmtDate(d.maturityDate||computeMaturityDate(d.disbursementDate,d.duration)))}</span></div>
+              <div class="review__row"><span class="review__k">${esc(t('agrLetterNo'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc((d.letterNumber||'').trim()||'(auto-generated on save)')}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('reviewGuarantees'))}</span><span class="review__v">${gList}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('reviewStatus'))}</span><span class="review__v"><span class="tag ${loanStatusCls(d.status)}">${esc(loanStatusLabel(d.status))}</span></span></div>
               <div class="review__row"><span class="review__k">${esc(t('reviewRecordedBy'))}</span><span class="review__v" style="font-weight:800;color:#0b5cab">${esc(recBy)}</span></div>
@@ -2507,8 +2272,19 @@ function openLoanWizard(loan){
       const status=d.status||'pending';
       const payload={customerId:c.customerId||c.id,memberId:c.customerId||c.id,customerDocId:c.id,customerName:customerName(c),loanType:d.loanType||'personal',interestType,principal,interestRate:rate,duration:months,totalPayable:total,purpose:(d.purpose||'').trim(),collateral:(d.collateral||'').trim(),reference:(d.reference||'').trim(),guarantees,disbursementDate:d.disbursementDate||new Date().toISOString().slice(0,10),maturityDate:d.maturityDate||computeMaturityDate(d.disbursementDate,months),status,notes:(d.notes||'').trim(),attachment:d._attachment||null,districtId:c.districtId||null,districtName:c.districtName||districtById(c.districtId)?.name||null,branchId:c.branchId||null,branchName:c.branchName||branchById(c.branchId)?.name||null,updatedAt:serverTimestamp()};
       if(['approved','active'].includes(status)){if(!isEdit||!l0.approvedByName){payload.approvedBy=S.uid;payload.approvedByName=S.name;payload.approvedAt=serverTimestamp();}}
-      if(isEdit){payload.serialNumber=l0.serialNumber||generateSerialNumber();payload.loanNumber=l0.loanNumber||payload.serialNumber;await updateDoc(doc(db,'loans',l0.id),payload);}
-      else{payload.serialNumber=generateSerialNumber();payload.loanNumber=payload.serialNumber;payload.amountRepaid=0;payload.createdAt=serverTimestamp();payload.createdBy=S.uid;payload.createdByName=S.name;payload.printCount=0;payload.printStatus='not_printed';await setDoc(doc(collection(db,'loans')),payload);}
+      if(isEdit){
+        payload.serialNumber=l0.serialNumber||generateSerialNumber();
+        payload.loanNumber=l0.loanNumber||payload.serialNumber;
+        payload.letterNumber=(d.letterNumber||'').trim()||l0.letterNumber||generateLetterNumber({serialNumber:payload.serialNumber});
+        await updateDoc(doc(db,'loans',l0.id),payload);
+      }
+      else{
+        payload.serialNumber=generateSerialNumber();
+        payload.loanNumber=payload.serialNumber;
+        payload.letterNumber=(d.letterNumber||'').trim()||generateLetterNumber({serialNumber:payload.serialNumber});
+        payload.amountRepaid=0;payload.createdAt=serverTimestamp();payload.createdBy=S.uid;payload.createdByName=S.name;payload.printCount=0;payload.printStatus='not_printed';
+        await setDoc(doc(collection(db,'loans')),payload);
+      }
       await loadAllData();renderMain();
     }
   });
@@ -2596,6 +2372,7 @@ function openViewModal(l){
         ${totalPendingAmount>0?`<div class="alert alert--warning"><i class="fas fa-hourglass-half"></i><div>Pending repayments totalling <strong>ETB ${totalPendingAmount.toLocaleString()}</strong> are not yet reflected in the balance. Approve them below.</div></div>`:''}
         <div class="review" style="margin-bottom:20px">
           <div class="review__row"><span class="review__k">${esc(t('serialNumber'))}</span><span class="review__v" style="font-family:ui-monospace,monospace;font-weight:800">${esc(l.serialNumber||l.loanNumber||'—')}</span></div>
+          <div class="review__row"><span class="review__k">${esc(t('agrLetterNo'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(l.letterNumber||generateLetterNumber(l))}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('colType'))}</span><span class="review__v">${esc(loanTypeLabel(l.loanType))}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('interestTypeLabel'))}</span><span class="review__v">${esc(interestTypeLabel(l.interestType))}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('colPrincipal'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(money(l.principal))}</span></div>
@@ -2660,9 +2437,7 @@ function openViewModal(l){
   });
 }
 
-/* ============================================================
-   REPAYMENT MODAL
-   ============================================================ */
+/* ============ REPAYMENT MODAL ============ */
 async function openRepaymentModal(loan){
   if(!canRepay()){toast(t('noPermission'),'error');return;}
   if(!loan){toast(t('pleaseSelectLoan'),'warning');return;}
@@ -3060,7 +2835,7 @@ function showLogoutModal(){
 }
 
 /* ============================================================
-   PRINT LOAN SLIP (A4) — NEW AGREEMENT FORM BODY
+   PRINT LOAN SLIP (A4) — AGREEMENT FORM
    ============================================================ */
 function buildSlipHtml(l, watermarkText){
   const c = customerById(l.customerId || l.customerDocId);
@@ -3068,27 +2843,28 @@ function buildSlipHtml(l, watermarkText){
   const isCopy = watermarkText === 'COPY';
   const {interest, total, monthly} = calcLoan(l.principal, l.interestRate, l.duration, l.interestType);
   const serial = l.serialNumber || l.loanNumber || ('GD-'+(l.id||'').slice(-12).toUpperCase());
+  const letterNo = l.letterNumber || generateLetterNumber(l);
   const dateStr = fmtDate(l.disbursementDate || l.createdAt || new Date());
   const guarantors = Array.isArray(l.guarantees) ? l.guarantees : [];
   const recordedByName = l.createdByName || '—';
   const approvedByName = l.approvedByName || '—';
   const principalWords = numberToWords(num(l.principal));
 
-  /* Residence — try to read from customer; fallback to template default */
+  /* ---- Repayment summary data ---- */
+  const firstPen = firstPaidPenalty(l.id);
+  const nextMo   = nextMonthBreakdown(l);
+  const unpaidMonths = unpaidMonthsList(l);
+  const unpaidTotal  = round2(unpaidMonths.reduce((s,m) => s + m.monthly, 0));
+
+  /* Residence — from customer or template default */
   const residence = (c && (c.address || c.kebele || c.woreda)) ? (c.address || c.kebele || c.woreda) : t('agrResidence');
-
-  /* Purpose text — falls back to "personal financial need" */
   const purposeText = (l.purpose || '').trim() || 'personal financial need';
-
-  /* References — from loan or default template */
   const refs = (l.reference || '').trim() || t('agrReference');
 
-  /* Guarantor names, comma-separated inline */
+  /* Guarantor inline list + signature rows */
   const gListInline = guarantors.length
     ? guarantors.map(g => esc(g.name || '—')).join(', ')
     : '____________________';
-
-  /* Guarantor signature rows (numbered) */
   const gRowsHtml = guarantors.length
     ? guarantors.map((g,i)=>`
         <tr>
@@ -3102,6 +2878,85 @@ function buildSlipHtml(l, watermarkText){
         <td style="padding:14px 6px;border-bottom:1px solid #999;"></td>
       </tr>`;
 
+  const fmt2 = (n) => num(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+
+  const penaltyLine = firstPen
+    ? `ETB ${fmt2(firstPen.amount)} <span style="font-size:9pt;color:#555;">(paid on ${esc(fmtDate(firstPen.date || firstPen.createdAt))})</span>`
+    : `<span style="color:#555;font-style:italic;">${esc(t('agrNoneRecorded'))}</span>`;
+
+  /* Unpaid months table */
+  const unpaidRows = unpaidMonths.length
+    ? unpaidMonths.map(m => {
+        const badge = m.status === 'overdue'
+          ? `<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:8.5pt;font-weight:800;background:#fef3f2;color:#b42318;">${esc(t('agrStatusOverdue',{n:m.daysLate}))}</span>`
+          : `<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:8.5pt;font-weight:800;background:#fdf5e0;color:#b8860b;">${esc(t('agrStatusGrace',{n:m.daysLeft}))}</span>`;
+        return `<tr>
+          <td style="padding:5px 6px;border-bottom:1px solid #d0d5db;font-weight:700;">${esc(t('agrMonth'))} ${m.monthIndex} / ${m.totalMonths}</td>
+          <td style="padding:5px 6px;border-bottom:1px solid #d0d5db;">${esc(fmtDate(m.dueDate))}</td>
+          <td style="padding:5px 6px;border-bottom:1px solid #d0d5db;">${badge}</td>
+          <td style="padding:5px 6px;border-bottom:1px solid #d0d5db;text-align:right;font-family:ui-monospace,monospace;font-weight:700;">${fmt2(m.monthly)}</td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="4" style="padding:10px;text-align:center;color:#067647;font-weight:700;background:#ecfdf3;border:1px solid #abefc6;border-radius:4px;">✓ ${esc(t('agrNoUnpaidMonths'))}</td></tr>`;
+
+  /* Next month table */
+  const nextMonthHtml = nextMo ? `
+    <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:10pt;">
+      <thead>
+        <tr>
+          <th style="border-bottom:1.5px solid #000;padding:6px;text-align:left;background:#f0f5f0;text-transform:uppercase;letter-spacing:.04em;font-size:9pt;">${esc(t('agrNextMonthHeader',{m:nextMo.monthIndex,t:nextMo.totalMonths}))}</th>
+          <th style="border-bottom:1.5px solid #000;padding:6px;text-align:right;background:#f0f5f0;text-transform:uppercase;letter-spacing:.04em;font-size:9pt;width:34%;">${esc(t('agrAmountEtb'))}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td style="padding:5px 6px;border-bottom:1px solid #d0d5db;">${esc(t('agrDueDate'))}</td><td style="padding:5px 6px;border-bottom:1px solid #d0d5db;text-align:right;font-weight:700;">${nextMo.dueDate ? esc(fmtDate(nextMo.dueDate)) : '—'}</td></tr>
+        <tr><td style="padding:5px 6px;border-bottom:1px solid #d0d5db;">${esc(t('agrPrincipalPortion'))}</td><td style="padding:5px 6px;border-bottom:1px solid #d0d5db;text-align:right;font-family:ui-monospace,monospace;color:#128a5c;font-weight:700;">${fmt2(nextMo.principal)}</td></tr>
+        <tr><td style="padding:5px 6px;border-bottom:1px solid #d0d5db;">${esc(t('agrInterestPortion'))}</td><td style="padding:5px 6px;border-bottom:1px solid #d0d5db;text-align:right;font-family:ui-monospace,monospace;color:#b8860b;font-weight:700;">${fmt2(nextMo.interest)}</td></tr>
+        <tr style="background:#f8fafc;"><td style="padding:6px;border-top:1.5px solid #000;border-bottom:1.5px solid #000;font-weight:900;">${esc(t('agrMonthlyTotal'))}</td><td style="padding:6px;border-top:1.5px solid #000;border-bottom:1.5px solid #000;text-align:right;font-family:ui-monospace,monospace;font-weight:900;color:#0b5cab;">${fmt2(nextMo.monthlyTotal)}</td></tr>
+      </tbody>
+    </table>`
+    : `<div style="padding:8px 10px;background:#ecfdf3;border:1px solid #abefc6;border-radius:6px;font-size:10pt;color:#067647;margin-top:10px;"><strong>✓</strong> ${esc(t('agrFullyScheduled'))}</div>`;
+
+  const summaryHtml = `
+    <div style="margin:18px 0 4px;font-size:11pt;font-weight:800;letter-spacing:.05em;color:#1a3a2a;border-bottom:1.5px solid #000;padding-bottom:4px;text-transform:uppercase;">${esc(t('agrRepaymentSummary'))}</div>
+
+    <table style="width:100%;border-collapse:collapse;font-size:10pt;margin-bottom:12px;">
+      <tbody>
+        <tr>
+          <td style="padding:6px 0;width:44%;font-weight:700;color:#4a5568;">${esc(t('agrFirstPenaltyPaid'))}</td>
+          <td style="padding:6px 0;font-weight:700;">${penaltyLine}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;font-weight:700;color:#4a5568;">${esc(t('agrNextPaymentDue'))}</td>
+          <td style="padding:6px 0;font-weight:700;">${nextMo && nextMo.dueDate ? esc(fmtDate(nextMo.dueDate)) : (nextMo ? '—' : esc(t('agrFullyPaid')))}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="font-size:10pt;font-weight:800;letter-spacing:.04em;color:#1a3a2a;text-transform:uppercase;margin:8px 0 4px;">
+      ${esc(t('agrUnpaidMonths'))} (${unpaidMonths.length})
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:9.5pt;margin-bottom:12px;">
+      <thead>
+        <tr>
+          <th style="border-bottom:1.5px solid #000;border-top:1.5px solid #000;padding:5px 6px;text-align:left;background:#f0f5f0;font-size:9pt;text-transform:uppercase;letter-spacing:.04em;">${esc(t('agrMonth'))}</th>
+          <th style="border-bottom:1.5px solid #000;border-top:1.5px solid #000;padding:5px 6px;text-align:left;background:#f0f5f0;font-size:9pt;text-transform:uppercase;letter-spacing:.04em;">${esc(t('agrDueDate'))}</th>
+          <th style="border-bottom:1.5px solid #000;border-top:1.5px solid #000;padding:5px 6px;text-align:left;background:#f0f5f0;font-size:9pt;text-transform:uppercase;letter-spacing:.04em;">Status</th>
+          <th style="border-bottom:1.5px solid #000;border-top:1.5px solid #000;padding:5px 6px;text-align:right;background:#f0f5f0;font-size:9pt;text-transform:uppercase;letter-spacing:.04em;width:22%;">${esc(t('agrAmountEtb'))}</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${unpaidRows}
+        ${unpaidMonths.length ? `<tr style="background:#fff5f5;">
+          <td colspan="3" style="padding:6px;border-top:1.5px solid #000;border-bottom:1.5px solid #000;font-weight:900;text-transform:uppercase;letter-spacing:.04em;">${esc(t('agrTotalUnpaid'))}</td>
+          <td style="padding:6px;border-top:1.5px solid #000;border-bottom:1.5px solid #000;text-align:right;font-family:ui-monospace,monospace;font-weight:900;color:#b42318;">${fmt2(unpaidTotal)}</td>
+        </tr>` : ''}
+      </tbody>
+    </table>
+
+    ${nextMonthHtml}`;
+
+  /* ---- Full agreement ---- */
   return `<div class="slip" style="padding:16mm 18mm;height:auto;min-height:297mm;">
     <div class="slip__watermark">
       <img src="${esc(LOGO_URL)}" alt="" onerror="this.onerror=null;this.outerHTML=this.dataset.fallback;" data-fallback="${LOGO_FALLBACK.replace(/"/g,'&quot;')}">
@@ -3118,6 +2973,7 @@ function buildSlipHtml(l, watermarkText){
     </div>
 
     <div style="text-align:right;font-size:10pt;line-height:1.6;padding:6px 0;border-top:1px solid #999;border-bottom:1px solid #999;margin-bottom:14px;">
+      <div><strong>${esc(t('agrLetterNo'))} :</strong> <span style="font-family:ui-monospace,monospace;font-weight:800;color:#0b5cab;">${esc(letterNo)}</span></div>
       <div><strong>${esc(t('agrSerial'))} :</strong> <span style="font-family:ui-monospace,monospace;font-weight:800">${esc(serial)}</span></div>
       <div><strong>${esc(t('agrDate'))} :</strong> ${esc(dateStr)}</div>
       <div><span class="slip__doc-stamp ${isCopy?'slip__doc-stamp--copy':'slip__doc-stamp--original'}">${esc(watermarkText)}</span></div>
@@ -3149,6 +3005,8 @@ function buildSlipHtml(l, watermarkText){
 
       <p>${esc(t('agrSignClause'))}</p>
     </div>
+
+    ${summaryHtml}
 
     <table style="width:100%;border-collapse:collapse;margin:22px 0 8px;font-size:10pt;">
       <thead>
@@ -3288,6 +3146,7 @@ async function loadAllData(){
   });
   try{const loansSnap=await getDocs(collection(db,'loans'));APP.loans=loansSnap.docs.map(d=>({id:d.id,...d.data()}));}catch(e){APP.loans=[];}
   try{const rSnap=await getDocs(query(collection(db,'transactions'),where('type','==','repayment')));APP.repayments=rSnap.docs.map(d=>({id:d.id,...d.data()}));}catch(e){APP.repayments=[];}
+  try{const pSnap=await getDocs(query(collection(db,'transactions'),where('type','==','penalty')));APP.penalties=pSnap.docs.map(d=>({id:d.id,...d.data()}));}catch(e){APP.penalties=[];}
   APP.dataLoaded=true;
 }
 
