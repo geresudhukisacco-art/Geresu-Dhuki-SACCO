@@ -852,25 +852,7 @@ const I18N = {
     agrBorrower:'BORROWER', agrGuarantors:'GUARANTORS', agrCoopApproval:'COOPERATIVE APPROVAL',
     agrSignature:'SIGNATURE', agrName:'Name',
     agrTel:'Tel: +251-91028-5252',
-    agrSlogan:'If We Work Together, We Grow Together!',
-    agrRepaymentSummary:'Repayment Summary',
-    agrFirstPenaltyPaid:'First Penalty Paid',
-    agrNextPaymentDue:'Next Payment Due',
-    agrUnpaidMonths:'Unpaid Months',
-    agrNoUnpaidMonths:'No unpaid months — all installments up to date.',
-    agrTotalUnpaid:'Total Unpaid',
-    agrNoneRecorded:'None recorded',
-    agrMonth:'Month',
-    agrDueDate:'Due Date',
-    agrAmountEtb:'Amount (ETB)',
-    agrFullyScheduled:'Fully scheduled — no further monthly installments are pending.',
-    agrNextMonthHeader:'Next Month — Month {m} of {t}',
-    agrPrincipalPortion:'Principal Portion',
-    agrInterestPortion:'Interest Portion',
-    agrMonthlyTotal:'MONTHLY TOTAL',
-    agrFullyPaid:'Fully paid',
-    agrStatusOverdue:'Overdue by {n}d',
-    agrStatusGrace:'Grace: {n}d left'
+    agrSlogan:'If We Work Together, We Grow Together!'
   }
 };
 
@@ -884,20 +866,6 @@ I18N.am = {
   docTitle:'የብድር ስምምነት ቅጽ',
   agrTitle:'የብድር ስምምነት ቅጽ',
   agrSubject:'ጉዳዩ: የብድር ስጦታ እና የመክፈል ስምምነት',
-  agrRepaymentSummary:'የክፍያ ማጠቃለያ',
-  agrFirstPenaltyPaid:'የመጀመሪያ ቅጣት ተከፍሏል',
-  agrNextPaymentDue:'ቀጣይ ክፍያ',
-  agrUnpaidMonths:'ያልተከፈሉ ወራት',
-  agrNoUnpaidMonths:'ያልተከፈለ ወር የለም — ሁሉም ክፍያዎች ወቅታዊ ናቸው።',
-  agrTotalUnpaid:'ጠቅላላ ያልተከፈለ',
-  agrNoneRecorded:'ምንም አልተመዘገበም',
-  agrMonth:'ወር',
-  agrDueDate:'የመክፈያ ቀን',
-  agrAmountEtb:'መጠን (ብር)',
-  agrNextMonthHeader:'ቀጣይ ወር — ወር {m} ከ {t}',
-  agrPrincipalPortion:'የዋና ገንዘብ ድርሻ',
-  agrInterestPortion:'የወለድ ድርሻ',
-  agrMonthlyTotal:'ወርሃዊ ጠቅላላ',
   agrLetterNo:'የደብዳቤ ቁጥር'
 };
 
@@ -911,20 +879,6 @@ I18N.om = {
   docTitle:'UNKA WALIIGALTEE LIQII',
   agrTitle:'UNKA WALIIGALTEE LIQII',
   agrSubject:'Mata-duree: Waliigaltee Kennaa fi Kaffaltii Liqii',
-  agrRepaymentSummary:'Cuunfaa Kaffaltii',
-  agrFirstPenaltyPaid:'Adaba Jalqabaa Kaffalame',
-  agrNextPaymentDue:'Kaffaltii Itti Aanu',
-  agrUnpaidMonths:"Ji'oota Hin Kaffalamne",
-  agrNoUnpaidMonths:"Ji'oonni hin kaffalamne hin jiran — kaffaltiin hundi yeroon isaa eega.",
-  agrTotalUnpaid:'Waliigala Hin Kaffalamne',
-  agrNoneRecorded:'Hin galmeeffamne',
-  agrMonth:"Ji'a",
-  agrDueDate:'Guyyaa Kaffaltii',
-  agrAmountEtb:'Hamma (ETB)',
-  agrNextMonthHeader:"Ji'a Itti Aanu — Ji'a {m} / {t}",
-  agrPrincipalPortion:"Qooda Bu'uura",
-  agrInterestPortion:'Qooda Dhala',
-  agrMonthlyTotal:"Waliigala Ji'aa",
   agrLetterNo:'Lakkoofsa Xalayaa'
 };
 
@@ -1175,105 +1129,6 @@ function scheduleStateLabel(loan){
   if(d === 0) return {kind:'due', text:t('dueToday')};
   if(d > 0 && d <= 30) return {kind:'due', text:t('dueInDays',{n:d})};
   return {kind:'due', text:`${t('nextDueLbl')}: ${fmtDate(nd)}`};
-}
-
-/* ============================================================
-   AGREEMENT HELPERS — letter no, first penalty, unpaid months, next month
-   ============================================================ */
-function generateLetterNumber(loanOrId){
-  const yr = new Date().getFullYear();
-  const raw = String(
-    (loanOrId && (loanOrId.serialNumber || loanOrId.loanNumber)) ||
-    (typeof loanOrId === 'string' ? loanOrId : '') || ''
-  );
-  const digits = raw.replace(/\D/g,'').slice(-4).padStart(4,'0') || String(Math.floor(Math.random()*9000)+1000);
-  return `GD/LTR/${yr}/${digits}`;
-}
-
-function firstPaidPenalty(loanId){
-  if(!loanId) return null;
-  const list = (APP.penalties||[])
-    .filter(p => p.loanId === loanId && String(p.status||'').toLowerCase()==='paid')
-    .sort((a,b) => (toDateSafe(a.date||a.createdAt)?.getTime()||0) - (toDateSafe(b.date||b.createdAt)?.getTime()||0));
-  return list[0] || null;
-}
-
-function totalPaidPrincipal(loan){
-  if(!loan?.id) return 0;
-  return (APP.repayments||[])
-    .filter(r => r.loanId === loan.id && (String(r.status||'').toLowerCase()==='approved' || r.printed===true))
-    .reduce((s,r) => s + getRepaymentPrincipal(r, loan), 0);
-}
-
-function unpaidPrincipalAmount(loan){
-  const paid = totalPaidPrincipal(loan);
-  return Math.max(0, round2(num(loan?.principal) - paid));
-}
-
-function nextMonthBreakdown(loan){
-  const start = loanStartDate(loan);
-  if(!start) return null;
-  const period = Math.max(1, Math.floor(num(loan.duration)||1));
-  const paid = approvedMonthsPaid(loan);
-  if(paid >= period) return null;
-  const calc = calcLoan(loan.principal, loan.interestRate, period, loan.interestType);
-  const monthlyInterest  = round2(calc.interest / period);
-  const monthlyPrincipal = round2(Math.max(0, calc.monthly - monthlyInterest));
-  return {
-    monthIndex: paid + 1,
-    totalMonths: period,
-    dueDate: nextDueDate(loan),
-    monthlyTotal: calc.monthly,
-    principal: monthlyPrincipal,
-    interest: monthlyInterest,
-    remainingPrincipal: unpaidPrincipalAmount(loan)
-  };
-}
-
-function unpaidMonthsList(loan){
-  const start = loanStartDate(loan);
-  if(!start) return [];
-  const period = Math.max(1, Math.floor(num(loan.duration)||1));
-  const calc   = calcLoan(loan.principal, loan.interestRate, period, loan.interestType);
-  const monthlyInterest  = round2(calc.interest / period);
-  const monthlyPrincipal = round2(Math.max(0, calc.monthly - monthlyInterest));
-
-  const paidIdx = new Set(
-    (APP.repayments||[])
-      .filter(r => r.loanId === loan.id && (String(r.status||'').toLowerCase()==='approved' || r.printed===true))
-      .map(r => {
-        const d = toDateSafe(r.date);
-        if(!d) return -1;
-        return (d.getFullYear()-start.getFullYear())*12 + (d.getMonth()-start.getMonth());
-      })
-      .filter(i => i >= 0)
-  );
-
-  const now = Date.now();
-  const graceMs = GRACE_MS();
-  const out = [];
-  for(let i=0; i<period; i++){
-    if(paidIdx.has(i)) continue;
-    const due = new Date(start);
-    due.setMonth(due.getMonth() + i + 1);
-    const dueMs = due.getTime();
-    let status;
-    if(now > dueMs + graceMs)      status = 'overdue';
-    else if(now > dueMs)           status = 'grace';
-    else                           continue;
-    out.push({
-      monthIndex: i + 1,
-      totalMonths: period,
-      dueDate: due,
-      status,
-      daysLate: status==='overdue' ? Math.floor((now - dueMs - graceMs)/86400000) : 0,
-      daysLeft: status==='grace'   ? Math.ceil((dueMs + graceMs - now)/86400000) : 0,
-      principal: monthlyPrincipal,
-      interest: monthlyInterest,
-      monthly: calc.monthly
-    });
-  }
-  return out;
 }
 
 /* ============ LOAN REPAYMENTS HELPERS ============ */
@@ -2275,13 +2130,13 @@ function openLoanWizard(loan){
       if(isEdit){
         payload.serialNumber=l0.serialNumber||generateSerialNumber();
         payload.loanNumber=l0.loanNumber||payload.serialNumber;
-        payload.letterNumber=(d.letterNumber||'').trim()||l0.letterNumber||generateLetterNumber({serialNumber:payload.serialNumber});
+        payload.letterNumber=(d.letterNumber||'').trim()||l0.letterNumber||'';
         await updateDoc(doc(db,'loans',l0.id),payload);
       }
       else{
         payload.serialNumber=generateSerialNumber();
         payload.loanNumber=payload.serialNumber;
-        payload.letterNumber=(d.letterNumber||'').trim()||generateLetterNumber({serialNumber:payload.serialNumber});
+        payload.letterNumber=(d.letterNumber||'').trim()||'';
         payload.amountRepaid=0;payload.createdAt=serverTimestamp();payload.createdBy=S.uid;payload.createdByName=S.name;payload.printCount=0;payload.printStatus='not_printed';
         await setDoc(doc(collection(db,'loans')),payload);
       }
@@ -2372,7 +2227,7 @@ function openViewModal(l){
         ${totalPendingAmount>0?`<div class="alert alert--warning"><i class="fas fa-hourglass-half"></i><div>Pending repayments totalling <strong>ETB ${totalPendingAmount.toLocaleString()}</strong> are not yet reflected in the balance. Approve them below.</div></div>`:''}
         <div class="review" style="margin-bottom:20px">
           <div class="review__row"><span class="review__k">${esc(t('serialNumber'))}</span><span class="review__v" style="font-family:ui-monospace,monospace;font-weight:800">${esc(l.serialNumber||l.loanNumber||'—')}</span></div>
-          <div class="review__row"><span class="review__k">${esc(t('agrLetterNo'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(l.letterNumber||generateLetterNumber(l))}</span></div>
+          ${l.letterNumber?`<div class="review__row"><span class="review__k">${esc(t('agrLetterNo'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(l.letterNumber)}</span></div>`:''}
           <div class="review__row"><span class="review__k">${esc(t('colType'))}</span><span class="review__v">${esc(loanTypeLabel(l.loanType))}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('interestTypeLabel'))}</span><span class="review__v">${esc(interestTypeLabel(l.interestType))}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('colPrincipal'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(money(l.principal))}</span></div>
@@ -2840,21 +2695,13 @@ function showLogoutModal(){
 function buildSlipHtml(l, watermarkText){
   const c = customerById(l.customerId || l.customerDocId);
   const cName = customerName(c);
-  const isCopy = watermarkText === 'COPY';
   const {interest, total, monthly} = calcLoan(l.principal, l.interestRate, l.duration, l.interestType);
   const serial = l.serialNumber || l.loanNumber || ('GD-'+(l.id||'').slice(-12).toUpperCase());
-  const letterNo = l.letterNumber || generateLetterNumber(l);
   const dateStr = fmtDate(l.disbursementDate || l.createdAt || new Date());
   const guarantors = Array.isArray(l.guarantees) ? l.guarantees : [];
   const recordedByName = l.createdByName || '—';
   const approvedByName = l.approvedByName || '—';
   const principalWords = numberToWords(num(l.principal));
-
-  /* ---- Repayment summary data ---- */
-  const firstPen = firstPaidPenalty(l.id);
-  const nextMo   = nextMonthBreakdown(l);
-  const unpaidMonths = unpaidMonthsList(l);
-  const unpaidTotal  = round2(unpaidMonths.reduce((s,m) => s + m.monthly, 0));
 
   /* Residence — from customer or template default */
   const residence = (c && (c.address || c.kebele || c.woreda)) ? (c.address || c.kebele || c.woreda) : t('agrResidence');
@@ -2878,84 +2725,6 @@ function buildSlipHtml(l, watermarkText){
         <td style="padding:14px 6px;border-bottom:1px solid #999;"></td>
       </tr>`;
 
-  const fmt2 = (n) => num(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-
-  const penaltyLine = firstPen
-    ? `ETB ${fmt2(firstPen.amount)} <span style="font-size:9pt;color:#555;">(paid on ${esc(fmtDate(firstPen.date || firstPen.createdAt))})</span>`
-    : `<span style="color:#555;font-style:italic;">${esc(t('agrNoneRecorded'))}</span>`;
-
-  /* Unpaid months table */
-  const unpaidRows = unpaidMonths.length
-    ? unpaidMonths.map(m => {
-        const badge = m.status === 'overdue'
-          ? `<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:8.5pt;font-weight:800;background:#fef3f2;color:#b42318;">${esc(t('agrStatusOverdue',{n:m.daysLate}))}</span>`
-          : `<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:8.5pt;font-weight:800;background:#fdf5e0;color:#b8860b;">${esc(t('agrStatusGrace',{n:m.daysLeft}))}</span>`;
-        return `<tr>
-          <td style="padding:5px 6px;border-bottom:1px solid #d0d5db;font-weight:700;">${esc(t('agrMonth'))} ${m.monthIndex} / ${m.totalMonths}</td>
-          <td style="padding:5px 6px;border-bottom:1px solid #d0d5db;">${esc(fmtDate(m.dueDate))}</td>
-          <td style="padding:5px 6px;border-bottom:1px solid #d0d5db;">${badge}</td>
-          <td style="padding:5px 6px;border-bottom:1px solid #d0d5db;text-align:right;font-family:ui-monospace,monospace;font-weight:700;">${fmt2(m.monthly)}</td>
-        </tr>`;
-      }).join('')
-    : `<tr><td colspan="4" style="padding:10px;text-align:center;color:#067647;font-weight:700;background:#ecfdf3;border:1px solid #abefc6;border-radius:4px;">✓ ${esc(t('agrNoUnpaidMonths'))}</td></tr>`;
-
-  /* Next month table */
-  const nextMonthHtml = nextMo ? `
-    <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:10pt;">
-      <thead>
-        <tr>
-          <th style="border-bottom:1.5px solid #000;padding:6px;text-align:left;background:#f0f5f0;text-transform:uppercase;letter-spacing:.04em;font-size:9pt;">${esc(t('agrNextMonthHeader',{m:nextMo.monthIndex,t:nextMo.totalMonths}))}</th>
-          <th style="border-bottom:1.5px solid #000;padding:6px;text-align:right;background:#f0f5f0;text-transform:uppercase;letter-spacing:.04em;font-size:9pt;width:34%;">${esc(t('agrAmountEtb'))}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr><td style="padding:5px 6px;border-bottom:1px solid #d0d5db;">${esc(t('agrDueDate'))}</td><td style="padding:5px 6px;border-bottom:1px solid #d0d5db;text-align:right;font-weight:700;">${nextMo.dueDate ? esc(fmtDate(nextMo.dueDate)) : '—'}</td></tr>
-        <tr><td style="padding:5px 6px;border-bottom:1px solid #d0d5db;">${esc(t('agrPrincipalPortion'))}</td><td style="padding:5px 6px;border-bottom:1px solid #d0d5db;text-align:right;font-family:ui-monospace,monospace;color:#128a5c;font-weight:700;">${fmt2(nextMo.principal)}</td></tr>
-        <tr><td style="padding:5px 6px;border-bottom:1px solid #d0d5db;">${esc(t('agrInterestPortion'))}</td><td style="padding:5px 6px;border-bottom:1px solid #d0d5db;text-align:right;font-family:ui-monospace,monospace;color:#b8860b;font-weight:700;">${fmt2(nextMo.interest)}</td></tr>
-        <tr style="background:#f8fafc;"><td style="padding:6px;border-top:1.5px solid #000;border-bottom:1.5px solid #000;font-weight:900;">${esc(t('agrMonthlyTotal'))}</td><td style="padding:6px;border-top:1.5px solid #000;border-bottom:1.5px solid #000;text-align:right;font-family:ui-monospace,monospace;font-weight:900;color:#0b5cab;">${fmt2(nextMo.monthlyTotal)}</td></tr>
-      </tbody>
-    </table>`
-    : `<div style="padding:8px 10px;background:#ecfdf3;border:1px solid #abefc6;border-radius:6px;font-size:10pt;color:#067647;margin-top:10px;"><strong>✓</strong> ${esc(t('agrFullyScheduled'))}</div>`;
-
-  const summaryHtml = `
-    <div style="margin:18px 0 4px;font-size:11pt;font-weight:800;letter-spacing:.05em;color:#1a3a2a;border-bottom:1.5px solid #000;padding-bottom:4px;text-transform:uppercase;">${esc(t('agrRepaymentSummary'))}</div>
-
-    <table style="width:100%;border-collapse:collapse;font-size:10pt;margin-bottom:12px;">
-      <tbody>
-        <tr>
-          <td style="padding:6px 0;width:44%;font-weight:700;color:#4a5568;">${esc(t('agrFirstPenaltyPaid'))}</td>
-          <td style="padding:6px 0;font-weight:700;">${penaltyLine}</td>
-        </tr>
-        <tr>
-          <td style="padding:6px 0;font-weight:700;color:#4a5568;">${esc(t('agrNextPaymentDue'))}</td>
-          <td style="padding:6px 0;font-weight:700;">${nextMo && nextMo.dueDate ? esc(fmtDate(nextMo.dueDate)) : (nextMo ? '—' : esc(t('agrFullyPaid')))}</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <div style="font-size:10pt;font-weight:800;letter-spacing:.04em;color:#1a3a2a;text-transform:uppercase;margin:8px 0 4px;">
-      ${esc(t('agrUnpaidMonths'))} (${unpaidMonths.length})
-    </div>
-    <table style="width:100%;border-collapse:collapse;font-size:9.5pt;margin-bottom:12px;">
-      <thead>
-        <tr>
-          <th style="border-bottom:1.5px solid #000;border-top:1.5px solid #000;padding:5px 6px;text-align:left;background:#f0f5f0;font-size:9pt;text-transform:uppercase;letter-spacing:.04em;">${esc(t('agrMonth'))}</th>
-          <th style="border-bottom:1.5px solid #000;border-top:1.5px solid #000;padding:5px 6px;text-align:left;background:#f0f5f0;font-size:9pt;text-transform:uppercase;letter-spacing:.04em;">${esc(t('agrDueDate'))}</th>
-          <th style="border-bottom:1.5px solid #000;border-top:1.5px solid #000;padding:5px 6px;text-align:left;background:#f0f5f0;font-size:9pt;text-transform:uppercase;letter-spacing:.04em;">Status</th>
-          <th style="border-bottom:1.5px solid #000;border-top:1.5px solid #000;padding:5px 6px;text-align:right;background:#f0f5f0;font-size:9pt;text-transform:uppercase;letter-spacing:.04em;width:22%;">${esc(t('agrAmountEtb'))}</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${unpaidRows}
-        ${unpaidMonths.length ? `<tr style="background:#fff5f5;">
-          <td colspan="3" style="padding:6px;border-top:1.5px solid #000;border-bottom:1.5px solid #000;font-weight:900;text-transform:uppercase;letter-spacing:.04em;">${esc(t('agrTotalUnpaid'))}</td>
-          <td style="padding:6px;border-top:1.5px solid #000;border-bottom:1.5px solid #000;text-align:right;font-family:ui-monospace,monospace;font-weight:900;color:#b42318;">${fmt2(unpaidTotal)}</td>
-        </tr>` : ''}
-      </tbody>
-    </table>
-
-    ${nextMonthHtml}`;
-
   /* ---- Full agreement ---- */
   return `<div class="slip" style="padding:16mm 18mm;height:auto;min-height:297mm;">
     <div class="slip__watermark">
@@ -2973,10 +2742,9 @@ function buildSlipHtml(l, watermarkText){
     </div>
 
     <div style="text-align:right;font-size:10pt;line-height:1.6;padding:6px 0;border-top:1px solid #999;border-bottom:1px solid #999;margin-bottom:14px;">
-      <div><strong>${esc(t('agrLetterNo'))} :</strong> <span style="font-family:ui-monospace,monospace;font-weight:800;color:#0b5cab;">${esc(letterNo)}</span></div>
+      <div><strong>${esc(t('agrLetterNo'))} :</strong> <span style="font-family:ui-monospace,monospace;font-weight:800;">GD/______/${new Date().getFullYear()}</span></div>
       <div><strong>${esc(t('agrSerial'))} :</strong> <span style="font-family:ui-monospace,monospace;font-weight:800">${esc(serial)}</span></div>
       <div><strong>${esc(t('agrDate'))} :</strong> ${esc(dateStr)}</div>
-      <div><span class="slip__doc-stamp ${isCopy?'slip__doc-stamp--copy':'slip__doc-stamp--original'}">${esc(watermarkText)}</span></div>
     </div>
 
     <div class="slip__title" style="font-size:15pt;margin:10px 0 4px;letter-spacing:.04em;">${esc(t('agrTitle'))}</div>
@@ -3005,8 +2773,6 @@ function buildSlipHtml(l, watermarkText){
 
       <p>${esc(t('agrSignClause'))}</p>
     </div>
-
-    ${summaryHtml}
 
     <table style="width:100%;border-collapse:collapse;margin:22px 0 8px;font-size:10pt;">
       <thead>
