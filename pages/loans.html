@@ -188,6 +188,7 @@ html.theme-dark .user-btn{background:#1a2433;}
 .loan-card--pending::before{background:linear-gradient(90deg,#d4a017,#e8b84b);}
 .loan-card--repaid::before{background:linear-gradient(90deg,#0b5cab,#0e7490);}
 .loan-card--overdue::before{background:linear-gradient(90deg,#dc2626,#e74c5c);}
+.loan-card--grace::before{background:linear-gradient(90deg,#d4a017,#e8b84b);}
 .loan-card--rejected::before{background:linear-gradient(90deg,#94a3b8,#64748b);}
 .loan-card__head{display:flex;align-items:flex-start;gap:14px;margin-bottom:16px;margin-top:12px;}
 .loan-card__avatar{width:54px;height:54px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;font-weight:800;font-size:18px;letter-spacing:-.5px;display:grid;place-items:center;overflow:hidden;position:relative;}
@@ -221,7 +222,9 @@ html.theme-dark .user-btn{background:#1a2433;}
 .loan-card__foot-item i{font-size:11px;color:var(--muted);}
 .loan-card__foot-item.warn{color:#b8860b;font-weight:800;}
 .loan-card__foot-item.danger{color:#b42318;font-weight:800;}
+.loan-card__foot-item.grace{background:#fdf5e0;color:#b8860b;padding:2px 8px;border-radius:99px;}
 .loan-card__foot-item.pending-rep{background:#fdf5e0;color:#b8860b;padding:2px 8px;border-radius:99px;}
+.loan-card__foot-item.due{background:#eaf3fc;color:#0b5cab;padding:2px 8px;border-radius:99px;}
 .status-badge{position:absolute;top:16px;left:16px;display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:var(--r-full);font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;}
 .status-badge--active{background:#ecfdf3;color:#067647;}
 .status-badge--pending{background:#fdf5e0;color:#b8860b;}
@@ -229,6 +232,7 @@ html.theme-dark .user-btn{background:#1a2433;}
 .status-badge--repaid{background:#eaf3fc;color:#0b5cab;}
 .status-badge--rejected{background:#fef3f2;color:#b42318;}
 .status-badge--defaulted{background:#fef3f2;color:#b42318;}
+.status-badge--grace{background:#fdf5e0;color:#b8860b;}
 .status-badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;}
 .tbl-wrap{overflow-x:auto;}
 .tbl{width:100%;border-collapse:collapse;min-width:1420px;}
@@ -409,10 +413,14 @@ html.theme-dark .user-btn{background:#1a2433;}
 .history-row .status-cell.penalized{color:var(--danger);}
 .history-row .status-cell.penalty-paid{color:var(--primary);}
 .history-row .status-cell.future{color:var(--muted-light);}
+.history-row .status-cell.overdue{color:#b42318;}
+.history-row .status-cell.grace{color:#b8860b;font-style:italic;}
 .history-row .principal{color:#128a5c;font-weight:800;text-align:right;font-family:ui-monospace,Menlo,Consolas,monospace;}
 .history-row .interest{color:#b8860b;font-weight:800;text-align:right;font-family:ui-monospace,Menlo,Consolas,monospace;}
 .history-row .total-amount{color:var(--text);font-weight:800;text-align:right;font-family:ui-monospace,Menlo,Consolas,monospace;}
 .history-row.waived .interest{color:var(--success);font-style:italic;}
+.history-row.overdue{background:#fff5f5;}
+.history-row.grace{background:#fffbf0;}
 .history-totals{margin-top:12px;padding:12px 14px;background:linear-gradient(135deg,rgba(11,92,171,.06),rgba(11,92,171,.02));border:1px solid rgba(11,92,171,.2);border-radius:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
 .history-totals .tot-item{display:flex;flex-direction:column;gap:2px;}
 .history-totals .tot-label{font-size:10px;text-transform:uppercase;color:var(--muted);font-weight:800;letter-spacing:.04em;}
@@ -511,12 +519,16 @@ body.sb-open .overlay-mobile{display:block;}
 .slip-toolbar button.primary{background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;border:none;box-shadow:0 6px 14px rgba(11,92,171,.28);}
 .slip-toolbar button.primary:hover{color:#fff;}
 
+/* Agreement A4 page is wider than A5 receipt — allow it in overlay */
+.slip-overlay .slip[style*="min-height:297mm"]{width:210mm;height:auto;min-height:297mm;padding:16mm 18mm;}
+
 @media print{
-  @page{size:A5 landscape;margin:0;}
+  @page{size:A4 portrait;margin:0;}
   html,body{background:#fff !important;margin:0 !important;padding:0 !important;width:auto !important;height:auto !important;overflow:visible !important;}
   body > *:not(#slip-print-host){display:none !important;}
-  #slip-print-host{display:block !important;width:210mm !important;height:148mm !important;padding:0 !important;margin:0 !important;overflow:hidden !important;}
-  #slip-print-host .slip,#slip-print-host .slip--a5{width:210mm !important;height:148mm !important;min-height:148mm !important;max-height:148mm !important;padding:6mm 8mm !important;margin:0 !important;border:none !important;border-radius:0 !important;box-shadow:none !important;overflow:hidden !important;box-sizing:border-box !important;}
+  #slip-print-host{display:block !important;width:210mm !important;padding:0 !important;margin:0 !important;overflow:visible !important;}
+  #slip-print-host .slip{width:210mm !important;min-height:297mm !important;padding:16mm 18mm !important;margin:0 !important;border:none !important;border-radius:0 !important;box-shadow:none !important;overflow:visible !important;box-sizing:border-box !important;height:auto !important;max-height:none !important;}
+  #slip-print-host .slip--a5{width:210mm !important;height:148mm !important;min-height:148mm !important;max-height:148mm !important;padding:6mm 8mm !important;overflow:hidden !important;}
   #slip-print-host,#slip-print-host *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;color-adjust:exact !important;}
 }
 
@@ -757,7 +769,7 @@ const I18N = {
     firstPrint:'First print — Original', reprint:'Reprint — Copy',
     printedBy:'Printed by', printedOn:'Printed on',
     printError:'Could not update print status',
-    docTitle:'Loan Agreement', amountInWords:'In words',
+    docTitle:'LOAN AGREEMENT FORM', amountInWords:'In words',
     borrowerSign:'Borrower signature', recordedBy:'Recorded by', approvedBy:'Approved by',
     repaymentTitle:'Record Loan Repayment', repaymentSub:'Enter repayment amount for this loan',
     repaymentAmount:'Repayment Amount (ETB)', repaymentDate:'Payment Date',
@@ -769,7 +781,7 @@ const I18N = {
     methodCheque:'Cheque', methodOther:'Other',
     newBalancePreview:'New outstanding after repayment',
     customerScope:'Showing all loans in your scope', memberScope:'Showing your loans only',
-    overduBadge:'Overdue', soonBadge:'Due soon',
+    overduBadge:'Overdue', soonBadge:'Due soon', graceBadge:'Grace',
     searchLoan:'Search Loan', searchLoanPh:'Search by customer name or loan ID…',
     minRepayHint:'Minimum repayment required',
     repayAll:'Repay All', repayAllUnlocks:'Repay All unlocks after {n} monthly payments (paid: {paid}).',
@@ -781,6 +793,7 @@ const I18N = {
     refreshPenalty:'Refresh penalty status',
     paymentHistory:'Payment History', month:'Month',
     paid:'Paid', penaltyPaid:'Penalty Paid', penalized:'Penalized', future:'Future', pendingLc:'Pending',
+    graceStatus:'Grace', overdueStatus:'Overdue',
     totalPrincipalPaid:'Total Principal Paid', totalInterestPaid:'Total Interest Paid',
     totalRepaid:'Total Repaid', waived:'waived',
     principalPortion:'Main Loan (Principal) Portion (ETB)', interestPortion:'Interest Portion (ETB)',
@@ -820,11 +833,28 @@ const I18N = {
     colRepPrincipal:'Principal', colRepInterest:'Interest', colRepStatus:'Status',
     printReceipt:'Print Receipt', paymentReceipt:'Payment Receipt',
     repaymentDetails:'Repayment Details', totalApproved:'Total Approved (loan)',
-    generatedBy:'Generated by'
+    generatedBy:'Generated by',
+    gracePeriod:'Grace Period', nextDueLbl:'Next due', monthsPaidLbl:'Months paid',
+    graceDaysLeft:'Grace: {n} day(s) left', dueInDays:'Due in {n} day(s)', dueToday:'Due today',
+    overdueDays:'Overdue by {n} day(s)',
+    /* ---- Agreement form strings ---- */
+    agrTitle:'LOAN AGREEMENT FORM',
+    agrSubject:'Subject: Loan Grant and Repayment Agreement',
+    agrResidence:'Chiro, Oromia Ethiopia',
+    agrSacco:'Geresu Dhuki Savings and Credit Cooperative',
+    agrReference:'S/H/H/L/ 1679, 1721, 1731, 2005/2006',
+    agrGuarantorClause:'The Guarantors confirm that, should the Borrower fail to fulfill the repayment obligation, they shall assume responsibility for the outstanding amount in accordance with S/H/H/L 1920, the Cooperative\'s rules, and applicable law.',
+    agrBreachClause:'Any breach of this agreement shall be subject to the applicable penalties and recovery procedures, including the provisions referred to under S/H/H/L 1790 and 1791.',
+    agrSignClause:'By signing below, the Borrower and Guarantors confirm that they have read, understood, and voluntarily accepted the terms of this agreement.',
+    agrSerial:'Serial No', agrDate:'Date',
+    agrOfficialStamp:'Official Stamp:',
+    agrBorrower:'BORROWER', agrGuarantors:'GUARANTORS', agrCoopApproval:'COOPERATIVE APPROVAL',
+    agrSignature:'SIGNATURE', agrName:'Name',
+    agrTel:'Tel: +251-91028-5252',
+    agrSlogan:'If We Work Together, We Grow Together!'
   }
 };
 
-/* ---- AMHARIC (አማርኛ) — fully translated ---- */
 I18N.am = {
   ...I18N.en,
   brandSub:'የሳኮ አስተዳደር', logout:'ውጣ', loading:'በመጫን ላይ…',
@@ -936,7 +966,7 @@ I18N.am = {
   reprint:'እንደገና ህትመት — ኮፒ',
   printedBy:'ያተመው', printedOn:'የታተመበት',
   printError:'የህትመት ሁኔታን ማዘመን አልተቻለም',
-  docTitle:'የብድር ስምምነት', amountInWords:'በፊደል',
+  docTitle:'የብድር ስምምነት ቅጽ', amountInWords:'በፊደል',
   borrowerSign:'የተበዳሪ ፊርማ', recordedBy:'የመዘገበው', approvedBy:'ያጸደቀው',
   repaymentTitle:'የብድር ክፍያ ይመዝግቡ',
   repaymentSub:'ለዚህ ብድር የክፍያ መጠን ያስገቡ',
@@ -950,7 +980,7 @@ I18N.am = {
   newBalancePreview:'ከክፍያ በኋላ አዲስ ቀሪ',
   customerScope:'በክልልዎ ውስጥ ያሉ ሁሉም ብድሮች',
   memberScope:'የእርስዎ ብድሮች ብቻ',
-  overduBadge:'ያለፈ', soonBadge:'በቅርቡ የሚደርስ',
+  overduBadge:'ያለፈ', soonBadge:'በቅርቡ የሚደርስ', graceBadge:'የጸጋ ጊዜ',
   searchLoan:'ብድር ይፈልጉ',
   searchLoanPh:'በደንበኛ ስም ወይም በብድር መታወቂያ ይፈልጉ…',
   minRepayHint:'ዝቅተኛው የክፍያ መጠን',
@@ -968,6 +998,7 @@ I18N.am = {
   paymentHistory:'የክፍያ ታሪክ', month:'ወር',
   paid:'ተከፍሏል', penaltyPaid:'ቅጣት ተከፍሏል',
   penalized:'ቅጣት ተጥሏል', future:'ወደፊት', pendingLc:'በመጠበቅ',
+  graceStatus:'የጸጋ ጊዜ', overdueStatus:'ዘግይቷል',
   totalPrincipalPaid:'ጠቅላላ የተከፈለ ዋና ገንዘብ',
   totalInterestPaid:'ጠቅላላ የተከፈለ ወለድ',
   totalRepaid:'ጠቅላላ የተከፈለ', waived:'ተሰርዟል',
@@ -1013,10 +1044,12 @@ I18N.am = {
   colRepPrincipal:'ዋና ገንዘብ', colRepInterest:'ወለድ', colRepStatus:'ሁኔታ',
   printReceipt:'ደረሰኝ አትም', paymentReceipt:'የክፍያ ደረሰኝ',
   repaymentDetails:'የክፍያ ዝርዝሮች',
-  totalApproved:'ጠቅላላ የጸደቀ (ብድር)', generatedBy:'የተፈጠረው በ'
+  totalApproved:'ጠቅላላ የጸደቀ (ብድር)', generatedBy:'የተፈጠረው በ',
+  gracePeriod:'የጸጋ ጊዜ', nextDueLbl:'ቀጣይ የክፍያ ቀን', monthsPaidLbl:'የተከፈሉ ወራት',
+  graceDaysLeft:'የጸጋ ጊዜ: {n} ቀናት ቀርተዋል', dueInDays:'በ{n} ቀናት ውስጥ ይከፈላል',
+  dueToday:'ዛሬ ይከፈላል', overdueDays:'በ{n} ቀናት ዘግይቷል'
 };
 
-/* ---- OROMO (Afaan Oromoo) — fully translated ---- */
 I18N.om = {
   ...I18N.en,
   brandSub:'Bulchiinsa SACCO', logout:"Ba'i", loading:"Fe'aa jira…",
@@ -1135,7 +1168,7 @@ I18N.om = {
   reprint:'Maxxansa irra deebii — Koppii',
   printedBy:'Kan maxxanse', printedOn:'Kan maxxanfame',
   printError:'Haala maxxansaa haaromsuu hin dandaʼamne',
-  docTitle:'Waliigaltee Liqii', amountInWords:'Afaanii',
+  docTitle:'UNKA WALIIGALTEE LIQII', amountInWords:'Afaanii',
   borrowerSign:'Mallattoo Liqeeffataa',
   recordedBy:'Kan galmeesse', approvedBy:'Kan mirkaneesse',
   repaymentTitle:'Kaffaltii Liqii Galmeessi',
@@ -1152,7 +1185,7 @@ I18N.om = {
   newBalancePreview:'Haftee haaraa kaffaltii booda',
   customerScope:'Liqii naannoo kee hunda',
   memberScope:'Liqii kee qofa',
-  overduBadge:'Darbe', soonBadge:'Dhiyootti dhufa',
+  overduBadge:'Darbe', soonBadge:'Dhiyootti dhufa', graceBadge:'Yeroo Dhiifamaa',
   searchLoan:'Liqii Barbaadi',
   searchLoanPh:'Maqaa maamilaa ykn eenyummaa liqii barbaadi…',
   minRepayHint:'Kaffaltii xiqqaa barbaachisu',
@@ -1170,6 +1203,7 @@ I18N.om = {
   paymentHistory:'Seenaa Kaffaltii', month:'Jiʼa',
   paid:'Kaffalame', penaltyPaid:'Adabni Kaffalame', penalized:'Adabame',
   future:'Gara fuulduraa', pendingLc:'Eegaa',
+  graceStatus:'Yeroo Dhiifamaa', overdueStatus:'Darbe',
   totalPrincipalPaid:"Bu'uura Waliigalaa Kaffalame",
   totalInterestPaid:'Dhala Waliigalaa Kaffalame',
   totalRepaid:'Waliigala Kaffalame', waived:'dhiifame',
@@ -1216,7 +1250,10 @@ I18N.om = {
   colRepPrincipal:"Bu'uura", colRepInterest:'Dhala', colRepStatus:'Haala',
   printReceipt:'Nagahee Maxxansi', paymentReceipt:'Nagahee Kaffaltii',
   repaymentDetails:'Ragaa Kaffaltii',
-  totalApproved:'Waliigala Mirkanaaʼe (liqii)', generatedBy:'Kan uume'
+  totalApproved:'Waliigala Mirkanaaʼe (liqii)', generatedBy:'Kan uume',
+  gracePeriod:'Yeroo Dhiifamaa', nextDueLbl:'Itti aanu', monthsPaidLbl:'Jiʼoota kaffalame',
+  graceDaysLeft:'Yeroo dhiifamaa: guyyoota {n} hafan', dueInDays:'Guyyoota {n} keessatti',
+  dueToday:"Har'a", overdueDays:'Guyyoota {n} tureera'
 };
 
 const SUPPORTED = ['en','am','om'];
@@ -1283,6 +1320,32 @@ function renderBrandTitle(name){
   return esc(words.join(' '))+' <span class="sacco-gold">'+esc(tail)+'</span>';
 }
 
+/* ============================================================
+   NUMBER TO WORDS (for the agreement amount in words)
+   ============================================================ */
+function numberToWords(input){
+  let n = Math.floor(num(input));
+  if(!isFinite(n) || n < 0) return '';
+  if(n === 0) return 'Zero';
+  const ones = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten',
+    'Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+  const tens = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  function chunk(x){
+    if(x < 20) return ones[x];
+    if(x < 100) return tens[Math.floor(x/10)] + (x % 10 ? ' ' + ones[x % 10] : '');
+    return ones[Math.floor(x/100)] + ' Hundred' + (x % 100 ? ' ' + chunk(x % 100) : '');
+  }
+  let out = '';
+  const billion  = Math.floor(n / 1e9);  n %= 1e9;
+  const million  = Math.floor(n / 1e6);  n %= 1e6;
+  const thousand = Math.floor(n / 1e3);  n %= 1e3;
+  if(billion)  out += chunk(billion)  + ' Billion ';
+  if(million)  out += chunk(million)  + ' Million ';
+  if(thousand) out += chunk(thousand) + ' Thousand ';
+  if(n)        out += chunk(n);
+  return out.trim();
+}
+
 /* ============ ROLES ============ */
 const ROLE_LABELS={super_admin:'role_super_admin',admin:'role_admin',manager:'role_manager',cashier:'role_cashier',teller:'role_teller',accountant:'role_accountant',auditor:'role_auditor',member:'role_member',viewer:'role_viewer'};
 const roleLabel=(r)=>ROLE_LABELS[r]?t(ROLE_LABELS[r]):(r||'').replace(/_/g,' ');
@@ -1341,8 +1404,6 @@ function calcLoan(principal, ratePct, months, interestType='simple'){
 function loanRepaid(loan){return num(loan.amountRepaid);}
 function loanOutstanding(loan){const {total}=calcLoan(loan.principal,loan.interestRate,loan.duration,loan.interestType);return Math.max(0,total-loanRepaid(loan));}
 function loanProgress(loan){const {total}=calcLoan(loan.principal,loan.interestRate,loan.duration,loan.interestType);if(total<=0)return 0;return Math.min(100,Math.round((loanRepaid(loan)/total)*100));}
-function isOverdue(loan){if(!['active','approved'].includes(String(loan.status||'').toLowerCase()))return false;const mat=toDateSafe(loan.maturityDate);if(!mat)return false;return mat.getTime()<Date.now();}
-function isDueSoon(loan){if(!['active','approved'].includes(String(loan.status||'').toLowerCase()))return false;const mat=toDateSafe(loan.maturityDate);if(!mat)return false;const diff=mat.getTime()-Date.now();return diff>0&&diff<=30*86400000;}
 function computeMaturityDate(disbDate,months){if(!disbDate)return '';const d=new Date(disbDate);if(isNaN(d))return '';d.setMonth(d.getMonth()+Math.max(0,Math.floor(num(months))));return d.toISOString().slice(0,10);}
 function generateSerialNumber(){const yr=new Date().getFullYear();const rnd=Math.floor(100000+Math.random()*900000);const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let suf='';for(let i=0;i<3;i++)suf+=chars[Math.floor(Math.random()*chars.length)];return `GD-${yr}-${rnd}-${suf}`;}
 function customerLoanContext(customer,excludeLoanId){
@@ -1354,11 +1415,6 @@ function customerLoanContext(customer,excludeLoanId){
   return {total:loans.length,active,pending,paid,outstanding:round2(outstanding),exposure:round2(exposure),loans};
 }
 function countActiveOrPending(customer,excludeLoanId){const ctx=customerLoanContext(customer,excludeLoanId);return ctx.active+ctx.pending;}
-function activeOrPendingLoans(customer,excludeLoanId){
-  if(!customer)return [];
-  const cid=customer.customerId||customer.id;
-  return APP.loans.filter(l=>{if(excludeLoanId&&l.id===excludeLoanId)return false;if(!(l.customerId===cid||l.customerDocId===customer.id||l.memberId===cid))return false;const s=String(l.status||'').toLowerCase();return ['active','pending','approved'].includes(s);});
-}
 function calcMonthlyPayment(loan){return calcLoan(loan.principal,loan.interestRate,loan.duration,loan.interestType).monthly;}
 function computeRepaymentSplit(amount,loan,remaining){
   const p=num(loan?.principal),rate=num(loan?.interestRate);
@@ -1384,38 +1440,166 @@ function getRepaymentPrincipal(r,loan){
   return Math.max(0,amount-interestPart);
 }
 
+/* ============================================================
+   FIX #1 — Schedule-aware overdue / due-soon helpers
+   ============================================================ */
+const GRACE_DAYS = () => Math.max(0, Math.floor(num(APP?.settings?.gracePeriod) || 7));
+const GRACE_MS  = () => GRACE_DAYS() * 86400000;
+
+function loanStartDate(loan){
+  return toDateSafe(loan?.disbursementDate || loan?.date || loan?.createdAt);
+}
+function approvedRepaidForLoan(loanOrId){
+  const id = typeof loanOrId === 'string' ? loanOrId : loanOrId?.id;
+  if(!id) return 0;
+  return (APP.repayments || [])
+    .filter(r => r.loanId === id && (String(r.status||'').toLowerCase()==='approved' || r.printed === true))
+    .reduce((s,r) => s + num(r.amount), 0);
+}
+function approvedMonthsPaid(loanOrId){
+  const id = typeof loanOrId === 'string' ? loanOrId : loanOrId?.id;
+  if(!id) return 0;
+  return (APP.repayments || [])
+    .filter(r => r.loanId === id && (String(r.status||'').toLowerCase()==='approved' || r.printed === true))
+    .length;
+}
+function nextDueDate(loan){
+  const start = loanStartDate(loan);
+  if(!start) return null;
+  const total = Math.max(1, Math.floor(num(loan?.duration) || 1));
+  const paid  = approvedMonthsPaid(loan);
+  if(paid >= total) return null;
+  const d = new Date(start);
+  d.setMonth(d.getMonth() + paid + 1);
+  return d;
+}
+function daysUntil(date){
+  if(!date) return null;
+  return Math.ceil((date.getTime() - Date.now()) / 86400000);
+}
+function isOverdue(loan){
+  if(!['active','approved'].includes(String(loan?.status||'').toLowerCase())) return false;
+  const nd = nextDueDate(loan);
+  if(!nd) return false;
+  return Date.now() > (nd.getTime() + GRACE_MS());
+}
+function isInGrace(loan){
+  if(!['active','approved'].includes(String(loan?.status||'').toLowerCase())) return false;
+  const nd = nextDueDate(loan);
+  if(!nd) return false;
+  const t = Date.now();
+  return t > nd.getTime() && t <= (nd.getTime() + GRACE_MS());
+}
+function isDueSoon(loan){
+  if(!['active','approved'].includes(String(loan?.status||'').toLowerCase())) return false;
+  const nd = nextDueDate(loan);
+  if(!nd) return false;
+  const t = Date.now();
+  return t < nd.getTime() && (nd.getTime() - t) <= 30 * 86400000;
+}
+function scheduleStateLabel(loan){
+  if(isOverdue(loan)){
+    const nd = nextDueDate(loan);
+    const d = nd ? Math.floor((Date.now() - nd.getTime() - GRACE_MS())/86400000) : 0;
+    return {kind:'overdue', text:t('overdueDays',{n: Math.max(1, d)})};
+  }
+  if(isInGrace(loan)){
+    const nd = nextDueDate(loan);
+    const left = nd ? Math.max(0, Math.ceil((nd.getTime() + GRACE_MS() - Date.now())/86400000)) : 0;
+    return {kind:'grace', text:t('graceDaysLeft',{n: left})};
+  }
+  const nd = nextDueDate(loan);
+  if(!nd) return null;
+  const d = daysUntil(nd);
+  if(d === 0) return {kind:'due', text:t('dueToday')};
+  if(d > 0 && d <= 30) return {kind:'due', text:t('dueInDays',{n:d})};
+  return {kind:'due', text:`${t('nextDueLbl')}: ${fmtDate(nd)}`};
+}
+
 /* ============ LOAN REPAYMENTS HELPERS ============ */
 async function fetchLoanRepayments(loanId){
   const snap=await getDocs(query(collection(db,'transactions'),where('loanId','==',loanId),where('type','==','repayment')));
   return snap.docs.map(d=>({id:d.id,...d.data()}));
 }
 function pendingRepaymentsForLoan(loanId){return APP.repayments.filter(r=>r.loanId===loanId&&String(r.status||'pending').toLowerCase()==='pending');}
-/* ============ PENALTY ============ */
-async function checkAndCreatePenalty(loanId,memberId){
-  try{
-    const loanDoc=await getDoc(doc(db,'transactions',loanId));
-    if(!loanDoc.exists())return {penaltyAmount:0,unpaidMonths:0};
-    const loanData=loanDoc.data();
-    if(!loanData.date||!loanData.principal||!loanData.duration)return {penaltyAmount:0,unpaidMonths:0};
-    const loanDate=toDateSafe(loanData.date);
-    const now=new Date();
-    const monthsDiff=(now.getFullYear()-loanDate.getFullYear())*12+(now.getMonth()-loanDate.getMonth());
-    if(monthsDiff<=0)return {penaltyAmount:0,unpaidMonths:0};
-    const reps=await fetchLoanRepayments(loanId);
-    const paidMonths=reps.filter(r=>r.status==='approved'||r.status==='printed').length;
-    const penSnap=await getDocs(query(collection(db,'transactions'),where('loanId','==',loanId),where('type','==','penalty'),where('status','==','paid')));
-    let covered=0;penSnap.forEach(d=>{covered+=num(d.data().unpaidMonths);});
-    const unpaidMonths=Math.max(0,monthsDiff-paidMonths-covered);
-    if(unpaidMonths===0)return {penaltyAmount:0,unpaidMonths:0};
-    const monthlyPayment=calcLoan(loanData.principal,loanData.interestRate,loanData.duration,loanData.interestType||'simple').monthly;
-    const penaltyAmount=round2(monthlyPayment*unpaidMonths*APP.settings.loansPenaltyRate);
-    if(penaltyAmount<=0)return {penaltyAmount:0,unpaidMonths};
-    const existing=await getDocs(query(collection(db,'transactions'),where('loanId','==',loanId),where('type','==','penalty'),where('status','==','pending')));
-    if(!existing.empty){let t2=0;existing.forEach(d=>t2+=num(d.data().amount));return {penaltyAmount:t2,unpaidMonths};}
-    await setDoc(doc(collection(db,'transactions')),{memberId,loanId,type:'penalty',amount:penaltyAmount,unpaidMonths,monthlyPayment,penaltyRate:APP.settings.loansPenaltyRate,status:'pending',date:serverTimestamp(),createdAt:serverTimestamp(),description:`Penalty for ${unpaidMonths} unpaid month(s) — (${monthlyPayment.toFixed(2)} × ${unpaidMonths}) × ${(APP.settings.loansPenaltyRate*100).toFixed(1)}%`,createdBy:'system-auto'});
+
+/* ============================================================
+   FIX #2 — checkAndCreatePenalty() reads from `loans` collection
+   ============================================================ */
+async function checkAndCreatePenalty(loanId, memberId){
+  try {
+    const loanDoc = await getDoc(doc(db, 'loans', loanId));
+    if(!loanDoc.exists()) return {penaltyAmount:0, unpaidMonths:0};
+    const loanData = loanDoc.data();
+
+    const start = toDateSafe(loanData.disbursementDate || loanData.date || loanData.createdAt);
+    if(!start) return {penaltyAmount:0, unpaidMonths:0};
+    if(!loanData.principal || !loanData.duration) return {penaltyAmount:0, unpaidMonths:0};
+
+    const repsSnap = await getDocs(query(
+      collection(db,'transactions'),
+      where('loanId','==', loanId),
+      where('type','==','repayment')
+    ));
+    const approvedCount = repsSnap.docs.filter(d => {
+      const s = String(d.data().status||'').toLowerCase();
+      return s==='approved' || s==='printed';
+    }).length;
+
+    const nowShifted = new Date(Date.now() - GRACE_MS());
+    let monthsDue = (nowShifted.getFullYear() - start.getFullYear()) * 12
+                   + (nowShifted.getMonth() - start.getMonth());
+    if(nowShifted.getDate() < start.getDate()) monthsDue -= 1;
+    monthsDue = Math.max(0, monthsDue);
+
+    const penSnap = await getDocs(query(
+      collection(db,'transactions'),
+      where('loanId','==', loanId),
+      where('type','==','penalty'),
+      where('status','==','paid')
+    ));
+    let covered = 0;
+    penSnap.forEach(d => { covered += num(d.data().unpaidMonths); });
+
+    const unpaidMonths = Math.max(0, monthsDue - approvedCount - covered);
+    if(unpaidMonths === 0) return {penaltyAmount:0, unpaidMonths:0};
+
+    const monthlyPayment = calcLoan(
+      loanData.principal, loanData.interestRate,
+      loanData.duration, loanData.interestType || 'simple'
+    ).monthly;
+    const rate = num(APP.settings.loansPenaltyRate) || 0.05;
+    const penaltyAmount = round2(monthlyPayment * unpaidMonths * rate);
+    if(penaltyAmount <= 0) return {penaltyAmount:0, unpaidMonths};
+
+    const existing = await getDocs(query(
+      collection(db,'transactions'),
+      where('loanId','==', loanId),
+      where('type','==','penalty'),
+      where('status','==','pending')
+    ));
+    if(!existing.empty){
+      let tot = 0;
+      existing.forEach(d => { tot += num(d.data().amount); });
+      return {penaltyAmount: tot, unpaidMonths};
+    }
+
+    await setDoc(doc(collection(db,'transactions')), {
+      memberId, loanId, type:'penalty',
+      amount: penaltyAmount, unpaidMonths,
+      monthlyPayment, penaltyRate: rate,
+      status: 'pending',
+      date: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      description: `Penalty for ${unpaidMonths} unpaid month(s) — (${monthlyPayment.toFixed(2)} × ${unpaidMonths}) × ${(rate*100).toFixed(1)}%`,
+      createdBy: 'system-auto'
+    });
     toast(`⚠️ Penalty ETB ${penaltyAmount.toFixed(2)} generated for ${unpaidMonths} unpaid month(s).`,'warning');
-    return {penaltyAmount,unpaidMonths};
-  }catch(e){console.error('Penalty check error:',e);return {penaltyAmount:0,unpaidMonths:0};}
+    return {penaltyAmount, unpaidMonths};
+  } catch(e) {
+    console.error('Penalty check error:', e);
+    return {penaltyAmount:0, unpaidMonths:0};
+  }
 }
 async function getMemberPenaltiesWithDetails(memberId){
   try{
@@ -1426,69 +1610,147 @@ async function getMemberPenaltiesWithDetails(memberId){
   }catch(e){return {total:0,details:[]};}
 }
 
-/* ============ PAYMENT HISTORY ============ */
+/* ============================================================
+   FIX #3 — generatePaymentHistory() with Grace / Overdue classification
+   ============================================================ */
 async function generatePaymentHistory(loanId){
   try{
-    const loanDoc=await getDoc(doc(db,'transactions',loanId));
-    if(!loanDoc.exists())return `<p style="color:var(--muted)">Loan not found.</p>`;
-    const loan=loanDoc.data();
-    const startDate=toDateSafe(loan.date);
-    if(!startDate)return `<p style="color:var(--muted)">Invalid loan start date.</p>`;
-    const now=new Date();
-    const totalMonths=(now.getFullYear()-startDate.getFullYear())*12+(now.getMonth()-startDate.getMonth())+1;
-    if(totalMonths<=0)return `<p style="color:var(--muted)">Loan just started — no history yet.</p>`;
-    const txSnap=await getDocs(query(collection(db,'transactions'),where('loanId','==',loanId),where('type','in',['repayment','penalty'])));
-    const principal0=num(loan.principal),rate=num(loan.interestRate);
-    const period=num(loan.duration),loanType=loan.interestType||'simple';
-    const totalInterest=calcLoan(principal0,rate,period,loanType).interest;
-    const fixedMonthlyInterest=period>0?(totalInterest/period):0;
-    const monthMap={};
+    const loanDoc = await getDoc(doc(db,'loans',loanId));
+    if(!loanDoc.exists()) return `<p style="color:var(--muted)">Loan not found.</p>`;
+    const loan = loanDoc.data();
+    const startDate = toDateSafe(loan.disbursementDate || loan.date || loan.createdAt);
+    if(!startDate) return `<p style="color:var(--muted)">Invalid loan start date.</p>`;
+
+    const now = new Date();
+    const totalMonths = (now.getFullYear()-startDate.getFullYear())*12 + (now.getMonth()-startDate.getMonth()) + 1;
+    if(totalMonths<=0) return `<p style="color:var(--muted)">Loan just started — no history yet.</p>`;
+
+    const txSnap = await getDocs(query(
+      collection(db,'transactions'),
+      where('loanId','==',loanId),
+      where('type','in',['repayment','penalty'])
+    ));
+
+    const principal0 = num(loan.principal), rate = num(loan.interestRate);
+    const period = num(loan.duration), loanType = loan.interestType || 'simple';
+    const totalInterest = calcLoan(principal0,rate,period,loanType).interest;
+    const fixedMonthlyInterest = period>0 ? (totalInterest/period) : 0;
+
+    const monthMap = {};
     txSnap.forEach(d=>{
-      const data=d.data();
-      const date=toDateSafe(data.date);
-      if(!date)return;
-      const idx=(date.getFullYear()-startDate.getFullYear())*12+(date.getMonth()-startDate.getMonth());
+      const data = d.data();
+      const date = toDateSafe(data.date);
+      if(!date) return;
+      const idx = (date.getFullYear()-startDate.getFullYear())*12 + (date.getMonth()-startDate.getMonth());
+
       if(data.type==='repayment'){
-        const status=data.status||'pending';
-        const amount=num(data.amount);
+        const status = data.status || 'pending';
+        const amount = num(data.amount);
         let pP,iP;
-        if(typeof data.principalPortion==='number'&&typeof data.interestPortion==='number'){pP=num(data.principalPortion);iP=num(data.interestPortion);}
-        else{iP=Math.min(amount,fixedMonthlyInterest);pP=Math.max(0,amount-iP);}
-        const isApproved=status==='approved'||status==='printed';
-        if(!monthMap[idx])monthMap[idx]={principal:0,interest:0,total:0,status:'pending',waived:false};
-        monthMap[idx].principal+=pP;monthMap[idx].interest+=iP;monthMap[idx].total+=amount;
-        if(data.interestWaived)monthMap[idx].waived=true;
-        if(isApproved)monthMap[idx].status='paid';
-        else if(monthMap[idx].status!=='paid')monthMap[idx].status='pending';
-      }else if(data.type==='penalty'){
-        const ps=data.status||'pending';
-        const covered=num(data.unpaidMonths);
-        if(ps==='paid'||ps==='approved'){for(let i=0;i<covered;i++){const ii=idx-i;if(ii>=0){if(!monthMap[ii])monthMap[ii]={principal:0,interest:0,total:0,status:'pending',waived:false};if(monthMap[ii].status!=='paid')monthMap[ii].status='penalty-paid';}}}
-        else if(ps==='pending'){for(let i=0;i<covered;i++){const ii=idx-i;if(ii>=0){if(!monthMap[ii])monthMap[ii]={principal:0,interest:0,total:0,status:'pending',waived:false};if(monthMap[ii].status==='pending')monthMap[ii].status='penalized';}}}
+        if(typeof data.principalPortion==='number' && typeof data.interestPortion==='number'){
+          pP = num(data.principalPortion); iP = num(data.interestPortion);
+        } else {
+          iP = Math.min(amount, fixedMonthlyInterest);
+          pP = Math.max(0, amount - iP);
+        }
+        const isApproved = status==='approved' || status==='printed';
+        if(!monthMap[idx]) monthMap[idx] = {principal:0,interest:0,total:0,status:'pending',waived:false};
+        monthMap[idx].principal += pP;
+        monthMap[idx].interest  += iP;
+        monthMap[idx].total     += amount;
+        if(data.interestWaived) monthMap[idx].waived = true;
+        if(isApproved) monthMap[idx].status = 'paid';
+        else if(monthMap[idx].status !== 'paid') monthMap[idx].status = 'pending';
+      } else if(data.type==='penalty'){
+        const ps = data.status || 'pending';
+        const covered = num(data.unpaidMonths);
+        if(ps==='paid' || ps==='approved'){
+          for(let i=0;i<covered;i++){
+            const ii = idx-i; if(ii<0) continue;
+            if(!monthMap[ii]) monthMap[ii] = {principal:0,interest:0,total:0,status:'pending',waived:false};
+            if(monthMap[ii].status !== 'paid') monthMap[ii].status = 'penalty-paid';
+          }
+        } else if(ps==='pending'){
+          for(let i=0;i<covered;i++){
+            const ii = idx-i; if(ii<0) continue;
+            if(!monthMap[ii]) monthMap[ii] = {principal:0,interest:0,total:0,status:'pending',waived:false};
+            if(monthMap[ii].status === 'pending') monthMap[ii].status = 'penalized';
+          }
+        }
       }
     });
-    const fmt=(n)=>num(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-    let tPrincipal=0,tInterest=0,tRepaid=0;
-    let rowsHtml=`<div class="history-row header"><span>${esc(t('month'))}</span><span>Status</span><span style="text-align:right">${esc(t('colPrincipal'))}</span><span style="text-align:right">${esc(t('colInterest'))}</span><span style="text-align:right">Total</span></div>`;
+
+    const fmt = (n)=>num(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+    let tPrincipal=0, tInterest=0, tRepaid=0;
+
+    let rowsHtml = `<div class="history-row header">
+      <span>${esc(t('month'))}</span>
+      <span>Status</span>
+      <span style="text-align:right">${esc(t('colPrincipal'))}</span>
+      <span style="text-align:right">${esc(t('colInterest'))}</span>
+      <span style="text-align:right">Total</span>
+    </div>`;
+
     for(let i=0;i<totalMonths;i++){
-      const mDate=new Date(startDate);mDate.setMonth(mDate.getMonth()+i);
-      const mLabel=mDate.toLocaleDateString('en-US',{month:'short',year:'numeric'});
-      const isFuture=mDate>now&&i>0;
-      const entry=monthMap[i]||{principal:0,interest:0,total:0,status:'pending',waived:false};
-      let st=entry.status;
-      if(isFuture&&st==='pending'&&entry.total===0)st='future';
-      let sLabel,sCls;
-      switch(st){case 'paid':sLabel=t('paid');sCls='paid';break;case 'penalty-paid':sLabel=t('penaltyPaid');sCls='penalty-paid';break;case 'penalized':sLabel=t('penalized');sCls='penalized';break;case 'future':sLabel=t('future');sCls='future';break;default:sLabel=t('pendingLc');sCls='pending';}
-      if(st==='paid'||st==='penalty-paid'){tPrincipal+=entry.principal;tInterest+=entry.interest;tRepaid+=entry.total;}
-      const show=entry.total>0;
-      const pTxt=show?fmt(entry.principal):'—';
-      const iTxt=show?(entry.waived?`0.00 (${t('waived')})`:fmt(entry.interest)):'—';
-      const tTxt=show?fmt(entry.total):'—';
-      rowsHtml+=`<div class="history-row ${entry.waived?'waived':''}"><span class="month">${mLabel}</span><span class="status-cell ${sCls}">${sLabel}</span><span class="principal">${pTxt}</span><span class="interest">${iTxt}</span><span class="total-amount">${tTxt}</span></div>`;
+      const mDate = new Date(startDate); mDate.setMonth(mDate.getMonth() + i);
+      const mLabel = mDate.toLocaleDateString('en-US',{month:'short',year:'numeric'});
+      const entry = monthMap[i] || {principal:0,interest:0,total:0,status:'pending',waived:false};
+
+      let st = entry.status;
+      const dueDate  = new Date(startDate);
+      dueDate.setMonth(dueDate.getMonth() + i + 1);
+      const graceEnd = dueDate.getTime() + GRACE_MS();
+      const nowMs = Date.now();
+
+      if((st === 'pending' || st === 'future') && entry.total === 0){
+        if(nowMs > graceEnd)                  st = 'overdue';
+        else if(nowMs > dueDate.getTime())    st = 'grace';
+        else                                  st = 'future';
+      }
+
+      let sLabel, sCls, rowCls = '';
+      switch(st){
+        case 'paid':         sLabel=t('paid');        sCls='paid';          break;
+        case 'penalty-paid': sLabel=t('penaltyPaid'); sCls='penalty-paid';  break;
+        case 'penalized':    sLabel=t('penalized');   sCls='penalized'; rowCls='overdue'; break;
+        case 'future':       sLabel=t('future');      sCls='future';        break;
+        case 'grace':        sLabel=t('graceStatus'); sCls='grace';   rowCls='grace';  break;
+        case 'overdue':      sLabel=t('overdueStatus'); sCls='overdue'; rowCls='overdue'; break;
+        default:             sLabel=t('pendingLc');   sCls='pending';
+      }
+
+      if(st==='paid' || st==='penalty-paid'){
+        tPrincipal += entry.principal;
+        tInterest  += entry.interest;
+        tRepaid    += entry.total;
+      }
+
+      const show = entry.total > 0;
+      const pTxt = show ? fmt(entry.principal) : '—';
+      const iTxt = show ? (entry.waived ? `0.00 (${t('waived')})` : fmt(entry.interest)) : '—';
+      const tTxt = show ? fmt(entry.total) : '—';
+
+      rowsHtml += `<div class="history-row ${entry.waived?'waived':''} ${rowCls}">
+        <span class="month">${mLabel}</span>
+        <span class="status-cell ${sCls}">${sLabel}</span>
+        <span class="principal">${pTxt}</span>
+        <span class="interest">${iTxt}</span>
+        <span class="total-amount">${tTxt}</span>
+      </div>`;
     }
-    const totalsHtml=`<div class="history-totals"><div class="tot-item"><span class="tot-label">${esc(t('totalPrincipalPaid'))}</span><span class="tot-value principal"><span class="cur">ETB</span>${fmt(tPrincipal)}</span></div><div class="tot-item"><span class="tot-label">${esc(t('totalInterestPaid'))}</span><span class="tot-value interest"><span class="cur">ETB</span>${fmt(tInterest)}</span></div><div class="tot-item"><span class="tot-label">${esc(t('totalRepaid'))}</span><span class="tot-value total"><span class="cur">ETB</span>${fmt(tRepaid)}</span></div></div>`;
-    return `<h5><i class="fas fa-calendar-alt" style="color:var(--primary)"></i> ${esc(t('paymentHistory'))} (${totalMonths} ${t('month').toLowerCase()})</h5><div class="history-list">${rowsHtml}</div>${totalsHtml}`;
-  }catch(e){console.error(e);return `<p style="color:var(--muted)">Error loading payment history.</p>`;}
+
+    const totalsHtml = `<div class="history-totals">
+      <div class="tot-item"><span class="tot-label">${esc(t('totalPrincipalPaid'))}</span><span class="tot-value principal"><span class="cur">ETB</span>${fmt(tPrincipal)}</span></div>
+      <div class="tot-item"><span class="tot-label">${esc(t('totalInterestPaid'))}</span><span class="tot-value interest"><span class="cur">ETB</span>${fmt(tInterest)}</span></div>
+      <div class="tot-item"><span class="tot-label">${esc(t('totalRepaid'))}</span><span class="tot-value total"><span class="cur">ETB</span>${fmt(tRepaid)}</span></div>
+    </div>`;
+
+    return `<h5><i class="fas fa-calendar-alt" style="color:var(--primary)"></i> ${esc(t('paymentHistory'))} (${totalMonths} ${t('month').toLowerCase()})</h5>
+      <div class="history-list">${rowsHtml}</div>${totalsHtml}`;
+  } catch(e){
+    console.error(e);
+    return `<p style="color:var(--muted)">Error loading payment history.</p>`;
+  }
 }
 
 /* ============ NAV ============ */
@@ -1701,7 +1963,7 @@ function renderMain(){
       <div class="stat stat--gold">
         <div class="stat__head"><div class="stat__label">${esc(t('statOverdue'))}</div><div class="stat__icon"><i class="fas fa-exclamation-triangle"></i></div></div>
         <div class="stat__value">${overdueCount}</div>
-        <div class="stat__hint">${esc(t('filterOverdueOnly'))}</div>
+        <div class="stat__hint">${esc(t('filterOverdueOnly'))} · grace ${GRACE_DAYS()}d</div>
       </div>
     </section>
 
@@ -1770,7 +2032,16 @@ function renderContent(){
 /* ============ GRID ============ */
 function loanStatusLabel(status){const map={pending:'Pending',approved:'Approved',active:'Active',repaid:'Repaid',defaulted:'Defaulted',rejected:'Rejected'};return map[String(status||'').toLowerCase()]||status||'—';}
 function loanStatusCls(status){const s=String(status||'').toLowerCase();if(s==='repaid')return 'tag--blue';if(s==='active'||s==='approved')return 'tag--green';if(s==='pending')return 'tag--gold';if(s==='defaulted'||s==='rejected')return 'tag--red';return 'tag--gray';}
-function loanCardClass(l){if(isOverdue(l))return 'loan-card--overdue';const s=String(l.status||'').toLowerCase();if(s==='active'||s==='approved')return 'loan-card--active';if(s==='pending')return 'loan-card--pending';if(s==='repaid')return 'loan-card--repaid';if(s==='rejected'||s==='defaulted')return 'loan-card--rejected';return '';}
+function loanCardClass(l){
+  if(isOverdue(l))return 'loan-card--overdue';
+  if(isInGrace(l))return 'loan-card--grace';
+  const s=String(l.status||'').toLowerCase();
+  if(s==='active'||s==='approved')return 'loan-card--active';
+  if(s==='pending')return 'loan-card--pending';
+  if(s==='repaid')return 'loan-card--repaid';
+  if(s==='rejected'||s==='defaulted')return 'loan-card--rejected';
+  return '';
+}
 function loanStatusBadgeClass(status){const s=String(status||'').toLowerCase();if(s==='active')return 'status-badge--active';if(s==='approved')return 'status-badge--approved';if(s==='pending')return 'status-badge--pending';if(s==='repaid')return 'status-badge--repaid';if(s==='rejected')return 'status-badge--rejected';if(s==='defaulted')return 'status-badge--defaulted';return 'status-badge--pending';}
 function renderGridView(host,list){
   const pages=Math.max(1,Math.ceil(list.length/APP.pageSize));if(APP.page>pages)APP.page=pages;
@@ -1785,15 +2056,29 @@ function renderLoanCard(l){
   const {monthly}=calcLoan(l.principal,l.interestRate,l.duration,l.interestType);
   const outstanding=loanOutstanding(l);
   const progress=loanProgress(l);
-  const overdue=isOverdue(l);const soon=isDueSoon(l);
+  const overdue=isOverdue(l);const grace=isInGrace(l);const soon=isDueSoon(l);
   const status=String(l.status||'').toLowerCase();
-  const progressCls=overdue?'is-danger':(soon?'is-warn':'');
+  const progressCls=overdue?'is-danger':(grace||soon?'is-warn':'');
   const isPending=status==='pending';const isActive=status==='active'||status==='approved';
   const canR=canRepay()&&outstanding>0&&isActive;const canP=canPrint();const canA=canApprove()&&isPending;const canE=canEdit();const canD=canDelete();
   const pendingReps=pendingRepaymentsForLoan(l.id).length;
+
+  let scheduleFoot='';
+  if(isActive){
+    const state=scheduleStateLabel(l);
+    if(state){
+      if(state.kind==='overdue') scheduleFoot=`<div class="loan-card__foot-item danger"><i class="fas fa-exclamation-triangle"></i> ${esc(state.text)}</div>`;
+      else if(state.kind==='grace') scheduleFoot=`<div class="loan-card__foot-item grace"><i class="fas fa-hourglass-half"></i> ${esc(state.text)}</div>`;
+      else scheduleFoot=`<div class="loan-card__foot-item due"><i class="fas fa-calendar-check"></i> ${esc(state.text)}</div>`;
+    }
+  }
+  const statusBadge = overdue ? `<span class="status-badge status-badge--defaulted"><i class="fas fa-exclamation-triangle" style="font-size:9px"></i> ${esc(t('overduBadge'))}</span>`
+                    : grace  ? `<span class="status-badge status-badge--grace"><i class="fas fa-hourglass-half" style="font-size:9px"></i> ${esc(t('graceBadge'))}</span>`
+                    : `<span class="status-badge ${loanStatusBadgeClass(status)}">${esc(loanStatusLabel(l.status))}</span>`;
+
   return `
     <div class="loan-card ${loanCardClass(l)}">
-      <span class="status-badge ${loanStatusBadgeClass(status)}">${esc(loanStatusLabel(l.status))}</span>
+      ${statusBadge}
       <div class="loan-card__head">
         <div class="loan-card__avatar">${avatar}</div>
         <div class="loan-card__main">
@@ -1826,8 +2111,8 @@ function renderLoanCard(l){
         <div class="loan-card__foot-item"><i class="fas fa-percent"></i> ${num(l.interestRate).toFixed(2)}%</div>
         <div class="loan-card__foot-item"><i class="fas fa-calendar-alt"></i> ${num(l.duration)} mo</div>
         <div class="loan-card__foot-item"><i class="fas fa-coins"></i> ${esc(moneyShort(monthly))}</div>
+        ${scheduleFoot}
         ${pendingReps>0?`<div class="loan-card__foot-item pending-rep"><i class="fas fa-hourglass-half"></i> ${pendingReps} ${esc(t('awaitingApproval'))}</div>`:''}
-        ${overdue?`<div class="loan-card__foot-item danger"><i class="fas fa-exclamation-triangle"></i> ${esc(t('overduBadge'))}</div>`:(soon?`<div class="loan-card__foot-item warn"><i class="fas fa-clock"></i> ${esc(t('soonBadge'))}</div>`:'')}
       </div>
     </div>`;
 }
@@ -1854,12 +2139,13 @@ function renderTableView(host,list){
           const {total}=calcLoan(l.principal,l.interestRate,l.duration,l.interestType);
           const outstanding=loanOutstanding(l);
           const progress=loanProgress(l);
-          const overdue=isOverdue(l);const soon=isDueSoon(l);
+          const overdue=isOverdue(l);const grace=isInGrace(l);const soon=isDueSoon(l);
           const stCls=loanStatusCls(l.status);
           const status=String(l.status||'').toLowerCase();
           const isPending=status==='pending';const isActive=status==='active'||status==='approved';
-          const progressCls=overdue?'is-danger':(soon?'is-warn':'');
+          const progressCls=overdue?'is-danger':((grace||soon)?'is-warn':'');
           const pendingReps=pendingRepaymentsForLoan(l.id).length;
+          const sState = isActive ? scheduleStateLabel(l) : null;
           return `<tr>
             <td><div class="code">${esc(l.serialNumber||l.loanNumber||'—')}</div><div class="muted" style="margin-top:4px">${esc(fmtDate(l.disbursementDate||l.createdAt))}</div>${pendingReps>0?`<div style="margin-top:4px"><span class="tag tag--gold" style="font-size:9.5px"><i class="fas fa-hourglass-half"></i> ${pendingReps} pending</span></div>`:''}</td>
             <td><div class="cust-cell"><div class="cust-avatar">${avatar}</div><div><div class="name">${esc(customerName(c))}</div><div class="muted">${c?.customerId?esc(c.customerId):(l.customerId||'—')}</div></div></div></td>
@@ -1871,8 +2157,8 @@ function renderTableView(host,list){
             <td class="num">${money(total)}</td>
             <td class="num" style="color:${outstanding>0?'#b42318':'#067647'}">${money(outstanding)}</td>
             <td style="min-width:120px"><div style="font-size:11px;font-weight:800;color:var(--muted);font-family:ui-monospace,monospace">${progress}%</div><div class="progress-bar"><div class="progress-bar__fill ${progressCls}" style="width:${progress}%"></div></div></td>
-            <td><span class="tag ${stCls}">${esc(loanStatusLabel(l.status))}</span></td>
-            <td><div style="font-size:12px">${esc(fmtDate(l.maturityDate))}</div>${overdue?`<div class="muted" style="color:#b42318;font-weight:800">● ${esc(t('overduBadge'))}</div>`:(soon?`<div class="muted" style="color:#b8860b;font-weight:800">● ${esc(t('soonBadge'))}</div>`:'')}</td>
+            <td><span class="tag ${stCls}">${esc(loanStatusLabel(l.status))}</span>${overdue?`<div style="margin-top:4px"><span class="tag tag--red" style="font-size:9.5px"><i class="fas fa-exclamation-triangle"></i> ${esc(t('overduBadge'))}</span></div>`:grace?`<div style="margin-top:4px"><span class="tag tag--gold" style="font-size:9.5px"><i class="fas fa-hourglass-half"></i> ${esc(t('graceBadge'))}</span></div>`:''}</td>
+            <td><div style="font-size:12px">${esc(fmtDate(l.maturityDate))}</div>${sState?`<div class="muted" style="color:${overdue?'#b42318':grace?'#b8860b':'#0b5cab'};font-weight:800">● ${esc(sState.text)}</div>`:''}</td>
             <td class="num"><div class="row-actions">
               ${canR&&outstanding>0&&isActive?`<button title="${esc(t('rowRepay'))}" data-action="repay" data-id="${esc(l.id)}" class="pay"><i class="fas fa-hand-holding-usd"></i></button>`:''}
               ${canP?`<button title="${esc(t('rowPrint'))}" data-action="print" data-id="${esc(l.id)}" class="print"><i class="fas fa-print"></i></button>`:''}
@@ -1979,6 +2265,7 @@ async function rejectRepayment(txId){
     await loadAllData();renderMain();
   }catch(err){toast(t('errorSave')+(err.code==='permission-denied'?t('noPermission'):err.message),'error');}
 }
+
 /* ============ MODAL FRAMEWORK ============ */
 let escHandler=null;
 function closeModal(){
@@ -2043,9 +2330,10 @@ function openLoanWizard(loan){
     interestRate:l0.interestRate!=null?String(num(l0.interestRate)):String(APP.settings.defaultInterestRate),
     duration:l0.duration!=null?String(num(l0.duration)):'12',
     purpose:l0.purpose||'',collateral:l0.collateral||'',
+    reference:l0.reference||'',
     disbursementDate:l0.disbursementDate||new Date().toISOString().slice(0,10),
     maturityDate:l0.maturityDate||computeMaturityDate(l0.disbursementDate||new Date().toISOString().slice(0,10),l0.duration||12),
-    status:l0.status||'pending',reference:l0.reference||'',notes:l0.notes||'',_attachment:l0.attachment||null
+    status:l0.status||'pending',notes:l0.notes||'',_attachment:l0.attachment||null
   };
   if(initial.customerId){const c=customerById(initial.customerId);if(c)initial._customerDocId=c.id;}
   const searchState={q:''};const guarantees=Array.isArray(l0.guarantees)?[...l0.guarantees]:[];
@@ -2126,6 +2414,7 @@ function openLoanWizard(loan){
               <div class="field"><label>${esc(t('maturityDateLabel'))}</label><input data-field="maturityDate" id="wiz-matdate" type="date" value="${esc(d.maturityDate||'')}"></div>
             </div>
             <div class="field"><label>${esc(t('purposeLabel'))}</label><textarea data-field="purpose" placeholder="${esc(t('purposePlaceholder'))}">${esc(d.purpose||'')}</textarea></div>
+            <div class="field"><label>Reference (S/H/H/L)</label><input data-field="reference" type="text" placeholder="e.g. S/H/H/L/ 1679, 1721, 1731, 2005/2006" value="${esc(d.reference||'')}"></div>
             <div class="field"><label>${esc(t('collateralLabel'))}</label><textarea data-field="collateral" placeholder="${esc(t('collateralPlaceholder'))}">${esc(d.collateral||'')}</textarea></div>
             <div class="field"><label class="field__required">${esc(t('guaranteesLabel'))}</label><div class="guarantee-wrap" id="wiz-guarantee-list">${guaranteesHtml}</div><button type="button" class="guarantee-add-btn" id="wiz-guarantee-add"><i class="fas fa-plus-circle"></i> ${esc(t('addGuarantee'))}</button></div>
             <div class="field"><label>${esc(t('receiptPhoto'))}</label><div class="receipt-upload ${d._attachment?'has-img':''}" id="wiz-receipt-upload"><div class="receipt-upload__preview">${d._attachment?`<img src="${esc(d._attachment)}" alt="">`:''}<i class="fas fa-file-invoice"></i></div><div class="receipt-upload__main"><div class="receipt-upload__title">${d._attachment?esc(t('receiptAdded')):esc(t('receiptTitle'))}</div><div class="receipt-upload__hint">${esc(t('receiptHint'))}</div></div><input type="file" id="wiz-receipt-input" accept="image/*" style="display:none"></div></div>
@@ -2216,7 +2505,7 @@ function openLoanWizard(loan){
       if(['pending','active','approved'].includes(incomingStatus)&&existingCount>=maxPer){throw new Error(t('maxLoansReached').replace('{max}',maxPer));}
       const {total}=calcLoan(principal,rate,months,interestType);
       const status=d.status||'pending';
-      const payload={customerId:c.customerId||c.id,memberId:c.customerId||c.id,customerDocId:c.id,customerName:customerName(c),loanType:d.loanType||'personal',interestType,principal,interestRate:rate,duration:months,totalPayable:total,purpose:(d.purpose||'').trim(),collateral:(d.collateral||'').trim(),guarantees,disbursementDate:d.disbursementDate||new Date().toISOString().slice(0,10),maturityDate:d.maturityDate||computeMaturityDate(d.disbursementDate,months),status,reference:(d.reference||'').trim(),notes:(d.notes||'').trim(),attachment:d._attachment||null,districtId:c.districtId||null,districtName:c.districtName||districtById(c.districtId)?.name||null,branchId:c.branchId||null,branchName:c.branchName||branchById(c.branchId)?.name||null,updatedAt:serverTimestamp()};
+      const payload={customerId:c.customerId||c.id,memberId:c.customerId||c.id,customerDocId:c.id,customerName:customerName(c),loanType:d.loanType||'personal',interestType,principal,interestRate:rate,duration:months,totalPayable:total,purpose:(d.purpose||'').trim(),collateral:(d.collateral||'').trim(),reference:(d.reference||'').trim(),guarantees,disbursementDate:d.disbursementDate||new Date().toISOString().slice(0,10),maturityDate:d.maturityDate||computeMaturityDate(d.disbursementDate,months),status,notes:(d.notes||'').trim(),attachment:d._attachment||null,districtId:c.districtId||null,districtName:c.districtName||districtById(c.districtId)?.name||null,branchId:c.branchId||null,branchName:c.branchName||branchById(c.branchId)?.name||null,updatedAt:serverTimestamp()};
       if(['approved','active'].includes(status)){if(!isEdit||!l0.approvedByName){payload.approvedBy=S.uid;payload.approvedByName=S.name;payload.approvedAt=serverTimestamp();}}
       if(isEdit){payload.serialNumber=l0.serialNumber||generateSerialNumber();payload.loanNumber=l0.loanNumber||payload.serialNumber;await updateDoc(doc(db,'loans',l0.id),payload);}
       else{payload.serialNumber=generateSerialNumber();payload.loanNumber=payload.serialNumber;payload.amountRepaid=0;payload.createdAt=serverTimestamp();payload.createdBy=S.uid;payload.createdByName=S.name;payload.printCount=0;payload.printStatus='not_printed';await setDoc(doc(collection(db,'loans')),payload);}
@@ -2224,6 +2513,7 @@ function openLoanWizard(loan){
     }
   });
 }
+
 /* ============ VIEW MODAL ============ */
 function openViewModal(l){
   closeModal();
@@ -2232,6 +2522,22 @@ function openViewModal(l){
   const outstanding=loanOutstanding(l);
   const loanReps=(APP.repayments||[]).filter(r=>r.loanId===l.id).sort((a,b)=>(toDateSafe(b.date)?.getTime()||0)-(toDateSafe(a.date)?.getTime()||0));
   const totalPendingAmount=loanReps.filter(r=>String(r.status||'').toLowerCase()==='pending').reduce((s,r)=>s+num(r.amount),0);
+
+  const st = String(l.status||'').toLowerCase();
+  const isActive = st==='active'||st==='approved';
+  const schState = isActive ? scheduleStateLabel(l) : null;
+  const nextDue = isActive ? nextDueDate(l) : null;
+  const graceRow = isActive ? `
+    <div class="review__row">
+      <span class="review__k">${esc(t('nextDueDate'))}</span>
+      <span class="review__v">${nextDue ? esc(fmtDate(nextDue)) : '—'}</span>
+    </div>
+    <div class="review__row">
+      <span class="review__k">${esc(t('gracePeriod'))}</span>
+      <span class="review__v" style="font-weight:800;color:${schState?.kind==='overdue'?'#b42318':schState?.kind==='grace'?'#b8860b':'#067647'}">
+        ${GRACE_DAYS()} day(s) · ${schState ? esc(schState.text) : esc(t('fullyPaidMsg'))}
+      </span>
+    </div>` : '';
 
   let repsHtml='';
   if(loanReps.length){
@@ -2246,13 +2552,13 @@ function openViewModal(l){
       <span style="text-align:right">Actions</span>
     </div>`;
     const rows=loanReps.map(r=>{
-      const st=String(r.status||'pending').toLowerCase();
-      const stCls=st==='approved'?'approved':st==='rejected'?'rejected':'pending';
-      const stLabel=st==='approved'?t('repApproved'):st==='rejected'?t('repRejected'):t('repPending');
+      const rst=String(r.status||'pending').toLowerCase();
+      const stCls=rst==='approved'?'approved':rst==='rejected'?'rejected':'pending';
+      const stLabel=rst==='approved'?t('repApproved'):rst==='rejected'?t('repRejected'):t('repPending');
       const recordedBy=r.createdByName||r.createdBy||'—';
       const approvedBy=r.approvedByName||r.rejectedByName||'—';
       let actions='';
-      if(st==='pending'&&canApprove()){
+      if(rst==='pending'&&canApprove()){
         actions=`<button class="approve-btn" data-approve-rep="${esc(r.id)}" title="Approve"><i class="fas fa-check"></i></button>
                  <button class="reject-btn" data-reject-rep="${esc(r.id)}" title="Reject"><i class="fas fa-times"></i></button>`;
       }
@@ -2263,7 +2569,7 @@ function openViewModal(l){
         <span class="pp">${num(r.principalPortion).toLocaleString()}</span>
         <span class="ip">${num(r.interestPortion).toLocaleString()}${r.interestWaived?' ✓':''}</span>
         <span class="by">${esc(recordedBy)}<span class="role">${esc(t('colRecordedBy'))}</span></span>
-        <span class="by">${esc(approvedBy)}<span class="role">${st==='approved'?t('repApproved'):st==='rejected'?t('repRejected'):'—'}</span></span>
+        <span class="by">${esc(approvedBy)}<span class="role">${rst==='approved'?t('repApproved'):rst==='rejected'?t('repRejected'):'—'}</span></span>
         <span class="status-cell ${stCls}">${stLabel}</span>
         <span class="actions">${actions}</span>
       </div>`;
@@ -2298,6 +2604,7 @@ function openViewModal(l){
           <div class="review__row"><span class="review__k">${esc(t('interestAmount'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(money(interest))}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('colTotalPayable'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(money(total))}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('monthlyPayment'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(money(monthly))}</span></div>
+          ${graceRow}
           <div class="review__row"><span class="review__k">${esc(t('recordedBy'))}</span><span class="review__v">${esc(l.createdByName||'—')}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('approvedBy'))}</span><span class="review__v">${l.approvedByName?esc(l.approvedByName):`<span style="color:var(--muted)">${esc(t('notApprovedYet'))}</span>`}</span></div>
         </div>
@@ -2354,7 +2661,7 @@ function openViewModal(l){
 }
 
 /* ============================================================
-   REPAYMENT MODAL — 3-step wizard
+   REPAYMENT MODAL
    ============================================================ */
 async function openRepaymentModal(loan){
   if(!canRepay()){toast(t('noPermission'),'error');return;}
@@ -2585,6 +2892,7 @@ async function openRepaymentModal(loan){
     }
   });
 }
+
 /* ============ A5 LANDSCAPE RECEIPT ============ */
 function buildRepaymentReceiptHtml(tx, loan, watermarkText='COPY'){
   const c=customerById(loan.customerId||loan.customerDocId);
@@ -2751,63 +3059,159 @@ function showLogoutModal(){
   });
 }
 
-/* ============ PRINT LOAN SLIP (A4) ============ */
-function buildSlipHtml(l,watermarkText){
-  const c=customerById(l.customerId||l.customerDocId);
-  const cName=customerName(c);
-  const isCopy=watermarkText==='COPY';
-  const {interest,total,monthly}=calcLoan(l.principal,l.interestRate,l.duration,l.interestType);
-  const serial=l.serialNumber||l.loanNumber||('GD-'+(l.id||'').slice(-12).toUpperCase());
-  const dateStr=fmtDate(l.disbursementDate||l.createdAt||new Date());
-  const guarantors=Array.isArray(l.guarantees)?l.guarantees:[];
-  const recordedByName=l.createdByName||'—';const approvedByName=l.approvedByName||'—';
-  const gListHtml=guarantors.length?guarantors.map(g=>`<li>• <strong>${esc(g.name||'—')}</strong> <span style="font-size:9pt">(${esc(g.type||'other')}${g.value?' · '+esc(money(g.value)):''}${g.contact?' · '+esc(g.contact):''})</span></li>`).join(''):'<li><span style="border-bottom:1px dotted #666;display:inline-block;min-width:60px;">No guarantors listed</span></li>';
-  const gRowsHtml=guarantors.length?guarantors.map((g,i)=>`<tr><td>${i+1}. ${esc(g.name||'—')}</td><td style="border-bottom:1px solid #000;"></td><td style="border-bottom:1px solid #000;"></td></tr>`).join(''):`<tr><td>1.</td><td style="border-bottom:1px solid #000;"></td><td style="border-bottom:1px solid #000;"></td></tr>`;
-  return `<div class="slip" style="padding:20mm 20mm;height:auto;min-height:297mm;">
+/* ============================================================
+   PRINT LOAN SLIP (A4) — NEW AGREEMENT FORM BODY
+   ============================================================ */
+function buildSlipHtml(l, watermarkText){
+  const c = customerById(l.customerId || l.customerDocId);
+  const cName = customerName(c);
+  const isCopy = watermarkText === 'COPY';
+  const {interest, total, monthly} = calcLoan(l.principal, l.interestRate, l.duration, l.interestType);
+  const serial = l.serialNumber || l.loanNumber || ('GD-'+(l.id||'').slice(-12).toUpperCase());
+  const dateStr = fmtDate(l.disbursementDate || l.createdAt || new Date());
+  const guarantors = Array.isArray(l.guarantees) ? l.guarantees : [];
+  const recordedByName = l.createdByName || '—';
+  const approvedByName = l.approvedByName || '—';
+  const principalWords = numberToWords(num(l.principal));
+
+  /* Residence — try to read from customer; fallback to template default */
+  const residence = (c && (c.address || c.kebele || c.woreda)) ? (c.address || c.kebele || c.woreda) : t('agrResidence');
+
+  /* Purpose text — falls back to "personal financial need" */
+  const purposeText = (l.purpose || '').trim() || 'personal financial need';
+
+  /* References — from loan or default template */
+  const refs = (l.reference || '').trim() || t('agrReference');
+
+  /* Guarantor names, comma-separated inline */
+  const gListInline = guarantors.length
+    ? guarantors.map(g => esc(g.name || '—')).join(', ')
+    : '____________________';
+
+  /* Guarantor signature rows (numbered) */
+  const gRowsHtml = guarantors.length
+    ? guarantors.map((g,i)=>`
+        <tr>
+          <td style="padding:14px 6px;border-bottom:1px solid #999;">${i+1}. Name: <strong>${esc(g.name||'—')}</strong>${g.contact?` · ${esc(g.contact)}`:''}</td>
+          <td style="padding:14px 6px;border-bottom:1px solid #999;"></td>
+          <td style="padding:14px 6px;border-bottom:1px solid #999;"></td>
+        </tr>`).join('')
+    : `<tr>
+        <td style="padding:14px 6px;border-bottom:1px solid #999;">1. Name: ____________________</td>
+        <td style="padding:14px 6px;border-bottom:1px solid #999;"></td>
+        <td style="padding:14px 6px;border-bottom:1px solid #999;"></td>
+      </tr>`;
+
+  return `<div class="slip" style="padding:16mm 18mm;height:auto;min-height:297mm;">
     <div class="slip__watermark">
       <img src="${esc(LOGO_URL)}" alt="" onerror="this.onerror=null;this.outerHTML=this.dataset.fallback;" data-fallback="${LOGO_FALLBACK.replace(/"/g,'&quot;')}">
-      <div class="slip__watermark-stamp ${isCopy?'':' '}">${esc(watermarkText)}</div>
+      <div class="slip__watermark-stamp">${esc(watermarkText)}</div>
     </div>
+
     <div class="slip__head">
       <div class="slip__logo" style="width:60px;height:60px;"><img src="${esc(LOGO_URL)}" alt=""></div>
-      <div class="slip__brand"><div class="slip__sacco-name" style="font-size:14pt;">WALDAA LIQII FI QUSANNAA GARASUU DHUKII</div><div class="slip__sacco-sub" style="font-size:9pt;">${esc(APP.saccoName||'GERESU DHUKI SACCO')}</div></div>
+      <div class="slip__brand">
+        <div class="slip__sacco-name" style="font-size:14pt;">WALDAA LIQII FI QUSANNAA GARASUU DHUKII</div>
+        <div class="slip__sacco-sub" style="font-size:9pt;">${esc(APP.saccoName||'GERESU DHUKI SACCO')}</div>
+      </div>
       <div class="slip__logo" style="width:60px;height:60px;"><img src="${esc(LOGO_URL)}" alt=""></div>
     </div>
-    <div style="text-align:right;font-size:10pt;line-height:1.6;padding:6px 0;border-top:1px solid #999;border-bottom:1px solid #999;margin-bottom:10px;">
-      <div><strong>Serial No :</strong> <span style="font-family:ui-monospace,monospace;font-weight:800">${esc(serial)}</span></div>
-      <div><strong>Date :</strong> ${esc(dateStr)}</div>
+
+    <div style="text-align:right;font-size:10pt;line-height:1.6;padding:6px 0;border-top:1px solid #999;border-bottom:1px solid #999;margin-bottom:14px;">
+      <div><strong>${esc(t('agrSerial'))} :</strong> <span style="font-family:ui-monospace,monospace;font-weight:800">${esc(serial)}</span></div>
+      <div><strong>${esc(t('agrDate'))} :</strong> ${esc(dateStr)}</div>
       <div><span class="slip__doc-stamp ${isCopy?'slip__doc-stamp--copy':'slip__doc-stamp--original'}">${esc(watermarkText)}</span></div>
     </div>
-    <div class="slip__title" style="font-size:14pt;margin:8px 0;">${esc(t('docTitle'))}</div>
-    <div style="font-size:10.5pt;line-height:1.8;text-align:justify;">
-      <p><strong>Subject: Loan Grant and Repayment Agreement</strong></p>
-      <p>I, Mr./Ms. <span style="border-bottom:1px dotted #666;display:inline-block;min-width:60px;padding:0 8px;font-weight:700;">${esc(cName)}</span>, a member of ${esc(APP.saccoName)}, hereby acknowledge that I have received a loan of:</p>
-      <p style="text-align:center;font-size:12pt;margin:12px 0;"><strong>ETB <span style="border-bottom:1px dotted #666;display:inline-block;min-width:60px;padding:0 8px;">${esc(num(l.principal).toLocaleString())}</span></strong></p>
-      <p><strong>Loan Breakdown:</strong> Principal ETB ${esc(num(l.principal).toLocaleString())} · Interest (${esc(interestTypeLabel(l.interestType))} at ${num(l.interestRate).toFixed(2)}% for ${num(l.duration)} months) ETB ${esc(num(interest).toLocaleString())} · Total Payable ETB ${esc(num(total).toLocaleString())} · Monthly ETB ${esc(num(monthly).toLocaleString())}</p>
-      <p>The following members have agreed to stand as guarantors:</p>
-      <ul style="padding-left:22px;">${gListHtml}</ul>
-      <table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:10pt;">
-        <thead><tr><th style="border-bottom:2px solid #000;padding:6px;text-align:left;background:#f0f5f0;">BORROWER</th><th style="border-bottom:2px solid #000;padding:6px;text-align:left;background:#f0f5f0;">Signature</th><th style="border-bottom:2px solid #000;padding:6px;text-align:left;background:#f0f5f0;">Date</th></tr></thead>
-        <tbody><tr><td style="padding:16px 6px;border-bottom:1px solid #999;">Name: ${esc(cName)}</td><td style="padding:16px 6px;border-bottom:1px solid #999;"></td><td style="padding:16px 6px;border-bottom:1px solid #999;"></td></tr></tbody>
-      </table>
-      <table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:10pt;">
-        <thead><tr><th style="border-bottom:2px solid #000;padding:6px;text-align:left;background:#f0f5f0;">GUARANTORS</th><th style="border-bottom:2px solid #000;padding:6px;text-align:left;background:#f0f5f0;">Signature</th><th style="border-bottom:2px solid #000;padding:6px;text-align:left;background:#f0f5f0;">Date</th></tr></thead>
-        <tbody>${gRowsHtml}</tbody>
-      </table>
-      <table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:10pt;">
-        <thead><tr><th style="border-bottom:2px solid #000;padding:6px;text-align:left;background:#f0f5f0;">COOPERATIVE APPROVAL</th><th style="border-bottom:2px solid #000;padding:6px;text-align:left;background:#f0f5f0;">Signature</th><th style="border-bottom:2px solid #000;padding:6px;text-align:left;background:#f0f5f0;">Date</th></tr></thead>
-        <tbody>
-          <tr><td style="padding:16px 6px;border-bottom:1px solid #999;">Approved By: <strong>${esc(approvedByName)}</strong></td><td style="padding:16px 6px;border-bottom:1px solid #999;"></td><td style="padding:16px 6px;border-bottom:1px solid #999;"></td></tr>
-          <tr><td style="padding:16px 6px;border-bottom:1px solid #999;">Recorded By: <strong>${esc(recordedByName)}</strong></td><td style="padding:16px 6px;border-bottom:1px solid #999;"></td><td style="padding:16px 6px;border-bottom:1px solid #999;"></td></tr>
-        </tbody>
-      </table>
+
+    <div class="slip__title" style="font-size:15pt;margin:10px 0 4px;letter-spacing:.04em;">${esc(t('agrTitle'))}</div>
+    <div style="text-align:center;font-size:10.5pt;font-weight:700;margin-bottom:14px;">${esc(t('agrSubject'))}</div>
+
+    <div style="font-size:10.5pt;line-height:1.9;text-align:justify;">
+
+      <p>I, Mr./Ms. <span style="border-bottom:1px dotted #666;display:inline-block;min-width:90px;padding:0 6px;font-weight:700;">${esc(cName)}</span>, a member of ${esc(t('agrSacco'))}, residing in <span style="border-bottom:1px dotted #666;display:inline-block;min-width:60px;padding:0 6px;">${esc(residence)}</span>, ________ , Ethiopia, hereby acknowledge that I have received a loan of:</p>
+
+      <p style="text-align:center;font-size:13pt;margin:16px 0;">
+        <strong>ETB ${esc(num(l.principal).toLocaleString())}</strong>
+        <span style="font-size:11pt;font-weight:600;">( ${esc(principalWords)} )</span>
+      </p>
+
+      <p>from ${esc(t('agrSacco'))} for my <strong>${esc(purposeText)}</strong>, in accordance with the applicable Cooperative rules and the relevant references <strong>${esc(refs)}</strong>.</p>
+
+      <p>I undertake to repay the loan together with applicable interest and charges in accordance with the Cooperative's approved repayment terms.</p>
+
+      <p>The following members have agreed to stand as guarantors for the above-mentioned loan:</p>
+
+      <div style="margin:10px 0 14px 24px;font-size:11pt;font-weight:700;line-height:1.9;">${gListInline}</div>
+
+      <p>${esc(t('agrGuarantorClause'))}</p>
+
+      <p>${esc(t('agrBreachClause'))}</p>
+
+      <p>${esc(t('agrSignClause'))}</p>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px;padding-top:8px;border-top:1px solid #999;font-size:8.5pt;color:#333;">
-      <div><strong>${esc(APP.saccoName)}</strong> · Tel: +251-91028-5252</div>
-      <div style="font-style:italic;font-weight:700;color:#0b5cab;">If We Work Together, We Grow Together!</div>
+
+    <table style="width:100%;border-collapse:collapse;margin:22px 0 8px;font-size:10pt;">
+      <thead>
+        <tr>
+          <th style="border-bottom:2px solid #000;padding:8px 6px;text-align:left;background:#f0f5f0;text-transform:uppercase;letter-spacing:.04em;">${esc(t('agrBorrower'))}</th>
+          <th style="border-bottom:2px solid #000;padding:8px 6px;text-align:left;background:#f0f5f0;text-transform:uppercase;letter-spacing:.04em;">${esc(t('agrSignature'))}</th>
+          <th style="border-bottom:2px solid #000;padding:8px 6px;text-align:left;background:#f0f5f0;text-transform:uppercase;letter-spacing:.04em;">${esc(t('agrDate'))}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding:18px 6px;border-bottom:1px solid #999;">${esc(t('agrName'))}: <strong>${esc(cName)}</strong></td>
+          <td style="padding:18px 6px;border-bottom:1px solid #999;"></td>
+          <td style="padding:18px 6px;border-bottom:1px solid #999;"></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <table style="width:100%;border-collapse:collapse;margin:12px 0 8px;font-size:10pt;">
+      <thead>
+        <tr>
+          <th style="border-bottom:2px solid #000;padding:8px 6px;text-align:left;background:#f0f5f0;text-transform:uppercase;letter-spacing:.04em;">${esc(t('agrGuarantors'))}</th>
+          <th style="border-bottom:2px solid #000;padding:8px 6px;text-align:left;background:#f0f5f0;text-transform:uppercase;letter-spacing:.04em;">${esc(t('agrSignature'))}</th>
+          <th style="border-bottom:2px solid #000;padding:8px 6px;text-align:left;background:#f0f5f0;text-transform:uppercase;letter-spacing:.04em;">${esc(t('agrDate'))}</th>
+        </tr>
+      </thead>
+      <tbody>${gRowsHtml}</tbody>
+    </table>
+
+    <table style="width:100%;border-collapse:collapse;margin:12px 0 8px;font-size:10pt;">
+      <thead>
+        <tr>
+          <th style="border-bottom:2px solid #000;padding:8px 6px;text-align:left;background:#f0f5f0;text-transform:uppercase;letter-spacing:.04em;">${esc(t('agrCoopApproval'))}</th>
+          <th style="border-bottom:2px solid #000;padding:8px 6px;text-align:left;background:#f0f5f0;text-transform:uppercase;letter-spacing:.04em;">${esc(t('agrSignature'))}</th>
+          <th style="border-bottom:2px solid #000;padding:8px 6px;text-align:left;background:#f0f5f0;text-transform:uppercase;letter-spacing:.04em;">${esc(t('agrDate'))}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding:16px 6px;border-bottom:1px solid #999;">${esc(t('approvedBy'))}: <strong>${esc(approvedByName)}</strong></td>
+          <td style="padding:16px 6px;border-bottom:1px solid #999;"></td>
+          <td style="padding:16px 6px;border-bottom:1px solid #999;"></td>
+        </tr>
+        <tr>
+          <td style="padding:16px 6px;border-bottom:1px solid #999;">${esc(t('recordedBy'))}: <strong>${esc(recordedByName)}</strong></td>
+          <td style="padding:16px 6px;border-bottom:1px solid #999;"></td>
+          <td style="padding:16px 6px;border-bottom:1px solid #999;"></td>
+        </tr>
+        <tr>
+          <td colspan="3" style="padding:18px 6px;border-top:1px solid #999;">
+            <strong>${esc(t('agrOfficialStamp'))}</strong> __________________________
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:22px;padding-top:8px;border-top:1px solid #999;font-size:8.5pt;color:#333;">
+      <div><strong>GERESU DHUKI SACCO</strong> | ${esc(t('agrTel'))}</div>
+      <div style="font-style:italic;font-weight:700;color:#0b5cab;">${esc(t('agrSlogan'))}</div>
     </div>
   </div>`;
 }
+
 async function printSlip(l){
   if(!l||!canPrint()){toast(t('noPermission'),'error');return;}
   const prevCount=num(l.printCount);const newCount=prevCount+1;
@@ -2840,6 +3244,7 @@ function closeSlipOverlay(){
   if(escHandler){document.removeEventListener('keydown',escHandler);escHandler=null;}
   const host=document.getElementById('slip-print-host');if(host)host.innerHTML='';
 }
+
 /* ============ SETTINGS + LOAD ============ */
 async function loadSettings(){
   try{
@@ -2850,7 +3255,7 @@ async function loadSettings(){
       APP.settings.maxLoanAmount=num(d.maxLoanAmount)||50000;
       APP.settings.maxLoanMultiplier=num(d.maxLoanMultiplier)||3;
       APP.settings.loansPenaltyRate=d.loansPenaltyRate!==undefined?num(d.loansPenaltyRate)/100:(num(d.penaltyRate)||5)/100;
-      APP.settings.gracePeriod=num(d.gracePeriod)||7;
+      APP.settings.gracePeriod=(d.gracePeriod!==undefined&&num(d.gracePeriod)>=0)?num(d.gracePeriod):7;
       APP.settings.minMonthsForRepayAll=(d.minMonthsForRepayAll!==undefined&&num(d.minMonthsForRepayAll)>=0)?num(d.minMonthsForRepayAll):6;
       APP.settings.allowInterestWaiver=d.allowInterestWaiver!==undefined?!!d.allowInterestWaiver:true;
       APP.settings.waiverRequiresMinMonths=d.waiverRequiresMinMonths!==undefined?!!d.waiverRequiresMinMonths:true;
