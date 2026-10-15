@@ -338,6 +338,14 @@ html.theme-dark .step__line{background:#1e293b;}
 .step-header{display:flex;align-items:center;gap:10px;font-size:15.5px;font-weight:800;margin-bottom:18px;color:var(--text);}
 .step-header__badge{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;display:grid;place-items:center;font-size:13px;font-weight:800;flex-shrink:0;}
 .spinner-sm{width:16px;height:16px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+/* ---------- Savings breakdown table ---------- */
+.sav-breakdown{width:100%;border-collapse:collapse;font-size:12px;font-family:ui-monospace,Menlo,Consolas,monospace;}
+.sav-breakdown td{padding:3px 0;vertical-align:middle;}
+.sav-breakdown .lbl{color:var(--text-soft);font-family:"Inter",sans-serif;font-weight:600;}
+.sav-breakdown .pos{color:#067647;}
+.sav-breakdown .neg{color:#b42318;}
+.sav-breakdown .amt{text-align:right;font-weight:800;}
+.sav-breakdown tr.total td{border-top:1px solid currentColor;padding-top:8px;font-size:13.5px;font-weight:800;}
 @media (max-width:900px){
   .app{grid-template-columns:1fr !important;grid-template-areas:"topbar" "main";}
   .sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w) !important;z-index:31;transform:translateX(-100%);transition:transform .28s;}
@@ -721,7 +729,15 @@ const translations = {
     insufficientSavings:'Insufficient savings',
     monthlyPayment:'Monthly Payment', description:'Description',
     paidAt:'Paid At', paymentNote:'Payment Note',
-    fullyPaidMsg:'Paid'
+    fullyPaidMsg:'Paid',
+    /* ---- Savings breakdown ---- */
+    grossSavings:'Gross Savings',
+    dividends:'Dividends',
+    individualWithdrawals:'Individual Withdrawals',
+    customerLeavings:'Customer Leavings',
+    penaltiesFromSavings:'Penalties (from Savings)',
+    netSavings:'Net Available Savings',
+    required:'Required'
   }
 };
 translations.am = { ...translations.en, brandSub:'የሳኮ አስተዳደር', logout:'ውጣ',
@@ -737,7 +753,10 @@ translations.am = { ...translations.en, brandSub:'የሳኮ አስተዳደር',
   createdDate:'የተፈጠረበት', actions:'ተግባራት', view:'ተመልከት', pay:'ክፈል', edit:'አስተካክል', delete:'ሰርዝ',
   cancel:'ሰርዝ', close:'ዝጋ', paid:'ተከፍሏል', pending:'በመጠበቅ ላይ',
   cash:'ጥሬ ገንዘብ', bankTransfer:'የባንክ ዝውውር', mobileMoney:'ሞባይል ገንዘብ', payFromSavings:'ከቁጠባ ክፈል',
-  reset:'እንደነበር', viewGrid:'ፍርግርግ', viewTable:'ሠንጠረዥ' };
+  reset:'እንደነበር', viewGrid:'ፍርግርግ', viewTable:'ሠንጠረዥ',
+  grossSavings:'ጠቅላላ ቁጠባ', dividends:'ክፍፍል', individualWithdrawals:'የግል መውጫዎች',
+  customerLeavings:'የደንበኛ መውጣት', penaltiesFromSavings:'ቅጣቶች (ከቁጠባ)',
+  netSavings:'የተጣራ ቁጠባ', required:'የሚያስፈልግ' };
 translations.om = { ...translations.en, brandSub:'Bulchiinsa SACCO', logout:"Ba'i",
   navSecOverview:'Aguuggama', navSecNetwork:'Networkii', navSecOperations:'Hojimaata', navSecFinance:'Faayinaansii', navSecAdmin:'Bulchiinsa',
   navDashboard:'Daashboordii', navDistricts:'Aanaalee', navBranches:'Dameewwan', navCustomers:'Maamiltoota',
@@ -751,7 +770,10 @@ translations.om = { ...translations.en, brandSub:'Bulchiinsa SACCO', logout:"Ba'
   createdDate:'Uumame', actions:'Gocha', view:'Ilaali', pay:'Kaffali', edit:'Jijjiiri', delete:'Haqi',
   cancel:'Haqi', close:'Cufi', paid:'Kaffalame', pending:'Eegamaa',
   cash:'Saaphanaa', bankTransfer:'Sochoosa Baankii', mobileMoney:'Maallaqa Moobayilaa', payFromSavings:'Kusaa irraa Kaffali',
-  reset:'Deebisi', viewGrid:'Grid', viewTable:'Gabatee' };
+  reset:'Deebisi', viewGrid:'Grid', viewTable:'Gabatee',
+  grossSavings:'Qusannaa Waliigalaa', dividends:'Qooda', individualWithdrawals:'Baasii Dhuunfaa',
+  customerLeavings:"Ba'uu Maamilaa", penaltiesFromSavings:'Adaba (Qusannaa irraa)',
+  netSavings:'Qusannaa Qulqulluu', required:'Barbaachisu' };
 
 /* ============================================================
    STATE
@@ -795,6 +817,7 @@ const initials = (n) => (n || '?').trim().split(/\s+/).slice(0,2).map(s => s[0])
 const num = (v) => { const n = Number(v); return isFinite(n) ? n : 0; };
 const money = (v) => 'ETB ' + num(v).toLocaleString('en-US', { maximumFractionDigits: 2 });
 const moneyShort = (v) => { const n = num(v); if (!n) return 'ETB 0'; if (n >= 1e9) return 'ETB ' + (n/1e9).toFixed(2) + 'B'; if (n >= 1e6) return 'ETB ' + (n/1e6).toFixed(2) + 'M'; if (n >= 1e3) return 'ETB ' + (n/1e3).toFixed(1) + 'K'; return 'ETB ' + n.toLocaleString(); };
+const fmtNum2 = (v) => num(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const toDateSafe = (v) => { if (!v) return null; if (v instanceof Date) return isNaN(v) ? null : v; if (typeof v.toDate === 'function') { try { return v.toDate(); } catch(e){} } if (typeof v === 'object' && v.seconds != null) return new Date(v.seconds*1000); if (typeof v === 'number') { const d = new Date(v); return isNaN(d) ? null : d; } const d = new Date(v); return isNaN(d) ? null : d; };
 const fmtDate = (v) => { const d = toDateSafe(v); return d ? d.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }) : '—'; };
 const fmtDateTime = (v) => { const d = toDateSafe(v); return d ? d.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '—'; };
@@ -821,7 +844,7 @@ function userAvatarHTML(size = 38) {
   return `<div style="${baseStyle}">${esc(initials(name))}</div>`;
 }
 
-/* Table-row avatar — now takes memberId so it can find the real customer record */
+/* Table-row avatar — takes memberId so it can find the real customer record */
 function customerAvatarHTML(memberId, fallbackName, size = 40) {
   const c = getCustomerRecord(memberId);
   const url = (c && c.photoURL) || '';
@@ -1361,7 +1384,7 @@ async function loadSettings() {
   } catch (e) { console.warn('settings', e.message); }
 }
 
-/* ⚡ Index customers by every plausible identifier, and pick up the photo */
+/* Index customers by every plausible identifier, and pick up the photo */
 async function loadCustomers() {
   try {
     const snap = await db.collection('customers').get();
@@ -1376,7 +1399,6 @@ async function loadCustomers() {
       const photoURL = d.photoURL || d.photo || d.avatar || d.image || '';
       const rec = { name, photoURL, data: d };
 
-      // Index by every key the penalty record might store
       customersMap[doc.id] = rec;
       if (d.memberNumber)  customersMap[d.memberNumber]  = rec;
       if (d.memberId)      customersMap[d.memberId]      = rec;
@@ -1384,12 +1406,11 @@ async function loadCustomers() {
       if (d.customerCode)  customersMap[d.customerCode]  = rec;
       if (d.email)         customersMap[d.email]         = rec;
       if (d.phone)         customersMap[d.phone]         = rec;
-      if (name && name !== 'Unknown') customersMap[name] = rec; // last-resort fallback
+      if (name && name !== 'Unknown') customersMap[name] = rec;
     });
   } catch (e) { console.warn('customers', e.message); }
 }
 
-/* Fetch the customer record for any id form stored on a penalty */
 function getCustomerRecord(memberId) {
   if (!memberId) return null;
   const id = extractIdFromAny(memberId);
@@ -1461,53 +1482,98 @@ async function testConnection() {
 }
 
 /* ============================================================
-   NET SAVINGS
+   NET SAVINGS — FULL BREAKDOWN
+   Net = Gross Savings + Dividends − Individual Withdrawals
+         − Customer Leavings − Penalties (paid from savings)
    ============================================================ */
-async function getCustomerAvailableSavings(customerId) {
+async function getCustomerSavingsBreakdown(customerId) {
+  const ZERO = { gross:0, dividends:0, withdrawals:0, leavings:0, penaltiesFromSavings:0, net:0 };
   try {
     const id = extractIdFromAny(customerId) || customerId;
-    if (!id) return 0;
-    const SHARE_BUY_TYPES = ['share','shares','share_purchase','share_buy','share_deposit','share_subscription','share_buying','equity','capital_share','shares_purchase'];
-    const SAVINGS_PAY_SOURCES = ['savings','saving','from_savings','savings_account','member_savings','sacco_savings','from_saving','account'];
-    const BAD_STATUSES = ['pending','review','approval','rejected','cancelled','canceled','failed','declined'];
-    const [sav1, sav2, allC, allM, pen1, pen2] = await Promise.all([
-      db.collection('transactions').where('customerId','==',id).where('type','==','savings').where('status','==','approved').get(),
-      db.collection('transactions').where('memberId','==',id).where('type','==','savings').where('status','==','approved').get(),
+    if (!id) return ZERO;
+
+    const SAVINGS_TYPES    = ['savings','saving','deposit'];
+    const DIVIDEND_TYPES   = ['dividend','dividends','profit_income','profit_share','interest_income','profit_distribution'];
+    const WITHDRAWAL_TYPES = ['withdrawal','withdrawals','savings_withdrawal','withdraw','savings_withdraw'];
+    const LEAVING_TYPES    = ['leaving','customer_leaving','member_leaving','exit','savings_closure','withdraw_all','clear_savings','refund','savings_refund'];
+    const PENALTY_TYPES    = ['penalty','penalties'];
+
+    const SAVINGS_PAY_SOURCES = ['savings','saving','from_savings','savings_account',
+                                 'member_savings','sacco_savings','from_saving','account'];
+
+    const GOOD_STATUSES = ['approved','paid','done','completed'];
+
+    const [byCustId, byMemberId] = await Promise.all([
       db.collection('transactions').where('customerId','==',id).get(),
-      db.collection('transactions').where('memberId','==',id).get(),
-      db.collection('transactions').where('customerId','==',id).where('type','==','penalty').get(),
-      db.collection('transactions').where('memberId','==',id).where('type','==','penalty').get()
+      db.collection('transactions').where('memberId','==',id).get()
     ]);
-    const seen = new Set(); let gross = 0;
-    const addSav = (doc) => { if (!seen.has(doc.id)) { seen.add(doc.id); gross += num(doc.data().amount); } };
-    sav1.forEach(addSav); sav2.forEach(addSav);
-    const seenShare = new Set(); let shareFromSavings = 0;
-    const scanShare = (doc) => {
-      if (seenShare.has(doc.id)) return; seenShare.add(doc.id);
-      const d = doc.data();
-      const ty = String(d.type || '').toLowerCase();
-      const st = String(d.status || '').toLowerCase();
-      if (!SHARE_BUY_TYPES.includes(ty)) return;
-      if (BAD_STATUSES.includes(st)) return;
-      const raw = d.paymentMethod || d.paymentSource || d.paidFrom || d.source || d.fundingSource || d.method || d.paymentType || '';
-      const m = String(raw).toLowerCase().trim();
-      const isSav = m ? SAVINGS_PAY_SOURCES.includes(m) : true;
-      if (isSav) shareFromSavings += num(d.amount);
+
+    const seen   = new Set();
+    const txList = [];
+    const push   = (doc) => {
+      if (seen.has(doc.id)) return;
+      seen.add(doc.id);
+      txList.push({ id: doc.id, ...doc.data() });
     };
-    allC.forEach(scanShare); allM.forEach(scanShare);
-    const seenPen = new Set(); let penFromSavings = 0;
-    const scanPen = (doc) => {
-      if (seenPen.has(doc.id)) return; seenPen.add(doc.id);
-      const p = doc.data();
-      const st = String(p.status || '').toLowerCase();
-      if (!['paid','done','completed','approved'].includes(st)) return;
-      const raw = p.paymentMethod || p.paidFrom || p.source || p.paymentSource || p.method || '';
-      const m = String(raw).toLowerCase().trim();
-      if (m && SAVINGS_PAY_SOURCES.includes(m)) penFromSavings += num(p.amount);
+    byCustId.forEach(push);
+    byMemberId.forEach(push);
+
+    let gross = 0, dividends = 0, withdrawals = 0, leavings = 0, penaltiesFromSavings = 0;
+
+    txList.forEach(tx => {
+      const ty  = String(tx.type   || '').toLowerCase().trim();
+      const st  = String(tx.status || '').toLowerCase().trim();
+      const amt = num(tx.amount);
+      if (amt <= 0) return;
+
+      const rawSrc = tx.paymentMethod || tx.paymentSource || tx.paidFrom || tx.source
+                   || tx.fundingSource || tx.method || tx.paymentType || '';
+      const src  = String(rawSrc).toLowerCase().trim();
+      const paidFromSavings = src ? SAVINGS_PAY_SOURCES.includes(src) : true;
+
+      if (SAVINGS_TYPES.includes(ty)) {
+        if (st === '' || GOOD_STATUSES.includes(st)) gross += amt;
+        return;
+      }
+      if (DIVIDEND_TYPES.includes(ty)) {
+        if (st === '' || GOOD_STATUSES.includes(st)) dividends += amt;
+        return;
+      }
+      if (WITHDRAWAL_TYPES.includes(ty)) {
+        if (GOOD_STATUSES.includes(st)) withdrawals += amt;
+        return;
+      }
+      if (LEAVING_TYPES.includes(ty)) {
+        if (GOOD_STATUSES.includes(st)) leavings += amt;
+        return;
+      }
+      if (PENALTY_TYPES.includes(ty)) {
+        if (GOOD_STATUSES.includes(st) && paidFromSavings) penaltiesFromSavings += amt;
+        return;
+      }
+    });
+
+    const net = gross + dividends - withdrawals - leavings - penaltiesFromSavings;
+    const r2  = (v) => Math.round(v * 100) / 100;
+
+    return {
+      gross:                r2(gross),
+      dividends:            r2(dividends),
+      withdrawals:          r2(withdrawals),
+      leavings:             r2(leavings),
+      penaltiesFromSavings: r2(penaltiesFromSavings),
+      net:                  r2(Math.max(0, net))
     };
-    pen1.forEach(scanPen); pen2.forEach(scanPen);
-    return Math.round(Math.max(0, gross - shareFromSavings - penFromSavings) * 100) / 100;
-  } catch (e) { console.error(e); return 0; }
+  } catch (e) {
+    console.error('getCustomerSavingsBreakdown error:', e);
+    return ZERO;
+  }
+}
+
+/* Backwards-compatible wrapper — returns just the net number */
+async function getCustomerAvailableSavings(customerId) {
+  const b = await getCustomerSavingsBreakdown(customerId);
+  return b.net;
 }
 
 /* ============================================================
@@ -1621,24 +1687,54 @@ function toggleConditionalFields() {
   }
 }
 
+/* ---- Savings breakdown panel ---- */
 async function refreshSavingsBalance() {
   const method = document.getElementById('paymentMethod').value;
-  const info = document.getElementById('savingsBalanceInfo');
+  const info   = document.getElementById('savingsBalanceInfo');
   if (!info || method !== 'savings') return;
+
   const p = allPenalties.find(x => x.id === pendingPayId);
   if (!p) return;
+
   info.classList.remove('hidden');
   info.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Loading…`;
+
   try {
-    const bal = await getCustomerAvailableSavings(p.memberId);
+    const b    = await getCustomerSavingsBreakdown(p.memberId);
     const need = num(p.amount);
-    const ok = bal >= need;
+    const ok   = b.net >= need;
+
     info.className = 'alert ' + (ok ? 'alert--success' : 'alert--error');
-    info.innerHTML = `<i class="fas fa-piggy-bank"></i><div>${esc(t('savingsAvailable'))}: <strong>${esc(money(bal))}</strong> — ${ok ? esc(t('savingsSufficient')) : esc(t('savingsInsufficient'))}</div>`;
-  } catch (e) { info.className = 'alert alert--error'; info.innerHTML = `<i class="fas fa-exclamation-circle"></i><div>Error loading savings</div>`; }
+    info.innerHTML = `
+      <i class="fas fa-piggy-bank"></i>
+      <div style="width:100%;">
+        <div style="font-weight:800;margin-bottom:6px;">${esc(t('savingsAvailable'))}</div>
+        <table class="sav-breakdown">
+          <tr><td class="lbl pos">+ ${esc(t('grossSavings'))}</td>
+              <td class="amt pos">${fmtNum2(b.gross)}</td></tr>
+          <tr><td class="lbl pos">+ ${esc(t('dividends'))}</td>
+              <td class="amt pos">${fmtNum2(b.dividends)}</td></tr>
+          <tr><td class="lbl neg">− ${esc(t('individualWithdrawals'))}</td>
+              <td class="amt neg">${fmtNum2(b.withdrawals)}</td></tr>
+          <tr><td class="lbl neg">− ${esc(t('customerLeavings'))}</td>
+              <td class="amt neg">${fmtNum2(b.leavings)}</td></tr>
+          <tr><td class="lbl neg">− ${esc(t('penaltiesFromSavings'))}</td>
+              <td class="amt neg">${fmtNum2(b.penaltiesFromSavings)}</td></tr>
+          <tr class="total"><td class="lbl">= ${esc(t('netSavings'))}</td>
+              <td class="amt">${fmtNum2(b.net)}</td></tr>
+        </table>
+        <div style="margin-top:8px;font-weight:800;color:${ok ? '#067647' : '#b42318'};">
+          ${ok ? '✓ ' + esc(t('savingsSufficient')) : '⚠ ' + esc(t('savingsInsufficient'))}
+          ${!ok ? `<span style="font-weight:600;"> · ${esc(t('required'))}: ${fmtNum2(need)}</span>` : ''}
+        </div>
+      </div>`;
+  } catch (e) {
+    info.className = 'alert alert--error';
+    info.innerHTML = `<i class="fas fa-exclamation-circle"></i><div>Error loading savings</div>`;
+  }
 }
 
-/* ---------- Wizard nav ---------- */
+/* ---- Wizard nav ---- */
 function showPayWizStep(n) {
   payWizStep = Math.max(0, Math.min(PAY_WIZ_STEPS - 1, n));
 
@@ -1749,7 +1845,7 @@ function openPayModal(id) {
 
   pendingPayId = id;
 
-  /* ---- Populate customer preview card (photo + name + code + phone + amount) ---- */
+  /* Populate customer preview card */
   const c = getCustomerRecord(p.memberId);
   const custPhoto = (c && c.photoURL) || '';
   const custName  = (c && c.name) || p.customerName || 'Unknown';
@@ -1769,7 +1865,7 @@ function openPayModal(id) {
     .filter(Boolean).join(' · ') || '&nbsp;';
   document.getElementById('payCustAmount').textContent = money(p.amount);
 
-  /* ---- Populate readonly fields ---- */
+  /* Populate readonly fields */
   document.getElementById('payPenaltyId').value = id;
   document.getElementById('payAmountDisplay').textContent = money(p.amount);
   document.getElementById('payMemberName').value = p.customerName || 'Unknown';
@@ -1790,12 +1886,11 @@ function openPayModal(id) {
   document.getElementById('paymentMethod').value = isAdminManager ? 'cash' : 'bank';
   toggleConditionalFields();
 
-  /* ---- Reset to step 1 and open ---- */
   showPayWizStep(0);
   openModal('payPenaltyModal');
 }
 
-/* ---------- Wizard event wiring ---------- */
+/* ---- Wizard event wiring ---- */
 document.getElementById('payWizNext')?.addEventListener('click', async () => {
   const ok = await validatePayStep(payWizStep);
   if (!ok) return;
@@ -1819,7 +1914,7 @@ document.getElementById('payWizSubmit')?.addEventListener('click', async (e) => 
     lbl.style.opacity = '1';
   }
 });
-/* Reset wizard step whenever the modal is closed (Cancel / X / backdrop / Esc) */
+/* Reset wizard step whenever the modal is closed */
 document.querySelectorAll('[data-close-modal="payPenaltyModal"]').forEach(b => {
   b.addEventListener('click', () => { payWizStep = 0; });
 });
@@ -2139,6 +2234,7 @@ window.openEditPenaltyModal = openEditPenaltyModal;
 window.showDeleteModal = showDeleteModal;
 window.testConnection = testConnection;
 window.refreshPage = refreshPage;
+window.getCustomerSavingsBreakdown = getCustomerSavingsBreakdown;
 </script>
 </body>
 </html>
