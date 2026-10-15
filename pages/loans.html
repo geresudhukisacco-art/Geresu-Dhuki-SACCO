@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Loans — Geresu Dhuki SACCO</title>
+<title>Geresu Dhuki SACCO — Loans</title>
 <link rel="icon" type="image/png" href="../images/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -670,7 +670,7 @@ const APP = {
 const CUSTOMER_MAP = new Map();
 
 /* ============================================================
-   I18N — language dictionaries
+   I18N
    ============================================================ */
 const I18N = {
   en: {
@@ -855,8 +855,6 @@ const I18N = {
     agrSlogan:'If We Work Together, We Grow Together!'
   }
 };
-
-/* Amharic overrides */
 I18N.am = {
   ...I18N.en,
   brandSub:'የሳኮ አስተዳደር', logout:'ውጣ', loading:'በመጫን ላይ…',
@@ -868,8 +866,6 @@ I18N.am = {
   agrSubject:'ጉዳዩ: የብድር ስጦታ እና የመክፈል ስምምነት',
   agrLetterNo:'የደብዳቤ ቁጥር'
 };
-
-/* Oromo overrides */
 I18N.om = {
   ...I18N.en,
   brandSub:'Bulchiinsa SACCO', logout:"Ba'i", loading:"Fe'aa jira…",
@@ -970,6 +966,32 @@ function numberToWords(input){
   if(thousand) out += chunk(thousand) + ' Thousand ';
   if(n)        out += chunk(n);
   return out.trim();
+}
+
+/* ============================================================
+   BUILD RESIDENCE FROM CUSTOMER PROFILE
+   Fields come from customers page: address, city, region, specificPlace
+   Priority:
+     1. address (full)
+     2. city + region
+     3. city
+     4. region
+     5. specificPlace
+     6. template default (agrResidence)
+   ============================================================ */
+function buildResidence(c){
+  if (!c) return t('agrResidence');
+  const addr     = (c.address      || '').trim();
+  const city     = (c.city         || '').trim();
+  const region   = (c.region       || '').trim();
+  const specific = (c.specificPlace|| '').trim();
+
+  if (addr) return addr;
+  if (city && region) return `${city}, ${region}`;
+  if (city)   return city;
+  if (region) return region;
+  if (specific) return specific;
+  return t('agrResidence');
 }
 
 /* ============ ROLES ============ */
@@ -1139,7 +1161,7 @@ async function fetchLoanRepayments(loanId){
 function pendingRepaymentsForLoan(loanId){return APP.repayments.filter(r=>r.loanId===loanId&&String(r.status||'pending').toLowerCase()==='pending');}
 
 /* ============================================================
-   checkAndCreatePenalty() reads from `loans` collection
+   checkAndCreatePenalty()
    ============================================================ */
 async function checkAndCreatePenalty(loanId, memberId){
   try {
@@ -2691,6 +2713,8 @@ function showLogoutModal(){
 
 /* ============================================================
    PRINT LOAN SLIP (A4) — AGREEMENT FORM
+   Residence loaded from customer profile (address / city+region / city / region / specificPlace)
+   "________ , Ethiopia" blank removed
    ============================================================ */
 function buildSlipHtml(l, watermarkText){
   const c = customerById(l.customerId || l.customerDocId);
@@ -2703,19 +2727,19 @@ function buildSlipHtml(l, watermarkText){
   const approvedByName = l.approvedByName || '—';
   const principalWords = numberToWords(num(l.principal));
 
-  /* Residence — from customer or template default */
-  const residence = (c && (c.address || c.kebele || c.woreda)) ? (c.address || c.kebele || c.woreda) : t('agrResidence');
+  /* Residence — pulled LIVE from customer profile */
+  const residence = buildResidence(c);
   const purposeText = (l.purpose || '').trim() || 'personal financial need';
   const refs = (l.reference || '').trim() || t('agrReference');
 
-  /* Guarantor inline list + signature rows */
+  /* Guarantor inline list + signature rows (contact phone removed) */
   const gListInline = guarantors.length
     ? guarantors.map(g => esc(g.name || '—')).join(', ')
     : '____________________';
   const gRowsHtml = guarantors.length
     ? guarantors.map((g,i)=>`
         <tr>
-          <td style="padding:14px 6px;border-bottom:1px solid #999;">${i+1}. Name: <strong>${esc(g.name||'—')}</strong>${g.contact?` · ${esc(g.contact)}`:''}</td>
+          <td style="padding:14px 6px;border-bottom:1px solid #999;">${i+1}. Name: <strong>${esc(g.name||'—')}</strong></td>
           <td style="padding:14px 6px;border-bottom:1px solid #999;"></td>
           <td style="padding:14px 6px;border-bottom:1px solid #999;"></td>
         </tr>`).join('')
@@ -2725,7 +2749,6 @@ function buildSlipHtml(l, watermarkText){
         <td style="padding:14px 6px;border-bottom:1px solid #999;"></td>
       </tr>`;
 
-  /* ---- Full agreement ---- */
   return `<div class="slip" style="padding:16mm 18mm;height:auto;min-height:297mm;">
     <div class="slip__watermark">
       <img src="${esc(LOGO_URL)}" alt="" onerror="this.onerror=null;this.outerHTML=this.dataset.fallback;" data-fallback="${LOGO_FALLBACK.replace(/"/g,'&quot;')}">
@@ -2752,7 +2775,7 @@ function buildSlipHtml(l, watermarkText){
 
     <div style="font-size:10.5pt;line-height:1.9;text-align:justify;">
 
-      <p>I, Mr./Ms. <span style="border-bottom:1px dotted #666;display:inline-block;min-width:90px;padding:0 6px;font-weight:700;">${esc(cName)}</span>, a member of ${esc(t('agrSacco'))}, residing in <span style="border-bottom:1px dotted #666;display:inline-block;min-width:60px;padding:0 6px;">${esc(residence)}</span>, ________ , Ethiopia, hereby acknowledge that I have received a loan of:</p>
+      <p>I, Mr./Ms. <span style="border-bottom:1px dotted #666;display:inline-block;min-width:90px;padding:0 6px;font-weight:700;">${esc(cName)}</span>, a member of ${esc(t('agrSacco'))}, residing in <span style="border-bottom:1px dotted #666;display:inline-block;min-width:60px;padding:0 6px;">${esc(residence)}</span>, hereby acknowledge that I have received a loan of:</p>
 
       <p style="text-align:center;font-size:13pt;margin:16px 0;">
         <strong>ETB ${esc(num(l.principal).toLocaleString())}</strong>
@@ -2822,7 +2845,7 @@ function buildSlipHtml(l, watermarkText){
           <td style="padding:16px 6px;border-bottom:1px solid #999;"></td>
         </tr>
         <tr>
-          <td colspan="3" style="padding:18px 6px;border-top:1px solid #999;">
+          <td colspan="3" style="padding:18px 6px;border-top:1px solid #999;text-align:center;">
             <strong>${esc(t('agrOfficialStamp'))}</strong> __________________________
           </td>
         </tr>
