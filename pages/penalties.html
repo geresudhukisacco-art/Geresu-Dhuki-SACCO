@@ -1485,6 +1485,9 @@ async function testConnection() {
    NET SAVINGS — FULL BREAKDOWN
    Net = Gross Savings + Dividends − Individual Withdrawals
          − Customer Leavings − Penalties (paid from savings)
+
+   ⚡ UPDATED: transaction type lists expanded to cover the real
+   strings used in this SACCO's Firestore (e.g. "individual_withdrawal").
    ============================================================ */
 async function getCustomerSavingsBreakdown(customerId) {
   const ZERO = { gross:0, dividends:0, withdrawals:0, leavings:0, penaltiesFromSavings:0, net:0 };
@@ -1492,17 +1495,43 @@ async function getCustomerSavingsBreakdown(customerId) {
     const id = extractIdFromAny(customerId) || customerId;
     if (!id) return ZERO;
 
-    const SAVINGS_TYPES    = ['savings','saving','deposit'];
-    const DIVIDEND_TYPES   = ['dividend','dividends','profit_income','profit_share','interest_income','profit_distribution'];
-    const WITHDRAWAL_TYPES = ['withdrawal','withdrawals','savings_withdrawal','withdraw','savings_withdraw'];
-    const LEAVING_TYPES    = ['leaving','customer_leaving','member_leaving','exit','savings_closure','withdraw_all','clear_savings','refund','savings_refund'];
-    const PENALTY_TYPES    = ['penalty','penalties'];
+    /* ---- Transaction type buckets ---- */
+    const SAVINGS_TYPES = [
+      'savings','saving','deposit','deposits',
+      'individual_savings','individual_deposit','savings_deposit',
+      'member_savings','member_deposit'
+    ];
+
+    const DIVIDEND_TYPES = [
+      'dividend','dividends','profit_income','profit_share','profit_distribution',
+      'interest_income','interest_paid','share_profit','annual_dividend','dividend_payment'
+    ];
+
+    /* ⚡ individual_withdrawal is what this SACCO actually writes */
+    const WITHDRAWAL_TYPES = [
+      'withdrawal','withdrawals','withdraw',
+      'individual_withdrawal','individual_withdrawals',
+      'savings_withdrawal','savings_withdrawals','savings_withdraw',
+      'member_withdrawal','member_withdrawals','account_withdrawal'
+    ];
+
+    const LEAVING_TYPES = [
+      'leaving','customer_leaving','member_leaving','customer_leavings','member_leavings',
+      'exit','member_exit','customer_exit',
+      'savings_closure','clear_savings','withdraw_all','close_account','account_closure',
+      'refund','savings_refund','refund_savings','final_settlement','settlement'
+    ];
+
+    const PENALTY_TYPES = [
+      'penalty','penalties','loan_penalty','penalty_payment'
+    ];
 
     const SAVINGS_PAY_SOURCES = ['savings','saving','from_savings','savings_account',
                                  'member_savings','sacco_savings','from_saving','account'];
 
     const GOOD_STATUSES = ['approved','paid','done','completed'];
 
+    /* ---- Fetch all transactions for this member (both id keys) ---- */
     const [byCustId, byMemberId] = await Promise.all([
       db.collection('transactions').where('customerId','==',id).get(),
       db.collection('transactions').where('memberId','==',id).get()
