@@ -388,7 +388,7 @@ html.theme-dark .step__line{background:#1e293b;}
 <div id="loader"><div class="spin"></div></div>
 <div class="overlay-mobile" id="overlayMobile"></div>
 <div class="toasts" id="toast-container"></div>
-<div class="loading-overlay" id="loadingOverlay"><div class="spin"></div><p style="color:var(--muted);font-weight:600;">Loading penalties…</p></div>
+<div class="loading-overlay" id="loadingOverlay"><div class="spin"></div><p style="color:var(--muted);font-weight:600;" id="loadingOverlayText">Loading penalties…</p></div>
 <div id="app"></div>
 
 <!-- VIEW PENALTY MODAL -->
@@ -680,7 +680,8 @@ const BANKS_LIST = [
 ];
 
 /* ============================================================
-   TRANSLATIONS
+   TRANSLATIONS — EN / AM / OM
+   Every key present in EN is now explicitly translated in AM & OM
    ============================================================ */
 const translations = {
   en: {
@@ -688,7 +689,7 @@ const translations = {
     navSecOverview:'Overview', navSecNetwork:'Network', navSecOperations:'Operations',
     navSecFinance:'Finance', navSecAdmin:'Administration',
     navDashboard:'Dashboard', navDistricts:'Districts', navBranches:'Branches', navCustomers:'Customers',
-    navSavings:'Savings', navDeposits:'Deposits', navLoans:'Loans', navRepayments:'Repayments',
+    navSavings:'Savings', navDeposits:'Deposits', navLoans:'Loans',
     navWithdrawals:'Withdrawals', navDividends:'Dividends', navShares:'Shares',
     navPenalties:'Penalties', navReports:'Reports', navAudit:'Audit Trail', navUsers:'Users', navSettings:'Settings',
     role_super_admin:'Super Admin', role_admin:'Admin', role_manager:'Manager',
@@ -730,7 +731,6 @@ const translations = {
     monthlyPayment:'Monthly Payment', description:'Description',
     paidAt:'Paid At', paymentNote:'Payment Note',
     fullyPaidMsg:'Paid',
-    /* ---- Savings breakdown ---- */
     grossSavings:'Gross Savings',
     dividends:'Dividends',
     individualWithdrawals:'Individual Withdrawals',
@@ -740,40 +740,120 @@ const translations = {
     required:'Required'
   }
 };
-translations.am = { ...translations.en, brandSub:'የሳኮ አስተዳደር', logout:'ውጣ',
-  navSecOverview:'አጠቃላይ እይታ', navSecNetwork:'ኔትወርክ', navSecOperations:'ክንውኖች', navSecFinance:'ፋይናንስ', navSecAdmin:'አስተዳደር',
+
+translations.am = {
+  brandSub:'የሳኮ አስተዳደር', logout:'ውጣ', loading:'በመጫን ላይ…',
+  navSecOverview:'አጠቃላይ እይታ', navSecNetwork:'ኔትወርክ', navSecOperations:'ክንውኖች',
+  navSecFinance:'ፋይናንስ', navSecAdmin:'አስተዳደር',
   navDashboard:'ዳሽቦርድ', navDistricts:'ወረዳዎች', navBranches:'ቅርንጫፎች', navCustomers:'ደንበኞች',
-  navSavings:'ቁጠባ', navDeposits:'ተቀማጭ', navLoans:'ብድር', navRepayments:'ክፍያዎች', navWithdrawals:'መውጫዎች',
-  navDividends:'ክፍፍል', navShares:'አክሲዮን', navPenalties:'ቅጣቶች', navReports:'ሪፖርቶች',
-  navAudit:'የምዝግብ ታሪክ', navUsers:'ተጠቃሚዎች', navSettings:'ቅንብሮች',
-  penaltiesTitle:'የቅጣት አስተዳደር', refresh:'አድስ', totalPenalties:'ጠቅላላ ቅጣቶች',
-  pendingPenalties:'በመጠበቅ ላይ', paidPenalties:'ተከፍሏል', customersWithPenalties:'ቅጣት ያላቸው ደንበኞች',
-  customer:'ደንበኛ', loanId:'የብድር መታወቂያ', amount:'መጠን', unpaidMonths:'ያልተከፈሉ ወራት',
-  penaltyStatus:'የቅጣት ሁኔታ', paymentStatus:'የክፍያ ሁኔታ', submittedBy:'ያስገባው', approvedBy:'ያጸደቀው',
-  createdDate:'የተፈጠረበት', actions:'ተግባራት', view:'ተመልከት', pay:'ክፈል', edit:'አስተካክል', delete:'ሰርዝ',
-  cancel:'ሰርዝ', close:'ዝጋ', paid:'ተከፍሏል', pending:'በመጠበቅ ላይ',
-  cash:'ጥሬ ገንዘብ', bankTransfer:'የባንክ ዝውውር', mobileMoney:'ሞባይል ገንዘብ', payFromSavings:'ከቁጠባ ክፈል',
-  reset:'እንደነበር', viewGrid:'ፍርግርግ', viewTable:'ሠንጠረዥ',
-  grossSavings:'ጠቅላላ ቁጠባ', dividends:'ክፍፍል', individualWithdrawals:'የግል መውጫዎች',
-  customerLeavings:'የደንበኛ መውጣት', penaltiesFromSavings:'ቅጣቶች (ከቁጠባ)',
-  netSavings:'የተጣራ ቁጠባ', required:'የሚያስፈልግ' };
-translations.om = { ...translations.en, brandSub:'Bulchiinsa SACCO', logout:"Ba'i",
-  navSecOverview:'Aguuggama', navSecNetwork:'Networkii', navSecOperations:'Hojimaata', navSecFinance:'Faayinaansii', navSecAdmin:'Bulchiinsa',
+  navSavings:'ቁጠባ', navDeposits:'ተቀማጭ', navLoans:'ብድር',
+  navWithdrawals:'መውጫዎች', navDividends:'ክፍፍል', navShares:'አክሲዮን',
+  navPenalties:'ቅጣቶች', navReports:'ሪፖርቶች', navAudit:'የምዝግብ ታሪክ',
+  navUsers:'ተጠቃሚዎች', navSettings:'ቅንብሮች',
+  role_super_admin:'ዋና አስተዳዳሪ', role_admin:'አስተዳዳሪ', role_manager:'ሥራ አስኪያጅ',
+  role_cashier:'ገንዘብ ተቀባይ', role_teller:'ተራኪ', role_accountant:'ሒሳብ ሹም',
+  role_auditor:'ኦዲተር', role_member:'አባል', role_viewer:'ተመልካች',
+  penaltiesTitle:'የቅጣት አስተዳደር', penaltiesSub:'ያልተከፈሉ ቅጣቶችን ይመልከቱ እና ያስተዳድሩ',
+  breadcrumbHome:'ዳሽቦርድ', breadcrumbPenalties:'ቅጣቶች',
+  refresh:'አድስ', totalPenalties:'ጠቅላላ ቅጣቶች', pendingPenalties:'በመጠበቅ ላይ',
+  paidPenalties:'ተከፍሏል', customersWithPenalties:'ቅጣት ያላቸው ደንበኞች',
+  searchPlaceholder:'በደንበኛ ስም ወይም በብድር መታወቂያ ይፈልጉ…',
+  allStatus:'ሁሉም ሁኔታዎች', pendingStatus:'በመጠበቅ ላይ', paidStatus:'ተከፍሏል',
+  paymentPendingStatus:'ክፍያ በመጠበቅ ላይ', totalPenaltiesList:'ጠቅላላ ቅጣቶች: ',
+  noPenalties:'ምንም ቅጣቶች አልተገኙም', noPenaltiesText:'ፍለጋዎን ወይም ማጣሪያዎን ያስተካክሉ።',
+  noMatch:'ተመሳሳይ ቅጣቶች አልተገኙም',
+  showing:'በማሳየት ላይ', of:'ከ', penaltiesWord:'ቅጣቶች',
+  customer:'ደንበኛ', loanId:'የብድር መታወቂያ', amount:'መጠን',
+  unpaidMonths:'ያልተከፈሉ ወራት', penaltyStatus:'የቅጣት ሁኔታ',
+  paymentStatus:'የክፍያ ሁኔታ', submittedBy:'ያስገባው',
+  approvedBy:'ያጸደቀው', createdDate:'የተፈጠረበት', actions:'ተግባራት',
+  view:'ተመልከት', pay:'ክፈል', edit:'አስተካክል', delete:'ሰርዝ',
+  approvePayment:'ክፍያ አጽድቅ', rejectPayment:'ክፍያ ውድቅ አድርግ',
+  viewGrid:'ፍርግርግ', viewTable:'ሠንጠረዥ', reset:'እንደነበር',
+  testConnection:'ግንኙነት ሞክር', connectionSuccess:'✅ ግንኙነት ተሳክቷል!',
+  connectionFailed:'❌ ግንኙነት አልተሳካም: ', penaltyRateLabel:'የቅጣት መጠን:',
+  loadingPenalties:'ቅጣቶችን በመጫን ላይ…', paid:'ተከፍሏል', pending:'በመጠበቅ ላይ',
+  unauthorized:'ይህን ተግባር ለማከናወን ፈቃድ የለዎትም።',
+  deleteSuccess:'ቅጣቱ በተሳካ ሁኔታ ተሰርዟል።', deleteError:'ቅጣቱን በመሰረዝ ላይ ስህተት: ',
+  editSuccess:'ቅጣቱ በተሳካ ሁኔታ ተሻሽሏል።', editError:'ቅጣቱን በማሻሻል ላይ ስህተት: ',
+  cash:'ጥሬ ገንዘብ', bankTransfer:'የባንክ ዝውውር', mobileMoney:'ሞባይል ገንዘብ',
+  payFromSavings:'ከቁጠባ ክፈል',
+  duplicateError:'ተመሳሳይ TT ቁጥር እና የዝውውር ቀን ተገኝቷል!',
+  paymentApproved:'ክፍያ ጸድቋል', paymentRejected:'ክፍያ ውድቅ ተደርጓል',
+  rejectReason:'የውድቅ ምክንያት',
+  savingsAvailable:'የደንበኛ አሁን ያለ የተጣራ ቁጠባ',
+  savingsSufficient:'✓ በቂ ነው', savingsInsufficient:'⚠ በቂ አይደለም',
+  savingsPaidAuto:'ቅጣቱ ከቁጠባ በራስ-ሰር ተከፍሏል!',
+  savingsPaidPending:'ከቁጠባ ክፍያ ገብቷል! ማጽደቅ በመጠበቅ ላይ።',
+  insufficientSavings:'ቁጠባ አይበቃም',
+  monthlyPayment:'ወርሃዊ ክፍያ', description:'መግለጫ',
+  paidAt:'የተከፈለበት', paymentNote:'የክፍያ ማስታወሻ',
+  fullyPaidMsg:'ተከፍሏል',
+  grossSavings:'ጠቅላላ ቁጠባ',
+  dividends:'ክፍፍል',
+  individualWithdrawals:'የግል መውጫዎች',
+  customerLeavings:'የደንበኛ መውጣት',
+  penaltiesFromSavings:'ቅጣቶች (ከቁጠባ)',
+  netSavings:'የተጣራ ቁጠባ',
+  required:'የሚያስፈልግ'
+};
+
+translations.om = {
+  brandSub:'Bulchiinsa SACCO', logout:"Ba'i", loading:"Fe'aa jira…",
+  navSecOverview:'Aguuggama', navSecNetwork:'Networkii', navSecOperations:'Hojimaata',
+  navSecFinance:'Faayinaansii', navSecAdmin:'Bulchiinsa',
   navDashboard:'Daashboordii', navDistricts:'Aanaalee', navBranches:'Dameewwan', navCustomers:'Maamiltoota',
-  navSavings:'Qusannaa', navDeposits:'Kaasaa', navLoans:'Liqii', navRepayments:'Kaffaltuu', navWithdrawals:'Baasii',
-  navDividends:'Qooda', navShares:'Hirmaata', navPenalties:'Adaba', navReports:'Gabaasa',
-  navAudit:'Seenaa Galmee', navUsers:'Fayyadamtoota', navSettings:"Qindaa'ina",
-  penaltiesTitle:'Bulchiinsa Adabaa', refresh:'Haaraa', totalPenalties:'Adaboota Waliigalaa',
-  pendingPenalties:'Eegamaa', paidPenalties:'Kaffalame', customersWithPenalties:'Maamillee Adabaa Qaban',
-  customer:'Maamila', loanId:'ID Liqii', amount:'Qaba', unpaidMonths:"Ji'oota Hin Kaffalamne",
-  penaltyStatus:'Haala Adabaa', paymentStatus:'Haala Kaffaltii', submittedBy:'Ergame', approvedBy:'Mirkaneesse',
-  createdDate:'Uumame', actions:'Gocha', view:'Ilaali', pay:'Kaffali', edit:'Jijjiiri', delete:'Haqi',
-  cancel:'Haqi', close:'Cufi', paid:'Kaffalame', pending:'Eegamaa',
-  cash:'Saaphanaa', bankTransfer:'Sochoosa Baankii', mobileMoney:'Maallaqa Moobayilaa', payFromSavings:'Kusaa irraa Kaffali',
-  reset:'Deebisi', viewGrid:'Grid', viewTable:'Gabatee',
-  grossSavings:'Qusannaa Waliigalaa', dividends:'Qooda', individualWithdrawals:'Baasii Dhuunfaa',
-  customerLeavings:"Ba'uu Maamilaa", penaltiesFromSavings:'Adaba (Qusannaa irraa)',
-  netSavings:'Qusannaa Qulqulluu', required:'Barbaachisu' };
+  navSavings:'Qusannaa', navDeposits:'Kaasaa', navLoans:'Liqii',
+  navWithdrawals:'Baasii', navDividends:'Qooda', navShares:'Hirmaata',
+  navPenalties:'Adaba', navReports:'Gabaasa', navAudit:'Seenaa Galmee',
+  navUsers:'Fayyadamtoota', navSettings:"Qindaa'ina",
+  role_super_admin:'Bulchaa Olaanaa', role_admin:'Bulchaa', role_manager:'Gaggeessaa',
+  role_cashier:'Maallaqa Fudhatu', role_teller:'Teeksaa', role_accountant:'Herregaa',
+  role_auditor:'Oditera', role_member:'Miseensa', role_viewer:'Ilaaltuu',
+  penaltiesTitle:'Bulchiinsa Adabaa', penaltiesSub:'Adaboota hafe ilaaliitii bulchi',
+  breadcrumbHome:'Daashboordii', breadcrumbPenalties:'Adaba',
+  refresh:'Haaraa', totalPenalties:'Adaboota Waliigalaa', pendingPenalties:'Eegamaa',
+  paidPenalties:'Kaffalame', customersWithPenalties:'Maamillee Adabaa Qaban',
+  searchPlaceholder:'Maqaa maamilaa ykn ID liqiin barbaadi…',
+  allStatus:'Haala Hunda', pendingStatus:'Eegamaa', paidStatus:'Kaffalame',
+  paymentPendingStatus:'Kaffaltiin Eegamaa', totalPenaltiesList:'Adaboota Waliigalaa: ',
+  noPenalties:'Adabni hin argamne', noPenaltiesText:'Barbaacha ykn filtarii kee sirreessi.',
+  noMatch:'Adaba walsimu hin argamne',
+  showing:'Agarsiisaa', of:'keessaa', penaltiesWord:'adaboota',
+  customer:'Maamila', loanId:'ID Liqii', amount:'Qaba',
+  unpaidMonths:"Ji'oota Hin Kaffalamne", penaltyStatus:'Haala Adabaa',
+  paymentStatus:'Haala Kaffaltii', submittedBy:'Ergame',
+  approvedBy:'Mirkaneesse', createdDate:'Uumame', actions:'Gocha',
+  view:'Ilaali', pay:'Kaffali', edit:'Jijjiiri', delete:'Haqi',
+  approvePayment:'Kaffaltii Mirkaneessi', rejectPayment:'Kaffaltii Didi',
+  viewGrid:'Grid', viewTable:'Gabatee', reset:'Deebisi',
+  testConnection:'Walqunnamtii Qori', connectionSuccess:"✅ Walqunnamtiin milkaa'e!",
+  connectionFailed:'❌ Walqunnamtiin hin milkoofne: ', penaltyRateLabel:'Sadarkaa Adabaa:',
+  loadingPenalties:"Adaboota fe'aa jira…", paid:'Kaffalame', pending:'Eegamaa',
+  unauthorized:'Gocha kana raawwachuuf hayyamni hin qabdu.',
+  deleteSuccess:"Adabni milkaa'inaan haqame.", deleteError:'Adaba haquu irratti dogoggora: ',
+  editSuccess:"Adabni milkaa'inaan haaromfame.", editError:'Adaba haaromsuu irratti dogoggora: ',
+  cash:'Saaphanaa', bankTransfer:'Sochoosa Baankii', mobileMoney:'Maallaqa Moobayilaa',
+  payFromSavings:'Kusaa irraa Kaffali',
+  duplicateError:'Lakkoofsa TT fi guyyaa sochoosaa walfakkaatu argame!',
+  paymentApproved:"Kaffaltiin Mirkanaa'e", paymentRejected:'Kaffaltiin Diidame',
+  rejectReason:'Sababa Didii',
+  savingsAvailable:'Qusannaa Qulqulluu Maamilaa',
+  savingsSufficient:'✓ gaha', savingsInsufficient:'⚠ hin gahu',
+  savingsPaidAuto:'Adabni kusaa irraa ofumaan kaffalame!',
+  savingsPaidPending:'Kaffaltiin kusaa irraa ergame! Mirkaneessa eegaa jira.',
+  insufficientSavings:'Qusannaan hin gahu',
+  monthlyPayment:"Kaffaltii Ji'aa", description:'Ibsa',
+  paidAt:'Yeroo Kaffalame', paymentNote:'Yaadannoo Kaffaltii',
+  fullyPaidMsg:'Kaffalame',
+  grossSavings:'Qusannaa Waliigalaa',
+  dividends:'Qooda',
+  individualWithdrawals:'Baasii Dhuunfaa',
+  customerLeavings:"Ba'uu Maamilaa",
+  penaltiesFromSavings:'Adaba (Qusannaa irraa)',
+  netSavings:'Qusannaa Qulqulluu',
+  required:'Barbaachisu'
+};
 
 /* ============================================================
    STATE
@@ -802,6 +882,20 @@ let pendingRejectId = null;
 /* Wizard state */
 const PAY_WIZ_STEPS = 3;
 let payWizStep = 0;
+
+/* ⚡ LOADER MAX TIME — 2 seconds hard cap */
+const LOADER_MAX_MS = 2000;
+let _loaderForceHideTimer = null;
+
+function hideLoaderNow() {
+  document.getElementById('loader')?.classList.add('hide');
+  document.getElementById('loadingOverlay')?.classList.remove('active');
+  if (_loaderForceHideTimer) { clearTimeout(_loaderForceHideTimer); _loaderForceHideTimer = null; }
+}
+function startLoaderMaxTimer() {
+  if (_loaderForceHideTimer) clearTimeout(_loaderForceHideTimer);
+  _loaderForceHideTimer = setTimeout(hideLoaderNow, LOADER_MAX_MS);
+}
 
 const t = (key, vars) => {
   let s = (translations[currentLang] && translations[currentLang][key]) || translations.en[key] || key;
@@ -844,7 +938,6 @@ function userAvatarHTML(size = 38) {
   return `<div style="${baseStyle}">${esc(initials(name))}</div>`;
 }
 
-/* Table-row avatar — takes memberId so it can find the real customer record */
 function customerAvatarHTML(memberId, fallbackName, size = 40) {
   const c = getCustomerRecord(memberId);
   const url = (c && c.photoURL) || '';
@@ -857,7 +950,6 @@ function customerAvatarHTML(memberId, fallbackName, size = 40) {
   return `<div class="cust-avatar" style="${baseStyle}">${esc(initials(name))}</div>`;
 }
 
-/* Grid-card avatar — bigger, same rules */
 function customerAvatarCardHTML(memberId, fallbackName, size = 54) {
   const c = getCustomerRecord(memberId);
   const url = (c && c.photoURL) || '';
@@ -940,6 +1032,7 @@ function setLanguage(lang) {
   document.body.classList.toggle('lang-am', lang === 'am');
   buildPaymentMethodOptions();
   if (document.getElementById('mainContent')) renderMain();
+  renderShell();
 }
 function initLanguage() {
   const saved = localStorage.getItem('sacco.lang') || (navigator.language || 'en').slice(0,2);
@@ -949,7 +1042,7 @@ function initLanguage() {
 }
 
 /* ============================================================
-   NAV
+   NAV — ⚡ Repayments link REMOVED from Finance section
    ============================================================ */
 function roleLabel(r) {
   const map = { super_admin:'role_super_admin', admin:'role_admin', manager:'role_manager', cashier:'role_cashier', teller:'role_teller', accountant:'role_accountant', auditor:'role_auditor', member:'role_member', viewer:'role_viewer' };
@@ -969,7 +1062,7 @@ const NAV = [
   ]},
   { section:'Finance', items:[
     { key:'deposits',    label:'navDeposits',    icon:'fa-hand-holding-usd', href:'deposits.html',    roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
-    { key:'repayments',  label:'navRepayments',  icon:'fa-undo-alt',         href:'repayments.html',  roles:['super_admin','admin','manager','cashier','teller','accountant','auditor','member'] },
+    /* ⚡ Repayments link removed as requested */
     { key:'withdrawals', label:'navWithdrawals', icon:'fa-money-bill-wave',  href:'withdrawals.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
     { key:'dividends',   label:'navDividends',   icon:'fa-gift',             href:'dividends.html',   roles:['super_admin','admin','manager','accountant','auditor'] },
     { key:'penalties',   label:'navPenalties',   icon:'fa-exclamation-triangle', href:'penalties.html', roles:['super_admin','admin','manager','cashier'] }
@@ -1384,7 +1477,6 @@ async function loadSettings() {
   } catch (e) { console.warn('settings', e.message); }
 }
 
-/* Index customers by every plausible identifier, and pick up the photo */
 async function loadCustomers() {
   try {
     const snap = await db.collection('customers').get();
@@ -1436,7 +1528,10 @@ function getCustomerName(memberId) {
 
 async function loadPenalties() {
   const overlay = document.getElementById('loadingOverlay');
+  const overlayText = document.getElementById('loadingOverlayText');
+  if (overlayText) overlayText.textContent = t('loadingPenalties') || 'Loading penalties…';
   overlay.classList.add('active');
+  startLoaderMaxTimer();
   try {
     const snap = await db.collection('transactions').where('type', '==', 'penalty').get();
     allPenalties = [];
@@ -1447,11 +1542,11 @@ async function loadPenalties() {
     });
     allPenalties.sort((a, b) => (toDateSafe(b.createdAt)?.getTime()||0) - (toDateSafe(a.createdAt)?.getTime()||0));
     renderMain();
-    overlay.classList.remove('active');
+    hideLoaderNow();
   } catch (e) {
     console.error(e);
     toast('Error loading penalties: ' + e.message, 'error');
-    overlay.classList.remove('active');
+    hideLoaderNow();
     renderMain();
   }
 }
@@ -1463,14 +1558,16 @@ function applySearch() {
 
 async function refreshPage() {
   if (!can('refreshData')) { toast(t('unauthorized'), 'error'); return; }
-  document.getElementById('loadingOverlay').classList.add('active');
+  const overlay = document.getElementById('loadingOverlay');
+  overlay.classList.add('active');
+  startLoaderMaxTimer();
   try {
     await loadCustomers();
     await loadSettings();
     await loadPenalties();
     toast('Refreshed successfully.', 'success');
   } catch (e) { toast('Error refreshing: ' + e.message, 'error'); }
-  finally { document.getElementById('loadingOverlay').classList.remove('active'); }
+  finally { hideLoaderNow(); }
 }
 
 async function testConnection() {
@@ -1483,11 +1580,7 @@ async function testConnection() {
 
 /* ============================================================
    NET SAVINGS — FULL BREAKDOWN
-   Net = Gross Savings + Dividends − Individual Withdrawals
-         − Customer Leavings − Penalties (paid from savings)
-
-   ⚡ UPDATED: transaction type lists expanded to cover the real
-   strings used in this SACCO's Firestore (e.g. "individual_withdrawal").
+   Net = Gross + Dividends − Withdrawals − Leavings − Penalties(from savings)
    ============================================================ */
 async function getCustomerSavingsBreakdown(customerId) {
   const ZERO = { gross:0, dividends:0, withdrawals:0, leavings:0, penaltiesFromSavings:0, net:0 };
@@ -1495,55 +1588,41 @@ async function getCustomerSavingsBreakdown(customerId) {
     const id = extractIdFromAny(customerId) || customerId;
     if (!id) return ZERO;
 
-    /* ---- Transaction type buckets ---- */
     const SAVINGS_TYPES = [
       'savings','saving','deposit','deposits',
       'individual_savings','individual_deposit','savings_deposit',
       'member_savings','member_deposit'
     ];
-
     const DIVIDEND_TYPES = [
       'dividend','dividends','profit_income','profit_share','profit_distribution',
       'interest_income','interest_paid','share_profit','annual_dividend','dividend_payment'
     ];
-
-    /* ⚡ individual_withdrawal is what this SACCO actually writes */
     const WITHDRAWAL_TYPES = [
       'withdrawal','withdrawals','withdraw',
       'individual_withdrawal','individual_withdrawals',
       'savings_withdrawal','savings_withdrawals','savings_withdraw',
       'member_withdrawal','member_withdrawals','account_withdrawal'
     ];
-
     const LEAVING_TYPES = [
       'leaving','customer_leaving','member_leaving','customer_leavings','member_leavings',
       'exit','member_exit','customer_exit',
       'savings_closure','clear_savings','withdraw_all','close_account','account_closure',
       'refund','savings_refund','refund_savings','final_settlement','settlement'
     ];
-
-    const PENALTY_TYPES = [
-      'penalty','penalties','loan_penalty','penalty_payment'
-    ];
+    const PENALTY_TYPES = ['penalty','penalties','loan_penalty','penalty_payment'];
 
     const SAVINGS_PAY_SOURCES = ['savings','saving','from_savings','savings_account',
                                  'member_savings','sacco_savings','from_saving','account'];
-
     const GOOD_STATUSES = ['approved','paid','done','completed'];
 
-    /* ---- Fetch all transactions for this member (both id keys) ---- */
     const [byCustId, byMemberId] = await Promise.all([
       db.collection('transactions').where('customerId','==',id).get(),
       db.collection('transactions').where('memberId','==',id).get()
     ]);
 
-    const seen   = new Set();
+    const seen = new Set();
     const txList = [];
-    const push   = (doc) => {
-      if (seen.has(doc.id)) return;
-      seen.add(doc.id);
-      txList.push({ id: doc.id, ...doc.data() });
-    };
+    const push = (doc) => { if (seen.has(doc.id)) return; seen.add(doc.id); txList.push({ id: doc.id, ...doc.data() }); };
     byCustId.forEach(push);
     byMemberId.forEach(push);
 
@@ -1557,41 +1636,23 @@ async function getCustomerSavingsBreakdown(customerId) {
 
       const rawSrc = tx.paymentMethod || tx.paymentSource || tx.paidFrom || tx.source
                    || tx.fundingSource || tx.method || tx.paymentType || '';
-      const src  = String(rawSrc).toLowerCase().trim();
+      const src = String(rawSrc).toLowerCase().trim();
       const paidFromSavings = src ? SAVINGS_PAY_SOURCES.includes(src) : true;
 
-      if (SAVINGS_TYPES.includes(ty)) {
-        if (st === '' || GOOD_STATUSES.includes(st)) gross += amt;
-        return;
-      }
-      if (DIVIDEND_TYPES.includes(ty)) {
-        if (st === '' || GOOD_STATUSES.includes(st)) dividends += amt;
-        return;
-      }
-      if (WITHDRAWAL_TYPES.includes(ty)) {
-        if (GOOD_STATUSES.includes(st)) withdrawals += amt;
-        return;
-      }
-      if (LEAVING_TYPES.includes(ty)) {
-        if (GOOD_STATUSES.includes(st)) leavings += amt;
-        return;
-      }
-      if (PENALTY_TYPES.includes(ty)) {
-        if (GOOD_STATUSES.includes(st) && paidFromSavings) penaltiesFromSavings += amt;
-        return;
-      }
+      if (SAVINGS_TYPES.includes(ty))    { if (st === '' || GOOD_STATUSES.includes(st)) gross += amt; return; }
+      if (DIVIDEND_TYPES.includes(ty))   { if (st === '' || GOOD_STATUSES.includes(st)) dividends += amt; return; }
+      if (WITHDRAWAL_TYPES.includes(ty)) { if (GOOD_STATUSES.includes(st)) withdrawals += amt; return; }
+      if (LEAVING_TYPES.includes(ty))    { if (GOOD_STATUSES.includes(st)) leavings += amt; return; }
+      if (PENALTY_TYPES.includes(ty))    { if (GOOD_STATUSES.includes(st) && paidFromSavings) penaltiesFromSavings += amt; return; }
     });
 
     const net = gross + dividends - withdrawals - leavings - penaltiesFromSavings;
-    const r2  = (v) => Math.round(v * 100) / 100;
+    const r2 = (v) => Math.round(v * 100) / 100;
 
     return {
-      gross:                r2(gross),
-      dividends:            r2(dividends),
-      withdrawals:          r2(withdrawals),
-      leavings:             r2(leavings),
-      penaltiesFromSavings: r2(penaltiesFromSavings),
-      net:                  r2(Math.max(0, net))
+      gross: r2(gross), dividends: r2(dividends), withdrawals: r2(withdrawals),
+      leavings: r2(leavings), penaltiesFromSavings: r2(penaltiesFromSavings),
+      net: r2(Math.max(0, net))
     };
   } catch (e) {
     console.error('getCustomerSavingsBreakdown error:', e);
@@ -1599,7 +1660,6 @@ async function getCustomerSavingsBreakdown(customerId) {
   }
 }
 
-/* Backwards-compatible wrapper — returns just the net number */
 async function getCustomerAvailableSavings(customerId) {
   const b = await getCustomerSavingsBreakdown(customerId);
   return b.net;
@@ -1633,16 +1693,12 @@ function viewPenalty(id) {
   if (p.payment_status === 'pending')      { payStatus = t('paymentPendingStatus'); payCls = 'tag--gold'; }
   else if (p.payment_status === 'approved'){ payStatus = t('paymentApproved');      payCls = 'tag--green'; }
   else if (p.payment_status === 'rejected'){ payStatus = t('paymentRejected');      payCls = 'tag--red'; }
-  const methodLabel = p.payment_method === 'savings'
-    ? '💾 ' + t('payFromSavings')
-    : (p.payment_method || '—');
+  const methodLabel = p.payment_method === 'savings' ? '💾 ' + t('payFromSavings') : (p.payment_method || '—');
 
   const previewHtml = `
     <div style="display:flex;align-items:center;gap:16px;padding:16px;background:linear-gradient(135deg,#fef3f2,#fff);border:1px solid #fecdca;border-radius:14px;margin-bottom:18px;">
       <div style="width:64px;height:64px;border-radius:50%;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,var(--primary),var(--secondary));display:grid;place-items:center;color:#fff;font-weight:800;font-size:22px;">
-        ${custPhoto
-          ? `<img src="${esc(custPhoto)}" alt="" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';this.parentNode.textContent='${esc(initials(custName))}';">`
-          : esc(initials(custName))}
+        ${custPhoto ? `<img src="${esc(custPhoto)}" alt="" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';this.parentNode.textContent='${esc(initials(custName))}';">` : esc(initials(custName))}
       </div>
       <div style="min-width:0;flex:1;">
         <div style="font-size:17px;font-weight:800;color:var(--text);">${esc(custName)}</div>
@@ -1716,7 +1772,6 @@ function toggleConditionalFields() {
   }
 }
 
-/* ---- Savings breakdown panel ---- */
 async function refreshSavingsBalance() {
   const method = document.getElementById('paymentMethod').value;
   const info   = document.getElementById('savingsBalanceInfo');
@@ -1729,9 +1784,9 @@ async function refreshSavingsBalance() {
   info.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Loading…`;
 
   try {
-    const b    = await getCustomerSavingsBreakdown(p.memberId);
+    const b = await getCustomerSavingsBreakdown(p.memberId);
     const need = num(p.amount);
-    const ok   = b.net >= need;
+    const ok = b.net >= need;
 
     info.className = 'alert ' + (ok ? 'alert--success' : 'alert--error');
     info.innerHTML = `
@@ -1739,18 +1794,12 @@ async function refreshSavingsBalance() {
       <div style="width:100%;">
         <div style="font-weight:800;margin-bottom:6px;">${esc(t('savingsAvailable'))}</div>
         <table class="sav-breakdown">
-          <tr><td class="lbl pos">+ ${esc(t('grossSavings'))}</td>
-              <td class="amt pos">${fmtNum2(b.gross)}</td></tr>
-          <tr><td class="lbl pos">+ ${esc(t('dividends'))}</td>
-              <td class="amt pos">${fmtNum2(b.dividends)}</td></tr>
-          <tr><td class="lbl neg">− ${esc(t('individualWithdrawals'))}</td>
-              <td class="amt neg">${fmtNum2(b.withdrawals)}</td></tr>
-          <tr><td class="lbl neg">− ${esc(t('customerLeavings'))}</td>
-              <td class="amt neg">${fmtNum2(b.leavings)}</td></tr>
-          <tr><td class="lbl neg">− ${esc(t('penaltiesFromSavings'))}</td>
-              <td class="amt neg">${fmtNum2(b.penaltiesFromSavings)}</td></tr>
-          <tr class="total"><td class="lbl">= ${esc(t('netSavings'))}</td>
-              <td class="amt">${fmtNum2(b.net)}</td></tr>
+          <tr><td class="lbl pos">+ ${esc(t('grossSavings'))}</td><td class="amt pos">${fmtNum2(b.gross)}</td></tr>
+          <tr><td class="lbl pos">+ ${esc(t('dividends'))}</td><td class="amt pos">${fmtNum2(b.dividends)}</td></tr>
+          <tr><td class="lbl neg">− ${esc(t('individualWithdrawals'))}</td><td class="amt neg">${fmtNum2(b.withdrawals)}</td></tr>
+          <tr><td class="lbl neg">− ${esc(t('customerLeavings'))}</td><td class="amt neg">${fmtNum2(b.leavings)}</td></tr>
+          <tr><td class="lbl neg">− ${esc(t('penaltiesFromSavings'))}</td><td class="amt neg">${fmtNum2(b.penaltiesFromSavings)}</td></tr>
+          <tr class="total"><td class="lbl">= ${esc(t('netSavings'))}</td><td class="amt">${fmtNum2(b.net)}</td></tr>
         </table>
         <div style="margin-top:8px;font-weight:800;color:${ok ? '#067647' : '#b42318'};">
           ${ok ? '✓ ' + esc(t('savingsSufficient')) : '⚠ ' + esc(t('savingsInsufficient'))}
@@ -1763,7 +1812,6 @@ async function refreshSavingsBalance() {
   }
 }
 
-/* ---- Wizard nav ---- */
 function showPayWizStep(n) {
   payWizStep = Math.max(0, Math.min(PAY_WIZ_STEPS - 1, n));
 
@@ -1874,7 +1922,6 @@ function openPayModal(id) {
 
   pendingPayId = id;
 
-  /* Populate customer preview card */
   const c = getCustomerRecord(p.memberId);
   const custPhoto = (c && c.photoURL) || '';
   const custName  = (c && c.name) || p.customerName || 'Unknown';
@@ -1894,7 +1941,6 @@ function openPayModal(id) {
     .filter(Boolean).join(' · ') || '&nbsp;';
   document.getElementById('payCustAmount').textContent = money(p.amount);
 
-  /* Populate readonly fields */
   document.getElementById('payPenaltyId').value = id;
   document.getElementById('payAmountDisplay').textContent = money(p.amount);
   document.getElementById('payMemberName').value = p.customerName || 'Unknown';
@@ -1919,7 +1965,6 @@ function openPayModal(id) {
   openModal('payPenaltyModal');
 }
 
-/* ---- Wizard event wiring ---- */
 document.getElementById('payWizNext')?.addEventListener('click', async () => {
   const ok = await validatePayStep(payWizStep);
   if (!ok) return;
@@ -1943,13 +1988,12 @@ document.getElementById('payWizSubmit')?.addEventListener('click', async (e) => 
     lbl.style.opacity = '1';
   }
 });
-/* Reset wizard step whenever the modal is closed */
 document.querySelectorAll('[data-close-modal="payPenaltyModal"]').forEach(b => {
   b.addEventListener('click', () => { payWizStep = 0; });
 });
 
 /* ============================================================
-   confirmPayPenalty — unchanged logic, called from wizard Submit
+   confirmPayPenalty
    ============================================================ */
 async function confirmPayPenalty() {
   if (!can('payPenalty')) { toast(t('unauthorized'), 'error'); return; }
@@ -2161,7 +2205,7 @@ async function performLogout() {
 document.getElementById('confirmLogoutBtn')?.addEventListener('click', performLogout);
 
 /* ============================================================
-   EVENT WIRING (non-wizard)
+   EVENT WIRING
    ============================================================ */
 document.getElementById('confirmApproveBtn')?.addEventListener('click', confirmApprovePayment);
 document.getElementById('confirmRejectBtn')?.addEventListener('click', confirmRejectPayment);
@@ -2175,10 +2219,12 @@ document.getElementById('paymentMethod')?.addEventListener('change', function ()
 document.getElementById('bankName')?.addEventListener('change', handleBankOtherToggle);
 
 /* ============================================================
-   BOOT
+   BOOT — loader auto-hides in 2 seconds max
    ============================================================ */
 (function boot() {
   initLanguage();
+  startLoaderMaxTimer();   /* ⚡ 2-second hard cap on the initial loader */
+
   auth.onAuthStateChanged(async (user) => {
     if (!user) { window.location.href = LOGIN_URL; return; }
     try {
@@ -2204,10 +2250,10 @@ document.getElementById('bankName')?.addEventListener('change', handleBankOtherT
 
     await loadSettings();
     renderShell();
-    setTimeout(() => document.getElementById('loader')?.classList.add('hide'), 150);
     renderMain();
     await loadCustomers();
     await loadPenalties();
+    hideLoaderNow();
     startSessionWatcher();
   });
 })();
