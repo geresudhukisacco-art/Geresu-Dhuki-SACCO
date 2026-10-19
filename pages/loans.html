@@ -473,7 +473,6 @@ html.theme-dark .user-btn{background:#1a2433;}
 body.sb-open .overlay-mobile{display:block;}
 #slip-print-host{display:none;}
 
-/* ============ A5 LANDSCAPE RECEIPT ============ */
 .slip{width:210mm;height:148mm;padding:6mm 8mm;background:#fff;box-shadow:0 20px 60px rgba(20,40,70,.3);font-family:"Inter",sans-serif;color:#000;position:relative;overflow:hidden;font-size:9.5pt;line-height:1.35;box-sizing:border-box;isolation:isolate;}
 .slip--a5{width:210mm;height:148mm;padding:6mm 8mm;}
 .slip__watermark{position:absolute;inset:0;z-index:0;pointer-events:none;display:flex;align-items:center;justify-content:center;overflow:hidden;}
@@ -683,18 +682,6 @@ const APP = {
   dataLoaded:false
 };
 const CUSTOMER_MAP = new Map();
-
-/* ⚡ LOADER CAP — 2 seconds max */
-const LOADER_MAX_MS = 2000;
-let _loaderForceHideTimer = null;
-function hideLoaderNow(){
-  document.getElementById('loader')?.classList.add('hide');
-  if(_loaderForceHideTimer){clearTimeout(_loaderForceHideTimer);_loaderForceHideTimer=null;}
-}
-function startLoaderMaxTimer(){
-  if(_loaderForceHideTimer)clearTimeout(_loaderForceHideTimer);
-  _loaderForceHideTimer=setTimeout(hideLoaderNow, LOADER_MAX_MS);
-}
 
 /* ============================================================
    I18N — EN / AM / OM  (fully translated, no fallback spread)
@@ -1676,7 +1663,7 @@ async function generatePaymentHistory(loanId){
   }
 }
 
-/* ============ NAV — ⚡ Repayments removed ============ */
+/* ============ NAV — Repayments removed ============ */
 const NAV = [
   { section:'Overview', items:[{ key:'dashboard', label:'Dashboard', icon:'fa-th-large', href:'dashboard.html', roles:['*'] }]},
   { section:'Network', items:[
@@ -1691,7 +1678,6 @@ const NAV = [
   ]},
   { section:'Finance', items:[
     { key:'deposits',    label:'Deposits',    icon:'fa-hand-holding-usd', href:'deposits.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
-    /* ⚡ Repayments link removed from sidebar */
     { key:'withdrawals', label:'Withdrawals', icon:'fa-money-bill-wave',  href:'withdrawals.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
     { key:'dividends',   label:'Dividends',   icon:'fa-gift',             href:'dividends.html', roles:['super_admin','admin','manager','accountant','auditor'] },
     { key:'penalties',   label:'Penalties',   icon:'fa-exclamation-triangle', href:'penalties.html', roles:['super_admin','admin','manager','cashier'] }
@@ -3199,7 +3185,7 @@ async function loadAllData(){
   APP.dataLoaded=true;
 }
 
-/* ============ BOOT — loader auto-hides within 2 seconds ============ */
+/* ============ BOOT — hide loader like penalties page ============ */
 (async function boot(){
   let saved=null;
   try{saved=localStorage.getItem(LANG_KEY);}catch(e){}
@@ -3207,7 +3193,6 @@ async function loadAllData(){
   LANG=SUPPORTED.includes(saved)?saved:(SUPPORTED.includes(b)?b:'en');
   document.documentElement.lang=LANG;
   document.body.classList.toggle('lang-am',LANG==='am');
-  startLoaderMaxTimer();  /* ⚡ 2-second hard cap on the initial loader */
   const sess=readSession();
   if(!isSessionRecordValid(sess)){
     try{sessionStorage.setItem('__redirectReason','expired');}catch(e){}
@@ -3242,14 +3227,18 @@ async function loadAllData(){
   }
   await loadSessionTimeout();
   await loadSettings();
+
+  // ⚡ Render shell + page, then hide the loader ~150 ms later — no waiting for data.
   renderShell();
   renderMain();
+  setTimeout(()=>document.getElementById('loader')?.classList.add('hide'),150);
+
+  // Load data in the background and re-render once it's ready.
   try{
     await loadAllData();
     renderMain();
     startSessionWatcher();
   }catch(e){console.error(e);}
-  hideLoaderNow();  /* ⚡ hide as soon as data is ready — max 2 s */
 })();
 
 window.viewLoan=openViewModal;
