@@ -2636,6 +2636,13 @@ function openViewModal(l){
   });
 }
 
+/* ==================== FIXED openRepaymentModal ====================
+   Adds: unpaid-previous-monthly-installments (arrears) detection
+         + minimum-repayment gate on arrears
+         + warning/success banner in step 1
+         + arrears re-check in onFinish
+   Everything else identical to the original.
+   ================================================================ */
 async function openRepaymentModal(loan){
   if(!canRepay()){toast(t('noPermission'),'error');return;}
   if(!loan){toast(t('pleaseSelectLoan'),'warning');return;}
@@ -2651,8 +2658,41 @@ async function openRepaymentModal(loan){
   const monthly0=calcMonthlyPayment(loan);
   /* ⚡ allowPartialRepayment gates minPayment */
   const allowPartial = APP.settings.allowPartialRepayment !== false;
-  const minPayment0 = allowPartial ? Math.min(monthly0, outstanding0) : outstanding0;
   const approvedCount0=list0.filter(r=>r.status==='approved'||r.status==='printed').length;
+
+  /* ══════════════════════════════════════════════════════════════
+     ⚡ FIX: compute unpaid previous monthly installments (arrears)
+     Amount-based (robust to multiple transactions per month):
+       expectedSoFar  = monthsDue * monthly
+       arrearsAmount  = max(0, expectedSoFar - paidSoFar)
+     ══════════════════════════════════════════════════════════════ */
+  const start0 = loanStartDate(loan);
+  let monthsDue0 = 0;
+  if(start0){
+    const nowShifted = new Date(Date.now() - GRACE_MS());
+    monthsDue0 = (nowShifted.getFullYear()-start0.getFullYear())*12
+               + (nowShifted.getMonth()   -start0.getMonth());
+    if(nowShifted.getDate() < start0.getDate()) monthsDue0 -= 1;
+    monthsDue0 = Math.max(0, monthsDue0);
+  }
+  const totalMonths0 = Math.max(1, Math.floor(num(loan.duration) || 1));
+  const paidSoFar0   = loanRepaid(loan);
+  const totalPayable0= calcLoan(loan.principal,loan.interestRate,loan.duration,loan.interestType).total;
+  const expectedSoFar0 = Math.min(totalPayable0, Math.min(monthsDue0,totalMonths0) * monthly0);
+  const arrearsAmount0 = Math.max(0, round2(expectedSoFar0 - paidSoFar0));
+  const monthsBehind0  = monthly0 > 0 ? Math.ceil(arrearsAmount0 / monthly0) : 0;
+
+  /* Minimum payment = arrears when behind, else normal monthly */
+  let minPayment0;
+  if(!allowPartial){
+    minPayment0 = outstanding0;
+  } else if(arrearsAmount0 > 0){
+    minPayment0 = Math.min(outstanding0, arrearsAmount0);
+    if(minPayment0 <= 0) minPayment0 = Math.min(monthly0, outstanding0);
+  } else {
+    minPayment0 = Math.min(monthly0, outstanding0);
+  }
+
   const c=customerById(loan.customerId||loan.customerDocId);
   const initSplit=computeRepaymentSplit(minPayment0,loan,outstanding0);
   const initial={
@@ -2662,6 +2702,7 @@ async function openRepaymentModal(loan){
     principalPortion:initSplit.principal,interestPortion:initSplit.interest,isRepayAll:false,
     _outstanding:outstanding0,_monthly:monthly0,_minPayment:minPayment0,_approvedCount:approvedCount0,
     _allowPartial:allowPartial,
+    _monthsBehind:monthsBehind0,_arrearsAmount:arrearsAmount0,_monthsDue:monthsDue0,
     _historyHtml:historyHtml,_customer:c,_pending:allPending0,_list0:list0
   };
   openWizard({
@@ -2672,12 +2713,18 @@ async function openRepaymentModal(loan){
       { label:'Amount',title:'Loan & Amount',
         render:(d)=>{
           const pending=d._pending;
-          /* ⚡ waiverRequiresMinMonths gate */
           const gateMonths = (APP.settings.waiverRequiresMinMonths !== false) ? APP.settings.minMonthsForRepayAll : 0;
           const gate = d._approvedCount < gateMonths;
           const partialLocked = d._allowPartial === false;
+
+          /* ⚡ NEW: arrears warning banner */
+          const arrearsBanner = d._monthsBehind > 0
+            ? `<div class="alert alert--warning"><i class="fas fa-exclamation-triangle"></i><div>${esc(t('unpaidWarningText'))} <strong>${d._monthsBehind}</strong> ${d._monthsBehind===1?'month':'months'} behind — arrears balance <strong>${esc(money(d._arrearsAmount))}</strong>. The minimum repayment must clear the arrears first.</div></div>`
+            : `<div class="alert alert--success"><i class="fas fa-check-circle"></i><div>${esc(t('upToDate'))}</div></div>`;
+
           return `
             ${pending.total>0?`<div class="alert alert--error"><i class="fas fa-lock"></i><div>${esc(t('penaltyBlockedTitle'))} <strong>ETB ${pending.total.toFixed(2)}</strong>. ${esc(t('penaltyBlockPay'))}</div></div>`:''}
+            ${arrearsBanner}
             <div class="alert alert--info"><i class="fas fa-info-circle"></i><div>This repayment will be saved as <strong>pending</strong>. It only affects the loan balance after approval.</div></div>
             ${partialLocked?`<div class="alert alert--warning"><i class="fas fa-lock"></i><div>Partial repayment is disabled — you must pay the full outstanding balance of <strong>${esc(money(d._outstanding))}</strong>.</div></div>`:''}
             <div class="info-panel show">
@@ -2689,8 +2736,10 @@ async function openRepaymentModal(loan){
                 <div class="info-row"><span class="k">${esc(t('totalPaid'))}</span><span class="v" style="color:#128a5c">${esc(money(loanRepaid(loan)))}</span></div>
                 <div class="info-row"><span class="k">${esc(t('remaining'))}</span><span class="v" style="color:#b42318">${esc(money(d._outstanding))}</span></div>
                 <div class="info-row"><span class="k">${esc(t('monthlyInstallment'))}</span><span class="v">${esc(money(d._monthly))}</span></div>
-                <div class="info-row"><span class="k">${esc(t('minRepaymentStatus'))}</span><span class="v">Min: ${esc(money(d._minPayment))}</span></div>
                 <div class="info-row"><span class="k">${esc(t('approvedMonthsPaid'))}</span><span class="v">${d._approvedCount} / ${gateMonths}</span></div>
+                <div class="info-row"><span class="k">Unpaid months</span><span class="v" style="color:${d._monthsBehind>0?'#b42318':'#067647'}">${d._monthsBehind}</span></div>
+                <div class="info-row"><span class="k">Arrears</span><span class="v" style="color:${d._arrearsAmount>0?'#b42318':'#067647'}">${esc(money(d._arrearsAmount))}</span></div>
+                <div class="info-row"><span class="k">${esc(t('minRepaymentStatus'))}</span><span class="v">Min: ${esc(money(d._minPayment))}</span></div>
               </div>
             </div>
             <div class="field">
@@ -2717,6 +2766,10 @@ async function openRepaymentModal(loan){
           /* ⚡ partial-repayment gate */
           if(d._allowPartial === false && amt + 0.01 < d._outstanding){
             return `Partial repayment is disabled — you must pay the full ${money(d._outstanding)}.`;
+          }
+          /* ⚡ NEW: unpaid-repayments gate — arrears must be cleared first */
+          if(d._allowPartial !== false && d._monthsBehind > 0 && !d.isRepayAll && amt + 0.01 < d._arrearsAmount){
+            return `${t('unpaidWarningText')} Pay at least ${money(d._arrearsAmount)} to cover ${d._monthsBehind} missed month(s).`;
           }
           if(d._allowPartial !== false && !d.isRepayAll && amt+0.01<d._minPayment){
             return `${t('minPaymentNotMet')} (Min: ${d._minPayment.toFixed(2)})`;
@@ -2755,7 +2808,17 @@ async function openRepaymentModal(loan){
           });
           root.querySelector('#rpRefreshPenalty')?.addEventListener('click',async(e)=>{
             const btn=e.currentTarget;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';btn.disabled=true;
-            try{await checkAndCreatePenalty(loan.id,loan.customerId||loan.memberId);data._pending=await getMemberPenaltiesWithDetails(loan.customerId||loan.memberId);toast('Penalty status refreshed.','success');refresh();}
+            try{
+              await checkAndCreatePenalty(loan.id,loan.customerId||loan.memberId);
+              data._pending=await getMemberPenaltiesWithDetails(loan.customerId||loan.memberId);
+              /* ⚡ also refresh arrears */
+              const freshLoan = APP.loans.find(x=>x.id===loan.id) || loan;
+              const freshPaid = loanRepaid(freshLoan);
+              const freshExpected = Math.min(totalPayable0, Math.min(data._monthsDue, totalMonths0) * monthly0);
+              data._arrearsAmount = Math.max(0, round2(freshExpected - freshPaid));
+              data._monthsBehind  = monthly0 > 0 ? Math.ceil(data._arrearsAmount / monthly0) : 0;
+              toast('Penalty & arrears status refreshed.','success');refresh();
+            }
             catch(err){toast('Could not refresh penalty.','error');btn.innerHTML='<i class="fas fa-sync-alt"></i>';btn.disabled=false;}
           });
         }
@@ -2808,7 +2871,6 @@ async function openRepaymentModal(loan){
           bankOther?.addEventListener('input',()=>{data.bankOther=bankOther.value;});
           const ttIn=root.querySelector('#rpTT');const tdIn=root.querySelector('#rpTransferDate');const dupWarn=root.querySelector('#rpDupWarn');
           const checkDup=async()=>{
-            /* ⚡ respect enableDuplicateCheck setting */
             if(APP.settings.enableDuplicateCheck === false){ if(dupWarn) dupWarn.style.display='none'; return; }
             const tt=(data.ttNumber||'').trim();const td=data.transferDate;
             if(!tt||!td||!dupWarn)return;
@@ -2832,8 +2894,12 @@ async function openRepaymentModal(loan){
           const methodLabel={cash:t('methodCash'),bank:t('methodBank'),mobile:t('methodMobile')}[d.method]||d.method;
           const bankDisplay=d.method==='cash'?'—':(d.bankName==='other'?d.bankOther:d.bankName);
           const remainingAfter=Math.max(0,round2(d._outstanding-amt));
+          const coversArrears = d._monthsBehind === 0 || amt >= d._arrearsAmount;
           return `
             <div class="alert alert--warning"><i class="fas fa-hourglass-half"></i><div>After saving, this repayment will be <strong>pending</strong>. The loan balance stays the same until an admin approves it.</div></div>
+            ${d._monthsBehind > 0 ? `<div class="alert alert--${coversArrears?'success':'error'}"><i class="fas fa-${coversArrears?'check-circle':'exclamation-triangle'}"></i><div>${coversArrears
+              ? `This repayment clears the <strong>${d._monthsBehind}</strong> missed month(s) — arrears of <strong>${esc(money(d._arrearsAmount))}</strong> will be settled.`
+              : `${esc(t('unpaidWarningText'))} Amount must be at least <strong>${esc(money(d._arrearsAmount))}</strong>.`}</div></div>`:''}
             <div style="padding:16px;background:linear-gradient(135deg,#f0fdf4,#fff);border:1px solid #a7f3d0;border-radius:14px;margin-bottom:18px;display:flex;align-items:center;gap:16px">
               <div style="width:60px;height:60px;border-radius:50%;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#128a5c,#19a974);display:grid;place-items:center;color:#fff;font-weight:800;font-size:22px">${d._customer?.photoURL?`<img src="${esc(d._customer.photoURL)}" alt="" style="width:100%;height:100%;object-fit:cover">`:esc(initials(customerName(d._customer)))}</div>
               <div style="min-width:0"><div style="font-size:16px;font-weight:800">${esc(customerName(d._customer))}</div>${d._customer?.customerId?`<div style="font-size:12px;color:var(--muted);font-family:ui-monospace,monospace;margin-top:2px">${esc(d._customer.customerId)}</div>`:''}<div style="margin-top:6px"><span class="tag tag--gold">${esc(t('repPending'))}</span> <span class="tag tag--green">${esc(methodLabel)}</span></div></div>
@@ -2859,10 +2925,17 @@ async function openRepaymentModal(loan){
       }
     ],
     onFinish:async(d)=>{
+      /* ⚡ FIX: re-check penalty AND arrears against fresh data before save */
       const freshPending=await getMemberPenaltiesWithDetails(loan.customerId||loan.memberId);
       if(freshPending.total>0)throw new Error(`${t('penaltyBlockedTitle')} ETB ${freshPending.total.toFixed(2)}`);
+
       const amount=num(d.amount);
       if(amount<=0)throw new Error(t('invalidAmountMsg'));
+      if(amount > d._outstanding + 0.01) throw new Error(t('cannotExceedRemaining'));
+      if(d._allowPartial !== false && d._monthsBehind > 0 && !d.isRepayAll && amount + 0.01 < d._arrearsAmount){
+        throw new Error(`${t('unpaidWarningText')} Pay at least ${money(d._arrearsAmount)} to cover ${d._monthsBehind} missed month(s).`);
+      }
+
       const bankName=d.method==='cash'?'':(d.bankName==='other'?d.bankOther:d.bankName);
       const txData={
         type:'repayment',loanId:loan.id,
@@ -2885,6 +2958,7 @@ async function openRepaymentModal(loan){
     }
   });
 }
+/* ==================== END FIXED openRepaymentModal ==================== */
 
 function buildRepaymentReceiptHtml(tx, loan, watermarkText='COPY'){
   const c=customerById(loan.customerId||loan.customerDocId);
