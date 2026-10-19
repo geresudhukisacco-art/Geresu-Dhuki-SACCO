@@ -640,9 +640,9 @@ const BANKS_LIST = {
   bank: ['Commercial Bank of Ethiopia (CBE)','Awash Bank','Dashen Bank','Bank of Abyssinia','Wegagen Bank','United Bank','Nib International Bank','Cooperative Bank of Oromia','Buna International Bank','Berhan International Bank','Abay Bank','Zemen Bank','Oromia International Bank','Bunna Bank','Debub Global Bank','Enat Bank','Addis International Bank','Lion International Bank','Ahadu Bank','Tsehay Bank','Goh Betoch Bank','Amhara Bank','Sidama Bank','Omo Bank','Ramis Bank','ZamZam Bank','Hijra Bank','Development Bank of Ethiopia']
 };
 
-/* ============ SESSION ============ */
+/* ============ SESSION — default matches settings.html (5 min) ============ */
 const SESSION_KEY = "sacco.session";
-const DEFAULT_SESSION_MINUTES = 30;
+const DEFAULT_SESSION_MINUTES = 5;
 let SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
 let awayStartedAt = null, awayCheckInterval = null;
 function readSession(){try{const r=sessionStorage.getItem(SESSION_KEY);if(!r)return null;const s=JSON.parse(r);return (s&&s.uid)?s:null;}catch(e){return null;}}
@@ -667,7 +667,7 @@ async function loadSessionTimeout(){
   }catch(e){}
 }
 
-/* ============ STATE ============ */
+/* ============ STATE — all settings keys mirrored ============ */
 let S = null; let LANG = 'en';
 const APP = {
   saccoName:'Geresu Dhuki SACCO', currency:'ETB',
@@ -675,9 +675,14 @@ const APP = {
   filters:{search:'',districtId:'',branchId:'',type:'',status:'',overdue:''},
   view:'grid', page:1, pageSize:12,
   settings:{
-    defaultInterestRate:10, defaultLoanType:'simple', maxLoanAmount:50000, maxLoanMultiplier:3,
-    maxLoansPerCustomer:1, penaltyRate:5, loansPenaltyRate:0.05, gracePeriod:7,
-    minMonthsForRepayAll:6, allowInterestWaiver:true, waiverRequiresMinMonths:true
+    defaultInterestRate:10, defaultLoanType:'simple',
+    maxLoanAmount:50000, minLoanAmount:0, maxLoanMultiplier:3,
+    maxLoansPerCustomer:1, penaltyRate:5, loansPenaltyRate:0.05,
+    gracePeriod:7, minMonthsForRepayAll:6,
+    allowInterestWaiver:true, waiverRequiresMinMonths:true,
+    penaltiesEnabled:true, penaltyAutoGenerate:true, penaltiesApplyLoans:true,
+    penaltiesMinAmount:0, penaltiesMaxAmount:0,
+    requireApprovalLoans:true, allowPartialRepayment:true, enableDuplicateCheck:true
   },
   dataLoaded:false
 };
@@ -1492,8 +1497,13 @@ async function fetchLoanRepayments(loanId){
 }
 function pendingRepaymentsForLoan(loanId){return APP.repayments.filter(r=>r.loanId===loanId&&String(r.status||'pending').toLowerCase()==='pending');}
 
+/* ============ checkAndCreatePenalty — GATED BY SETTINGS ============ */
 async function checkAndCreatePenalty(loanId, memberId){
   try {
+    if (APP.settings.penaltiesEnabled === false)    return {penaltyAmount:0, unpaidMonths:0};
+    if (APP.settings.penaltyAutoGenerate === false) return {penaltyAmount:0, unpaidMonths:0};
+    if (APP.settings.penaltiesApplyLoans === false) return {penaltyAmount:0, unpaidMonths:0};
+
     const loanDoc = await getDoc(doc(db, 'loans', loanId));
     if(!loanDoc.exists()) return {penaltyAmount:0, unpaidMonths:0};
     const loanData = loanDoc.data();
@@ -1513,7 +1523,14 @@ async function checkAndCreatePenalty(loanId, memberId){
     if(unpaidMonths === 0) return {penaltyAmount:0, unpaidMonths:0};
     const monthlyPayment = calcLoan(loanData.principal, loanData.interestRate, loanData.duration, loanData.interestType || 'simple').monthly;
     const rate = num(APP.settings.loansPenaltyRate) || 0.05;
-    const penaltyAmount = round2(monthlyPayment * unpaidMonths * rate);
+    let penaltyAmount = round2(monthlyPayment * unpaidMonths * rate);
+
+    /* ⚡ clamp to settings min/max */
+    const pMin = num(APP.settings.penaltiesMinAmount);
+    const pMax = num(APP.settings.penaltiesMaxAmount);
+    if (pMin > 0 && penaltyAmount < pMin) penaltyAmount = pMin;
+    if (pMax > 0 && penaltyAmount > pMax) penaltyAmount = pMax;
+
     if(penaltyAmount <= 0) return {penaltyAmount:0, unpaidMonths};
     const existing = await getDocs(query(collection(db,'transactions'),where('loanId','==', loanId),where('type','==','penalty'),where('status','==','pending')));
     if(!existing.empty){
@@ -2222,6 +2239,17 @@ function openWizard({title,subtitle,finishLabel,steps,initial={},onFinish,succes
 
 function openLoanWizard(loan){
   const isEdit=!!loan;const l0=loan||{};
+
+  /* ⚡ Block inactive customers up front */
+  if(isEdit){
+    const existingCustomer = customerById(l0.customerId||l0.customerDocId);
+    if(existingCustomer && String(existingCustomer.status||'active').toLowerCase() !== 'active'){
+      toast('Customer is inactive — activate them on the Customers page first.','warning');
+      return;
+    }
+  }
+
+  const initialStatus = l0.status || (APP.settings.requireApprovalLoans ? 'pending' : 'active');
   const initial={
     customerId:l0.customerId||'',_customerDocId:l0.customerDocId||'',loanType:l0.loanType||'personal',
     interestType:l0.interestType||APP.settings.defaultLoanType||'simple',
@@ -2233,7 +2261,7 @@ function openLoanWizard(loan){
     letterNumber:l0.letterNumber||'',
     disbursementDate:l0.disbursementDate||new Date().toISOString().slice(0,10),
     maturityDate:l0.maturityDate||computeMaturityDate(l0.disbursementDate||new Date().toISOString().slice(0,10),l0.duration||12),
-    status:l0.status||'pending',notes:l0.notes||'',_attachment:l0.attachment||null
+    status:initialStatus,notes:l0.notes||'',_attachment:l0.attachment||null
   };
   if(initial.customerId){const c=customerById(initial.customerId);if(c)initial._customerDocId=c.id;}
   const searchState={q:''};const guarantees=Array.isArray(l0.guarantees)?[...l0.guarantees]:[];
@@ -2254,8 +2282,20 @@ function openLoanWizard(loan){
             const isOn=d.customerId===(c.customerId||c.id);
             const avatar=c.photoURL?`<img src="${esc(c.photoURL)}" alt="">`:esc(initials(customerName(c)));
             const activeCount=ctx.active+ctx.pending;const maxPer=APP.settings.maxLoansPerCustomer;
-            const blocked=!isEdit&&activeCount>=maxPer;const blockText=blocked?t('ctxMaxReached').replace('{max}',maxPer):'';
-            const badgeHtml=blocked?`<span class="customer-pick__block-tag"><i class="fas fa-ban"></i> ${esc(t('ctxBlocked'))}</span>`:(activeCount>0?`<span class="customer-pick__block-tag" style="background:#fdf5e0;color:#b8860b;border:1px solid #f0dcb0"><i class="fas fa-clock"></i> ${esc(t('ctxActiveCount').replace('{n}',activeCount))}</span>`:'');
+            /* ⚡ block inactive + max-loans gate */
+            const custStatus = String(c.status || 'active').toLowerCase();
+            const isInactive = custStatus !== 'active';
+            const blocked = !isEdit && (activeCount >= maxPer || isInactive);
+            const blockText = isInactive
+              ? `Customer is ${custStatus} — activate them on the Customers page first`
+              : (blocked ? t('ctxMaxReached').replace('{max}',maxPer) : '');
+            const badgeHtml = isInactive
+              ? `<span class="customer-pick__block-tag" style="background:#fef3f2;color:#b42318;border:1px solid #fecdca"><i class="fas fa-ban"></i> Inactive</span>`
+              : (blocked
+                  ? `<span class="customer-pick__block-tag"><i class="fas fa-ban"></i> ${esc(t('ctxBlocked'))}</span>`
+                  : (activeCount>0
+                      ? `<span class="customer-pick__block-tag" style="background:#fdf5e0;color:#b8860b;border:1px solid #f0dcb0"><i class="fas fa-clock"></i> ${esc(t('ctxActiveCount').replace('{n}',activeCount))}</span>`
+                      : ''));
             return `<div class="customer-pick__item ${isOn?'is-on':''} ${blocked?'is-blocked':''}" data-customer-id="${esc(c.id)}" data-customer-code="${esc(c.customerId||c.id)}" data-blocked="${blocked?'1':'0'}" data-block-text="${esc(blockText)}">
               <div class="customer-pick__avatar">${avatar}</div>
               <div class="customer-pick__main"><div class="customer-pick__name">${esc(customerName(c))} ${c.customerId?`<span class="customer-pick__bal">${esc(c.customerId)}</span>`:''}${badgeHtml}</div>
@@ -2268,6 +2308,10 @@ function openLoanWizard(loan){
         validate:(d)=>{
           if(!d.customerId)return t('chooseCustomer');
           const c=customerById(d.customerId);if(!c)return t('chooseCustomer');
+          /* ⚡ block inactive customers */
+          const status = String(c.status || 'active').toLowerCase();
+          if (status !== 'active')
+            return `This customer is marked "${status}" — activate them on the Customers page before creating a loan.`;
           const maxPer=APP.settings.maxLoansPerCustomer;
           const n=isEdit?countActiveOrPending(c,l0.id):countActiveOrPending(c);
           if(n>=maxPer)return t('maxLoansReached').replace('{max}',maxPer);
@@ -2285,6 +2329,11 @@ function openLoanWizard(loan){
           const typeOptions=LOAN_TYPES.map(lt=>`<option value="${esc(lt.code)}" ${d.loanType===lt.code?'selected':''}>${esc(lt.name)}</option>`).join('');
           const itypeOptions=INTEREST_TYPES.map(it=>`<option value="${esc(it.code)}" ${d.interestType===it.code?'selected':''}>${esc(it.name)}</option>`).join('');
           const guaranteesHtml=guarantees.length?guarantees.map((g,i)=>`<div class="guarantee-chip"><div class="guarantee-chip__main"><div class="guarantee-chip__name">${esc(g.name||'—')} <span class="guarantee-chip__type">${esc(g.type||'other')}</span></div><div class="guarantee-chip__meta">${g.value?`Value: ${esc(money(g.value))} · `:''}${g.contact?`Contact: ${esc(g.contact)}`:''}</div></div><button type="button" class="guarantee-chip__del" data-guarantee-del="${i}"><i class="fas fa-times"></i></button></div>`).join(''):`<div style="font-size:12.5px;color:var(--muted);padding:8px 0">${esc(t('guaranteesHint'))}</div>`;
+          const minA = num(APP.settings.minLoanAmount);
+          const maxA = num(APP.settings.maxLoanAmount);
+          const amtHint = (minA>0 || maxA>0)
+            ? `<p class="field__hint">Allowed: ${minA>0?money(minA):'0'} – ${maxA>0?money(maxA):'∞'}</p>`
+            : '';
           return `
             <div class="field-row-3">
               <div class="field"><label class="field__required">${esc(t('loanTypeLabel'))}</label><select data-field="loanType">${typeOptions}</select></div>
@@ -2296,10 +2345,10 @@ function openLoanWizard(loan){
                 <option value="repaid" ${d.status==='repaid'?'selected':''}>Repaid</option>
                 <option value="defaulted" ${d.status==='defaulted'?'selected':''}>Defaulted</option>
                 <option value="rejected" ${d.status==='rejected'?'selected':''}>Rejected</option>
-              </select>${!isEdit?`<p class="field__hint">Leave as "Pending" to require approval before the loan is active.</p>`:''}</div>
+              </select>${!isEdit?`<p class="field__hint">${APP.settings.requireApprovalLoans?'Leave as "Pending" to require approval before the loan is active.':'Approval is not required — loans start Active.'}</p>`:''}</div>
             </div>
             <div class="field-row-3">
-              <div class="field"><label class="field__required">${esc(t('principalLabel'))}</label><input id="wiz-principal" data-field="principal" type="number" min="0" step="0.01" class="amount-input" value="${esc(d.principal||'')}" placeholder="0.00"></div>
+              <div class="field"><label class="field__required">${esc(t('principalLabel'))}</label><input id="wiz-principal" data-field="principal" type="number" min="0" step="0.01" class="amount-input" value="${esc(d.principal||'')}" placeholder="0.00">${amtHint}</div>
               <div class="field"><label class="field__required">${esc(t('rateLabel'))}</label><input id="wiz-rate" data-field="interestRate" type="number" min="0" step="0.01" class="amount-input" value="${esc(d.interestRate||'')}" placeholder="10"></div>
               <div class="field"><label class="field__required">${esc(t('durationLabel'))}</label><input id="wiz-duration" data-field="duration" type="number" min="1" step="1" class="amount-input" value="${esc(d.duration||'')}" placeholder="12"></div>
             </div>
@@ -2324,7 +2373,13 @@ function openLoanWizard(loan){
             <div class="field"><label>${esc(t('notesLabel'))}</label><textarea data-field="notes" placeholder="${esc(t('notesPlaceholder'))}">${esc(d.notes||'')}</textarea></div>`;
         },
         validate:(d)=>{
-          if(!num(d.principal)||num(d.principal)<=0)return t('invalidAmount');
+          const amt = num(d.principal);
+          if(!amt || amt <= 0) return t('invalidAmount');
+          /* ⚡ enforce minLoanAmount / maxLoanAmount */
+          const minAmt = num(APP.settings.minLoanAmount);
+          const maxAmt = num(APP.settings.maxLoanAmount);
+          if (minAmt > 0 && amt < minAmt) return `Principal must be at least ${money(minAmt)}.`;
+          if (maxAmt > 0 && amt > maxAmt) return `Principal cannot exceed ${money(maxAmt)}.`;
           if(num(d.interestRate)<0||!isFinite(num(d.interestRate)))return t('invalidRate');
           if(num(d.duration)<1)return t('invalidDuration');
           if(!d.loanType)return t('loanTypeRequired');
@@ -2398,7 +2453,13 @@ function openLoanWizard(loan){
     ],
     onFinish:async(d)=>{
       const c=customerById(d.customerId);if(!c)throw new Error('Customer no longer exists.');
+      const status = String(c.status||'active').toLowerCase();
+      if(status !== 'active') throw new Error(`Customer is marked "${status}" — activate them first.`);
       const principal=num(d.principal);if(principal<=0)throw new Error(t('invalidAmount'));
+      const minAmt = num(APP.settings.minLoanAmount);
+      const maxAmt = num(APP.settings.maxLoanAmount);
+      if(minAmt>0 && principal<minAmt) throw new Error(`Principal must be at least ${money(minAmt)}.`);
+      if(maxAmt>0 && principal>maxAmt) throw new Error(`Principal cannot exceed ${money(maxAmt)}.`);
       const rate=num(d.interestRate);const months=Math.floor(num(d.duration));
       if(months<1)throw new Error(t('invalidDuration'));
       if(!guarantees.length)throw new Error(t('guaranteesRequired'));
@@ -2408,9 +2469,9 @@ function openLoanWizard(loan){
       const incomingStatus=String(d.status||'pending').toLowerCase();
       if(['pending','active','approved'].includes(incomingStatus)&&existingCount>=maxPer){throw new Error(t('maxLoansReached').replace('{max}',maxPer));}
       const {total}=calcLoan(principal,rate,months,interestType);
-      const status=d.status||'pending';
-      const payload={customerId:c.customerId||c.id,memberId:c.customerId||c.id,customerDocId:c.id,customerName:customerName(c),loanType:d.loanType||'personal',interestType,principal,interestRate:rate,duration:months,totalPayable:total,purpose:(d.purpose||'').trim(),collateral:(d.collateral||'').trim(),reference:(d.reference||'').trim(),guarantees,disbursementDate:d.disbursementDate||new Date().toISOString().slice(0,10),maturityDate:d.maturityDate||computeMaturityDate(d.disbursementDate,months),status,notes:(d.notes||'').trim(),attachment:d._attachment||null,districtId:c.districtId||null,districtName:c.districtName||districtById(c.districtId)?.name||null,branchId:c.branchId||null,branchName:c.branchName||branchById(c.branchId)?.name||null,updatedAt:serverTimestamp()};
-      if(['approved','active'].includes(status)){if(!isEdit||!l0.approvedByName){payload.approvedBy=S.uid;payload.approvedByName=S.name;payload.approvedAt=serverTimestamp();}}
+      const statusFinal=d.status||(APP.settings.requireApprovalLoans?'pending':'active');
+      const payload={customerId:c.customerId||c.id,memberId:c.customerId||c.id,customerDocId:c.id,customerName:customerName(c),loanType:d.loanType||'personal',interestType,principal,interestRate:rate,duration:months,totalPayable:total,purpose:(d.purpose||'').trim(),collateral:(d.collateral||'').trim(),reference:(d.reference||'').trim(),guarantees,disbursementDate:d.disbursementDate||new Date().toISOString().slice(0,10),maturityDate:d.maturityDate||computeMaturityDate(d.disbursementDate,months),status:statusFinal,notes:(d.notes||'').trim(),attachment:d._attachment||null,districtId:c.districtId||null,districtName:c.districtName||districtById(c.districtId)?.name||null,branchId:c.branchId||null,branchName:c.branchName||branchById(c.branchId)?.name||null,updatedAt:serverTimestamp()};
+      if(['approved','active'].includes(statusFinal)){if(!isEdit||!l0.approvedByName){payload.approvedBy=S.uid;payload.approvedByName=S.name;payload.approvedAt=serverTimestamp();}}
       if(isEdit){
         payload.serialNumber=l0.serialNumber||generateSerialNumber();
         payload.loanNumber=l0.loanNumber||payload.serialNumber;
@@ -2588,7 +2649,9 @@ async function openRepaymentModal(loan){
     fetchLoanRepayments(loan.id).catch(()=>[])
   ]);
   const monthly0=calcMonthlyPayment(loan);
-  const minPayment0=Math.min(monthly0,outstanding0);
+  /* ⚡ allowPartialRepayment gates minPayment */
+  const allowPartial = APP.settings.allowPartialRepayment !== false;
+  const minPayment0 = allowPartial ? Math.min(monthly0, outstanding0) : outstanding0;
   const approvedCount0=list0.filter(r=>r.status==='approved'||r.status==='printed').length;
   const c=customerById(loan.customerId||loan.customerDocId);
   const initSplit=computeRepaymentSplit(minPayment0,loan,outstanding0);
@@ -2598,6 +2661,7 @@ async function openRepaymentModal(loan){
     ttNumber:'',transferDate:'',bankName:'',bankOther:'',note:'',
     principalPortion:initSplit.principal,interestPortion:initSplit.interest,isRepayAll:false,
     _outstanding:outstanding0,_monthly:monthly0,_minPayment:minPayment0,_approvedCount:approvedCount0,
+    _allowPartial:allowPartial,
     _historyHtml:historyHtml,_customer:c,_pending:allPending0,_list0:list0
   };
   openWizard({
@@ -2607,10 +2671,15 @@ async function openRepaymentModal(loan){
     steps:[
       { label:'Amount',title:'Loan & Amount',
         render:(d)=>{
-          const pending=d._pending;const gate=d._approvedCount<APP.settings.minMonthsForRepayAll;
+          const pending=d._pending;
+          /* ⚡ waiverRequiresMinMonths gate */
+          const gateMonths = (APP.settings.waiverRequiresMinMonths !== false) ? APP.settings.minMonthsForRepayAll : 0;
+          const gate = d._approvedCount < gateMonths;
+          const partialLocked = d._allowPartial === false;
           return `
             ${pending.total>0?`<div class="alert alert--error"><i class="fas fa-lock"></i><div>${esc(t('penaltyBlockedTitle'))} <strong>ETB ${pending.total.toFixed(2)}</strong>. ${esc(t('penaltyBlockPay'))}</div></div>`:''}
             <div class="alert alert--info"><i class="fas fa-info-circle"></i><div>This repayment will be saved as <strong>pending</strong>. It only affects the loan balance after approval.</div></div>
+            ${partialLocked?`<div class="alert alert--warning"><i class="fas fa-lock"></i><div>Partial repayment is disabled — you must pay the full outstanding balance of <strong>${esc(money(d._outstanding))}</strong>.</div></div>`:''}
             <div class="info-panel show">
               <button type="button" class="info-panel__refresh" id="rpRefreshPenalty" title="${esc(t('refreshPenalty'))}"><i class="fas fa-sync-alt"></i></button>
               <div class="info-panel__grid">
@@ -2621,18 +2690,18 @@ async function openRepaymentModal(loan){
                 <div class="info-row"><span class="k">${esc(t('remaining'))}</span><span class="v" style="color:#b42318">${esc(money(d._outstanding))}</span></div>
                 <div class="info-row"><span class="k">${esc(t('monthlyInstallment'))}</span><span class="v">${esc(money(d._monthly))}</span></div>
                 <div class="info-row"><span class="k">${esc(t('minRepaymentStatus'))}</span><span class="v">Min: ${esc(money(d._minPayment))}</span></div>
-                <div class="info-row"><span class="k">${esc(t('approvedMonthsPaid'))}</span><span class="v">${d._approvedCount} / ${APP.settings.minMonthsForRepayAll}</span></div>
+                <div class="info-row"><span class="k">${esc(t('approvedMonthsPaid'))}</span><span class="v">${d._approvedCount} / ${gateMonths}</span></div>
               </div>
             </div>
             <div class="field">
               <label class="field__required">${esc(t('repaymentAmount'))}</label>
               <div class="amount-row">
-                <input type="number" id="rpAmount" data-field="amount" class="amount-input" step="0.01" min="0.01" placeholder="0.00" value="${esc(d.amount)}" />
+                <input type="number" id="rpAmount" data-field="amount" class="amount-input" step="0.01" min="0.01" placeholder="0.00" value="${esc(d.amount)}" ${partialLocked?'readonly':''}/>
                 <button type="button" class="btn-repay-all" id="rpRepayAllBtn" ${gate?'disabled style="opacity:.5"':''}><i class="fas fa-check-double"></i> ${esc(t('repayAll'))}</button>
               </div>
               <small class="field__hint">${esc(t('minRepayHint'))}: <strong>${esc(money(d._minPayment))}</strong> ETB</small>
             </div>
-            ${gate?`<div class="alert alert--warning"><i class="fas fa-lock"></i><div>${esc(t('repayAllBlocked').replace('{n}',APP.settings.minMonthsForRepayAll).replace('{paid}',d._approvedCount))}</div></div>`:''}
+            ${gate?`<div class="alert alert--warning"><i class="fas fa-lock"></i><div>Repay All is available after ${gateMonths} monthly payment(s). You have paid ${d._approvedCount} month(s).</div></div>`:''}
             <div class="alert alert--success" id="rpWaiverNote" style="display:none"><i class="fas fa-gift"></i><div id="rpWaiverText"></div></div>
             <div class="field-row" id="rpSplitRow">
               <div class="field"><label><i class="fas fa-landmark"></i> ${esc(t('principalPortion'))}</label><input type="text" id="rpPrincipalPortion" data-field="principalPortion" class="field__readonly principal" readonly value="${num(d.principalPortion).toFixed(2)}" /></div>
@@ -2645,7 +2714,13 @@ async function openRepaymentModal(loan){
           const amt=num(d.amount);
           if(amt<=0)return t('invalidAmountMsg');
           if(amt>d._outstanding+0.01)return t('cannotExceedRemaining');
-          if(!d.isRepayAll&&amt+0.01<d._minPayment)return `${t('minPaymentNotMet')} (Min: ${d._minPayment.toFixed(2)})`;
+          /* ⚡ partial-repayment gate */
+          if(d._allowPartial === false && amt + 0.01 < d._outstanding){
+            return `Partial repayment is disabled — you must pay the full ${money(d._outstanding)}.`;
+          }
+          if(d._allowPartial !== false && !d.isRepayAll && amt+0.01<d._minPayment){
+            return `${t('minPaymentNotMet')} (Min: ${d._minPayment.toFixed(2)})`;
+          }
           return null;
         },
         after:(root,data,refresh)=>{
@@ -2664,7 +2739,11 @@ async function openRepaymentModal(loan){
           };
           amtIn.addEventListener('input',()=>{data.amount=amtIn.value;if(data.isRepayAll){data.isRepayAll=false;if(waiverNote)waiverNote.style.display='none';}updateSplit();});
           repayAllBtn?.addEventListener('click',()=>{
-            if(data._approvedCount<APP.settings.minMonthsForRepayAll){toast(t('repayAllBlocked').replace('{n}',APP.settings.minMonthsForRepayAll).replace('{paid}',data._approvedCount),'warning');return;}
+            const gateMonths = (APP.settings.waiverRequiresMinMonths !== false) ? APP.settings.minMonthsForRepayAll : 0;
+            if(data._approvedCount < gateMonths){
+              toast(`Repay All is available after ${gateMonths} monthly payments. You have paid ${data._approvedCount} month(s).`, 'warning');
+              return;
+            }
             if(APP.settings.allowInterestWaiver){
               const paidPrincipal=data._list0.filter(r=>r.status==='approved'||r.status==='printed').reduce((s,r)=>s+getRepaymentPrincipal(r,loan),0);
               const outstandingPrincipal=Math.max(0,round2(num(loan.principal)-paidPrincipal));
@@ -2729,6 +2808,8 @@ async function openRepaymentModal(loan){
           bankOther?.addEventListener('input',()=>{data.bankOther=bankOther.value;});
           const ttIn=root.querySelector('#rpTT');const tdIn=root.querySelector('#rpTransferDate');const dupWarn=root.querySelector('#rpDupWarn');
           const checkDup=async()=>{
+            /* ⚡ respect enableDuplicateCheck setting */
+            if(APP.settings.enableDuplicateCheck === false){ if(dupWarn) dupWarn.style.display='none'; return; }
             const tt=(data.ttNumber||'').trim();const td=data.transferDate;
             if(!tt||!td||!dupWarn)return;
             const cid=loan.customerId||loan.memberId;
@@ -3139,20 +3220,58 @@ function closeSlipOverlay(){
   const host=document.getElementById('slip-print-host');if(host)host.innerHTML='';
 }
 
+/* ============================================================
+   loadSettings — reads ALL settings keys written by settings.html
+   ============================================================ */
 async function loadSettings(){
   try{
     const snap=await getDoc(doc(db,'settings','system'));
     if(snap.exists()){
       const d=snap.data();
-      APP.settings.defaultInterestRate=num(d.defaultInterestRate)||10;
-      APP.settings.maxLoanAmount=num(d.maxLoanAmount)||50000;
-      APP.settings.maxLoanMultiplier=num(d.maxLoanMultiplier)||3;
-      APP.settings.loansPenaltyRate=d.loansPenaltyRate!==undefined?num(d.loansPenaltyRate)/100:(num(d.penaltyRate)||5)/100;
-      APP.settings.gracePeriod=(d.gracePeriod!==undefined&&num(d.gracePeriod)>=0)?num(d.gracePeriod):7;
-      APP.settings.minMonthsForRepayAll=(d.minMonthsForRepayAll!==undefined&&num(d.minMonthsForRepayAll)>=0)?num(d.minMonthsForRepayAll):6;
-      APP.settings.allowInterestWaiver=d.allowInterestWaiver!==undefined?!!d.allowInterestWaiver:true;
-      APP.settings.waiverRequiresMinMonths=d.waiverRequiresMinMonths!==undefined?!!d.waiverRequiresMinMonths:true;
+
+      /* ⚡ read defaultLoanInterestRate (settings.html key), fallback to old defaultInterestRate */
+      APP.settings.defaultInterestRate =
+        num(d.defaultLoanInterestRate) || num(d.defaultInterestRate) || 10;
+
+      APP.settings.maxLoanAmount = num(d.maxLoanAmount) || 50000;
+      APP.settings.minLoanAmount = num(d.minLoanAmount) || 0;
+      APP.settings.maxLoanMultiplier = num(d.maxLoanMultiplier) || 3;
+
+      APP.settings.loansPenaltyRate =
+        d.loansPenaltyRate !== undefined
+          ? num(d.loansPenaltyRate)/100
+          : (num(d.penaltyRate)||5)/100;
+
+      APP.settings.gracePeriod =
+        (d.gracePeriod !== undefined && num(d.gracePeriod) >= 0) ? num(d.gracePeriod) : 7;
+      APP.settings.minMonthsForRepayAll =
+        (d.minMonthsForRepayAll !== undefined && num(d.minMonthsForRepayAll) >= 0)
+          ? num(d.minMonthsForRepayAll) : 6;
+      APP.settings.allowInterestWaiver =
+        d.allowInterestWaiver !== undefined ? !!d.allowInterestWaiver : true;
+      APP.settings.waiverRequiresMinMonths =
+        d.waiverRequiresMinMonths !== undefined ? !!d.waiverRequiresMinMonths : true;
+
+      /* ⚡ penalty master switches */
+      APP.settings.penaltiesEnabled =
+        d.penaltiesEnabled !== undefined ? !!d.penaltiesEnabled : true;
+      APP.settings.penaltyAutoGenerate =
+        d.penaltyAutoGenerate !== undefined ? !!d.penaltyAutoGenerate : true;
+      APP.settings.penaltiesApplyLoans =
+        d.penaltiesApplyLoans !== undefined ? !!d.penaltiesApplyLoans : true;
+      APP.settings.penaltiesMinAmount = num(d.penaltiesMinAmount) || 0;
+      APP.settings.penaltiesMaxAmount = num(d.penaltiesMaxAmount) || 0;
+
+      /* ⚡ behaviour switches */
+      APP.settings.requireApprovalLoans =
+        d.requireApprovalLoans !== undefined ? !!d.requireApprovalLoans : true;
+      APP.settings.allowPartialRepayment =
+        d.allowPartialRepayment !== undefined ? !!d.allowPartialRepayment : true;
+      APP.settings.enableDuplicateCheck =
+        d.enableDuplicateCheck !== undefined ? !!d.enableDuplicateCheck : true;
+
       if(d.defaultLoanType)APP.settings.defaultLoanType=String(d.defaultLoanType);
+
       const rawMaxLoans=d.maxLoansPerCustomer??d.maxLoansToBorrow;
       if(rawMaxLoans!==undefined&&rawMaxLoans!==null&&rawMaxLoans!==''){
         const n=Number(rawMaxLoans);
@@ -3185,7 +3304,7 @@ async function loadAllData(){
   APP.dataLoaded=true;
 }
 
-/* ============ BOOT — exactly like penalties page ============ */
+/* ============ BOOT — hide loader like penalties ============ */
 (async function boot(){
   let saved=null;
   try{saved=localStorage.getItem(LANG_KEY);}catch(e){}
@@ -3226,13 +3345,11 @@ async function loadAllData(){
     window.location.replace(LOGIN_URL);return;
   }
 
-  // ⚡ Same as penalties: one blocking read, then shell + hide, then background.
   await loadSettings();
   renderShell();
   setTimeout(()=>document.getElementById('loader')?.classList.add('hide'),150);
   renderMain();
 
-  // Background loads — no blocking of the shell
   try{
     await loadSessionTimeout();
     await loadAllData();
