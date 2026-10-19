@@ -684,7 +684,7 @@ const APP = {
 const CUSTOMER_MAP = new Map();
 
 /* ============================================================
-   I18N — EN / AM / OM  (fully translated, no fallback spread)
+   I18N — EN / AM / OM
    ============================================================ */
 const I18N = {
   en: {
@@ -3185,7 +3185,7 @@ async function loadAllData(){
   APP.dataLoaded=true;
 }
 
-/* ============ BOOT — hide loader like penalties page ============ */
+/* ============ BOOT — exactly like penalties page ============ */
 (async function boot(){
   let saved=null;
   try{saved=localStorage.getItem(LANG_KEY);}catch(e){}
@@ -3225,16 +3225,16 @@ async function loadAllData(){
     try{await signOut(auth);}catch(e2){}
     window.location.replace(LOGIN_URL);return;
   }
-  await loadSessionTimeout();
+
+  // ⚡ Same as penalties: one blocking read, then shell + hide, then background.
   await loadSettings();
-
-  // ⚡ Render shell + page, then hide the loader ~150 ms later — no waiting for data.
   renderShell();
-  renderMain();
   setTimeout(()=>document.getElementById('loader')?.classList.add('hide'),150);
+  renderMain();
 
-  // Load data in the background and re-render once it's ready.
+  // Background loads — no blocking of the shell
   try{
+    await loadSessionTimeout();
     await loadAllData();
     renderMain();
     startSessionWatcher();
