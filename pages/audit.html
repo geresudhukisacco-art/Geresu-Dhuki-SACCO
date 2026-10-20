@@ -1,2015 +1,1193 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Audit Trail – GERESU DHUKI SACCO</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Audit Trail – GERESU DHUKI SACCO</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Ethiopic:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --primary:#0b5cab;--primary-dark:#073d75;--secondary:#0e7490;
+  --gold:#d4a845;--gold-light:#f0d68a;
+  --bg-primary:#f4f7fb;--bg-card:#ffffff;
+  --bg-sidebar:linear-gradient(145deg,#073d75 0%,#0b5cab 55%,#0e7490 100%);
+  --text-primary:#172033;--text-secondary:#344054;--text-muted:#98a2b3;
+  --border-color:#e5e7eb;--border-soft:#eef1f5;
+  --shadow:0 1px 2px rgba(20,40,70,.04),0 1px 3px rgba(20,40,70,.06);
+  --shadow-md:0 4px 12px rgba(20,40,70,.06);
+  --shadow-hover:0 12px 32px rgba(20,40,70,.08);
+  --shadow-modal:0 30px 60px rgba(20,40,70,.12);
+  --radius:16px;--radius-sm:10px;--radius-lg:20px;
+  --success:#067647;--danger:#dc2626;--warning:#b8860b;--info:#0b5cab;
+  --input-bg:#fbfcfe;--input-border:#d9dee7;--input-focus:rgba(11,92,171,.10);
+  --sidebar-width:272px;--sidebar-collapsed-width:88px;
+}
+[data-theme="dark"]{
+  --bg-primary:#0b1220;--bg-card:#0f172a;
+  --bg-sidebar:linear-gradient(145deg,#0b1220,#0f172a,#111a2c);
+  --text-primary:#e4e8f0;--text-secondary:#c5cdd9;--text-muted:#64748b;
+  --border-color:#1e293b;--border-soft:#1a2433;
+  --shadow:0 1px 2px rgba(0,0,0,.3);--shadow-md:0 4px 12px rgba(0,0,0,.4);
+  --shadow-hover:0 12px 32px rgba(0,0,0,.4);--shadow-modal:0 30px 60px rgba(0,0,0,.5);
+  --input-bg:#1a2433;--input-border:#334155;--input-focus:rgba(11,92,171,.2);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:"Inter","Noto Sans Ethiopic",system-ui,sans-serif;background:var(--bg-primary);color:var(--text-primary);display:flex;min-height:100vh;transition:background .3s,color .3s;}
+a{color:inherit;text-decoration:none;}
+button{font:inherit;cursor:pointer;background:none;border:none;}
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+/* ═══════ SIDEBAR ═══════ */
+.sidebar{width:var(--sidebar-width);background:var(--bg-sidebar);color:#e4e8f0;height:100vh;position:fixed;top:0;left:0;z-index:1000;display:flex;flex-direction:column;transition:width .25s cubic-bezier(.4,0,.2,1);overflow:hidden;}
+.sidebar.collapsed{width:var(--sidebar-collapsed-width);}
+.sidebar::-webkit-scrollbar{width:4px;}
+.sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:4px;}
 
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+.sidebar-brand{position:relative;z-index:2;display:flex;align-items:center;gap:14px;padding:22px;border-bottom:1px solid rgba(255,255,255,.10);min-height:76px;flex-shrink:0;transition:padding .2s;}
+.sidebar.collapsed .sidebar-brand{padding:18px;}
+.brand-icon{width:46px;height:46px;flex-shrink:0;border-radius:14px;background:rgba(255,255,255,.97);box-shadow:0 10px 24px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center;padding:5px;overflow:hidden;}
+.brand-logo-img{width:100%;height:100%;object-fit:contain;border-radius:9px;}
+.brand-text{min-width:0;flex:1;white-space:nowrap;overflow:hidden;opacity:1;transition:opacity .18s;}
+.sidebar.collapsed .brand-text{opacity:0;pointer-events:none;}
+.brand-name{font-size:14px;font-weight:800;letter-spacing:-.3px;display:block;line-height:1.2;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.brand-name span{color:var(--gold-light);}
+.brand-sub{font-size:11px;opacity:.72;margin-top:3px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sidebar-toggle-btn{position:absolute;right:-13px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;background:#fff;color:var(--primary-dark);border:3px solid var(--bg-primary);display:flex;align-items:center;justify-content:center;z-index:10;cursor:pointer;transition:transform .25s;}
+.sidebar-toggle-btn i{font-size:10px;font-weight:900;transition:transform .25s;}
+.sidebar.collapsed .sidebar-toggle-btn i{transform:rotate(180deg);}
 
-    <style>
-        :root {
-            --primary: #1a6e3a;
-            --primary-dark: #0f4f28;
-            --primary-light: #2e8b4a;
-            --gold: #d4a845;
-            --gold-light: #f0d68a;
-            --gold-dark: #b8922f;
-            --bg-primary: #f5f7f6;
-            --bg-card: #ffffff;
-            --bg-sidebar: #1a6e3a;
-            --text-primary: #1a2e1f;
-            --text-secondary: #6c7d70;
-            --text-muted: #8a9e92;
-            --border-color: #e8ede9;
-            --shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
-            --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.1);
-            --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.3);
-            --radius: 16px;
-            --radius-sm: 10px;
-            --success: #2d7a3d;
-            --danger: #e74c3c;
-            --warning: #f39c12;
-            --info: #2196f3;
-            --input-bg: #ffffff;
-            --input-border: #d0d7d2;
-            --input-focus: rgba(45, 122, 61, 0.1);
-            --transition: 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-            --sidebar-width: 260px;
-            --sidebar-collapsed-width: 72px;
-        }
-        [data-theme="dark"] {
-            --bg-primary: #1a1a2e;
-            --bg-card: #16213e;
-            --bg-sidebar: #0f4f28;
-            --text-primary: #e8f0ea;
-            --text-secondary: #a0aec0;
-            --text-muted: #6b7d82;
-            --border-color: #2d3748;
-            --shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
-            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
-            --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.4);
-            --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.5);
-            --input-bg: #2d3748;
-            --input-border: #4a5568;
-            --input-focus: rgba(45, 122, 61, 0.2);
-        }
+.sidebar-nav{position:relative;z-index:2;flex:1;padding:16px 14px;overflow-y:auto;overflow-x:hidden;}
+.sidebar-nav::-webkit-scrollbar{width:4px;}
+.sidebar-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:4px;}
+.nav-section{font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.45);padding:18px 12px 8px;white-space:nowrap;overflow:hidden;transition:all .2s;}
+.sidebar.collapsed .nav-section{height:6px;padding:0;opacity:0;margin-top:14px;margin-bottom:6px;}
+.sidebar-nav ul{list-style:none;padding:0;margin:0;}
+.sidebar-nav li{margin-bottom:3px;}
+.sidebar-nav li a{display:flex;align-items:center;gap:13px;padding:11px 13px;border-radius:12px;color:rgba(255,255,255,.78);font-weight:600;font-size:14px;transition:.15s;white-space:nowrap;overflow:hidden;position:relative;}
+.sidebar-nav li a i{width:20px;font-size:15px;text-align:center;flex-shrink:0;color:rgba(255,255,255,.75);transition:color .15s;}
+.sidebar-nav li a span{flex:1;overflow:hidden;text-overflow:ellipsis;transition:opacity .15s;}
+.sidebar.collapsed .sidebar-nav li a span{opacity:0;pointer-events:none;}
+.sidebar.collapsed .sidebar-nav li a{justify-content:center;padding:12px;}
+.sidebar-nav li a:hover{background:rgba(255,255,255,.09);color:#fff;}
+.sidebar-nav li a:hover i{color:var(--gold-light);}
+.sidebar-nav li.active a,
+.sidebar-nav li a.active{background:rgba(255,255,255,.16);color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);}
+.sidebar-nav li.active a i,
+.sidebar-nav li a.active i{color:var(--gold-light);}
+.sidebar-nav li a.active::before,
+.sidebar-nav li.active a::before{content:"";position:absolute;left:-14px;top:50%;transform:translateY(-50%);width:4px;height:24px;border-radius:0 4px 4px 0;background:#58e6a7;box-shadow:0 0 12px rgba(88,230,167,.6);}
+.sidebar.collapsed .sidebar-nav li a.active::before{left:0;height:28px;}
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            display: flex;
-            min-height: 100vh;
-            transition: background 0.3s, color 0.3s;
-        }
+.sidebar-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,.10);flex-shrink:0;}
+.logout-btn{width:100%;padding:10px 13px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:10px;color:rgba(255,255,255,.9);font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:12px;transition:.15s;white-space:nowrap;}
+.logout-btn i{width:20px;font-size:15px;text-align:center;color:rgba(255,255,255,.75);}
+.logout-btn span{flex:1;}
+.logout-btn:hover{background:rgba(220,60,60,.25);border-color:rgba(220,60,60,.5);color:#ff8a8a;}
+.sidebar.collapsed .logout-btn{justify-content:center;padding:12px;}
+.sidebar.collapsed .logout-btn span{display:none;}
 
-        /* SIDEBAR */
-        .sidebar {
-            width: var(--sidebar-width);
-            background: var(--bg-sidebar);
-            color: #e8f0ea;
-            height: 100vh;
-            position: fixed;
-            top: 0;
-            left: 0;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            transition: width 0.3s ease, transform 0.3s ease;
-            box-shadow: 2px 0 16px rgba(0, 0, 0, 0.15);
-            overflow: hidden;
-        }
-        .sidebar.collapsed { width: var(--sidebar-collapsed-width); }
-        .sidebar.collapsed .brand-text,
-        .sidebar.collapsed .sidebar-nav li a span,
-        .sidebar.collapsed .logout-btn span,
-        .sidebar.collapsed .sidebar-brand .brand-sub { display: none; }
-        .sidebar.collapsed .sidebar-brand { padding: 16px 8px; }
-        .sidebar.collapsed .brand-icon { width: 48px; height: 48px; }
-        .sidebar.collapsed .sidebar-nav li a { justify-content: center; padding: 12px 0; }
-        .sidebar.collapsed .sidebar-nav li a i { font-size: 20px; width: auto; }
-        .sidebar.collapsed .logout-btn { justify-content: center; padding: 10px 0; }
-        .sidebar.collapsed .logout-btn i { font-size: 20px; }
-        .sidebar::-webkit-scrollbar { width: 4px; }
-        .sidebar::-webkit-scrollbar-thumb { background: var(--gold-light); border-radius: 4px; }
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(13,21,32,.45);z-index:999;}
+.sidebar-overlay.active{display:block;}
 
-        .sidebar-brand {
-            padding: 20px 20px 16px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-            text-align: center;
-            transition: padding 0.3s ease;
-            position: relative;
-        }
-        .sidebar-toggle-btn {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: rgba(255, 255, 255, 0.15);
-            border: none;
-            border-radius: 50%;
-            width: 32px;
-            height: 32px;
-            color: #fff;
-            font-size: 14px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.2s, transform 0.3s ease;
-        }
-        .sidebar-toggle-btn:hover { background: rgba(255, 255, 255, 0.25); }
-        .sidebar.collapsed .sidebar-toggle-btn { transform: rotate(180deg); top: 8px; right: 6px; }
+/* ═══════ MAIN ═══════ */
+.main-content{margin-left:var(--sidebar-width);flex:1;min-height:100vh;display:flex;flex-direction:column;transition:margin-left .25s;}
+.sidebar.collapsed~.main-content{margin-left:var(--sidebar-collapsed-width);}
 
-        .brand-icon {
-            width: 72px;
-            height: 72px;
-            border-radius: 50%;
-            overflow: hidden;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255, 255, 255, 0.12);
-            border: 2px solid var(--gold-light);
-            padding: 4px;
-            transition: width 0.3s ease, height 0.3s ease;
-        }
-        .brand-logo-img { width: 100%; height: 100%; object-fit: contain; display: block; }
-        .brand-text .brand-name {
-            font-size: 20px;
-            font-weight: 800;
-            display: block;
-            line-height: 1.2;
-            color: #ffffff;
-            letter-spacing: 0.5px;
-            transition: font-size 0.3s ease;
-        }
-        .brand-text .brand-name span { color: var(--gold-light); }
-        .brand-text .brand-sub {
-            font-size: 11px;
-            opacity: 0.8;
-            font-weight: 400;
-            letter-spacing: 0.5px;
-            color: rgba(255, 255, 255, 0.85);
-        }
+.top-header{background:var(--bg-card);padding:16px 30px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border-color);position:sticky;top:0;z-index:20;box-shadow:var(--shadow);gap:16px;flex-wrap:wrap;}
+.header-left{display:flex;align-items:center;gap:16px;}
+.menu-toggle{background:none;border:none;font-size:22px;color:var(--text-primary);cursor:pointer;display:none;padding:6px;}
+.page-title h1{font-size:20px;font-weight:800;color:var(--text-primary);letter-spacing:-.4px;}
+.breadcrumb{font-size:13px;color:var(--text-secondary);margin-left:8px;font-weight:600;}
+.header-right{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.lang-switcher{display:flex;gap:2px;padding:3px;border-radius:999px;background:#f1f4f8;}
+[data-theme="dark"] .lang-switcher{background:#1a2433;}
+.lang-btn{padding:6px 12px;border-radius:999px;font-size:11px;font-weight:800;color:var(--text-secondary);cursor:pointer;transition:.15s;letter-spacing:.04em;border:none;background:none;}
+.lang-btn:hover{color:var(--primary);}
+.lang-btn.active{background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;box-shadow:0 4px 10px rgba(11,92,171,.25);}
+.user-profile{display:flex;align-items:center;gap:10px;padding:4px 14px 4px 4px;border-radius:999px;background:var(--border-soft);}
+[data-theme="dark"] .user-profile{background:#1a2433;}
+.user-profile img{width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--primary);background:#f4f7fb;}
+.user-name{font-weight:700;font-size:13px;color:var(--text-primary);white-space:nowrap;}
 
-        .sidebar-nav { flex: 1; padding: 16px 12px; overflow-y: auto; overflow-x: hidden; }
-        .sidebar-nav ul { list-style: none; padding: 0; margin: 0; }
-        .sidebar-nav li { margin-bottom: 2px; }
-        .sidebar-nav li a {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            padding: 10px 16px;
-            border-radius: 10px;
-            color: rgba(255, 255, 255, 0.9);
-            text-decoration: none;
-            font-weight: 500;
-            font-size: 14px;
-            transition: 0.2s;
-            white-space: nowrap;
-            overflow: hidden;
-        }
-        .sidebar-nav li a i {
-            width: 22px;
-            text-align: center;
-            font-size: 17px;
-            color: rgba(255, 255, 255, 0.75);
-            flex-shrink: 0;
-            transition: color 0.2s;
-        }
-        .sidebar-nav li a:hover { background: rgba(255, 255, 255, 0.12); color: #ffffff; }
-        .sidebar-nav li a:hover i { color: var(--gold-light); }
-        .sidebar-nav li.active a { background: rgba(212, 168, 69, 0.25); color: var(--gold-light); }
-        .sidebar-nav li.active a i { color: var(--gold-light); }
+.dashboard-content{padding:24px 30px 30px;flex:1;}
 
-        .sidebar-footer { padding: 16px 20px 20px; border-top: 1px solid rgba(255, 255, 255, 0.12); }
-        .logout-btn {
-            width: 100%;
-            padding: 10px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 10px;
-            color: rgba(255, 255, 255, 0.85);
-            font-size: 14px;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            cursor: pointer;
-            transition: 0.2s;
-            font-family: inherit;
-            white-space: nowrap;
-            overflow: hidden;
-        }
-        .logout-btn i { color: rgba(255, 255, 255, 0.7); flex-shrink: 0; }
-        .logout-btn:hover { background: rgba(231, 76, 60, 0.25); border-color: var(--danger); color: #ff6b6b; }
+.page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;flex-wrap:wrap;gap:16px;}
+.page-header-left h2{font-size:24px;font-weight:800;color:var(--text-primary);margin-bottom:4px;letter-spacing:-.6px;}
+.page-header-left p{color:var(--text-secondary);font-size:14px;}
+.page-header-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 
-        .sidebar-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.4);
-            z-index: 999;
-        }
-        .sidebar-overlay.active { display: block; }
+.btn-secondary{background:var(--bg-card);border:1px solid var(--border-color);color:var(--text-primary);padding:10px 18px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:8px;}
+.btn-secondary:hover{background:var(--bg-primary);border-color:var(--primary);color:var(--primary);}
 
-        /* MAIN */
-        .main-content {
-            margin-left: var(--sidebar-width);
-            flex: 1;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            transition: margin-left 0.3s ease;
-        }
-        .sidebar.collapsed~.main-content { margin-left: var(--sidebar-collapsed-width); }
+.search-bar{display:flex;gap:14px;margin-bottom:20px;flex-wrap:wrap;}
+.search-wrapper{flex:1;min-width:200px;position:relative;}
+.search-wrapper i{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:14px;}
+.search-wrapper input{width:100%;padding:12px 16px 12px 42px;border:1px solid var(--input-border);border-radius:12px;font-size:13.5px;font-weight:600;background:var(--input-bg);color:var(--text-primary);transition:.15s;}
+.search-wrapper input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--input-focus);background:#fff;}
+[data-theme="dark"] .search-wrapper input:focus{background:#0f172a;}
+.filter-wrapper select{padding:12px 16px;border:1px solid var(--input-border);border-radius:12px;font-size:13px;font-weight:700;background:var(--input-bg);color:var(--text-primary);cursor:pointer;min-width:150px;transition:.15s;}
+.filter-wrapper select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--input-focus);}
 
-        .top-header {
-            background: var(--bg-card);
-            padding: 16px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border-color);
-            position: sticky;
-            top: 0;
-            z-index: 999;
-            box-shadow: var(--shadow);
-            transition: background 0.3s, border-color 0.3s;
-        }
-        .header-left { display: flex; align-items: center; gap: 16px; }
-        .menu-toggle { background: none; border: none; font-size: 22px; color: var(--text-primary); cursor: pointer; display: none; }
-        .page-title h1 { font-size: 20px; font-weight: 700; color: var(--text-primary); margin: 0; }
-        .breadcrumb { font-size: 13px; color: var(--text-secondary); margin-left: 8px; }
-        .header-right { display: flex; align-items: center; gap: 16px; }
-        .lang-switcher { display: flex; gap: 4px; }
-        .lang-btn {
-            background: transparent;
-            border: 1px solid var(--input-border);
-            border-radius: 6px;
-            padding: 4px 12px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            color: var(--text-secondary);
-            transition: 0.2s;
-        }
-        .lang-btn:hover { background: var(--border-color); }
-        .lang-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
-        .user-profile { display: flex; align-items: center; gap: 10px; }
-        .user-profile img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); background: #f5f7f6; }
-        .user-name { font-weight: 600; font-size: 14px; color: var(--text-primary); }
+.audit-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:22px;}
+.stat-card{border-radius:16px;padding:14px 16px;box-shadow:var(--shadow);text-align:center;color:#fff;position:relative;overflow:hidden;transition:.2s;}
+.stat-card:hover{box-shadow:var(--shadow-hover);transform:translateY(-3px);}
+.stat-card .stat-number{font-size:24px;font-weight:800;display:block;color:#fff;letter-spacing:-.5px;}
+.stat-card .stat-label{font-size:11.5px;font-weight:700;color:rgba(255,255,255,.92);display:block;margin-top:2px;text-transform:uppercase;letter-spacing:.04em;}
+.stat-card .stat-icon{font-size:18px;margin-bottom:4px;display:block;color:rgba(255,255,255,.75);}
+.stat-card.login{background:linear-gradient(135deg,#1a237e,#3f51b5);}
+.stat-card.created{background:linear-gradient(135deg,#067647,#10b981);}
+.stat-card.updated{background:linear-gradient(135deg,#0b5cab,#3b82f6);}
+.stat-card.deleted{background:linear-gradient(135deg,#b42318,#ef4444);}
+.stat-card.approved{background:linear-gradient(135deg,#b8860b,#f59e0b);}
+.stat-card.rejected{background:linear-gradient(135deg,#831843,#be185d);}
+.stat-card.generated{background:linear-gradient(135deg,#6b21a8,#a855f7);}
+.stat-card.printed{background:linear-gradient(135deg,#0e7490,#14b8a6);}
+.stat-card.penalty_paid{background:linear-gradient(135deg,#0d47a1,#1976d2);}
+.stat-card.penalty_approved{background:linear-gradient(135deg,#15803d,#22c55e);}
+.stat-card.penalty_rejected{background:linear-gradient(135deg,#7f1d1d,#dc2626);}
 
-        .dashboard-content { padding: 24px 30px 30px; flex: 1; }
+.table-container{background:var(--bg-card);border-radius:var(--radius-lg);border:1px solid var(--border-color);overflow:hidden;box-shadow:var(--shadow);}
+.table-header{padding:14px 20px;border-bottom:1px solid var(--border-color);font-size:14px;color:var(--text-primary);background:var(--bg-primary);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;font-weight:700;}
+[data-theme="dark"] .table-header{background:#111a2c;}
+.table-header strong{color:var(--primary);}
+.table-wrapper{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+thead th{padding:12px 16px;text-align:left;font-weight:800;color:var(--text-muted);border-bottom:1px solid var(--border-color);white-space:nowrap;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;}
+tbody td{padding:12px 16px;border-bottom:1px solid var(--border-soft);color:var(--text-primary);vertical-align:middle;}
+tbody tr:hover{background:var(--bg-primary);}
+tbody tr:last-child td{border-bottom:none;}
 
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
-            gap: 16px;
-        }
-        .page-header-left h2 { font-size: 22px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
-        .page-header-left p { color: var(--text-secondary); font-size: 14px; }
-        .page-header-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.action-badge{padding:3px 10px;border-radius:20px;font-size:10.5px;font-weight:800;display:inline-block;text-transform:uppercase;letter-spacing:.04em;}
+.action-badge.login{background:#e8eaf6;color:#1a237e;}
+.action-badge.created{background:#d1fae5;color:#065f46;}
+.action-badge.updated{background:#dbeafe;color:#1e40af;}
+.action-badge.deleted{background:#fee2e2;color:#991b1b;}
+.action-badge.approved{background:#fef3c7;color:#92400e;}
+.action-badge.rejected{background:#fce7f3;color:#831843;}
+.action-badge.generated{background:#ede9fe;color:#6b21a8;}
+.action-badge.printed{background:#ccfbf1;color:#115e59;}
+.action-badge.penalty_paid{background:#dbeafe;color:#0d47a1;}
+.action-badge.penalty_approved{background:#dcfce7;color:#15803d;}
+.action-badge.penalty_rejected{background:#fecaca;color:#7f1d1d;}
 
-        .btn-primary {
-            background: var(--primary);
-            color: #fff;
-            border: none;
-            padding: 10px 20px;
-            border-radius: var(--radius);
-            font-size: 14px;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .btn-primary:hover { background: #1f5e2c; transform: scale(1.02); }
-        .btn-secondary {
-            background: var(--border-color);
-            color: var(--text-primary);
-            border: none;
-            padding: 10px 20px;
-            border-radius: var(--radius);
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .btn-secondary:hover { background: #d0d7d2; }
+.collection-badge{padding:2px 9px;border-radius:12px;font-size:10.5px;font-weight:700;display:inline-block;background:var(--border-soft);color:var(--text-secondary);}
+.collection-badge.districts{background:#e0e7ff;color:#3730a3;}
+.collection-badge.branches{background:#fce7f3;color:#9f1239;}
 
-        .search-bar { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
-        .search-wrapper { flex: 1; min-width: 200px; position: relative; }
-        .search-wrapper i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); }
-        .search-wrapper input {
-            width: 100%;
-            padding: 12px 16px 12px 44px;
-            border: 1px solid var(--input-border);
-            border-radius: 12px;
-            font-size: 14px;
-            background: var(--input-bg);
-            color: var(--text-primary);
-            transition: all 0.2s;
-        }
-        .search-wrapper input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--input-focus); }
-        .filter-wrapper select {
-            padding: 12px 16px;
-            border: 1px solid var(--input-border);
-            border-radius: 12px;
-            font-size: 14px;
-            background: var(--input-bg);
-            color: var(--text-primary);
-            cursor: pointer;
-            min-width: 140px;
-            transition: all 0.2s;
-        }
-        .filter-wrapper select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--input-focus); }
+.action-btn{border:none;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:5px;background:var(--primary);color:#fff;}
+.action-btn:hover{transform:translateY(-1px);opacity:.92;}
+.action-btn.delete-entry{background:var(--danger);}
+.action-btn.delete-entry:hover{background:#b42318;}
 
-        /* STATS */
-        .audit-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            gap: 12px;
-            margin-bottom: 24px;
-        }
-        .stat-card {
-            border-radius: var(--radius);
-            padding: 14px 16px;
-            border: none;
-            box-shadow: var(--shadow);
-            text-align: center;
-            transition: all 0.2s;
-            color: #fff;
-            position: relative;
-            overflow: hidden;
-        }
-        .stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-3px); }
-        .stat-card .stat-number { font-size: 24px; font-weight: 800; display: block; color: #fff; }
-        .stat-card .stat-label { font-size: 12px; font-weight: 500; color: rgba(255, 255, 255, 0.85); display: block; margin-top: 2px; }
-        .stat-card .stat-icon { font-size: 18px; margin-bottom: 4px; display: block; color: rgba(255, 255, 255, 0.7); }
-        .stat-card.login { background: linear-gradient(135deg, #1a237e, #3f51b5); }
-        .stat-card.created { background: linear-gradient(135deg, #2d7a3d, #43a047); }
-        .stat-card.updated { background: linear-gradient(135deg, #1976d2, #42a5f5); }
-        .stat-card.deleted { background: linear-gradient(135deg, #c62828, #e74c3c); }
-        .stat-card.approved { background: linear-gradient(135deg, #e65100, #ff9800); }
-        .stat-card.rejected { background: linear-gradient(135deg, #880e4f, #c2185b); }
-        .stat-card.generated { background: linear-gradient(135deg, #6a1b9a, #9c27b0); }
-        .stat-card.printed { background: linear-gradient(135deg, #00695c, #00897b); }
-        .stat-card.penalty_paid { background: linear-gradient(135deg, #0d47a1, #1976d2); }
-        .stat-card.penalty_approved { background: linear-gradient(135deg, #1b5e20, #2e7d32); }
-        .stat-card.penalty_rejected { background: linear-gradient(135deg, #880e4f, #ad1457); }
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:10001;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);}
+.modal-overlay.active{display:flex;}
+.modal-content{background:var(--bg-card);border-radius:var(--radius-lg);max-width:720px;width:100%;max-height:90vh;overflow-y:auto;padding:24px;box-shadow:var(--shadow-modal);}
+.modal-content .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;border-bottom:1px solid var(--border-color);padding-bottom:12px;}
+.modal-content .modal-header h3{font-size:20px;font-weight:800;color:var(--text-primary);}
+.modal-content .modal-close{background:none;border:none;font-size:28px;cursor:pointer;color:var(--text-secondary);line-height:1;}
+.modal-content .modal-close:hover{color:var(--danger);}
+.modal-content .detail-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-soft);font-size:13.5px;gap:12px;}
+.modal-content .detail-row .label{font-weight:700;color:var(--text-secondary);flex-shrink:0;}
+.modal-content .detail-row .value{color:var(--text-primary);text-align:right;word-break:break-word;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600;}
+.modal-content .changes-section{margin-top:14px;padding-top:14px;border-top:2px solid var(--border-color);}
+.modal-content .changes-section h4{font-size:14px;font-weight:800;margin-bottom:10px;color:var(--text-primary);}
 
-        /* TABLE */
-        .table-container {
-            background: var(--bg-card);
-            border-radius: var(--radius);
-            border: 1px solid var(--border-color);
-            overflow: hidden;
-            box-shadow: var(--shadow);
-        }
-        .table-header {
-            padding: 14px 18px;
-            border-bottom: 1px solid var(--border-color);
-            font-size: 14px;
-            color: var(--text-primary);
-            background: var(--bg-primary);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        .table-header strong { color: var(--primary); }
-        .table-wrapper { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        thead { background: var(--bg-primary); }
-        thead th {
-            padding: 10px 14px;
-            text-align: left;
-            font-weight: 600;
-            color: var(--text-primary);
-            border-bottom: 2px solid var(--border-color);
-            white-space: nowrap;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-        tbody td {
-            padding: 10px 14px;
-            border-bottom: 1px solid var(--border-color);
-            color: var(--text-primary);
-            vertical-align: middle;
-        }
-        tbody tr:hover { background: var(--bg-primary); }
-        tbody tr:last-child td { border-bottom: none; }
+.logout-modal-overlay,.delete-modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(6px);z-index:99999;align-items:center;justify-content:center;padding:20px;}
+.logout-modal-overlay.active,.delete-modal-overlay.active{display:flex;}
+.logout-modal,.delete-modal{background:var(--bg-card);border-radius:var(--radius-lg);max-width:420px;width:100%;padding:32px 28px 24px;box-shadow:var(--shadow-modal);text-align:center;border:1px solid var(--border-color);}
+.logout-modal .modal-icon,.delete-modal .modal-icon{width:72px;height:72px;border-radius:50%;background:rgba(220,38,38,.12);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:32px;color:var(--danger);}
+.logout-modal h3,.delete-modal h3{font-size:22px;font-weight:800;color:var(--text-primary);margin-bottom:8px;}
+.logout-modal p,.delete-modal p{font-size:14px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6;}
+.delete-modal .delete-warning{font-weight:700;color:var(--danger);font-size:13.5px;}
+.logout-modal .modal-actions,.delete-modal .modal-actions{display:flex;gap:12px;justify-content:center;margin-top:16px;}
+.logout-modal .btn,.delete-modal .btn{padding:11px 28px;border-radius:12px;font-size:14px;font-weight:700;border:none;cursor:pointer;transition:.15s;min-width:100px;}
+.btn-cancel{background:var(--border-soft);color:var(--text-primary);}
+.btn-cancel:hover{background:var(--border-color);}
+.btn-logout,.btn-delete{background:var(--danger);color:#fff;display:inline-flex;align-items:center;gap:8px;}
+.btn-logout:hover,.btn-delete:hover{background:#b42318;}
 
-        .action-badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; }
-        .action-badge.login { background: #e8eaf6; color: #1a237e; }
-        .action-badge.created { background: #d4edda; color: #155724; }
-        .action-badge.updated { background: #cce5ff; color: #004085; }
-        .action-badge.deleted { background: #f8d7da; color: #721c24; }
-        .action-badge.approved { background: #fff3cd; color: #856404; }
-        .action-badge.rejected { background: #f8d7da; color: #721c24; }
-        .action-badge.generated { background: #e1d4f0; color: #4a148c; }
-        .action-badge.printed { background: #b2dfdb; color: #004d40; }
-        .action-badge.penalty_paid { background: #bbdefb; color: #0d47a1; }
-        .action-badge.penalty_approved { background: #c8e6c9; color: #1b5e20; }
-        .action-badge.penalty_rejected { background: #f8bbd0; color: #880e4f; }
+.pagination-container{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;background:var(--bg-primary);border-top:1px solid var(--border-color);flex-wrap:wrap;gap:10px;}
+[data-theme="dark"] .pagination-container{background:#111a2c;}
+.pagination-info{font-size:12.5px;color:var(--text-secondary);font-weight:600;}
+.pagination-info strong{color:var(--text-primary);}
+.pagination-buttons{display:flex;gap:4px;align-items:center;flex-wrap:wrap;}
+.pagination-btn{padding:6px 12px;border:1px solid var(--border-color);border-radius:10px;background:var(--bg-card);cursor:pointer;font-size:12.5px;font-weight:700;color:var(--text-primary);transition:.15s;min-width:34px;text-align:center;}
+.pagination-btn:hover:not(:disabled){background:var(--bg-primary);border-color:var(--primary);color:var(--primary);}
+.pagination-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+.pagination-btn:disabled{opacity:.4;cursor:not-allowed;}
 
-        .collection-badge {
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 10px;
-            font-weight: 600;
-            display: inline-block;
-            background: var(--border-color);
-            color: var(--text-secondary);
-        }
+.empty-state{text-align:center;padding:40px 20px;color:var(--text-secondary);}
+.empty-state i{font-size:44px;color:var(--text-muted);margin-bottom:12px;display:block;}
 
-        .action-btn {
-            border: none;
-            padding: 4px 8px;
-            border-radius: var(--radius-sm);
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            background: var(--info);
-            color: #fff;
-        }
-        .action-btn:hover { transform: translateY(-1px); opacity: 0.9; }
-        .action-btn.view-details { background: var(--info); }
-        .action-btn.delete-entry { background: var(--danger); }
-        .action-btn.delete-entry:hover { background: #c0392b; }
+.toast-container{position:fixed;top:24px;right:24px;z-index:99999;display:flex;flex-direction:column;gap:10px;pointer-events:none;}
+.toast{padding:14px 20px;border-radius:12px;color:#fff;font-weight:600;font-size:13.5px;box-shadow:0 12px 32px rgba(0,0,0,.2);animation:toastIn .22s cubic-bezier(.4,0,.2,1);min-width:280px;max-width:400px;display:flex;align-items:center;gap:12px;pointer-events:auto;}
+.toast i{font-size:18px;}
+.toast.success{background:#067647;}
+.toast.error{background:#b42318;}
+.toast.warning{background:#b8860b;}
+@keyframes toastIn{from{transform:translateX(24px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+.toast.fade-out{opacity:0;transition:opacity .3s;}
 
-        /* MODALS */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 10001;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            backdrop-filter: blur(4px);
-        }
-        .modal-overlay.active { display: flex; }
-        .modal-content {
-            background: var(--bg-card);
-            border-radius: var(--radius);
-            max-width: 700px;
-            width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
-            padding: 24px;
-            box-shadow: var(--shadow-modal);
-        }
-        .modal-content .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 12px;
-        }
-        .modal-content .modal-header h3 { font-size: 20px; font-weight: 700; color: var(--text-primary); }
-        .modal-content .modal-close { background: none; border: none; font-size: 28px; cursor: pointer; color: var(--text-secondary); line-height: 1; }
-        .modal-content .modal-close:hover { color: var(--danger); }
-        .modal-content .detail-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 0;
-            border-bottom: 1px solid var(--border-color);
-            font-size: 14px;
-        }
-        .modal-content .detail-row .label { font-weight: 600; color: var(--text-secondary); }
-        .modal-content .detail-row .value { color: var(--text-primary); text-align: right; }
-        .modal-content .changes-section {
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 2px solid var(--border-color);
-        }
-        .modal-content .changes-section h4 { font-size: 15px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary); }
+.app-footer{background:var(--bg-card);border-top:1px solid var(--border-color);padding:16px 30px;text-align:center;font-size:13px;color:var(--text-secondary);margin-top:auto;font-weight:600;}
 
-        /* LOGOUT MODAL */
-        .logout-modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(6px);
-            z-index: 99999;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            animation: fadeIn 0.3s ease;
-        }
-        .logout-modal-overlay.active { display: flex; }
-        .logout-modal {
-            background: var(--bg-card);
-            border-radius: var(--radius);
-            max-width: 420px;
-            width: 100%;
-            padding: 32px 28px 24px;
-            box-shadow: var(--shadow-modal);
-            animation: slideUp 0.3s ease;
-            text-align: center;
-            border: 1px solid var(--border-color);
-        }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideUp { from { transform: translateY(20px) scale(0.95); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
-        .logout-modal .modal-icon {
-            width: 72px;
-            height: 72px;
-            border-radius: 50%;
-            background: rgba(231, 76, 60, 0.12);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 16px;
-            font-size: 32px;
-            color: var(--danger);
-        }
-        .logout-modal h3 { font-size: 22px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
-        .logout-modal p { font-size: 15px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.6; }
-        .logout-modal .modal-actions { display: flex; gap: 12px; justify-content: center; }
-        .logout-modal .modal-actions .btn {
-            padding: 10px 28px;
-            border-radius: var(--radius-sm);
-            font-size: 14px;
-            font-weight: 600;
-            border: none;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-family: inherit;
-            min-width: 100px;
-        }
-        .logout-modal .modal-actions .btn-cancel { background: var(--border-color); color: var(--text-primary); }
-        .logout-modal .modal-actions .btn-cancel:hover { background: #d0d7d2; transform: translateY(-2px); }
-        .logout-modal .modal-actions .btn-logout { background: var(--danger); color: #fff; display: inline-flex; align-items: center; gap: 8px; }
-        .logout-modal .modal-actions .btn-logout:hover { background: #c0392b; transform: translateY(-2px); box-shadow: 0 4px 16px rgba(231, 76, 60, 0.3); }
-        .logout-modal .modal-actions .btn-logout i { font-size: 16px; }
-
-        /* DELETE MODAL */
-        .delete-modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(6px);
-            z-index: 99998;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            animation: fadeIn 0.3s ease;
-        }
-        .delete-modal-overlay.active { display: flex; }
-        .delete-modal {
-            background: var(--bg-card);
-            border-radius: var(--radius);
-            max-width: 420px;
-            width: 100%;
-            padding: 32px 28px 24px;
-            box-shadow: var(--shadow-modal);
-            animation: slideUp 0.3s ease;
-            text-align: center;
-            border: 1px solid var(--border-color);
-        }
-        .delete-modal .modal-icon {
-            width: 72px;
-            height: 72px;
-            border-radius: 50%;
-            background: rgba(231, 76, 60, 0.12);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 16px;
-            font-size: 32px;
-            color: var(--danger);
-        }
-        .delete-modal h3 { font-size: 22px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
-        .delete-modal p { font-size: 15px; color: var(--text-secondary); margin-bottom: 8px; line-height: 1.6; }
-        .delete-modal .delete-warning { font-weight: 600; color: var(--danger); font-size: 14px; margin-bottom: 20px; }
-        .delete-modal .modal-actions { display: flex; gap: 12px; justify-content: center; }
-        .delete-modal .modal-actions .btn {
-            padding: 10px 28px;
-            border-radius: var(--radius-sm);
-            font-size: 14px;
-            font-weight: 600;
-            border: none;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-family: inherit;
-            min-width: 100px;
-        }
-        .delete-modal .modal-actions .btn-cancel { background: var(--border-color); color: var(--text-primary); }
-        .delete-modal .modal-actions .btn-cancel:hover { background: #d0d7d2; transform: translateY(-2px); }
-        .delete-modal .modal-actions .btn-delete { background: var(--danger); color: #fff; display: inline-flex; align-items: center; gap: 8px; }
-        .delete-modal .modal-actions .btn-delete:hover { background: #c0392b; transform: translateY(-2px); box-shadow: 0 4px 16px rgba(231, 76, 60, 0.3); }
-        .delete-modal .modal-actions .btn-delete i { font-size: 16px; }
-
-        /* PAGINATION */
-        .pagination-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 18px;
-            background: var(--bg-primary);
-            border-top: 1px solid var(--border-color);
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .pagination-info { font-size: 13px; color: var(--text-secondary); }
-        .pagination-info strong { color: var(--text-primary); }
-        .pagination-buttons { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
-        .pagination-btn {
-            padding: 5px 12px;
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-sm);
-            background: var(--bg-card);
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--text-primary);
-            transition: all 0.2s;
-            min-width: 32px;
-            text-align: center;
-        }
-        .pagination-btn:hover:not(:disabled) { background: var(--border-color); border-color: var(--primary); }
-        .pagination-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
-        .pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-        .empty-state { text-align: center; padding: 40px 20px; color: var(--text-secondary); }
-        .empty-state i { font-size: 48px; color: var(--text-muted); margin-bottom: 12px; display: block; }
-
-        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 99999; display: flex; flex-direction: column; gap: 10px; }
-        .toast {
-            padding: 14px 24px;
-            border-radius: var(--radius);
-            color: #fff;
-            font-weight: 500;
-            font-size: 14px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-            animation: slideIn 0.3s ease;
-            min-width: 280px;
-            max-width: 400px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .toast i { font-size: 18px; }
-        .toast.success { background: var(--success); }
-        .toast.error { background: var(--danger); }
-        .toast.warning { background: var(--warning); }
-        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        .toast.fade-out { opacity: 0; transition: opacity 0.3s ease; }
-
-        .app-footer {
-            background: var(--bg-card);
-            border-top: 1px solid var(--border-color);
-            padding: 16px 30px;
-            text-align: center;
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-top: auto;
-        }
-
-        @media (max-width: 768px) {
-            .sidebar { transform: translateX(-100%); width: 280px; }
-            .sidebar.open { transform: translateX(0); }
-            .sidebar.collapsed { width: 280px; }
-            .sidebar.collapsed .brand-text,
-            .sidebar.collapsed .sidebar-nav li a span,
-            .sidebar.collapsed .logout-btn span,
-            .sidebar.collapsed .sidebar-brand .brand-sub { display: inline; }
-            .sidebar.collapsed .brand-icon { width: 72px; height: 72px; }
-            .sidebar.collapsed .sidebar-nav li a { justify-content: flex-start; padding: 10px 16px; }
-            .sidebar.collapsed .sidebar-nav li a i { font-size: 17px; width: 22px; }
-            .sidebar.collapsed .logout-btn { justify-content: flex-start; padding: 10px; }
-            .sidebar.collapsed .logout-btn i { font-size: 17px; }
-            .sidebar.collapsed .sidebar-toggle-btn { transform: none; }
-            .main-content { margin-left: 0; }
-            .sidebar.collapsed~.main-content { margin-left: 0; }
-            .menu-toggle { display: block; }
-            .top-header { padding: 12px 16px; }
-            .dashboard-content { padding: 16px; }
-            .page-header { flex-direction: column; align-items: stretch; }
-            .search-bar { flex-direction: column; }
-            .filter-wrapper select { width: 100%; }
-            .pagination-container { flex-direction: column; align-items: stretch; gap: 8px; }
-            .pagination-buttons { justify-content: center; }
-            .user-name { display: none; }
-            .toast-container { top: 10px; right: 10px; left: 10px; }
-            .toast { min-width: unset; width: 100%; }
-            .audit-stats { grid-template-columns: repeat(3, 1fr); }
-            .modal-content { margin: 10px; padding: 16px; }
-            .modal-content .detail-row { flex-direction: column; align-items: flex-start; gap: 2px; }
-            .modal-content .detail-row .value { text-align: left; }
-            .sidebar-brand { padding: 16px 16px 12px; }
-            .brand-icon { width: 60px; height: 60px; }
-            .brand-text .brand-name { font-size: 16px; }
-            .logout-modal .modal-actions, .delete-modal .modal-actions { flex-direction: column; }
-            .logout-modal .modal-actions .btn, .delete-modal .modal-actions .btn { width: 100%; }
-        }
-        @media (max-width: 480px) {
-            .audit-stats { grid-template-columns: 1fr 1fr; }
-            table { font-size: 12px; }
-            thead th, tbody td { padding: 6px 8px; }
-            .pagination-btn { padding: 4px 8px; font-size: 12px; min-width: 28px; }
-            .brand-icon { width: 50px; height: 50px; }
-            .brand-text .brand-name { font-size: 14px; }
-        }
-    </style>
+@media (max-width:900px){
+  .sidebar{transform:translateX(-100%);width:var(--sidebar-width);}
+  .sidebar.open{transform:translateX(0);}
+  .sidebar.collapsed{width:var(--sidebar-width);}
+  .sidebar.collapsed .brand-text,.sidebar.collapsed .sidebar-nav li a span,.sidebar.collapsed .logout-btn span{opacity:1;pointer-events:auto;display:inline;}
+  .sidebar.collapsed .sidebar-nav li a{justify-content:flex-start;padding:11px 13px;}
+  .sidebar.collapsed .logout-btn{justify-content:flex-start;padding:10px 13px;}
+  .sidebar.collapsed .nav-section{height:auto;opacity:1;padding:18px 12px 8px;}
+  .main-content{margin-left:0 !important;}
+  .menu-toggle{display:inline-flex;}
+  .top-header{padding:12px 16px;}
+  .dashboard-content{padding:16px;}
+  .page-header{flex-direction:column;align-items:stretch;}
+  .search-bar{flex-direction:column;}
+  .filter-wrapper select{width:100%;}
+  .pagination-container{flex-direction:column;align-items:stretch;}
+  .pagination-buttons{justify-content:center;}
+  .user-name{display:none;}
+  .toast-container{top:10px;right:10px;left:10px;}
+  .toast{min-width:unset;width:100%;max-width:unset;}
+  .audit-stats{grid-template-columns:repeat(3,1fr);}
+  .modal-content{padding:16px;}
+  .modal-content .detail-row{flex-direction:column;align-items:flex-start;gap:2px;}
+  .modal-content .detail-row .value{text-align:left;}
+  .logout-modal .modal-actions,.delete-modal .modal-actions{flex-direction:column;}
+  .logout-modal .btn,.delete-modal .btn{width:100%;}
+}
+@media (max-width:520px){
+  .audit-stats{grid-template-columns:1fr 1fr;}
+  table{font-size:12px;}
+  thead th,tbody td{padding:8px 10px;}
+  .pagination-btn{padding:4px 8px;font-size:12px;min-width:28px;}
+}
+</style>
 </head>
 <body>
 
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-brand">
-            <button class="sidebar-toggle-btn" id="sidebarToggleBtn" title="Toggle Sidebar">
-                <i class="fas fa-chevron-left"></i>
-            </button>
-            <div class="brand-icon">
-                <img src="../images/sacco-logo.png" alt="SACCO Logo" class="brand-logo-img" />
-            </div>
-            <div class="brand-text">
-                <span class="brand-name">GERESU DHUKI <span>SACCO</span></span>
-                <span class="brand-sub" data-i18n="brandSub">SACCO Banking</span>
-            </div>
-        </div>
-        <nav class="sidebar-nav">
-            <ul>
-                <li><a href="dashboard.html"><i class="fas fa-th-large"></i> <span data-i18n="navDashboard">Dashboard</span></a></li>
-                <li><a href="customers.html"><i class="fas fa-users"></i> <span data-i18n="navCustomers">Customers</span></a></li>
-                <li><a href="savings.html"><i class="fas fa-piggy-bank"></i> <span data-i18n="navSavings">Savings</span></a></li>
-                <li><a href="deposits.html"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="navDeposits">Deposits</span></a></li>
-                <li><a href="loans.html"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="navLoans">Loans</span></a></li>
-                <li><a href="repayments.html"><i class="fas fa-undo-alt"></i> <span data-i18n="navRepayments">Repayments</span></a></li>
-                <li><a href="withdrawals.html"><i class="fas fa-money-bill-wave"></i> <span data-i18n="navWithdrawals">Withdrawals</span></a></li>
-                <li><a href="dividends.html"><i class="fas fa-gift"></i> <span data-i18n="navDividends">Dividends</span></a></li>
-                <li><a href="share.html"><i class="fas fa-chart-pie"></i> <span data-i18n="navShares">Shares</span></a></li>
-                <li><a href="reports.html"><i class="fas fa-chart-bar"></i> <span data-i18n="navReports">Reports</span></a></li>
-                <li><a href="penalties.html"><i class="fas fa-exclamation-triangle" style="color:#e67e22;"></i> <span data-i18n="navPenalties">Penalties</span></a></li>
-                <li id="auditNavItem" style="display:none;"><a href="audit.html" class="active"><i class="fas fa-clipboard-list"></i> <span data-i18n="navAudit">Audit Trail</span></a></li>
-                <li id="usersNavItem" style="display:none;"><a href="users.html"><i class="fas fa-user-cog"></i> <span data-i18n="navUsers">Users</span></a></li>
-                <li><a href="settings.html"><i class="fas fa-cog"></i> <span data-i18n="navSettings">Settings</span></a></li>
-            </ul>
-        </nav>
-        <div class="sidebar-footer">
-            <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> <span data-i18n="logout">Logout</span></button>
-        </div>
-    </aside>
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon">
+      <img src="../images/logo.png" alt="SACCO Logo" class="brand-logo-img" onerror="this.style.display='none';this.parentNode.innerHTML='<span style=&quot;font-weight:900;color:#0b5cab;font-size:22px&quot;>G</span>'" />
+    </div>
+    <div class="brand-text">
+      <span class="brand-name">GERESU DHUKI <span>SACCO</span></span>
+      <span class="brand-sub" data-i18n="brandSub">SACCO Management</span>
+    </div>
+    <button class="sidebar-toggle-btn" id="sidebarToggleBtn" title="Toggle Sidebar"><i class="fas fa-chevron-left"></i></button>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section" data-i18n="navSecOverview">Overview</div>
+    <ul>
+      <li><a href="dashboard.html"><i class="fas fa-th-large"></i> <span data-i18n="navDashboard">Dashboard</span></a></li>
+    </ul>
+    <div class="nav-section" data-i18n="navSecNetwork">Network</div>
+    <ul>
+      <li id="districtsNavItem"><a href="districts.html"><i class="fas fa-map-marked-alt"></i> <span data-i18n="navDistricts">Districts</span></a></li>
+      <li id="branchesNavItem"><a href="branches.html"><i class="fas fa-code-branch"></i> <span data-i18n="navBranches">Branches</span></a></li>
+    </ul>
+    <div class="nav-section" data-i18n="navSecOperations">Operations</div>
+    <ul>
+      <li><a href="customers.html"><i class="fas fa-users"></i> <span data-i18n="navCustomers">Customers</span></a></li>
+      <li><a href="savings.html"><i class="fas fa-piggy-bank"></i> <span data-i18n="navSavings">Savings</span></a></li>
+      <li><a href="loans.html"><i class="fas fa-file-invoice"></i> <span data-i18n="navLoans">Loans</span></a></li>
+      <li><a href="share.html"><i class="fas fa-chart-pie"></i> <span data-i18n="navShares">Shares</span></a></li>
+    </ul>
+    <div class="nav-section" data-i18n="navSecFinance">Finance</div>
+    <ul>
+      <li><a href="deposits.html"><i class="fas fa-hand-holding-usd"></i> <span data-i18n="navDeposits">Deposits</span></a></li>
+      <li><a href="repayments.html"><i class="fas fa-undo-alt"></i> <span data-i18n="navRepayments">Repayments</span></a></li>
+      <li><a href="withdrawals.html"><i class="fas fa-money-bill-wave"></i> <span data-i18n="navWithdrawals">Withdrawals</span></a></li>
+      <li><a href="dividends.html"><i class="fas fa-gift"></i> <span data-i18n="navDividends">Dividends</span></a></li>
+      <li><a href="penalties.html"><i class="fas fa-exclamation-triangle"></i> <span data-i18n="navPenalties">Penalties</span></a></li>
+    </ul>
+    <div class="nav-section" data-i18n="navSecAdmin">Administration</div>
+    <ul>
+      <li><a href="reports.html"><i class="fas fa-chart-bar"></i> <span data-i18n="navReports">Reports</span></a></li>
+      <li id="auditNavItem"><a href="audit.html" class="active"><i class="fas fa-clipboard-list"></i> <span data-i18n="navAudit">Audit Trail</span></a></li>
+      <li id="usersNavItem"><a href="users.html"><i class="fas fa-user-cog"></i> <span data-i18n="navUsers">Users</span></a></li>
+      <li><a href="settings.html"><i class="fas fa-cog"></i> <span data-i18n="navSettings">Settings</span></a></li>
+    </ul>
+  </nav>
+  <div class="sidebar-footer">
+    <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> <span data-i18n="logout">Logout</span></button>
+  </div>
+</aside>
 
-    <main class="main-content">
+<main class="main-content">
+  <header class="top-header">
+    <div class="header-left">
+      <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+      <div class="page-title">
+        <h1 data-i18n="pageTitle">Audit Trail</h1>
+        <span class="breadcrumb" data-i18n="breadcrumb">Home / Audit Trail</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="lang-switcher">
+        <button class="lang-btn active" data-lang="en">EN</button>
+        <button class="lang-btn" data-lang="am">አማ</button>
+        <button class="lang-btn" data-lang="om">OM</button>
+      </div>
+      <div class="user-profile">
+        <img id="userAvatar" src="../assets/images/avatar.png" alt="User" onerror="this.src='https://ui-avatars.com/api/?name=Admin&background=0b5cab&color=fff'" />
+        <span class="user-name" id="userDisplayName">Admin</span>
+      </div>
+    </div>
+  </header>
 
-        <header class="top-header">
-            <div class="header-left">
-                <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
-                <div class="page-title">
-                    <h1 data-i18n="pageTitle">Audit Trail</h1>
-                    <span class="breadcrumb" data-i18n="breadcrumb">Home / Audit Trail</span>
-                </div>
-            </div>
-            <div class="header-right">
-                <div class="lang-switcher">
-                    <button class="lang-btn active" data-lang="en">EN</button>
-                    <button class="lang-btn" data-lang="am">አማ</button>
-                    <button class="lang-btn" data-lang="om">OM</button>
-                </div>
-                <div class="user-profile">
-                    <img id="userAvatar" src="../assets/images/avatar.png" alt="User" onerror="this.src='https://ui-avatars.com/api/?name=Admin&background=1a6e3a&color=fff'" />
-                    <span class="user-name" id="userDisplayName">Admin</span>
-                </div>
-            </div>
-        </header>
-
-        <section class="dashboard-content">
-
-            <div class="page-header">
-                <div class="page-header-left">
-                    <h2 data-i18n="auditTitle">Audit Trail</h2>
-                    <p data-i18n="auditSub">Track all changes made across the system including penalties</p>
-                </div>
-                <div class="page-header-right">
-                    <button class="btn-secondary" id="testConnectionBtn" style="padding:6px 14px; font-size:12px;">
-                        <i class="fas fa-plug"></i> <span data-i18n="testConnection">Test Connection</span>
-                    </button>
-                    <button class="btn-secondary" id="refreshBtn">
-                        <i class="fas fa-sync-alt"></i> <span data-i18n="refresh">Refresh</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Stats Cards -->
-            <div class="audit-stats" id="auditStats">
-                <div class="stat-card login">
-                    <span class="stat-icon"><i class="fas fa-sign-in-alt"></i></span>
-                    <span class="stat-number" id="loginCount">0</span>
-                    <span class="stat-label" data-i18n="login">Login</span>
-                </div>
-                <div class="stat-card created">
-                    <span class="stat-icon"><i class="fas fa-plus-circle"></i></span>
-                    <span class="stat-number" id="createdCount">0</span>
-                    <span class="stat-label" data-i18n="created">Created</span>
-                </div>
-                <div class="stat-card updated">
-                    <span class="stat-icon"><i class="fas fa-edit"></i></span>
-                    <span class="stat-number" id="updatedCount">0</span>
-                    <span class="stat-label" data-i18n="updated">Updated</span>
-                </div>
-                <div class="stat-card deleted">
-                    <span class="stat-icon"><i class="fas fa-trash"></i></span>
-                    <span class="stat-number" id="deletedCount">0</span>
-                    <span class="stat-label" data-i18n="deleted">Deleted</span>
-                </div>
-                <div class="stat-card approved">
-                    <span class="stat-icon"><i class="fas fa-check-circle"></i></span>
-                    <span class="stat-number" id="approvedCount">0</span>
-                    <span class="stat-label" data-i18n="approved">Approved</span>
-                </div>
-                <div class="stat-card rejected">
-                    <span class="stat-icon"><i class="fas fa-times-circle"></i></span>
-                    <span class="stat-number" id="rejectedCount">0</span>
-                    <span class="stat-label" data-i18n="rejected">Rejected</span>
-                </div>
-                <div class="stat-card generated">
-                    <span class="stat-icon"><i class="fas fa-file-alt"></i></span>
-                    <span class="stat-number" id="generatedCount">0</span>
-                    <span class="stat-label" data-i18n="generated">Generated</span>
-                </div>
-                <div class="stat-card printed">
-                    <span class="stat-icon"><i class="fas fa-print"></i></span>
-                    <span class="stat-number" id="printedCount">0</span>
-                    <span class="stat-label" data-i18n="printed">Printed</span>
-                </div>
-                <div class="stat-card penalty_paid">
-                    <span class="stat-icon"><i class="fas fa-money-bill-wave"></i></span>
-                    <span class="stat-number" id="penaltyPaidCount">0</span>
-                    <span class="stat-label" data-i18n="penaltyPaid">Penalty Paid</span>
-                </div>
-                <div class="stat-card penalty_approved">
-                    <span class="stat-icon"><i class="fas fa-check-double"></i></span>
-                    <span class="stat-number" id="penaltyApprovedCount">0</span>
-                    <span class="stat-label" data-i18n="penaltyApproved">Penalty Approved</span>
-                </div>
-                <div class="stat-card penalty_rejected">
-                    <span class="stat-icon"><i class="fas fa-times"></i></span>
-                    <span class="stat-number" id="penaltyRejectedCount">0</span>
-                    <span class="stat-label" data-i18n="penaltyRejected">Penalty Rejected</span>
-                </div>
-            </div>
-
-            <!-- Search & Filters -->
-            <div class="search-bar">
-                <div class="search-wrapper">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="searchInput" data-i18n="searchPlaceholder" placeholder="Search by user, action, or collection..." />
-                </div>
-                <div class="filter-wrapper">
-                    <select id="actionFilter">
-                        <option value="all" data-i18n="allActions">All Actions</option>
-                        <option value="login" data-i18n="login">Login</option>
-                        <option value="created" data-i18n="created">Created</option>
-                        <option value="updated" data-i18n="updated">Updated</option>
-                        <option value="deleted" data-i18n="deleted">Deleted</option>
-                        <option value="approved" data-i18n="approved">Approved</option>
-                        <option value="rejected" data-i18n="rejected">Rejected</option>
-                        <option value="generated" data-i18n="generated">Generated</option>
-                        <option value="printed" data-i18n="printed">Printed</option>
-                        <option value="penalty_paid" data-i18n="penaltyPaid">Penalty Paid</option>
-                        <option value="penalty_approved" data-i18n="penaltyApproved">Penalty Approved</option>
-                        <option value="penalty_rejected" data-i18n="penaltyRejected">Penalty Rejected</option>
-                    </select>
-                </div>
-                <div class="filter-wrapper">
-                    <select id="collectionFilter">
-                        <option value="all" data-i18n="allCollections">All Collections</option>
-                        <option value="customers">Customers</option>
-                        <option value="transactions">Transactions</option>
-                        <option value="loans">Loans</option>
-                        <option value="savings">Savings</option>
-                        <option value="deposits">Deposits</option>
-                        <option value="withdrawals">Withdrawals</option>
-                        <option value="repayments">Repayments</option>
-                        <option value="dividends">Dividends</option>
-                        <option value="penalties">Penalties</option>
-                        <option value="users">Users</option>
-                        <option value="settings">Settings</option>
-                    </select>
-                </div>
-                <div class="filter-wrapper">
-                    <select id="userFilter">
-                        <option value="all" data-i18n="allUsers">All Users</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Table -->
-            <div class="table-container">
-                <div class="table-header">
-                    <span data-i18n="auditLog">Audit Log</span>
-                    <strong id="totalAuditCount">0</strong>
-                </div>
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th data-i18n="timestamp">Timestamp</th>
-                                <th data-i18n="user">User</th>
-                                <th data-i18n="action">Action</th>
-                                <th data-i18n="collection">Collection</th>
-                                <th data-i18n="documentId">Document</th>
-                                <th data-i18n="details">Details</th>
-                                <th data-i18n="actions">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="auditBody">
-                            <tr><td colspan="8"><div class="empty-state"><i class="fas fa-clipboard-list"></i><span data-i18n="noAudit">No audit records found.</span></div></td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="pagination-container">
-                    <div class="pagination-info">
-                        <span data-i18n="showing">Showing</span> <strong id="pageStart">0</strong> - <strong id="pageEnd">0</strong>
-                        <span data-i18n="of">of</span> <strong id="totalAuditCountPagination">0</strong>
-                    </div>
-                    <div class="pagination-buttons">
-                        <button class="pagination-btn" id="prevPage" disabled><i class="fas fa-chevron-left"></i></button>
-                        <div id="pageNumbers"></div>
-                        <button class="pagination-btn" id="nextPage"><i class="fas fa-chevron-right"></i></button>
-                    </div>
-                </div>
-            </div>
-
-        </section>
-
-        <footer class="app-footer">
-            <p>&copy; 2026 GERESU DHUKI SACCO. <span data-i18n="rights">All rights reserved.</span></p>
-        </footer>
-    </main>
-
-    <!-- DETAILS MODAL -->
-    <div class="modal-overlay" id="detailsModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 data-i18n="auditDetails">Audit Details</h3>
-                <button class="modal-close" id="closeDetailsModal">&times;</button>
-            </div>
-            <div id="detailsBody">
-                <div class="detail-row">
-                    <span class="label" data-i18n="timestamp">Timestamp</span>
-                    <span class="value" id="detailTimestamp">—</span>
-                </div>
-                <div class="detail-row">
-                    <span class="label" data-i18n="user">User</span>
-                    <span class="value" id="detailUser">—</span>
-                </div>
-                <div class="detail-row">
-                    <span class="label" data-i18n="action">Action</span>
-                    <span class="value" id="detailAction">—</span>
-                </div>
-                <div class="detail-row">
-                    <span class="label" data-i18n="collection">Collection</span>
-                    <span class="value" id="detailCollection">—</span>
-                </div>
-                <div class="detail-row">
-                    <span class="label" data-i18n="documentId">Document ID</span>
-                    <span class="value" id="detailDocId">—</span>
-                </div>
-                <div class="changes-section" id="changesSection">
-                    <h4 data-i18n="changes">Changes</h4>
-                    <div id="changesContainer">
-                        <p style="color:var(--text-secondary); font-size:14px;">No changes recorded.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
+  <section class="dashboard-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <h2 data-i18n="auditTitle">Audit Trail</h2>
+        <p data-i18n="auditSub">Track all changes made across the system including penalties</p>
+      </div>
+      <div class="page-header-right">
+        <button class="btn-secondary" id="testConnectionBtn" style="padding:8px 14px;font-size:12px;">
+          <i class="fas fa-plug"></i> <span data-i18n="testConnection">Test Connection</span>
+        </button>
+        <button class="btn-secondary" id="refreshBtn">
+          <i class="fas fa-sync-alt"></i> <span data-i18n="refresh">Refresh</span>
+        </button>
+      </div>
     </div>
 
-    <!-- LOGOUT MODAL -->
-    <div class="logout-modal-overlay" id="logoutModal">
-        <div class="logout-modal">
-            <div class="modal-icon">
-                <i class="fas fa-sign-out-alt"></i>
-            </div>
-            <h3>Logout Confirmation</h3>
-            <p>Are you sure you want to log out? You will need to sign in again to access your account.</p>
-            <div class="modal-actions">
-                <button class="btn btn-cancel" id="logoutCancel">Cancel</button>
-                <button class="btn btn-logout" id="logoutConfirm"><i class="fas fa-sign-out-alt"></i> Logout</button>
-            </div>
-        </div>
+    <div class="audit-stats" id="auditStats">
+      <div class="stat-card login"><span class="stat-icon"><i class="fas fa-sign-in-alt"></i></span><span class="stat-number" id="loginCount">0</span><span class="stat-label" data-i18n="login">Login</span></div>
+      <div class="stat-card created"><span class="stat-icon"><i class="fas fa-plus-circle"></i></span><span class="stat-number" id="createdCount">0</span><span class="stat-label" data-i18n="created">Created</span></div>
+      <div class="stat-card updated"><span class="stat-icon"><i class="fas fa-edit"></i></span><span class="stat-number" id="updatedCount">0</span><span class="stat-label" data-i18n="updated">Updated</span></div>
+      <div class="stat-card deleted"><span class="stat-icon"><i class="fas fa-trash"></i></span><span class="stat-number" id="deletedCount">0</span><span class="stat-label" data-i18n="deleted">Deleted</span></div>
+      <div class="stat-card approved"><span class="stat-icon"><i class="fas fa-check-circle"></i></span><span class="stat-number" id="approvedCount">0</span><span class="stat-label" data-i18n="approved">Approved</span></div>
+      <div class="stat-card rejected"><span class="stat-icon"><i class="fas fa-times-circle"></i></span><span class="stat-number" id="rejectedCount">0</span><span class="stat-label" data-i18n="rejected">Rejected</span></div>
+      <div class="stat-card generated"><span class="stat-icon"><i class="fas fa-file-alt"></i></span><span class="stat-number" id="generatedCount">0</span><span class="stat-label" data-i18n="generated">Generated</span></div>
+      <div class="stat-card printed"><span class="stat-icon"><i class="fas fa-print"></i></span><span class="stat-number" id="printedCount">0</span><span class="stat-label" data-i18n="printed">Printed</span></div>
+      <div class="stat-card penalty_paid"><span class="stat-icon"><i class="fas fa-money-bill-wave"></i></span><span class="stat-number" id="penaltyPaidCount">0</span><span class="stat-label" data-i18n="penaltyPaid">Penalty Paid</span></div>
+      <div class="stat-card penalty_approved"><span class="stat-icon"><i class="fas fa-check-double"></i></span><span class="stat-number" id="penaltyApprovedCount">0</span><span class="stat-label" data-i18n="penaltyApproved">Penalty Approved</span></div>
+      <div class="stat-card penalty_rejected"><span class="stat-icon"><i class="fas fa-times"></i></span><span class="stat-number" id="penaltyRejectedCount">0</span><span class="stat-label" data-i18n="penaltyRejected">Penalty Rejected</span></div>
     </div>
 
-    <!-- DELETE MODAL -->
-    <div class="delete-modal-overlay" id="deleteModal">
-        <div class="delete-modal">
-            <div class="modal-icon">
-                <i class="fas fa-trash-alt"></i>
-            </div>
-            <h3>Delete Audit Record</h3>
-            <p>Are you sure you want to permanently delete this audit record?</p>
-            <p class="delete-warning">⚠️ This action cannot be undone.</p>
-            <div class="modal-actions">
-                <button class="btn btn-cancel" id="deleteCancel">Cancel</button>
-                <button class="btn btn-delete" id="deleteConfirm"><i class="fas fa-trash-alt"></i> Delete</button>
-            </div>
-        </div>
+    <div class="search-bar">
+      <div class="search-wrapper">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" data-i18n="searchPlaceholder" placeholder="Search by user, action, or collection..." />
+      </div>
+      <div class="filter-wrapper">
+        <select id="actionFilter">
+          <option value="all" data-i18n="allActions">All Actions</option>
+          <option value="login" data-i18n="login">Login</option>
+          <option value="created" data-i18n="created">Created</option>
+          <option value="updated" data-i18n="updated">Updated</option>
+          <option value="deleted" data-i18n="deleted">Deleted</option>
+          <option value="approved" data-i18n="approved">Approved</option>
+          <option value="rejected" data-i18n="rejected">Rejected</option>
+          <option value="generated" data-i18n="generated">Generated</option>
+          <option value="printed" data-i18n="printed">Printed</option>
+          <option value="penalty_paid" data-i18n="penaltyPaid">Penalty Paid</option>
+          <option value="penalty_approved" data-i18n="penaltyApproved">Penalty Approved</option>
+          <option value="penalty_rejected" data-i18n="penaltyRejected">Penalty Rejected</option>
+        </select>
+      </div>
+      <div class="filter-wrapper">
+        <select id="collectionFilter">
+          <option value="all" data-i18n="allCollections">All Collections</option>
+          <option value="districts">Districts</option>
+          <option value="branches">Branches</option>
+          <option value="customers">Customers</option>
+          <option value="transactions">Transactions</option>
+          <option value="loans">Loans</option>
+          <option value="users">Users</option>
+          <option value="settings">Settings</option>
+        </select>
+      </div>
+      <div class="filter-wrapper">
+        <select id="userFilter"><option value="all" data-i18n="allUsers">All Users</option></select>
+      </div>
     </div>
 
-    <script>
-        // ============================================================
-        // FIREBASE CONFIG
-        // ============================================================
-        const firebaseConfig = {
-            apiKey: "AIzaSyBeQv8YLNfFFaTEZ6pxXaAy_K8n3u8V5X4",
-            authDomain: "geresu-dhuki-sacco-75329.firebaseapp.com",
-            projectId: "geresu-dhuki-sacco-75329",
-            storageBucket: "geresu-dhuki-sacco-75329.firebasestorage.app",
-            messagingSenderId: "431325504753",
-            appId: "1:431325504753:web:f7289fb88d74b82eb0b550",
-            measurementId: "G-3SN99DFJXD"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
+    <div class="table-container">
+      <div class="table-header">
+        <span data-i18n="auditLog">Audit Log</span>
+        <strong id="totalAuditCount">0</strong>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr>
+            <th>#</th>
+            <th data-i18n="timestamp">Timestamp</th>
+            <th data-i18n="user">User</th>
+            <th data-i18n="action">Action</th>
+            <th data-i18n="collection">Collection</th>
+            <th data-i18n="documentId">Document</th>
+            <th data-i18n="details">Details</th>
+            <th data-i18n="actions">Actions</th>
+          </tr></thead>
+          <tbody id="auditBody">
+            <tr><td colspan="8"><div class="empty-state"><i class="fas fa-clipboard-list"></i><span data-i18n="noAudit">No audit records found.</span></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination-container">
+        <div class="pagination-info">
+          <span data-i18n="showing">Showing</span> <strong id="pageStart">0</strong> - <strong id="pageEnd">0</strong>
+          <span data-i18n="of">of</span> <strong id="totalAuditCountPagination">0</strong>
+        </div>
+        <div class="pagination-buttons">
+          <button class="pagination-btn" id="prevPage" disabled><i class="fas fa-chevron-left"></i></button>
+          <div id="pageNumbers" style="display:flex;gap:4px;"></div>
+          <button class="pagination-btn" id="nextPage"><i class="fas fa-chevron-right"></i></button>
+        </div>
+      </div>
+    </div>
+  </section>
 
-        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+  <footer class="app-footer">
+    <p>&copy; 2026 GERESU DHUKI SACCO. <span data-i18n="rights">All rights reserved.</span></p>
+  </footer>
+</main>
 
-        // ============================================================
-        // MULTI-LANGUAGE
-        // ============================================================
-        const translations = {
-            en: {
-                brandSub: 'SACCO Banking',
-                navDashboard: 'Dashboard',
-                navCustomers: 'Customers',
-                navSavings: 'Savings',
-                navDeposits: 'Deposits',
-                navLoans: 'Loans',
-                navRepayments: 'Repayments',
-                navWithdrawals: 'Withdrawals',
-                navDividends: 'Dividends',
-                navShares: 'Shares',
-                navReports: 'Reports',
-                navPenalties: 'Penalties',
-                navAudit: 'Audit Trail',
-                navUsers: 'Users',
-                navSettings: 'Settings',
-                logout: 'Logout',
-                pageTitle: 'Audit Trail',
-                breadcrumb: 'Home / Audit Trail',
-                rights: 'All rights reserved.',
-                auditTitle: 'Audit Trail',
-                auditSub: 'Track all changes made across the system including penalties',
-                refresh: 'Refresh',
-                login: 'Login',
-                created: 'Created',
-                updated: 'Updated',
-                deleted: 'Deleted',
-                approved: 'Approved',
-                rejected: 'Rejected',
-                generated: 'Generated',
-                printed: 'Printed',
-                penaltyPaid: 'Penalty Paid',
-                penaltyApproved: 'Penalty Approved',
-                penaltyRejected: 'Penalty Rejected',
-                timestamp: 'Timestamp',
-                user: 'User',
-                action: 'Action',
-                collection: 'Collection',
-                documentId: 'Document ID',
-                details: 'Details',
-                actions: 'Actions',
-                auditLog: 'Audit Log',
-                noAudit: 'No audit records found.',
-                showing: 'Showing',
-                of: 'of',
-                searchPlaceholder: 'Search by user, action, or collection...',
-                allActions: 'All Actions',
-                allCollections: 'All Collections',
-                allUsers: 'All Users',
-                auditDetails: 'Audit Details',
-                changes: 'Changes',
-                oldValue: 'Old Value',
-                newValue: 'New Value',
-                field: 'Field',
-                noChanges: 'No changes recorded.',
-                unauthorized: 'You are not authorized to view this page.',
-                deleteSuccess: 'Audit record deleted successfully.',
-                deleteError: 'Error deleting audit record: ',
-                testConnection: 'Test Connection',
-                connectionSuccess: '✅ Connection successful!',
-                connectionFailed: '❌ Connection failed: ',
-                sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.'
-            },
-            am: {
-                brandSub: 'ባንክ ስርዓት',
-                navDashboard: 'ዳሽቦርድ',
-                navCustomers: 'ደንበኞች',
-                navSavings: 'ቁጠባዎች',
-                navDeposits: 'ተቀማጭ',
-                navLoans: 'ብድር',
-                navRepayments: 'ክፍያዎች',
-                navWithdrawals: 'መውጫዎች',
-                navDividends: 'ክፍፍል',
-                navShares: 'አክሲዮን',
-                navReports: 'ሪፖርቶች',
-                navPenalties: 'ቅጣቶች',
-                navAudit: 'የምዝግብ ታሪክ',
-                navUsers: 'ተጠቃሚዎች',
-                navSettings: 'ቅንብሮች',
-                logout: 'ውጣ',
-                pageTitle: 'የምዝግብ ታሪክ',
-                breadcrumb: 'ዋና ገጽ / የምዝግብ ታሪክ',
-                rights: 'መብቶች በሙሉ ተጠብቀዋል።',
-                auditTitle: 'የምዝግብ ታሪክ',
-                auditSub: 'ቅጣቶችን ጨምሮ በስርዓቱ ውስጥ የተደረጉ ሁሉንም ለውጦች ይከታተሉ',
-                refresh: 'አድስ',
-                login: 'ግባ',
-                created: 'ተፈጥሯል',
-                updated: 'ተሻሽሏል',
-                deleted: 'ተሰርዟል',
-                approved: 'ጸድቋል',
-                rejected: 'ውድቅ ተደርጓል',
-                generated: 'ተፈጥሯል',
-                printed: 'ታትሟል',
-                penaltyPaid: 'ቅጣት ተከፍሏል',
-                penaltyApproved: 'ቅጣት ጸድቋል',
-                penaltyRejected: 'ቅጣት ውድቅ ተደርጓል',
-                timestamp: 'ሰዓት',
-                user: 'ተጠቃሚ',
-                action: 'እርምጃ',
-                collection: 'ስብስብ',
-                documentId: 'የሰነድ መታወቂያ',
-                details: 'ዝርዝሮች',
-                actions: 'ተግባራት',
-                auditLog: 'የምዝግብ ታሪክ',
-                noAudit: 'ምንም የምዝግብ መዝገቦች አልተገኙም።',
-                showing: 'እያሳየ',
-                of: 'ከ',
-                searchPlaceholder: 'በተጠቃሚ፣ በእርምጃ ወይም በስብስብ ይፈልጉ...',
-                allActions: 'ሁሉም እርምጃዎች',
-                allCollections: 'ሁሉም ስብስቦች',
-                allUsers: 'ሁሉም ተጠቃሚዎች',
-                auditDetails: 'የምዝግብ ዝርዝሮች',
-                changes: 'ለውጦች',
-                oldValue: 'የቀድሞ ዋጋ',
-                newValue: 'አዲስ ዋጋ',
-                field: 'መስክ',
-                noChanges: 'ምንም ለውጦች አልተመዘገቡም።',
-                unauthorized: 'ይህን ገጽ ለማየት ፈቃድ የለዎትም።',
-                deleteSuccess: 'የምዝግብ መዝገብ በተሳካ ሁኔታ ተሰርዟል።',
-                deleteError: 'የምዝግብ መዝገብ በመሰረዝ ላይ ስህተት: ',
-                testConnection: 'ግንኙነት ሞክር',
-                connectionSuccess: '✅ ግንኙነቱ ተሳክቷል!',
-                connectionFailed: '❌ ግንኙነቱ አልተሳካም: ',
-                sessionTimeout: 'የእርስዎ ክፍለ-ጊዜ በ{seconds} ሰከንዶች ውስጥ ያበቃል።'
-            },
-            om: {
-                brandSub: 'Sirna Baankii',
-                navDashboard: 'Gabatee',
-                navCustomers: 'Maamila',
-                navSavings: 'Kusaa',
-                navDeposits: 'Kaasaa',
-                navLoans: 'Liqii',
-                navRepayments: 'Kaffaltuu',
-                navWithdrawals: 'Baasii',
-                navDividends: 'Qooda',
-                navShares: 'Hirmaata',
-                navReports: 'Odeeffannoo',
-                navPenalties: 'Adaba',
-                navAudit: 'Seenaa Galmee',
-                navUsers: 'Fayyadamtoota',
-                navSettings: 'Qindeessaa',
-                logout: 'Baasi',
-                pageTitle: 'Seenaa Galmee',
-                breadcrumb: 'Mana / Seenaa Galmee',
-                rights: 'Mirgi hundi eegama.',
-                auditTitle: 'Seenaa Galmee',
-                auditSub: 'Adaboota idagadhaan jijjiirama siistamii keessa jiru hunda eegi',
-                refresh: 'Haaraa',
-                login: 'Seenuu',
-                created: 'Uumame',
-                updated: 'Jijjiirame',
-                deleted: 'Haqame',
-                approved: 'Mirkanaa\'e',
-                rejected: 'Garfame',
-                generated: 'Uumame',
-                printed: 'Maxxanfame',
-                penaltyPaid: 'Adaba Kaffalame',
-                penaltyApproved: 'Adaba Mirkanaa\'e',
-                penaltyRejected: 'Adaba Garfame',
-                timestamp: 'Yeroo',
-                user: 'Fayyadamaa',
-                action: 'Gochaa',
-                collection: 'Kuusaa',
-                documentId: 'ID Galmee',
-                details: 'Qabxii',
-                actions: 'Gochaa',
-                auditLog: 'Seenaa Galmee',
-                noAudit: 'Galmee seenaa hin argamne.',
-                showing: 'Agarsii',
-                of: 'keessaa',
-                searchPlaceholder: 'Fayyadamaa, gochaa ykn kuusaan barbaadi...',
-                allActions: 'Gochaa Hunda',
-                allCollections: 'Kuusaa Hunda',
-                allUsers: 'Fayyadamtota Hunda',
-                auditDetails: 'Qabxii Seenaa Galmee',
-                changes: 'Jijjiirama',
-                oldValue: 'Qaba Dursee',
-                newValue: 'Qaba Haaraa',
-                field: 'Dirree',
-                noChanges: 'Jijjiirami hin galmeefamne.',
-                unauthorized: 'Fuula kana ilaaluuf hayyamamtee hin jirtu.',
-                deleteSuccess: 'Galmeen seenaa sirriitti haqame.',
-                deleteError: 'Galmee seenaa haquuf dogoggora: ',
-                testConnection: 'Qunnamtii Mirkaneessi',
-                connectionSuccess: '✅ Qunnamtii milkaa\'e!',
-                connectionFailed: '❌ Qunnamtii hin milkaanne: ',
-                sessionTimeout: 'Sessiin keessan {seconds} sekoondii keessatti xumurama.'
-            }
-        };
+<!-- DETAILS MODAL -->
+<div class="modal-overlay" id="detailsModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 data-i18n="auditDetails">Audit Details</h3>
+      <button class="modal-close" id="closeDetailsModal">&times;</button>
+    </div>
+    <div id="detailsBody">
+      <div class="detail-row"><span class="label" data-i18n="timestamp">Timestamp</span><span class="value" id="detailTimestamp">—</span></div>
+      <div class="detail-row"><span class="label" data-i18n="user">User</span><span class="value" id="detailUser">—</span></div>
+      <div class="detail-row"><span class="label" data-i18n="action">Action</span><span class="value" id="detailAction">—</span></div>
+      <div class="detail-row"><span class="label" data-i18n="collection">Collection</span><span class="value" id="detailCollection">—</span></div>
+      <div class="detail-row"><span class="label" data-i18n="documentId">Document ID</span><span class="value" id="detailDocId">—</span></div>
+      <div class="changes-section">
+        <h4 data-i18n="changes">Changes</h4>
+        <div id="changesContainer"><p style="color:var(--text-secondary);font-size:14px;">No changes recorded.</p></div>
+      </div>
+    </div>
+  </div>
+</div>
 
-        let currentLang = 'en';
-        let currentUserRole = 'viewer';
-        let currentUserDisplayName = 'Admin';
+<!-- LOGOUT MODAL -->
+<div class="logout-modal-overlay" id="logoutModal">
+  <div class="logout-modal">
+    <div class="modal-icon"><i class="fas fa-sign-out-alt"></i></div>
+    <h3 data-i18n="logoutTitle">Logout Confirmation</h3>
+    <p data-i18n="logoutText">Are you sure you want to log out?</p>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" id="logoutCancel" data-i18n="cancel">Cancel</button>
+      <button class="btn btn-logout" id="logoutConfirm"><i class="fas fa-sign-out-alt"></i> <span data-i18n="logout">Logout</span></button>
+    </div>
+  </div>
+</div>
 
-        // ✅ Session timeout loaded from settings/system
-        let SESSION_TIMEOUT_MINUTES = 5;
-        let SESSION_TIMEOUT = SESSION_TIMEOUT_MINUTES * 60 * 1000;
-        let SESSION_WARNING_TIMEOUT = Math.max(SESSION_TIMEOUT - 30 * 1000, SESSION_TIMEOUT * 0.9);
+<!-- DELETE MODAL -->
+<div class="delete-modal-overlay" id="deleteModal">
+  <div class="delete-modal">
+    <div class="modal-icon"><i class="fas fa-trash-alt"></i></div>
+    <h3 data-i18n="deleteTitle">Delete Audit Record</h3>
+    <p data-i18n="deleteText">Are you sure you want to permanently delete this audit record?</p>
+    <p class="delete-warning">⚠️ <span data-i18n="deleteWarning">This action cannot be undone.</span></p>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" id="deleteCancel" data-i18n="cancel">Cancel</button>
+      <button class="btn btn-delete" id="deleteConfirm"><i class="fas fa-trash-alt"></i> <span data-i18n="delete">Delete</span></button>
+    </div>
+  </div>
+</div>
 
-        function setLanguage(lang) {
-            if (!translations[lang]) return;
-            currentLang = lang;
-            const t = translations[lang];
-            document.querySelectorAll('[data-i18n]').forEach(el => {
-                const key = el.getAttribute('data-i18n');
-                if (t[key] !== undefined) {
-                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
-                        if (el.type !== 'file') el.placeholder = t[key];
-                    } else {
-                        el.innerHTML = t[key];
-                    }
-                }
-            });
-            document.querySelectorAll('.lang-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.lang === lang);
-            });
-            try { localStorage.setItem('waciti-lang', lang); } catch (e) {}
-            const searchInput = document.getElementById('searchInput');
-            if (searchInput) searchInput.placeholder = t.searchPlaceholder || 'Search by user, action, or collection...';
-            updatePaginationInfo();
-            renderPageButtons();
+<script>
+// ═══════════════════════════════════════════════════════════════
+// FIREBASE
+// ═══════════════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyBeQv8YLNfFFaTEZ6pxXaAy_K8n3u8V5X4",
+  authDomain: "geresu-dhuki-sacco-75329.firebaseapp.com",
+  projectId: "geresu-dhuki-sacco-75329",
+  storageBucket: "geresu-dhuki-sacco-75329.firebasestorage.app",
+  messagingSenderId: "431325504753",
+  appId: "1:431325504753:web:f7289fb88d74b82eb0b550",
+  measurementId: "G-3SN99DFJXD"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+
+// ═══════════════════════════════════════════════════════════════
+// TRANSLATIONS
+// ═══════════════════════════════════════════════════════════════
+const translations = {
+  en: {
+    brandSub:'SACCO Management',
+    navSecOverview:'Overview',navSecNetwork:'Network',navSecOperations:'Operations',navSecFinance:'Finance',navSecAdmin:'Administration',
+    navDashboard:'Dashboard',navDistricts:'Districts',navBranches:'Branches',
+    navCustomers:'Customers',navSavings:'Savings',navLoans:'Loans',navShares:'Shares',
+    navDeposits:'Deposits',navRepayments:'Repayments',navWithdrawals:'Withdrawals',navDividends:'Dividends',navPenalties:'Penalties',
+    navReports:'Reports',navAudit:'Audit Trail',navUsers:'Users',navSettings:'Settings',
+    logout:'Logout',pageTitle:'Audit Trail',breadcrumb:'Home / Audit Trail',rights:'All rights reserved.',
+    auditTitle:'Audit Trail',auditSub:'Track all changes across the system',
+    refresh:'Refresh',testConnection:'Test Connection',
+    login:'Login',created:'Created',updated:'Updated',deleted:'Deleted',approved:'Approved',rejected:'Rejected',
+    generated:'Generated',printed:'Printed',penaltyPaid:'Penalty Paid',penaltyApproved:'Penalty Approved',penaltyRejected:'Penalty Rejected',
+    timestamp:'Timestamp',user:'User',action:'Action',collection:'Collection',documentId:'Document ID',details:'Details',actions:'Actions',
+    auditLog:'Audit Log',noAudit:'No audit records found.',showing:'Showing',of:'of',
+    searchPlaceholder:'Search by user, action, or collection...',
+    allActions:'All Actions',allCollections:'All Collections',allUsers:'All Users',
+    auditDetails:'Audit Details',changes:'Changes',oldValue:'Old Value',newValue:'New Value',field:'Field',noChanges:'No changes recorded.',
+    unauthorized:'Only Super Admin can view this page.',
+    deleteSuccess:'Audit record deleted successfully.',deleteError:'Error deleting audit record: ',
+    connectionSuccess:'✅ Connection successful!',connectionFailed:'❌ Connection failed: ',
+    logoutTitle:'Logout Confirmation',logoutText:'Are you sure you want to log out?',
+    cancel:'Cancel',delete:'Delete',deleteTitle:'Delete Audit Record',deleteText:'Are you sure you want to permanently delete this audit record?',deleteWarning:'This action cannot be undone.',
+    sessionTimeout:'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.'
+  },
+  am: {
+    brandSub:'የሳኮ አስተዳደር',
+    navSecOverview:'አጠቃላይ እይታ',navSecNetwork:'ኔትወርክ',navSecOperations:'ክንውኖች',navSecFinance:'ፋይናንስ',navSecAdmin:'አስተዳደር',
+    navDashboard:'ዳሽቦርድ',navDistricts:'ወረዳዎች',navBranches:'ቅርንጫፎች',
+    navCustomers:'ደንበኞች',navSavings:'ቁጠባ',navLoans:'ብድር',navShares:'አክሲዮን',
+    navDeposits:'ተቀማጭ',navRepayments:'ክፍያዎች',navWithdrawals:'ወጪዎች',navDividends:'ክፍፍል',navPenalties:'ቅጣቶች',
+    navReports:'ሪፖርቶች',navAudit:'የምዝግብ ታሪክ',navUsers:'ተጠቃሚዎች',navSettings:'ቅንብሮች',
+    logout:'ውጣ',pageTitle:'የምዝግብ ታሪክ',breadcrumb:'ዋና ገጽ / የምዝግብ ታሪክ',rights:'መብቶች በሙሉ ተጠብቀዋል።',
+    auditTitle:'የምዝግብ ታሪክ',auditSub:'በስርዓቱ ውስጥ የተደረጉ ሁሉንም ለውጦች ይከታተሉ',
+    refresh:'አድስ',testConnection:'ግንኙነት ሞክር',
+    login:'ግባ',created:'ተፈጥሯል',updated:'ተሻሽሏል',deleted:'ተሰርዟል',approved:'ጸድቋል',rejected:'ውድቅ ተደርጓል',
+    generated:'ተፈጥሯል',printed:'ታትሟል',penaltyPaid:'ቅጣት ተከፍሏል',penaltyApproved:'ቅጣት ጸድቋል',penaltyRejected:'ቅጣት ውድቅ ተደርጓል',
+    timestamp:'ሰዓት',user:'ተጠቃሚ',action:'እርምጃ',collection:'ስብስብ',documentId:'የሰነድ መታወቂያ',details:'ዝርዝሮች',actions:'ተግባራት',
+    auditLog:'የምዝግብ ታሪክ',noAudit:'ምንም የምዝግብ መዝገቦች አልተገኙም።',showing:'እያሳየ',of:'ከ',
+    searchPlaceholder:'በተጠቃሚ፣ በእርምጃ ወይም በስብስብ ይፈልጉ...',
+    allActions:'ሁሉም እርምጃዎች',allCollections:'ሁሉም ስብስቦች',allUsers:'ሁሉም ተጠቃሚዎች',
+    auditDetails:'የምዝግብ ዝርዝሮች',changes:'ለውጦች',oldValue:'የቀድሞ ዋጋ',newValue:'አዲስ ዋጋ',field:'መስክ',noChanges:'ምንም ለውጦች አልተመዘገቡም።',
+    unauthorized:'ይህን ገጽ ማየት የሚችለው ዋና አስተዳዳሪ ብቻ ነው።',
+    deleteSuccess:'የምዝግብ መዝገብ ተሰርዟል።',deleteError:'ስህተት: ',
+    connectionSuccess:'✅ ግንኙነቱ ተሳክቷል!',connectionFailed:'❌ ግንኙነቱ አልተሳካም: ',
+    logoutTitle:'የመውጣት ማረጋገጫ',logoutText:'እርግጠኛ ነዎት መውጣት ይፈልጋሉ?',
+    cancel:'ሰርዝ',delete:'ሰርዝ',deleteTitle:'የምዝግብ መዝገብ ሰርዝ',deleteText:'ይህን የምዝግብ መዝገብ በቋሚነት መሰረዝ ይፈልጋሉ?',deleteWarning:'ይህ እርምጃ ሊቀለበስ አይችልም።',
+    sessionTimeout:'ክፍለ-ጊዜዎ በ{seconds} ሰከንዶች ውስጥ ያበቃል።'
+  },
+  om: {
+    brandSub:'Bulchiinsa SACCO',
+    navSecOverview:'Aguuggama',navSecNetwork:'Networkii',navSecOperations:'Hojimaata',navSecFinance:'Faayinaansii',navSecAdmin:'Bulchiinsa',
+    navDashboard:'Daashboordii',navDistricts:'Aanaalee',navBranches:'Dameewwan',
+    navCustomers:'Maamiltoota',navSavings:'Qusannaa',navLoans:'Liqii',navShares:'Hirmaata',
+    navDeposits:'Kaasaa',navRepayments:'Kaffaltuu',navWithdrawals:'Baasii',navDividends:'Qooda',navPenalties:'Adaba',
+    navReports:'Gabaasa',navAudit:'Seenaa Galmee',navUsers:'Fayyadamtoota',navSettings:"Qindaa'ina",
+    logout:"Ba'i",pageTitle:'Seenaa Galmee',breadcrumb:'Mana / Seenaa Galmee',rights:'Mirgi hundi eegama.',
+    auditTitle:'Seenaa Galmee',auditSub:'Jijjiirama siistamii keessa jiru hunda eegi',
+    refresh:'Haaraa',testConnection:'Qunnamtii Mirkaneessi',
+    login:'Seenuu',created:'Uumame',updated:'Jijjiirame',deleted:'Haqame',approved:"Mirkanaa'e",rejected:'Garfame',
+    generated:'Uumame',printed:'Maxxanfame',penaltyPaid:'Adaba Kaffalame',penaltyApproved:"Adaba Mirkanaa'e",penaltyRejected:'Adaba Garfame',
+    timestamp:'Yeroo',user:'Fayyadamaa',action:'Gochaa',collection:'Kuusaa',documentId:'ID Galmee',details:'Qabxii',actions:'Gochaa',
+    auditLog:'Seenaa Galmee',noAudit:'Galmee seenaa hin argamne.',showing:'Agarsii',of:'keessaa',
+    searchPlaceholder:'Fayyadamaa, gochaa ykn kuusaan barbaadi...',
+    allActions:'Gochaa Hunda',allCollections:'Kuusaa Hunda',allUsers:'Fayyadamtota Hunda',
+    auditDetails:'Qabxii Seenaa Galmee',changes:'Jijjiirama',oldValue:'Qaba Dursee',newValue:'Qaba Haaraa',field:'Dirree',noChanges:'Jijjiirami hin galmeefamne.',
+    unauthorized:'Fuula kana ilaaluu kan danda\'u Super Admin qofa.',
+    deleteSuccess:'Galmeen seenaa haqame.',deleteError:'Dogoggora: ',
+    connectionSuccess:'✅ Qunnamtii milkaa\'e!',connectionFailed:'❌ Qunnamtii hin milkaanne: ',
+    logoutTitle:"Mirkaneessa Ba'uu",logoutText:"Dhuguma ba'uu barbaadda?",
+    cancel:'Haqi',delete:'Haqi',deleteTitle:'Galmee Seenaa Haqi',deleteText:'Galmee seenaa kana guutummaatti haquu barbaadda?',deleteWarning:'Gochi kun hin deebi\'u.',
+    sessionTimeout:'Sessiin keessan {seconds} sekoondii keessatti xumurama.'
+  }
+};
+
+let currentLang = 'en';
+let currentUserRole = 'viewer';
+let currentUserDisplayName = 'User';
+
+let SESSION_TIMEOUT_MINUTES = 5;
+let SESSION_TIMEOUT = SESSION_TIMEOUT_MINUTES * 60 * 1000;
+let SESSION_WARNING_TIMEOUT = Math.max(SESSION_TIMEOUT - 30 * 1000, SESSION_TIMEOUT * 0.9);
+
+function setLanguage(lang) {
+  if (!translations[lang]) return;
+  currentLang = lang;
+  const t = translations[lang];
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (t[key] !== undefined) {
+      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+        if (el.type !== 'file') el.placeholder = t[key];
+      } else {
+        el.innerHTML = t[key];
+      }
+    }
+  });
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.lang === lang);
+  });
+  try { localStorage.setItem('sacco.lang', lang); } catch (e) {}
+  updatePaginationInfo();
+  renderPageButtons();
+}
+
+function initLanguage() {
+  const saved = localStorage.getItem('sacco.lang') || navigator.language.split('-')[0];
+  const valid = ['en', 'am', 'om'];
+  setLanguage(valid.includes(saved) ? saved : 'en');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SIDEBAR
+// ═══════════════════════════════════════════════════════════════
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('active');
+}
+function toggleSidebarCollapse() {
+  const s = document.getElementById('sidebar');
+  s.classList.toggle('collapsed');
+  try { localStorage.setItem('sacco.sidebar', s.classList.contains('collapsed') ? 'collapsed' : 'expanded'); } catch(e){}
+}
+function loadSidebarState() {
+  const s = document.getElementById('sidebar');
+  if (localStorage.getItem('sacco.sidebar') === 'collapsed') s.classList.add('collapsed');
+  else s.classList.remove('collapsed');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════════
+function showToast(message, type = 'error') {
+  let c = document.getElementById('toast-container');
+  if (!c) {
+    c = document.createElement('div');
+    c.id = 'toast-container';
+    c.className = 'toast-container';
+    document.body.appendChild(c);
+  }
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  const i = document.createElement('i');
+  i.className = type === 'error' ? 'fas fa-exclamation-circle' : type === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle';
+  t.appendChild(i);
+  const s = document.createElement('span');
+  s.textContent = message;
+  t.appendChild(s);
+  c.appendChild(t);
+  setTimeout(() => { t.classList.add('fade-out'); setTimeout(() => t.remove(), 300); }, 4500);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// USER INFO
+// ═══════════════════════════════════════════════════════════════
+function updateUserInfo() {
+  const roleMap = {
+    super_admin: 'SUPER ADMIN', admin: 'ADMIN', manager: 'MANAGER',
+    cashier: 'CASHIER', teller: 'TELLER', accountant: 'ACCOUNTANT',
+    auditor: 'AUDITOR', member: 'MEMBER', viewer: 'VIEWER'
+  };
+  const roleLabel = roleMap[currentUserRole] || currentUserRole.toUpperCase();
+  document.getElementById('userDisplayName').textContent = (currentUserDisplayName || 'User') + ' (' + roleLabel + ')';
+
+  // ⚡ Audit Trail — ONLY super_admin
+  const auditNav = document.getElementById('auditNavItem');
+  if (auditNav) auditNav.style.display = (currentUserRole === 'super_admin') ? '' : 'none';
+
+  // ⚡ Users — ONLY super_admin
+  const usersNav = document.getElementById('usersNavItem');
+  if (usersNav) usersNav.style.display = (currentUserRole === 'super_admin') ? '' : 'none';
+
+  // ⚡ Districts / Branches — super_admin, admin, auditor
+  const showNetwork = ['super_admin','admin','auditor'].includes(currentUserRole);
+  const distNav = document.getElementById('districtsNavItem');
+  if (distNav) distNav.style.display = showNetwork ? '' : 'none';
+  const branchNav = document.getElementById('branchesNavItem');
+  if (branchNav) branchNav.style.display = showNetwork ? '' : 'none';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+function toDate(value) {
+  if (!value) return null;
+  if (value.toDate) return value.toDate();
+  if (typeof value === 'string') return new Date(value);
+  return value;
+}
+function formatDateTime(d) {
+  if (!d) return '—';
+  const date = toDate(d);
+  if (!date) return '—';
+  return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SESSION TIMEOUT from settings/system
+// ═══════════════════════════════════════════════════════════════
+async function loadSessionTimeoutFromSettings() {
+  try {
+    const snap = await db.collection('settings').doc('system').get();
+    if (snap.exists) {
+      const data = snap.data();
+      let mins = 5;
+      if (data.sessionTimeout !== undefined && data.sessionTimeout !== null) mins = Number(data.sessionTimeout);
+      else if (data.sessionTimeoutMinutes !== undefined) mins = Number(data.sessionTimeoutMinutes);
+      else if (data.sessionTimeoutSeconds !== undefined) mins = Number(data.sessionTimeoutSeconds) / 60;
+      if (!isFinite(mins) || mins < 1) mins = 1;
+      if (mins > 1440) mins = 1440;
+      SESSION_TIMEOUT_MINUTES = Math.round(mins);
+      SESSION_TIMEOUT = SESSION_TIMEOUT_MINUTES * 60 * 1000;
+      SESSION_WARNING_TIMEOUT = Math.max(SESSION_TIMEOUT - 30 * 1000, SESSION_TIMEOUT * 0.9);
+    }
+  } catch (e) { console.warn('Session timeout load failed:', e.message); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUDIT DATA
+// ═══════════════════════════════════════════════════════════════
+let allAuditEntries = [];
+let filteredAuditEntries = [];
+let currentPage = 1;
+const pageSize = 15;
+const AUDIT_LIMIT = 500;
+
+async function loadAuditEntries() {
+  try {
+    const snap = await db.collection('audit').orderBy('timestamp', 'desc').limit(AUDIT_LIMIT).get();
+    allAuditEntries = [];
+    snap.forEach(doc => allAuditEntries.push({ id: doc.id, ...doc.data() }));
+    populateUserFilter();
+    applyFilters();
+    updateStats();
+  } catch (error) {
+    console.error('Load audit error:', error);
+    const msg = error.code === 'permission-denied' ? 'Permission denied. Check Firestore rules.' : error.message;
+    showToast(msg, 'error');
+    document.getElementById('auditBody').innerHTML =
+      `<tr><td colspan="8"><div class="empty-state"><i class="fas fa-exclamation-circle"></i><span>${msg}</span></div></td></tr>`;
+  }
+}
+
+function populateUserFilter() {
+  const userFilter = document.getElementById('userFilter');
+  const users = new Set();
+  allAuditEntries.forEach(e => {
+    if (e.userName) users.add(e.userName);
+    if (e.userEmail) users.add(e.userEmail);
+    if (e.userDisplayName) users.add(e.userDisplayName);
+  });
+  const cur = userFilter.value;
+  userFilter.innerHTML = `<option value="all">${translations[currentLang].allUsers}</option>`;
+  Array.from(users).sort().forEach(u => {
+    const o = document.createElement('option');
+    o.value = u; o.textContent = u;
+    userFilter.appendChild(o);
+  });
+  userFilter.value = users.has(cur) ? cur : 'all';
+}
+
+function applyFilters() {
+  const q = document.getElementById('searchInput').value.toLowerCase().trim();
+  const a = document.getElementById('actionFilter').value;
+  const c = document.getElementById('collectionFilter').value;
+  const u = document.getElementById('userFilter').value;
+
+  filteredAuditEntries = allAuditEntries.filter(e => {
+    if (a !== 'all' && e.action !== a) return false;
+    if (c !== 'all' && e.collection !== c) return false;
+    if (u !== 'all' && e.userName !== u && e.userEmail !== u && e.userDisplayName !== u) return false;
+    if (!q) return true;
+    return (
+      (e.userName && e.userName.toLowerCase().includes(q)) ||
+      (e.userEmail && e.userEmail.toLowerCase().includes(q)) ||
+      (e.action && e.action.toLowerCase().includes(q)) ||
+      (e.collection && e.collection.toLowerCase().includes(q)) ||
+      (e.documentId && e.documentId.toLowerCase().includes(q)) ||
+      (e.details && e.details.toLowerCase().includes(q))
+    );
+  });
+  currentPage = 1;
+  paginateAudit();
+  updateStats();
+}
+
+function paginateAudit() {
+  const start = (currentPage - 1) * pageSize;
+  const items = filteredAuditEntries.slice(start, start + pageSize);
+  renderTable(items);
+  updatePaginationInfo();
+  renderPageButtons();
+}
+
+function renderTable(items) {
+  const tbody = document.getElementById('auditBody');
+  const t = translations[currentLang];
+  const isSuperAdmin = (currentUserRole === 'super_admin');
+
+  if (!items || items.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><i class="fas fa-clipboard-list"></i><span>${t.noAudit}</span></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = items.map((entry, i) => {
+    const actionClass = entry.action || 'unknown';
+    const actionLabel = t[entry.action] || (entry.action ? entry.action.charAt(0).toUpperCase() + entry.action.slice(1) : '—');
+    const ts = formatDateTime(entry.timestamp);
+    const userName = entry.userDisplayName || entry.userName || entry.userEmail || 'Unknown';
+    const coll = entry.collection || '—';
+    const collCls = coll === 'districts' ? 'districts' : coll === 'branches' ? 'branches' : '';
+    const docId = entry.documentId ? entry.documentId.slice(0, 12) : '—';
+    const hasChanges = entry.changes && Object.keys(entry.changes).length > 0;
+
+    return `<tr>
+      <td>${(currentPage - 1) * pageSize + i + 1}</td>
+      <td style="font-size:12px;color:var(--text-secondary);">${ts}</td>
+      <td><strong>${userName}</strong></td>
+      <td><span class="action-badge ${actionClass}">${actionLabel}</span></td>
+      <td><span class="collection-badge ${collCls}">${coll}</span></td>
+      <td style="font-family:monospace;font-size:12px;">${docId}</td>
+      <td>${hasChanges
+        ? `<button class="action-btn view-details" onclick="showDetails('${entry.id}')"><i class="fas fa-eye"></i> ${t.details || 'View'}</button>`
+        : `<span style="color:var(--text-muted);font-size:12px;">${entry.details || '—'}</span>`}</td>
+      <td>${isSuperAdmin
+        ? `<button class="action-btn delete-entry" onclick="showDeleteModal('${entry.id}')"><i class="fas fa-trash"></i> ${t.delete || 'Delete'}</button>`
+        : ''}</td>
+    </tr>`;
+  }).join('');
+}
+
+function updateStats() {
+  const e = filteredAuditEntries;
+  const counts = {
+    login: 0, created: 0, updated: 0, deleted: 0, approved: 0, rejected: 0,
+    generated: 0, printed: 0, penalty_paid: 0, penalty_approved: 0, penalty_rejected: 0
+  };
+  e.forEach(x => { if (counts[x.action] !== undefined) counts[x.action]++; });
+  document.getElementById('loginCount').textContent = counts.login;
+  document.getElementById('createdCount').textContent = counts.created;
+  document.getElementById('updatedCount').textContent = counts.updated;
+  document.getElementById('deletedCount').textContent = counts.deleted;
+  document.getElementById('approvedCount').textContent = counts.approved;
+  document.getElementById('rejectedCount').textContent = counts.rejected;
+  document.getElementById('generatedCount').textContent = counts.generated;
+  document.getElementById('printedCount').textContent = counts.printed;
+  document.getElementById('penaltyPaidCount').textContent = counts.penalty_paid;
+  document.getElementById('penaltyApprovedCount').textContent = counts.penalty_approved;
+  document.getElementById('penaltyRejectedCount').textContent = counts.penalty_rejected;
+  document.getElementById('totalAuditCount').textContent = e.length;
+  document.getElementById('totalAuditCountPagination').textContent = e.length;
+}
+
+function updatePaginationInfo() {
+  const total = filteredAuditEntries.length;
+  const start = (currentPage - 1) * pageSize + 1;
+  const end = Math.min(currentPage * pageSize, total);
+  document.getElementById('pageStart').textContent = total > 0 ? start : 0;
+  document.getElementById('pageEnd').textContent = total > 0 ? end : 0;
+  document.getElementById('prevPage').disabled = currentPage === 1;
+  document.getElementById('nextPage').disabled = currentPage >= Math.ceil(total / pageSize) || total === 0;
+}
+
+function renderPageButtons() {
+  const container = document.getElementById('pageNumbers');
+  const totalPages = Math.ceil(filteredAuditEntries.length / pageSize);
+  if (totalPages <= 1) { container.innerHTML = ''; return; }
+  let html = '';
+  const maxV = 5;
+  let sp = Math.max(1, currentPage - Math.floor(maxV / 2));
+  let ep = Math.min(totalPages, sp + maxV - 1);
+  if (ep - sp < maxV - 1) sp = Math.max(1, ep - maxV + 1);
+  if (sp > 1) {
+    html += `<button class="pagination-btn" onclick="goToPage(1)">1</button>`;
+    if (sp > 2) html += `<button class="pagination-btn" disabled>...</button>`;
+  }
+  for (let i = sp; i <= ep; i++) {
+    html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+  }
+  if (ep < totalPages) {
+    if (ep < totalPages - 1) html += `<button class="pagination-btn" disabled>...</button>`;
+    html += `<button class="pagination-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+  }
+  container.innerHTML = html;
+}
+
+function goToPage(page) {
+  const totalPages = Math.ceil(filteredAuditEntries.length / pageSize);
+  if (page < 1 || page > totalPages) return;
+  currentPage = page;
+  paginateAudit();
+  document.querySelector('.table-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DETAILS MODAL — handles both flat {field:value} and nested {field:{old,new}}
+// ═══════════════════════════════════════════════════════════════
+function showDetails(entryId) {
+  const entry = allAuditEntries.find(e => e.id === entryId);
+  if (!entry) return;
+  const t = translations[currentLang];
+  document.getElementById('detailTimestamp').textContent = formatDateTime(entry.timestamp);
+  document.getElementById('detailUser').textContent = entry.userDisplayName || entry.userName || entry.userEmail || 'Unknown';
+  document.getElementById('detailAction').textContent = t[entry.action] || entry.action || '—';
+  document.getElementById('detailCollection').textContent = entry.collection || '—';
+  document.getElementById('detailDocId').textContent = entry.documentId || '—';
+
+  const box = document.getElementById('changesContainer');
+  const changes = entry.changes || {};
+  if (Object.keys(changes).length === 0) {
+    box.innerHTML = `<p style="color:var(--text-secondary);font-size:14px;">${t.noChanges}</p>`;
+  } else {
+    let html = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead><tr style="background:var(--bg-primary);">
+        <th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--border-color);">${t.field}</th>
+        <th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--border-color);">${t.oldValue}</th>
+        <th style="padding:6px 10px;text-align:left;border-bottom:2px solid var(--border-color);">${t.newValue}</th>
+      </tr></thead><tbody>`;
+
+    Object.entries(changes).forEach(([key, value]) => {
+      let oldVal = '—', newVal = '—';
+      if (value && typeof value === 'object' && ('old' in value || 'new' in value)) {
+        // nested {old, new}
+        oldVal = (value.old !== undefined && value.old !== null) ? String(value.old) : '—';
+        newVal = (value.new !== undefined && value.new !== null) ? String(value.new) : '—';
+      } else {
+        // flat {field: value} — show as "new" only
+        oldVal = '—';
+        newVal = (value !== undefined && value !== null) ? (typeof value === 'object' ? JSON.stringify(value) : String(value)) : '—';
+      }
+      if (oldVal.length > 200) oldVal = oldVal.slice(0, 200) + '…';
+      if (newVal.length > 200) newVal = newVal.slice(0, 200) + '…';
+      html += `<tr>
+        <td style="padding:5px 10px;border-bottom:1px solid var(--border-color);"><strong>${key}</strong></td>
+        <td style="padding:5px 10px;border-bottom:1px solid var(--border-color);color:var(--danger);font-family:monospace;font-size:12px;">${oldVal}</td>
+        <td style="padding:5px 10px;border-bottom:1px solid var(--border-color);color:var(--success);font-family:monospace;font-size:12px;">${newVal}</td>
+      </tr>`;
+    });
+    html += `</tbody></table>`;
+    box.innerHTML = html;
+  }
+
+  document.getElementById('detailsModal').classList.add('active');
+}
+function closeDetailsModal() { document.getElementById('detailsModal').classList.remove('active'); }
+
+// ═══════════════════════════════════════════════════════════════
+// DELETE MODAL
+// ═══════════════════════════════════════════════════════════════
+let pendingDeleteId = null;
+function showDeleteModal(entryId) {
+  if (currentUserRole !== 'super_admin') {
+    showToast(translations[currentLang].unauthorized, 'error');
+    return;
+  }
+  pendingDeleteId = entryId;
+  document.getElementById('deleteModal').classList.add('active');
+}
+function closeDeleteModal() { document.getElementById('deleteModal').classList.remove('active'); pendingDeleteId = null; }
+
+async function confirmDelete() {
+  if (!pendingDeleteId) return;
+  if (currentUserRole !== 'super_admin') {
+    showToast(translations[currentLang].unauthorized, 'error');
+    closeDeleteModal();
+    return;
+  }
+  const t = translations[currentLang];
+  try {
+    await db.collection('audit').doc(pendingDeleteId).delete();
+    showToast(t.deleteSuccess, 'success');
+    closeDeleteModal();
+    await loadAuditEntries();
+  } catch (error) {
+    showToast(t.deleteError + error.message, 'error');
+    closeDeleteModal();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LOGOUT
+// ═══════════════════════════════════════════════════════════════
+function showLogoutModal() { document.getElementById('logoutModal').classList.add('active'); }
+function hideLogoutModal() { document.getElementById('logoutModal').classList.remove('active'); }
+async function performLogout() {
+  try {
+    await auth.signOut();
+    window.location.href = '../index.html';
+  } catch (error) {
+    showToast('Error logging out: ' + error.message, 'error');
+    hideLogoutModal();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TEST CONNECTION
+// ═══════════════════════════════════════════════════════════════
+async function testConnection() {
+  try {
+    await db.collection('audit').limit(1).get();
+    showToast(translations[currentLang].connectionSuccess, 'success');
+  } catch (e) {
+    showToast(translations[currentLang].connectionFailed + e.message, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  auth.onAuthStateChanged(async (user) => {
+    if (!user) { window.location.href = '../index.html'; return; }
+
+    try {
+      const doc = await db.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        const data = doc.data();
+        currentUserRole = data.role || 'viewer';
+        if (!['super_admin','admin','manager','cashier','teller','accountant','auditor','member','viewer'].includes(currentUserRole)) {
+          currentUserRole = 'viewer';
         }
-
-        function initLanguage() {
-            const saved = localStorage.getItem('waciti-lang') || navigator.language.split('-')[0];
-            const valid = ['en', 'am', 'om'];
-            setLanguage(valid.includes(saved) ? saved : 'en');
-        }
-
-        // ============================================================
-        // SIDEBAR TOGGLE
-        // ============================================================
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('open');
-            document.getElementById('sidebarOverlay').classList.toggle('active');
-        }
-
-        function toggleSidebarCollapse() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('collapsed');
-            localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed') ? 'true' : 'false');
-        }
-
-        function loadSidebarState() {
-            const sidebar = document.getElementById('sidebar');
-            const isCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
-            if (isCollapsed) sidebar.classList.add('collapsed');
-            else sidebar.classList.remove('collapsed');
-        }
-
-        // ============================================================
-        // TOAST
-        // ============================================================
-        function showToast(message, type = 'error') {
-            let container = document.getElementById('toast-container');
-            if (!container) {
-                container = document.createElement('div');
-                container.id = 'toast-container';
-                container.className = 'toast-container';
-                document.body.appendChild(container);
-            }
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            const icon = document.createElement('i');
-            icon.className = type === 'error' ? 'fas fa-exclamation-circle' :
-                type === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle';
-            toast.appendChild(icon);
-            const text = document.createElement('span');
-            text.textContent = message;
-            toast.appendChild(text);
-            container.appendChild(toast);
-            setTimeout(() => {
-                toast.classList.add('fade-out');
-                setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
-            }, 4500);
-        }
-
-        // ============================================================
-        // TEST CONNECTION
-        // ============================================================
-        async function testConnection() {
-            try {
-                const testRef = db.collection('audit').limit(1);
-                await testRef.get();
-                const t = translations[currentLang];
-                showToast(t.connectionSuccess || '✅ Connection successful!', 'success');
-                return true;
-            } catch (error) {
-                console.error('Connection test failed:', error);
-                const t = translations[currentLang];
-                showToast((t.connectionFailed || '❌ Connection failed: ') + error.message, 'error');
-                return false;
-            }
-        }
-
-        document.getElementById('testConnectionBtn')?.addEventListener('click', testConnection);
-
-        // ============================================================
-        // ✅ Load session timeout from settings/system
-        // Accepts: sessionTimeout (minutes), sessionTimeoutMinutes, sessionTimeoutSeconds
-        // ============================================================
-        async function loadSessionTimeoutFromSettings() {
-            try {
-                const doc = await db.collection('settings').doc('system').get();
-                if (doc.exists) {
-                    const data = doc.data();
-                    let mins = 5;
-                    if (data.sessionTimeout !== undefined && data.sessionTimeout !== null) {
-                        mins = Number(data.sessionTimeout);
-                    } else if (data.sessionTimeoutMinutes !== undefined) {
-                        mins = Number(data.sessionTimeoutMinutes);
-                    } else if (data.sessionTimeoutSeconds !== undefined) {
-                        mins = Number(data.sessionTimeoutSeconds) / 60;
-                    }
-                    if (!isFinite(mins) || mins < 1) mins = 1;
-                    if (mins > 1440) mins = 1440;
-                    SESSION_TIMEOUT_MINUTES = Math.round(mins);
-                    SESSION_TIMEOUT = SESSION_TIMEOUT_MINUTES * 60 * 1000;
-                    SESSION_WARNING_TIMEOUT = Math.max(SESSION_TIMEOUT - 30 * 1000, SESSION_TIMEOUT * 0.9);
-                    console.log(`✅ Session timeout loaded from settings: ${SESSION_TIMEOUT_MINUTES} min`);
-                }
-            } catch (e) {
-                console.warn('Could not load session timeout — using default 5 min:', e.message);
-            }
-        }
-
-        // ============================================================
-        // USER INFO UPDATE
-        // ============================================================
-        function updateUserInfo() {
-            const roleMap = { admin: 'ADMIN', manager: 'MANAGER', teller: 'TELLER', accountant: 'ACCOUNTANT', viewer: 'VIEWER' };
-            const roleLabel = roleMap[currentUserRole] || 'VIEWER';
-            const displayName = currentUserDisplayName || 'User';
-            document.getElementById('userDisplayName').textContent = displayName + ' (' + roleLabel + ')';
-
-            const auditNav = document.getElementById('auditNavItem');
-            if (auditNav) {
-                auditNav.style.display = (currentUserRole === 'admin' || currentUserRole === 'manager') ? '' : 'none';
-            }
-
-            const usersNav = document.getElementById('usersNavItem');
-            if (usersNav) {
-                usersNav.style.display = (currentUserRole === 'admin') ? '' : 'none';
-            }
-        }
-
-        // ============================================================
-        // TO DATE HELPER
-        // ============================================================
-        function toDate(value) {
-            if (!value) return null;
-            if (value.toDate) return value.toDate();
-            if (typeof value === 'string') return new Date(value);
-            return value;
-        }
-
-        function formatDateTime(d) {
-            if (!d) return '—';
-            const date = toDate(d);
-            if (!date) return '—';
-            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        }
-
-        // ============================================================
-        // AUDIT MODULE
-        // ============================================================
-        let allAuditEntries = [];
-        let filteredAuditEntries = [];
-        let currentPage = 1;
-        const pageSize = 15;
-
-        async function loadAuditEntries() {
-            try {
-                const snapshot = await db.collection('audit')
-                    .orderBy('timestamp', 'desc')
-                    .get();
-
-                allAuditEntries = [];
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    allAuditEntries.push({ id: doc.id, ...data });
-                });
-
-                populateUserFilter();
-                applyFilters();
-                updateStats();
-
-            } catch (error) {
-                console.error('Error loading audit entries:', error);
-                if (error.code === 'permission-denied') {
-                    showToast('You do not have permission to view audit logs.', 'error');
-                } else {
-                    showToast('Error loading audit data: ' + error.message, 'error');
-                }
-                document.getElementById('auditBody').innerHTML =
-                    `<tr><td colspan="8"><div class="empty-state"><i class="fas fa-exclamation-circle"></i><span>${error.message}</span></div></td></tr>`;
-            }
-        }
-
-        function populateUserFilter() {
-            const userFilter = document.getElementById('userFilter');
-            const users = new Set();
-            allAuditEntries.forEach(entry => {
-                if (entry.userName) users.add(entry.userName);
-                if (entry.userEmail) users.add(entry.userEmail);
-                if (entry.userDisplayName) users.add(entry.userDisplayName);
-            });
-
-            const currentVal = userFilter.value;
-            userFilter.innerHTML = `<option value="all" data-i18n="allUsers">${translations[currentLang].allUsers}</option>`;
-            const sortedUsers = Array.from(users).sort();
-            sortedUsers.forEach(u => {
-                const opt = document.createElement('option');
-                opt.value = u;
-                opt.textContent = u;
-                userFilter.appendChild(opt);
-            });
-            if (sortedUsers.includes(currentVal) && currentVal !== 'all') {
-                userFilter.value = currentVal;
-            } else {
-                userFilter.value = 'all';
-            }
-        }
-
-        function applyFilters() {
-            const searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
-            const actionFilter = document.getElementById('actionFilter').value;
-            const collectionFilter = document.getElementById('collectionFilter').value;
-            const userFilter = document.getElementById('userFilter').value;
-
-            filteredAuditEntries = allAuditEntries.filter(entry => {
-                const actionMatch = actionFilter === 'all' || entry.action === actionFilter;
-                const collectionMatch = collectionFilter === 'all' || entry.collection === collectionFilter;
-                const userMatch = userFilter === 'all' ||
-                    entry.userName === userFilter ||
-                    entry.userEmail === userFilter ||
-                    entry.userDisplayName === userFilter;
-
-                const searchMatch = !searchQuery ||
-                    (entry.userName && entry.userName.toLowerCase().includes(searchQuery)) ||
-                    (entry.userEmail && entry.userEmail.toLowerCase().includes(searchQuery)) ||
-                    (entry.action && entry.action.toLowerCase().includes(searchQuery)) ||
-                    (entry.collection && entry.collection.toLowerCase().includes(searchQuery)) ||
-                    (entry.documentId && entry.documentId.toLowerCase().includes(searchQuery)) ||
-                    (entry.details && entry.details.toLowerCase().includes(searchQuery));
-
-                return actionMatch && collectionMatch && userMatch && searchMatch;
-            });
-
-            currentPage = 1;
-            paginateAudit();
-            updateStats();
-        }
-
-        function paginateAudit() {
-            const start = (currentPage - 1) * pageSize;
-            const end = start + pageSize;
-            const pageItems = filteredAuditEntries.slice(start, end);
-            renderTable(pageItems);
-            updatePaginationInfo();
-            renderPageButtons();
-        }
-
-        function renderTable(items) {
-            const tbody = document.getElementById('auditBody');
-            const t = translations[currentLang];
-            const isAdmin = (currentUserRole === 'admin');
-
-            if (!items || items.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><i class="fas fa-clipboard-list"></i><span>${t.noAudit}</span></div></td></tr>`;
-                return;
-            }
-
-            let html = '';
-            items.forEach((entry, i) => {
-                const actionClass = entry.action || 'unknown';
-                const actionLabel = t[entry.action] || entry.action?.charAt(0).toUpperCase() + entry.action?.slice(1) || entry.action || '—';
-                const timestamp = formatDateTime(entry.timestamp);
-                const userName = entry.userDisplayName || entry.userName || entry.userEmail || 'Unknown';
-                const collectionLabel = entry.collection || '—';
-                const docId = entry.documentId ? entry.documentId.slice(0, 12) : '—';
-                const hasChanges = entry.changes && Object.keys(entry.changes).length > 0;
-
-                html += `<tr>
-                    <td>${(currentPage-1)*pageSize + i + 1}</td>
-                    <td style="font-size:12px; color:var(--text-secondary);">${timestamp}</td>
-                    <td><strong>${userName}</strong></td>
-                    <td><span class="action-badge ${actionClass}">${actionLabel}</span></td>
-                    <td><span class="collection-badge">${collectionLabel}</span></td>
-                    <td style="font-family:monospace; font-size:12px;">${docId}</td>
-                    <td>${hasChanges ? `<button class="action-btn view-details" onclick="showDetails('${entry.id}')"><i class="fas fa-eye"></i> ${t.details || 'View'}</button>` : `<span style="color:var(--text-muted); font-size:12px;">${entry.details || '—'}</span>`}</td>
-                    <td>${isAdmin ? `<button class="action-btn delete-entry" onclick="showDeleteModal('${entry.id}')"><i class="fas fa-trash"></i> ${t.delete || 'Delete'}</button>` : ''}</td>
-                </tr>`;
-            });
-            tbody.innerHTML = html;
-        }
-
-        function updateStats() {
-            const entries = filteredAuditEntries;
-            const login = entries.filter(e => e.action === 'login').length;
-            const created = entries.filter(e => e.action === 'created').length;
-            const updated = entries.filter(e => e.action === 'updated').length;
-            const deleted = entries.filter(e => e.action === 'deleted').length;
-            const approved = entries.filter(e => e.action === 'approved').length;
-            const rejected = entries.filter(e => e.action === 'rejected').length;
-            const generated = entries.filter(e => e.action === 'generated').length;
-            const printed = entries.filter(e => e.action === 'printed').length;
-            const penaltyPaid = entries.filter(e => e.action === 'penalty_paid').length;
-            const penaltyApproved = entries.filter(e => e.action === 'penalty_approved').length;
-            const penaltyRejected = entries.filter(e => e.action === 'penalty_rejected').length;
-
-            document.getElementById('loginCount').textContent = login;
-            document.getElementById('createdCount').textContent = created;
-            document.getElementById('updatedCount').textContent = updated;
-            document.getElementById('deletedCount').textContent = deleted;
-            document.getElementById('approvedCount').textContent = approved;
-            document.getElementById('rejectedCount').textContent = rejected;
-            document.getElementById('generatedCount').textContent = generated;
-            document.getElementById('printedCount').textContent = printed;
-            document.getElementById('penaltyPaidCount').textContent = penaltyPaid;
-            document.getElementById('penaltyApprovedCount').textContent = penaltyApproved;
-            document.getElementById('penaltyRejectedCount').textContent = penaltyRejected;
-            document.getElementById('totalAuditCount').textContent = entries.length;
-            document.getElementById('totalAuditCountPagination').textContent = entries.length;
-        }
-
-        function updatePaginationInfo() {
-            const total = filteredAuditEntries.length;
-            const start = (currentPage - 1) * pageSize + 1;
-            const end = Math.min(currentPage * pageSize, total);
-            document.getElementById('pageStart').textContent = total > 0 ? start : 0;
-            document.getElementById('pageEnd').textContent = total > 0 ? end : 0;
-            document.getElementById('prevPage').disabled = currentPage === 1;
-            document.getElementById('nextPage').disabled = currentPage >= Math.ceil(total / pageSize) || total === 0;
-        }
-
-        function renderPageButtons() {
-            const container = document.getElementById('pageNumbers');
-            const totalPages = Math.ceil(filteredAuditEntries.length / pageSize);
-            if (totalPages <= 1) { container.innerHTML = ''; return; }
-            let html = '';
-            const maxVisible = 5;
-            let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
-            if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
-            if (startPage > 1) {
-                html += `<button class="pagination-btn" onclick="goToPage(1)">1</button>`;
-                if (startPage > 2) html += `<button class="pagination-btn" disabled>...</button>`;
-            }
-            for (let i = startPage; i <= endPage; i++) {
-                html += `<button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
-            }
-            if (endPage < totalPages) {
-                if (endPage < totalPages - 1) html += `<button class="pagination-btn" disabled>...</button>`;
-                html += `<button class="pagination-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
-            }
-            container.innerHTML = html;
-        }
-
-        function goToPage(page) {
-            const totalPages = Math.ceil(filteredAuditEntries.length / pageSize);
-            if (page < 1 || page > totalPages) return;
-            currentPage = page;
-            paginateAudit();
-            document.querySelector('.table-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-
-        function showDetails(entryId) {
-            const entry = allAuditEntries.find(e => e.id === entryId);
-            if (!entry) return;
-
-            const t = translations[currentLang];
-            document.getElementById('detailTimestamp').textContent = formatDateTime(entry.timestamp);
-            document.getElementById('detailUser').textContent = entry.userDisplayName || entry.userName || entry.userEmail || 'Unknown';
-            document.getElementById('detailAction').textContent = t[entry.action] || entry.action || '—';
-            document.getElementById('detailCollection').textContent = entry.collection || '—';
-            document.getElementById('detailDocId').textContent = entry.documentId || '—';
-
-            const changesContainer = document.getElementById('changesContainer');
-            const changes = entry.changes || {};
-
-            if (Object.keys(changes).length === 0) {
-                changesContainer.innerHTML = `<p style="color:var(--text-secondary); font-size:14px;">${t.noChanges}</p>`;
-            } else {
-                let html = `<table style="width:100%; border-collapse:collapse; font-size:13px;">
-                    <thead>
-                        <tr style="background:var(--bg-primary);">
-                            <th style="padding:6px 10px; text-align:left; border-bottom:2px solid var(--border-color);">${t.field}</th>
-                            <th style="padding:6px 10px; text-align:left; border-bottom:2px solid var(--border-color);">${t.oldValue}</th>
-                            <th style="padding:6px 10px; text-align:left; border-bottom:2px solid var(--border-color);">${t.newValue}</th>
-                        </tr>
-                    </thead>
-                    <tbody>`;
-
-                Object.entries(changes).forEach(([key, value]) => {
-                    const oldVal = value.old !== undefined && value.old !== null ? String(value.old) : '—';
-                    const newVal = value.new !== undefined && value.new !== null ? String(value.new) : '—';
-                    html += `<tr>
-                        <td style="padding:4px 10px; border-bottom:1px solid var(--border-color);"><strong>${key}</strong></td>
-                        <td style="padding:4px 10px; border-bottom:1px solid var(--border-color); color:var(--danger);">${oldVal}</td>
-                        <td style="padding:4px 10px; border-bottom:1px solid var(--border-color); color:var(--success);">${newVal}</td>
-                    </tr>`;
-                });
-
-                html += `</tbody></table>`;
-                changesContainer.innerHTML = html;
-            }
-
-            document.getElementById('detailsModal').classList.add('active');
-            document.getElementById('detailsModal').style.display = 'flex';
-        }
-
-        function closeDetailsModal() {
-            document.getElementById('detailsModal').classList.remove('active');
-            document.getElementById('detailsModal').style.display = 'none';
-        }
-
-        let pendingDeleteId = null;
-
-        function showDeleteModal(entryId) {
-            pendingDeleteId = entryId;
-            document.getElementById('deleteModal').classList.add('active');
-        }
-
-        function closeDeleteModal() {
-            document.getElementById('deleteModal').classList.remove('active');
-            pendingDeleteId = null;
-        }
-
-        async function confirmDelete() {
-            if (!pendingDeleteId) return;
-            const t = translations[currentLang];
-            try {
-                await db.collection('audit').doc(pendingDeleteId).delete();
-                showToast(t.deleteSuccess, 'success');
-                closeDeleteModal();
-                await loadAuditEntries();
-            } catch (error) {
-                console.error('Error deleting audit entry:', error);
-                showToast(t.deleteError + error.message, 'error');
-                closeDeleteModal();
-            }
-        }
-
-        // ============================================================
-        // LOGOUT MODAL
-        // ============================================================
-        function showLogoutModal() {
-            document.getElementById('logoutModal').classList.add('active');
-        }
-
-        function hideLogoutModal() {
-            document.getElementById('logoutModal').classList.remove('active');
-        }
-
-        async function performLogout() {
-            try {
-                await auth.signOut();
-                window.location.href = '../login.html';
-            } catch (error) {
-                showToast('Error logging out: ' + error.message, 'error');
-                hideLogoutModal();
-            }
-        }
-
-        // ============================================================
-        // PAGE INIT
-        // ============================================================
-        document.addEventListener('DOMContentLoaded', async function() {
-            auth.onAuthStateChanged(async (user) => {
-                if (!user) {
-                    window.location.href = '../login.html';
-                    return;
-                }
-
-                try {
-                    const doc = await db.collection('users').doc(user.uid).get();
-                    if (doc.exists) {
-                        const data = doc.data();
-                        currentUserRole = data.role || 'viewer';
-                        if (!['admin', 'manager', 'teller', 'accountant', 'viewer'].includes(currentUserRole)) {
-                            currentUserRole = 'viewer';
-                        }
-                        currentUserDisplayName = data.displayName || data.name || user.displayName || user.email?.split('@')[0] || 'Admin';
-                    } else {
-                        currentUserRole = 'viewer';
-                        currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'Admin';
-                    }
-                } catch (err) {
-                    console.error('Error fetching user role:', err);
-                    currentUserRole = 'viewer';
-                    currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'Admin';
-                }
-
-                // Role check — only Admin and Manager can view audit
-                if (!['admin', 'manager'].includes(currentUserRole)) {
-                    showToast(translations[currentLang].unauthorized, 'error');
-                    setTimeout(() => { window.location.href = 'dashboard.html'; }, 2000);
-                    return;
-                }
-
-                updateUserInfo();
-
-                // ✅ Load session timeout from settings/system before starting the timer
-                await loadSessionTimeoutFromSettings();
-                if (typeof window.startAuditSessionTimer === 'function') {
-                    window.startAuditSessionTimer();
-                }
-
-                // Load theme
-                const savedTheme = localStorage.getItem('waciti-theme') || 'light';
-                if (savedTheme === 'dark') {
-                    document.documentElement.setAttribute('data-theme', 'dark');
-                } else {
-                    document.documentElement.removeAttribute('data-theme');
-                }
-
-                initLanguage();
-                loadSidebarState();
-
-                document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
-                document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
-                document.getElementById('sidebarToggleBtn').addEventListener('click', toggleSidebarCollapse);
-
-                document.querySelectorAll('.lang-btn').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        setLanguage(this.dataset.lang);
-                        const currentItems = filteredAuditEntries.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-                        renderTable(currentItems);
-                        updatePaginationInfo();
-                        renderPageButtons();
-                        const searchInput = document.getElementById('searchInput');
-                        const t = translations[currentLang];
-                        searchInput.placeholder = t.searchPlaceholder || 'Search by user, action, or collection...';
-                    });
-                });
-
-                document.getElementById('logoutBtn').addEventListener('click', showLogoutModal);
-                document.getElementById('logoutCancel').addEventListener('click', hideLogoutModal);
-                document.getElementById('logoutConfirm').addEventListener('click', performLogout);
-                document.getElementById('logoutModal').addEventListener('click', function(e) {
-                    if (e.target === this) hideLogoutModal();
-                });
-                document.addEventListener('keydown', function(e) {
-                    if (e.key === 'Escape') hideLogoutModal();
-                });
-
-                document.getElementById('deleteCancel').addEventListener('click', closeDeleteModal);
-                document.getElementById('deleteConfirm').addEventListener('click', confirmDelete);
-                document.getElementById('deleteModal').addEventListener('click', function(e) {
-                    if (e.target === this) closeDeleteModal();
-                });
-
-                await loadAuditEntries();
-
-                document.getElementById('searchInput').addEventListener('input', function() {
-                    applyFilters();
-                });
-
-                document.getElementById('actionFilter').addEventListener('change', function() {
-                    applyFilters();
-                });
-
-                document.getElementById('collectionFilter').addEventListener('change', function() {
-                    applyFilters();
-                });
-
-                document.getElementById('userFilter').addEventListener('change', function() {
-                    applyFilters();
-                });
-
-                document.getElementById('refreshBtn').addEventListener('click', function() {
-                    loadAuditEntries();
-                    showToast('Audit log refreshed!', 'success');
-                });
-
-                document.getElementById('prevPage').addEventListener('click', function() {
-                    if (currentPage > 1) goToPage(currentPage - 1);
-                });
-                document.getElementById('nextPage').addEventListener('click', function() {
-                    const totalPages = Math.ceil(filteredAuditEntries.length / pageSize);
-                    if (currentPage < totalPages) goToPage(currentPage + 1);
-                });
-
-                document.getElementById('closeDetailsModal').addEventListener('click', closeDetailsModal);
-                document.getElementById('detailsModal').addEventListener('click', function(e) {
-                    if (e.target === this) closeDetailsModal();
-                });
-
-                window.goToPage = goToPage;
-                window.toggleSidebar = toggleSidebar;
-                window.showDetails = showDetails;
-                window.closeDetailsModal = closeDetailsModal;
-                window.showDeleteModal = showDeleteModal;
-                window.closeDeleteModal = closeDeleteModal;
-                window.confirmDelete = confirmDelete;
-                window.testConnection = testConnection;
-            });
-        });
-
-        // ============================================================
-        // SESSION TIMEOUT (dynamic — uses settings/system value)
-        // ============================================================
-        (function() {
-            let timer = null;
-            let warningTimer = null;
-            let warningToast = null;
-            let countdownInterval = null;
-            let sessionTimerStarted = false;
-            const SESSION_EVENTS = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
-
-            function resetTimer() {
-                clearTimeout(timer);
-                clearTimeout(warningTimer);
-                clearInterval(countdownInterval);
-                if (warningToast) {
-                    warningToast.remove();
-                    warningToast = null;
-                }
-                const timeout = (typeof SESSION_TIMEOUT === 'number' && SESSION_TIMEOUT > 0)
-                    ? SESSION_TIMEOUT : 5 * 60 * 1000;
-                const warningAt = (typeof SESSION_WARNING_TIMEOUT === 'number' && SESSION_WARNING_TIMEOUT > 0)
-                    ? SESSION_WARNING_TIMEOUT : Math.max(timeout - 30 * 1000, timeout * 0.9);
-                warningTimer = setTimeout(showWarning, warningAt);
-                timer = setTimeout(forceLogout, timeout);
-            }
-
-            function showWarning() {
-                const t = translations && translations[currentLang]
-                    ? translations[currentLang]
-                    : { sessionTimeout: 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.' };
-                const message = t.sessionTimeout ||
-                    'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
-
-                let seconds = Math.max(1, Math.round(
-                    ((typeof SESSION_TIMEOUT === 'number' ? SESSION_TIMEOUT : 300000) -
-                     (typeof SESSION_WARNING_TIMEOUT === 'number' ? SESSION_WARNING_TIMEOUT : 270000)) / 1000
-                ));
-                if (seconds <= 0) seconds = 30;
-
-                warningToast = document.createElement('div');
-                warningToast.style.cssText = `
-                    position: fixed;
-                    bottom: 30px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    background: #f39c12;
-                    color: #fff;
-                    padding: 16px 24px;
-                    border-radius: 12px;
-                    font-size: 15px;
-                    font-weight: 500;
-                    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-                    z-index: 99999;
-                    max-width: 500px;
-                    text-align: center;
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    animation: slideUp 0.3s ease;
-                `;
-                warningToast.innerHTML = `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
-
-                if (!document.getElementById('sessionSlideUpStyle')) {
-                    const style = document.createElement('style');
-                    style.id = 'sessionSlideUpStyle';
-                    style.textContent = `
-                        @keyframes slideUp {
-                            from { transform: translateX(-50%) translateY(20px); opacity: 0; }
-                            to { transform: translateX(-50%) translateY(0); opacity: 1; }
-                        }
-                    `;
-                    document.head.appendChild(style);
-                }
-                document.body.appendChild(warningToast);
-
-                countdownInterval = setInterval(() => {
-                    seconds--;
-                    const textEl = document.getElementById('sessionWarningText');
-                    if (textEl) {
-                        textEl.textContent = message.replace('{seconds}', seconds);
-                    }
-                    if (seconds <= 0) {
-                        clearInterval(countdownInterval);
-                    }
-                }, 1000);
-            }
-
-            function forceLogout() {
-                clearInterval(countdownInterval);
-                if (warningToast) {
-                    warningToast.remove();
-                    warningToast = null;
-                }
-                if (typeof auth !== 'undefined' && auth) {
-                    auth.signOut().then(() => {
-                        window.location.href = '../login.html';
-                    }).catch(() => {
-                        window.location.href = '../login.html';
-                    });
-                } else {
-                    window.location.href = '../login.html';
-                }
-            }
-
-            function handleActivity() {
-                resetTimer();
-            }
-
-            // ✅ Expose so loadSessionTimeoutFromSettings can start/restart timer
-            window.startAuditSessionTimer = function() {
-                if (sessionTimerStarted) {
-                    resetTimer();
-                    return;
-                }
-                sessionTimerStarted = true;
-                SESSION_EVENTS.forEach(evt => document.addEventListener(evt, handleActivity));
-                resetTimer();
-            };
-
-            // Auto-start (in case settings load fast) — auth flow will also call it
-            window.startAuditSessionTimer();
-
-            window.addEventListener('beforeunload', function() {
-                clearTimeout(timer);
-                clearTimeout(warningTimer);
-                clearInterval(countdownInterval);
-                if (warningToast) {
-                    warningToast.remove();
-                }
-                SESSION_EVENTS.forEach(evt => {
-                    document.removeEventListener(evt, handleActivity);
-                });
-            });
-        })();
-    </script>
+        currentUserDisplayName = data.fullName || data.displayName || data.name || user.displayName || user.email?.split('@')[0] || 'User';
+      } else {
+        currentUserRole = 'viewer';
+        currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'User';
+      }
+    } catch (err) {
+      console.error('User fetch error:', err);
+      currentUserRole = 'viewer';
+      currentUserDisplayName = user.displayName || user.email?.split('@')[0] || 'User';
+    }
+
+    // ⚡ ONLY super_admin can view Audit Trail
+    if (currentUserRole !== 'super_admin') {
+      showToast(translations[currentLang].unauthorized, 'error');
+      setTimeout(() => { window.location.href = 'dashboard.html'; }, 2000);
+      return;
+    }
+
+    updateUserInfo();
+    await loadSessionTimeoutFromSettings();
+    if (typeof window.startAuditSessionTimer === 'function') window.startAuditSessionTimer();
+
+    const savedTheme = localStorage.getItem('sacco.theme') || 'light';
+    if (savedTheme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+
+    initLanguage();
+    loadSidebarState();
+
+    document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
+    document.getElementById('sidebarOverlay').addEventListener('click', toggleSidebar);
+    document.getElementById('sidebarToggleBtn').addEventListener('click', toggleSidebarCollapse);
+
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        setLanguage(this.dataset.lang);
+        const items = filteredAuditEntries.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+        renderTable(items);
+        updatePaginationInfo();
+        renderPageButtons();
+      });
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', showLogoutModal);
+    document.getElementById('logoutCancel').addEventListener('click', hideLogoutModal);
+    document.getElementById('logoutConfirm').addEventListener('click', performLogout);
+    document.getElementById('logoutModal').addEventListener('click', function(e) { if (e.target === this) hideLogoutModal(); });
+
+    document.getElementById('deleteCancel').addEventListener('click', closeDeleteModal);
+    document.getElementById('deleteConfirm').addEventListener('click', confirmDelete);
+    document.getElementById('deleteModal').addEventListener('click', function(e) { if (e.target === this) closeDeleteModal(); });
+
+    document.getElementById('closeDetailsModal').addEventListener('click', closeDetailsModal);
+    document.getElementById('detailsModal').addEventListener('click', function(e) { if (e.target === this) closeDetailsModal(); });
+
+    document.getElementById('testConnectionBtn')?.addEventListener('click', testConnection);
+
+    await loadAuditEntries();
+
+    document.getElementById('searchInput').addEventListener('input', applyFilters);
+    document.getElementById('actionFilter').addEventListener('change', applyFilters);
+    document.getElementById('collectionFilter').addEventListener('change', applyFilters);
+    document.getElementById('userFilter').addEventListener('change', applyFilters);
+
+    document.getElementById('refreshBtn').addEventListener('click', async () => {
+      await loadAuditEntries();
+      showToast('Audit log refreshed!', 'success');
+    });
+
+    document.getElementById('prevPage').addEventListener('click', () => { if (currentPage > 1) goToPage(currentPage - 1); });
+    document.getElementById('nextPage').addEventListener('click', () => {
+      const tp = Math.ceil(filteredAuditEntries.length / pageSize);
+      if (currentPage < tp) goToPage(currentPage + 1);
+    });
+
+    // Expose for inline onclick handlers
+    window.goToPage = goToPage;
+    window.showDetails = showDetails;
+    window.showDeleteModal = showDeleteModal;
+    window.testConnection = testConnection;
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// SESSION TIMEOUT
+// ═══════════════════════════════════════════════════════════════
+(function() {
+  let timer = null, warningTimer = null, warningToast = null, countdownInterval = null, started = false;
+  const EVENTS = ['mousemove', 'click', 'keydown', 'scroll', 'touchstart'];
+
+  function resetTimer() {
+    clearTimeout(timer); clearTimeout(warningTimer); clearInterval(countdownInterval);
+    if (warningToast) { warningToast.remove(); warningToast = null; }
+    const to = (typeof SESSION_TIMEOUT === 'number' && SESSION_TIMEOUT > 0) ? SESSION_TIMEOUT : 5 * 60 * 1000;
+    const wr = (typeof SESSION_WARNING_TIMEOUT === 'number' && SESSION_WARNING_TIMEOUT > 0) ? SESSION_WARNING_TIMEOUT : Math.max(to - 30 * 1000, to * 0.9);
+    warningTimer = setTimeout(showWarning, wr);
+    timer = setTimeout(forceLogout, to);
+  }
+
+  function showWarning() {
+    const t = translations[currentLang] || translations.en;
+    const msg = t.sessionTimeout || 'Your session will expire soon.';
+    let secs = Math.max(1, Math.round(((SESSION_TIMEOUT || 300000) - (SESSION_WARNING_TIMEOUT || 270000)) / 1000));
+    warningToast = document.createElement('div');
+    warningToast.style.cssText = `
+      position:fixed;bottom:30px;left:50%;transform:translateX(-50%);
+      background:#b8860b;color:#fff;padding:16px 24px;border-radius:12px;
+      font-size:15px;font-weight:600;box-shadow:0 8px 32px rgba(0,0,0,.2);
+      z-index:99999;max-width:500px;text-align:center;display:flex;align-items:center;gap:12px;
+    `;
+    warningToast.innerHTML = `<i class="fas fa-clock"></i> <span id="sessionWarnText">${msg.replace('{seconds}', secs)}</span>`;
+    document.body.appendChild(warningToast);
+    countdownInterval = setInterval(() => {
+      secs--;
+      const el = document.getElementById('sessionWarnText');
+      if (el) el.textContent = msg.replace('{seconds}', secs);
+      if (secs <= 0) clearInterval(countdownInterval);
+    }, 1000);
+  }
+
+  function forceLogout() {
+    clearInterval(countdownInterval);
+    if (warningToast) { warningToast.remove(); warningToast = null; }
+    if (typeof auth !== 'undefined' && auth) {
+      auth.signOut().then(() => { window.location.href = '../index.html'; })
+        .catch(() => { window.location.href = '../index.html'; });
+    } else {
+      window.location.href = '../index.html';
+    }
+  }
+
+  function handle() { resetTimer(); }
+
+  window.startAuditSessionTimer = function() {
+    if (started) { resetTimer(); return; }
+    started = true;
+    EVENTS.forEach(e => document.addEventListener(e, handle));
+    resetTimer();
+  };
+  window.startAuditSessionTimer();
+
+  window.addEventListener('beforeunload', () => {
+    clearTimeout(timer); clearTimeout(warningTimer); clearInterval(countdownInterval);
+    if (warningToast) warningToast.remove();
+    EVENTS.forEach(e => document.removeEventListener(e, handle));
+  });
+})();
+</script>
 </body>
 </html>
