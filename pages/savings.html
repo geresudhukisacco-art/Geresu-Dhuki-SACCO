@@ -781,7 +781,15 @@ const I18N = {
     pendingSavings:'Pending Savings', unpaidPrevious:'Unpaid Previous', nextDue:'Next Savings Due',
     totalShares:'Total Shares', netShareValue:'Net Share Value',
     penaltiesFromSavings:'Penalties From Savings',
-    checkPenalties:'Check Penalties', checking:'Checking…'
+    checkPenalties:'Check Penalties', checking:'Checking…',
+    /* ⚡ NEW — arrears labels */
+    arrears:'Arrears',
+    monthsBehind:'Months behind',
+    minMonthly:'Min Monthly Savings',
+    mustPayArrears:'Minimum deposit must cover {n} missed month(s) — arrears {amt}',
+    depositClearsArrears:'This deposit clears {n} missed month(s)',
+    savingsGracePeriod:'Savings grace period',
+    savingsPenaltyGenerated:'Savings penalty of {amt} was generated for {n} unpaid month(s). Pay it via Penalties page.'
   },
   am: {}, om: {}
 };
@@ -819,7 +827,17 @@ I18N.am = {
   deletedOk:'ግብይቱ ተሰርዟል።',
   printSlip:'ስሊፕ አትም', slipPreview:'የስሊፕ ቅድመ እይታ · A5',
   docTitle:'የተቀማጭ ስሊፕ', docTitleWithdrawal:'የወጪ ስሊፕ',
-  cashierSign:'ገንዘብ ተቀባይ'
+  cashierSign:'ገንዘብ ተቀባይ',
+  /* ⚡ NEW */
+  arrears:'ያልተከፈለ',
+  monthsBehind:'ወራት ወደኋላ',
+  minMonthly:'ዝቅተኛ ወርሃዊ ቁጠባ',
+  mustPayArrears:'ዝቅተኛው ተቀማጭ የተረሱ {n} ወራትን መሸፈን አለበት — ያልተከፈለ {amt}',
+  depositClearsArrears:'ይህ ተቀማጭ የተረሱ {n} ወራትን ይሸፍናል',
+  savingsGracePeriod:'የቁጠባ ጸጋ ጊዜ',
+  savingsPenaltyGenerated:'ለ{n} ያልተከፈሉ ወራት {amt} የቁጠባ ቅጣት ተፈጥሯል። በቅጣቶች ገጽ ይክፈሉ።',
+  unpaidWarning:'ያልተከፈሉ ቀደምት ወርሃዊ ቁጠባዎች ተገኝተዋል።',
+  upToDate:'ሁሉም ቀደምት ቁጠባዎች ወቅታዊ ናቸው።'
 };
 I18N.om = {
   ...I18N.en,
@@ -855,7 +873,17 @@ I18N.om = {
   deletedOk:'Sochiin haqame.',
   printSlip:'Waraqaa Maxxansi', slipPreview:'Ilaalcha duraa Waraqaa · A5',
   docTitle:'Waraqaa Kaasaa', docTitleWithdrawal:'Waraqaa Baasii',
-  cashierSign:'Kashierii'
+  cashierSign:'Kashierii',
+  /* ⚡ NEW */
+  arrears:'Hafte',
+  monthsBehind:"Ji'oota duubatti hafan",
+  minMonthly:"Qusannaa ji'aa xiqqaa",
+  mustPayArrears:"Kaasaan xiqqaan ji'a {n} dagannaa hafe uwwisuu qaba — hafte {amt}",
+  depositClearsArrears:"Kaasaan kun ji'a {n} dagannaa hafe ni uwwisa",
+  savingsGracePeriod:'Yeroo ayyaana qusannaa',
+  savingsPenaltyGenerated:"Adabni qusannaa {amt} ji'a {n} hin kaffalamneef uumame. Fuula Adaba irraa kaffali.",
+  unpaidWarning:"Qusannaan ji'aa duraanii hin kaffalamne argame.",
+  upToDate:'Qusannaan duraanii hundi yeroo isaatiin jiru.'
 };
 
 const SUPPORTED = ['en','am','om'];
@@ -933,11 +961,27 @@ const APP = {
 };
 try { APP.viewMode = localStorage.getItem('savings-view') || 'table'; } catch(e){}
 
+/* ============================================================
+   SETTINGS — savings-specific variables
+   ⚡ NEW: added savingsPenaltiesEnabled / savingsPenaltyAutoGenerate /
+      savingsPenaltiesApply / savingsGracePeriod /
+      savingsPenaltiesMinAmount / savingsPenaltiesMaxAmount /
+      enforceSavingsArrears
+   ============================================================ */
 let minSavingsAmount = 0;
 let shareValue = 100;
 let savingsPenaltyRate = 0.05;
 let penaltyPaymentSources = ['savings','saving','from_savings','savings_account','member_savings','sacco_savings','from_saving'];
 let deductPenaltyFromSavings = true;
+
+/* ⚡ NEW */
+let savingsGracePeriod         = 7;      // days before a month is considered "behind"
+let savingsPenaltiesEnabled    = true;   // master switch
+let savingsPenaltyAutoGenerate = true;   // auto-create on deposit attempt
+let savingsPenaltiesApply      = true;   // apply penalties to savings (vs only loans)
+let savingsPenaltiesMinAmount  = 0;      // clamp floor
+let savingsPenaltiesMaxAmount  = 0;      // clamp ceiling (0 = no cap)
+let enforceSavingsArrears      = true;   // block deposits unless arrears cleared
 
 const ROLE_LABELS = {
   super_admin:'role_super_admin', admin:'role_admin', manager:'role_manager',
@@ -1039,6 +1083,70 @@ function customerBalance(customer) {
   });
   return Math.max(0, total);
 }
+
+/* ============================================================
+   ⚡ NEW — SAVINGS ARREARS
+   Computes unpaid monthly savings contributions.
+
+   Rule:  from the customer's join date to today, one minSavingsAmount
+          is due per month (inclusive of the join month).
+          A month is only considered "behind" after gracePeriod days
+          past its due anniversary — matches loans.html's grace logic.
+
+   Only APPROVED deposit-type transactions count toward the total.
+   ============================================================ */
+function computeSavingsArrears(customer) {
+  const empty = {
+    monthsBehind: 0, arrearsAmount: 0,
+    expectedTotal: 0, actualTotal: 0,
+    nextDue: null, joinDate: null, dueMonths: 0
+  };
+  if (!customer || !minSavingsAmount || minSavingsAmount <= 0) return empty;
+
+  const joinRaw = customer.createdAt || customer.joinDate || customer.dateJoined
+               || customer.registrationDate || customer.startDate || customer.membershipDate;
+  const joinDate = toDate(joinRaw);
+  if (!joinDate) return empty;
+
+  /* Grace: how many days after an anniversary is it still "on time" */
+  const graceMs = Math.max(0, Number(savingsGracePeriod) || 0) * 86400000;
+  const nowShifted = new Date(Date.now() - graceMs);
+
+  let monthsElapsed = (nowShifted.getFullYear() - joinDate.getFullYear()) * 12
+                    + (nowShifted.getMonth()   - joinDate.getMonth());
+  if (nowShifted.getDate() < joinDate.getDate()) monthsElapsed -= 1;
+  monthsElapsed = Math.max(0, monthsElapsed);
+
+  /* Payment for the join month itself is due → dueMonths = monthsElapsed + 1 */
+  const dueMonths     = monthsElapsed + 1;
+  const expectedTotal = dueMonths * minSavingsAmount;
+
+  const cid = customer.customerId || customer.id;
+  let actualTotal = 0;
+  APP.transactions.forEach(tx => {
+    const match = tx.customerId === cid || tx.memberId === cid
+               || tx.customerId === customer.id || tx.memberId === customer.id;
+    if (!match) return;
+    const st = String(tx.status || '').toLowerCase();
+    if (!['approved','completed','paid','printed','done'].includes(st)) return;
+    const type = String(tx.type || '').toLowerCase();
+    if (type === 'savings' || type === 'deposit') actualTotal += num(tx.amount);
+  });
+
+  const arrearsAmount = Math.max(0, round2(expectedTotal - actualTotal));
+  const monthsBehind  = minSavingsAmount > 0 ? Math.ceil(arrearsAmount / minSavingsAmount) : 0;
+
+  const nextDue = new Date(joinDate);
+  nextDue.setMonth(nextDue.getMonth() + dueMonths);
+
+  return {
+    monthsBehind, arrearsAmount,
+    expectedTotal: round2(expectedTotal),
+    actualTotal:   round2(actualTotal),
+    nextDue, joinDate, dueMonths
+  };
+}
+
 function assignableDistricts() {
   if (isSuper() || isAuditor()) return APP.districts.slice();
   if (isDistrict() || isBranchRole()) return APP.districts.filter(d => d.id === APP.profile.districtId);
@@ -1109,6 +1217,76 @@ async function getMemberPenaltiesWithDetails(memberId) {
     });
     return { total, details };
   } catch(e) { return { total: 0, details: [] }; }
+}
+
+/* ============================================================
+   ⚡ NEW — SAVINGS PENALTY AUTO-GENERATION
+   Mirrors loans.html's checkAndCreatePenalty(): when a customer
+   is behind on monthly savings and settings allow it, create
+   a pending penalty transaction once (no duplicates).
+   Returns { penaltyAmount, unpaidMonths }.
+   ============================================================ */
+async function checkAndCreateSavingsPenalty(customerId, customerDocId) {
+  try {
+    if (!savingsPenaltiesEnabled)    return { penaltyAmount:0, unpaidMonths:0, skipped:'disabled' };
+    if (!savingsPenaltyAutoGenerate) return { penaltyAmount:0, unpaidMonths:0, skipped:'manual' };
+    if (!savingsPenaltiesApply)      return { penaltyAmount:0, unpaidMonths:0, skipped:'not-applicable' };
+    if (!minSavingsAmount || minSavingsAmount <= 0) return { penaltyAmount:0, unpaidMonths:0, skipped:'no-min' };
+
+    const customer = customerById(customerId) || APP.customers.find(c => c.id === customerDocId);
+    if (!customer) return { penaltyAmount:0, unpaidMonths:0, skipped:'no-customer' };
+
+    const ar = computeSavingsArrears(customer);
+    if (ar.monthsBehind === 0) return { penaltyAmount:0, unpaidMonths:0 };
+
+    /* If a pending penalty already exists for this customer, don't duplicate */
+    const existing = await getDocs(query(
+      collection(db,'transactions'),
+      where('memberId','==', customerId),
+      where('type','==','penalty'),
+      where('status','==','pending')
+    ));
+    let existingTotal = 0;
+    existing.forEach(d => { existingTotal += num(d.data().amount); });
+    if (existingTotal > 0) {
+      return { penaltyAmount: round2(existingTotal), unpaidMonths: ar.monthsBehind, skipped:'existing' };
+    }
+
+    /* Compute penalty: monthlyAmount × monthsBehind × rate, clamped */
+    let penaltyAmount = round2(minSavingsAmount * ar.monthsBehind * savingsPenaltyRate);
+    if (savingsPenaltiesMinAmount > 0 && penaltyAmount < savingsPenaltiesMinAmount) penaltyAmount = savingsPenaltiesMinAmount;
+    if (savingsPenaltiesMaxAmount > 0 && penaltyAmount > savingsPenaltiesMaxAmount) penaltyAmount = savingsPenaltiesMaxAmount;
+    if (penaltyAmount <= 0) return { penaltyAmount:0, unpaidMonths: ar.monthsBehind };
+
+    await setDoc(doc(collection(db,'transactions')), {
+      memberId: customerId,
+      customerId: customerId,
+      customerDocId: customerDocId || customer.id,
+      customerName: customerName(customer),
+      type: 'penalty',
+      penaltyType: 'savings',
+      amount: penaltyAmount,
+      unpaidMonths: ar.monthsBehind,
+      monthlyPayment: minSavingsAmount,
+      penaltyRate: savingsPenaltyRate,
+      status: 'pending',
+      date: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      districtId: customer.districtId || null,
+      districtName: customer.districtName || null,
+      branchId: customer.branchId || null,
+      branchName: customer.branchName || null,
+      description: `Savings penalty for ${ar.monthsBehind} unpaid month(s) — (${minSavingsAmount.toFixed(2)} × ${ar.monthsBehind}) × ${(savingsPenaltyRate*100).toFixed(1)}%`,
+      createdBy: 'system-auto',
+      paymentMethod: 'savings'
+    });
+
+    toast(t('savingsPenaltyGenerated', { amt: penaltyAmount.toFixed(2), n: ar.monthsBehind }), 'warning');
+    return { penaltyAmount, unpaidMonths: ar.monthsBehind };
+  } catch(e) {
+    console.error('[savings-penalty]', e);
+    return { penaltyAmount:0, unpaidMonths:0, error: e.message };
+  }
 }
 
 const NAV = [
@@ -1977,11 +2155,22 @@ function openTxWizard(tx) {
     transferDate: t0.transferDate || t0.date || new Date().toISOString().slice(0,10),
     _receiptPhoto: t0.receiptPhoto || null,
     _originalReceipt: t0.receiptPhoto || null,
-    _penaltyBlocked: false
+    _penaltyBlocked: false,
+    /* ⚡ NEW: arrears state */
+    _arrearsMonths: 0,
+    _arrearsAmount: 0,
+    _nextDue: null
   };
   if (initial.customerId) {
     const c = customerById(initial.customerId);
     if (c) initial._customerDocId = c.id;
+    /* ⚡ NEW: initialise arrears for edit mode */
+    if (c) {
+      const ar0 = computeSavingsArrears(c);
+      initial._arrearsMonths = ar0.monthsBehind;
+      initial._arrearsAmount = ar0.arrearsAmount;
+      initial._nextDue       = ar0.nextDue;
+    }
   }
   const searchState = { q: '' };
   const ttStatus = { ok: true, empty: true };
@@ -2013,6 +2202,11 @@ function openTxWizard(tx) {
             const avatar = c.photoURL ? `<img src="${esc(c.photoURL)}" alt="">` : esc(initials(customerName(c)));
             const bName = c.branchName || branchById(c.branchId)?.name || '';
             const dName = c.districtName || districtById(c.districtId)?.name || '';
+            /* ⚡ NEW: preview arrears badge */
+            const ar = computeSavingsArrears(c);
+            const arrearsBadge = ar.monthsBehind > 0
+              ? `<span class="tag tag--red" style="font-size:9.5px"><i class="fas fa-exclamation-triangle"></i> ${esc(t('arrears'))}: ${esc(moneyShort(ar.arrearsAmount))}</span>`
+              : '';
             return `
               <div class="customer-pick__item ${isOn ? 'is-on' : ''}"
                    data-customer-id="${esc(c.id)}"
@@ -2021,6 +2215,7 @@ function openTxWizard(tx) {
                 <div class="customer-pick__main">
                   <div class="customer-pick__name">${esc(customerName(c))}
                     ${c.customerId ? `<span class="customer-pick__bal">${esc(c.customerId)}</span>` : ''}
+                    ${arrearsBadge}
                   </div>
                   <div class="customer-pick__meta">
                     ${bName ? `<span><i class="fas fa-code-branch" style="margin-right:3px"></i>${esc(bName)}</span>` : ''}
@@ -2064,9 +2259,34 @@ function openTxWizard(tx) {
               data.customerId = el.dataset.customerCode;
               root.querySelectorAll('[data-customer-id]').forEach(x => x.classList.remove('is-on'));
               el.classList.add('is-on');
+
+              /* existing penalty gate */
               const pending = await getMemberPenaltiesWithDetails(data.customerId);
               data._penaltyBlocked = pending.total > 0;
               if (pending.total > 0) toast(`${t('savingsBlocked')} ETB ${pending.total.toFixed(2)}`, 'warning');
+
+              /* ⚡ NEW: compute arrears + auto-generate penalty */
+              const pickedCustomer = customerById(data.customerId);
+              if (pickedCustomer) {
+                const ar = computeSavingsArrears(pickedCustomer);
+                data._arrearsMonths = ar.monthsBehind;
+                data._arrearsAmount = ar.arrearsAmount;
+                data._nextDue       = ar.nextDue;
+
+                if (ar.monthsBehind > 0) {
+                  toast(`${t('unpaidWarning')} ${ar.monthsBehind} ${ar.monthsBehind===1?'month':'months'} · ${money(ar.arrearsAmount)}`, 'warning');
+
+                  /* auto-generate penalty (gated by settings) */
+                  if (savingsPenaltiesEnabled && savingsPenaltyAutoGenerate && savingsPenaltiesApply) {
+                    const pr = await checkAndCreateSavingsPenalty(data.customerId, el.dataset.customerId);
+                    if (pr.penaltyAmount > 0 && pr.skipped !== 'existing') {
+                      /* refresh penalty block after creation */
+                      const freshPending = await getMemberPenaltiesWithDetails(data.customerId);
+                      data._penaltyBlocked = freshPending.total > 0;
+                    }
+                  }
+                }
+              }
             });
           });
         }
@@ -2094,6 +2314,27 @@ function openTxWizard(tx) {
             </div>
           ` : '';
 
+          /* ⚡ NEW: arrears banner */
+          const arrearsBanner = (() => {
+            if (!isDep) return '';
+            if (minSavingsAmount <= 0) return '';
+            if (d._arrearsMonths > 0) {
+              return `<div class="alert alert--error" style="background:#fef3f2;border-color:#fecdca;color:#b42318">
+                <i class="fas fa-exclamation-triangle"></i>
+                <div><strong>${esc(t('unpaidWarning'))}</strong>
+                  ${d._arrearsMonths} ${d._arrearsMonths===1?'month':'months'} behind —
+                  ${esc(t('arrears'))}: <strong>${esc(money(d._arrearsAmount))}</strong>.
+                  ${d.type==='deposit' ? esc(t('mustPayArrears', { n: d._arrearsMonths, amt: money(d._arrearsAmount) })) : ''}
+                  ${d._nextDue ? `<br><span style="font-size:11.5px;opacity:.85">${esc(t('nextDue'))}: ${esc(fmtDate(d._nextDue))}</span>` : ''}
+                </div>
+              </div>`;
+            }
+            return `<div class="alert alert--success">
+              <i class="fas fa-check-circle"></i>
+              <div>${esc(t('upToDate'))}${d._nextDue ? ` · ${esc(t('nextDue'))}: ${esc(fmtDate(d._nextDue))}` : ''}</div>
+            </div>`;
+          })();
+
           const penaltyBlock = d._penaltyBlocked ? `
             <div class="alert alert--error" style="background:#fef3f2;border-color:#fecdca;color:#b42318">
               <i class="fas fa-lock"></i>
@@ -2102,6 +2343,7 @@ function openTxWizard(tx) {
           ` : '';
 
           return `
+            ${arrearsBanner}
             ${minBanner}
             ${penaltyBlock}
             <div class="type-picker">
@@ -2255,6 +2497,12 @@ function openTxWizard(tx) {
           if (!num(d.amount) || num(d.amount) <= 0) return t('invalidAmount');
           if (d.type === 'deposit' && minSavingsAmount > 0 && num(d.amount) < minSavingsAmount)
             return `${t('amountTooSmall')} ETB ${minSavingsAmount.toFixed(2)}`;
+
+          /* ⚡ NEW: arrears gate — deposit must cover missed months first */
+          if (d.type === 'deposit' && enforceSavingsArrears && d._arrearsMonths > 0 && num(d.amount) + 0.01 < d._arrearsAmount) {
+            return `${t('unpaidWarning')} ${t('unpaidPrevious')}: ${money(d._arrearsAmount)} (${d._arrearsMonths} ${d._arrearsMonths===1?'month':'months'})`;
+          }
+
           if (d.type === 'withdrawal') {
             const c = customerById(d.customerId);
             const bal = c ? customerBalance(c) : 0;
@@ -2335,7 +2583,14 @@ function openTxWizard(tx) {
           const isMobile = d.paymentMethod === 'mobile';
           const recBy = isEdit ? (t0.createdByName || recordedByName) : recordedByName;
           const appBy = (d.status === 'approved') ? (isEdit ? (t0.approvedByName || recBy) : recBy) : '';
+          const coversArrears = d._arrearsMonths === 0 || amt >= d._arrearsAmount;
           return `
+            ${d._arrearsMonths > 0 ? `<div class="alert alert--${coversArrears?'success':'error'}">
+              <i class="fas fa-${coversArrears?'check-circle':'exclamation-triangle'}"></i>
+              <div>${coversArrears
+                ? esc(t('depositClearsArrears', { n: d._arrearsMonths }))
+                : `${esc(t('unpaidWarning'))} ${esc(t('arrears'))}: ${esc(money(d._arrearsAmount))}`}</div>
+            </div>` : ''}
             <div style="padding:16px;background:linear-gradient(135deg,#f8fbff,#fff);border:1px solid var(--border);border-radius:14px;margin-bottom:18px;display:flex;align-items:center;gap:16px">
               <div style="width:60px;height:60px;border-radius:50%;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,var(--primary),var(--secondary));display:grid;place-items:center;color:#fff;font-weight:800;font-size:22px">
                 ${c?.photoURL ? `<img src="${esc(c.photoURL)}" alt="" style="width:100%;height:100%;object-fit:cover">` : esc(initials(customerName(c)))}
@@ -2392,6 +2647,14 @@ function openTxWizard(tx) {
       if (amt <= 0) throw new Error(t('invalidAmount'));
       if (d.type === 'deposit' && minSavingsAmount > 0 && amt < minSavingsAmount)
         throw new Error(`${t('amountTooSmall')} ETB ${minSavingsAmount.toFixed(2)}`);
+
+      /* ⚡ NEW: re-verify arrears against current transactions before save */
+      if (d.type === 'deposit' && enforceSavingsArrears) {
+        const freshAr = computeSavingsArrears(c);
+        if (freshAr.monthsBehind > 0 && amt + 0.01 < freshAr.arrearsAmount) {
+          throw new Error(`${t('unpaidWarning')} ${t('unpaidPrevious')}: ${money(freshAr.arrearsAmount)} (${freshAr.monthsBehind} ${freshAr.monthsBehind===1?'month':'months'})`);
+        }
+      }
 
       const isBank = d.paymentMethod === 'bank';
       const isMobile = d.paymentMethod === 'mobile';
@@ -2454,7 +2717,10 @@ function openTxWizard(tx) {
         mobileProviderName: isMobile ? (d.mobileProviderName || mobileProviderLabel(d.mobileProvider)) : null,
         ttNumber: (isBank || isMobile) ? d.ttNumber.trim() : null,
         transferDate: (isBank || isMobile) ? d.transferDate : null,
-        receiptPhoto: d._receiptPhoto || null
+        receiptPhoto: d._receiptPhoto || null,
+        /* ⚡ NEW: persist arrears snapshot on the transaction */
+        arrearsAtEntry: round2(d._arrearsAmount || 0),
+        monthsBehindAtEntry: d._arrearsMonths || 0
       };
 
       if (status === 'approved' && isEdit && canApprove()) {
@@ -2534,6 +2800,7 @@ function openViewModal(tx) {
           ${tx.transferDate ? `<div class="review__row"><span class="review__k">${esc(t('transferDateLabel'))}</span><span class="review__v">${esc(fmtDate(tx.transferDate))}</span></div>` : ''}
           ${tx.reference ? `<div class="review__row"><span class="review__k">${esc(t('colRef'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(tx.reference)}</span></div>` : ''}
           <div class="review__row"><span class="review__k">${esc(t('colStatus'))}</span><span class="review__v"><span class="tag ${statusCls(tx.status)}">${esc(statusLabel(tx.status))}</span></span></div>
+          ${tx.monthsBehindAtEntry ? `<div class="review__row"><span class="review__k">${esc(t('monthsBehind'))}</span><span class="review__v">${tx.monthsBehindAtEntry} · ${esc(t('arrears'))}: ${esc(money(tx.arrearsAtEntry || 0))}</span></div>` : ''}
           ${tx.notes ? `<div class="review__row"><span class="review__k">${esc(t('notesLabel'))}</span><span class="review__v">${esc(tx.notes)}</span></div>` : ''}
           <div class="review__row"><span class="review__k">${esc(t('recordedBy'))}</span><span class="review__v">${esc(tx.createdByName || '—')}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('approvedBy'))}</span>
@@ -2968,17 +3235,45 @@ function stopListeners() {
 
   await loadSessionTimeout();
 
+  /* ============================================================
+     SETTINGS LOAD — extended with savings-specific keys
+     ============================================================ */
   try {
     const cfg = await getDoc(doc(db, 'settings', 'system'));
     if (cfg.exists()) {
       const d = cfg.data();
       if (d.currency) APP.currency = d.currency;
       if (d.saccoName && String(d.saccoName).trim()) APP.saccoName = String(d.saccoName).trim();
+
       minSavingsAmount = Number(d.minSavingsAmount ?? d.minSavingsBalance ?? d.minSavings ?? 0);
       if (d.shareValue !== undefined) { const sv = Number(d.shareValue); if (isFinite(sv) && sv > 0) shareValue = sv; }
       savingsPenaltyRate = d.savingsPenaltyRate !== undefined ? Number(d.savingsPenaltyRate)/100 : (Number(d.penaltyRate)||5)/100;
       if (d.deductPenaltyFromSavings !== undefined) deductPenaltyFromSavings = !!d.deductPenaltyFromSavings;
       if (Array.isArray(d.penaltyPaymentSources) && d.penaltyPaymentSources.length) penaltyPaymentSources = d.penaltyPaymentSources.map(x => String(x).toLowerCase().trim());
+
+      /* ⚡ NEW: savings arrears + penalty settings */
+      savingsGracePeriod =
+        (d.savingsGracePeriod !== undefined && Number(d.savingsGracePeriod) >= 0)
+          ? Number(d.savingsGracePeriod)
+          : (d.gracePeriod !== undefined && Number(d.gracePeriod) >= 0 ? Number(d.gracePeriod) : 7);
+
+      savingsPenaltiesEnabled =
+        d.savingsPenaltiesEnabled !== undefined ? !!d.savingsPenaltiesEnabled
+        : (d.penaltiesEnabled !== undefined ? !!d.penaltiesEnabled : true);
+
+      savingsPenaltyAutoGenerate =
+        d.savingsPenaltyAutoGenerate !== undefined ? !!d.savingsPenaltyAutoGenerate
+        : (d.penaltyAutoGenerate !== undefined ? !!d.penaltyAutoGenerate : true);
+
+      savingsPenaltiesApply =
+        d.savingsPenaltiesApply !== undefined ? !!d.savingsPenaltiesApply
+        : (d.penaltiesApplySavings !== undefined ? !!d.penaltiesApplySavings : true);
+
+      savingsPenaltiesMinAmount = Number(d.savingsPenaltiesMinAmount ?? d.penaltiesMinAmount ?? 0) || 0;
+      savingsPenaltiesMaxAmount = Number(d.savingsPenaltiesMaxAmount ?? d.penaltiesMaxAmount ?? 0) || 0;
+
+      enforceSavingsArrears =
+        d.enforceSavingsArrears !== undefined ? !!d.enforceSavingsArrears : true;
     }
   } catch(e){}
 
@@ -2993,7 +3288,7 @@ function stopListeners() {
   startSessionWatcher();
 })();
 
-console.log('[sacco] savings page ready — approval workflow active');
+console.log('[sacco] savings page ready — arrears + auto-penalty + approval workflow active');
 </script>
 </body>
 </html>
