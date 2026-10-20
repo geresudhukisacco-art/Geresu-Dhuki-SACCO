@@ -155,7 +155,9 @@ import {
   getAuth, signInWithEmailAndPassword, signOut, setPersistence,
   browserSessionPersistence, sendPasswordResetEmail
 } from "firebase/auth";
-import { getFirestore, doc, getDoc } from "firebase/firestore";
+import {
+  getFirestore, doc, getDoc, collection, addDoc, serverTimestamp
+} from "firebase/firestore";
 
 /* ============ FIREBASE ============ */
 const firebaseConfig = {
@@ -170,7 +172,7 @@ const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
-/* ============ SESSION (sessionStorage — dies when browser closes) ============ */
+/* ============ SESSION ============ */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
 
@@ -312,7 +314,6 @@ async function resolveEmail(input){
   const trimmed = String(input || "").trim();
   if (!trimmed) return { email: "", source: "empty" };
   if (/^\S+@\S+\.\S+$/.test(trimmed)) return { email: trimmed, source: "email" };
-  // Username lookup in public collection
   const uname = trimmed.toLowerCase();
   try {
     const snap = await getDoc(doc(db, "usernames", uname));
@@ -323,6 +324,50 @@ async function resolveEmail(input){
     console.warn("[username lookup]", e.code, e.message);
   }
   return { email: "", source: "notfound" };
+}
+
+/* ============================================================
+   ⚡ LOGIN AUDIT — writes a 'login' entry to the audit collection
+   Called after signInWithEmailAndPassword succeeds, before redirect.
+   ============================================================ */
+function getDeviceType(){
+  const ua = navigator.userAgent;
+  if (/Mobi|Android|iPhone|iPod/i.test(ua)) return "Mobile";
+  if (/Tablet|iPad/i.test(ua)) return "Tablet";
+  return "Desktop";
+}
+
+async function logLoginAudit(user, sessionMinutes){
+  try {
+    let profile = {};
+    try {
+      const snap = await getDoc(doc(db, "users", user.uid));
+      if (snap.exists()) profile = snap.data();
+    } catch(e){ /* profile optional */ }
+
+    const mins = Number(sessionMinutes) > 0 ? Number(sessionMinutes) : DEFAULT_SESSION_MINUTES;
+
+    await addDoc(collection(db, "audit"), {
+      action: 'login',
+      collection: 'users',
+      documentId: user.uid,
+      userId: user.uid,
+      userName: profile.fullName || profile.name || user.email || '',
+      userEmail: user.email || '',
+      userDisplayName: profile.fullName || profile.name || user.email?.split('@')[0] || 'User',
+      userRole: profile.role || 'viewer',
+      userPhoto: profile.photoURL || profile.photo || profile.avatar || user.photoURL || '',
+      timestamp: serverTimestamp(),
+      device: getDeviceType(),
+      userAgent: navigator.userAgent,
+      sessionMinutes: mins,
+      details: `Login from ${getDeviceType()} · ${mins} min session`
+    });
+    console.log('[audit] login written');
+  } catch(e) {
+    // Never block login on audit failure
+    console.warn('[audit] login write failed:', e.message);
+  }
 }
 
 /* ============ RENDER ============ */
@@ -489,7 +534,6 @@ function bindLogin(){
     if (!password) { passEl.setAttribute("aria-invalid","true"); bad = true; } else { passEl.removeAttribute("aria-invalid"); }
     if (bad) { showMessage(t("required"), "error"); (!input ? idEl : passEl).focus(); return; }
 
-    // Resolve email if input is a username
     let emailToUse = input;
     if (!/^\S+@\S+\.\S+$/.test(input)) {
       setLoading(true, "resolving");
@@ -505,11 +549,10 @@ function bindLogin(){
     setLoading(true, "loggingIn");
 
     try {
-      // Force session-only persistence — Firebase auth dies when browser closes
       await setPersistence(auth, browserSessionPersistence);
       const cred = await signInWithEmailAndPassword(auth, emailToUse, password);
 
-      // Read sessionMinutes from system/config (fallback 30)
+      // sessionMinutes
       let sessionMinutes = DEFAULT_SESSION_MINUTES;
       try {
         const cfg = await getDoc(doc(db, "system", "config"));
@@ -539,6 +582,9 @@ function bindLogin(){
       writeSession(cred.user.uid, sessionMinutes);
       try { sessionStorage.setItem("sacco.uid", cred.user.uid); } catch(e){}
 
+      // ⚡ WRITE LOGIN AUDIT — must run BEFORE redirect, wrapped in try/catch so it never blocks
+      await logLoginAudit(cred.user, sessionMinutes);
+
       showMessage(t("success"), "success");
       setTimeout(() => { window.location.href = "pages/dashboard.html"; }, 400);
 
@@ -561,21 +607,17 @@ function bindLogin(){
   document.documentElement.lang = LANG;
   document.body.classList.toggle("ethiopic", LANG === "am" || LANG === "om");
 
-  // redirect reason (expired session from a protected page)
   let redirectReason = null;
   try { redirectReason = sessionStorage.getItem("__redirectReason"); } catch(e){}
   if (redirectReason) { try { sessionStorage.removeItem("__redirectReason"); } catch(e){} }
 
-  // If a session exists in this browser tab session AND hasn't expired → go to dashboard
   const existing = readSession();
   if (isSessionValid(existing)) {
-    // Firebase must also still have this uid (sessionStorage auth)
     await auth.authStateReady?.();
     if (auth.currentUser && auth.currentUser.uid === existing.uid) {
       window.location.replace("pages/dashboard.html");
       return;
     } else {
-      // stale
       clearSession();
     }
   } else if (existing) {
@@ -592,7 +634,7 @@ function bindLogin(){
   }
 })();
 
-console.log("[sacco] login ready (session-based, email or username)");
+console.log("[sacco] login ready (session-based, email or username, audit-on-login)");
 </script>
 
 </body>
