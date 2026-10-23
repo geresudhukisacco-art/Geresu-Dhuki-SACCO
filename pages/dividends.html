@@ -331,6 +331,7 @@ body.sidebar-collapsed .sidebar__logout span{display:none;}
   font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:-.3px;}
 .payout-preview__value.is-violet{color:#5b21b6;}
 .payout-preview__value.is-green{color:#067647;}
+.payout-preview__value.is-primary{color:#0b5cab;}
 .customer-pick{border:1px solid var(--border);border-radius:12px;overflow:hidden;max-height:320px;overflow-y:auto;}
 .customer-pick__item{display:flex;align-items:center;gap:12px;padding:11px 14px;
   border-bottom:1px solid var(--border-soft);cursor:pointer;transition:.12s;}
@@ -399,6 +400,19 @@ body.sb-open .overlay-mobile{display:block;}
 .breakdown__formula{margin-top:14px;padding:12px 14px;background:#f8fafc;border-radius:12px;
   font-family:ui-monospace,Monaco,Menlo,Consolas,monospace;font-size:12.5px;
   color:var(--text-soft);line-height:1.8;font-weight:600;border:1px dashed var(--border);}
+
+.split-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
+.split-box{padding:14px 16px;border-radius:12px;border:2px dashed var(--border);transition:.15s;}
+.split-box.is-active{border-style:solid;}
+.split-box--members.is-active{border-color:#19a974;background:linear-gradient(135deg,#f0fdf4,#fff);}
+.split-box--sacco.is-active{border-color:#5b21b6;background:linear-gradient(135deg,#f5f3ff,#fff);}
+.split-box__label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+.split-box--members .split-box__label{color:#067647;}
+.split-box--sacco .split-box__label{color:#5b21b6;}
+.split-box__pct{font-size:24px;font-weight:900;font-family:ui-monospace,monospace;letter-spacing:-.5px;}
+.split-box--members .split-box__pct{color:#067647;}
+.split-box--sacco .split-box__pct{color:#5b21b6;}
+.split-box__amt{font-size:13px;font-weight:700;margin-top:2px;color:var(--text-soft);font-family:ui-monospace,monospace;}
 
 #slip-print-host{display:none;}
 
@@ -530,6 +544,10 @@ body.sb-open .overlay-mobile{display:block;}
 .a4-summary-strip .item .lbl{font-size:9px;color:#6c7d70;text-transform:uppercase;
   font-weight:700;letter-spacing:.4px;display:block;margin-bottom:1px;}
 .a4-summary-strip .item .val{font-size:12.5px;font-weight:800;color:#1a6e3a;}
+.a4-summary-strip--split{grid-template-columns:repeat(3,1fr);background:#fdf5e0;border-left-color:#d4a017;}
+.a4-summary-strip--split .item .val{color:#7a5210;}
+.a4-summary-strip--split .item .val.is-green{color:#067647;}
+.a4-summary-strip--split .item .val.is-violet{color:#5b21b6;}
 .report-table{width:100%;border-collapse:collapse;font-size:11px;}
 .report-table thead th{background:#2d7a3d;color:#fff;padding:7px 8px;
   text-align:left;font-size:10px;text-transform:uppercase;
@@ -574,6 +592,7 @@ body.sb-open .overlay-mobile{display:block;}
   .lang-toggle button{padding:5px 9px;font-size:10px;}
   .modal__head, .modal__body, .modal__foot{padding-left:18px;padding-right:18px;}
   .year-bar{padding:12px 14px;}
+  .split-grid{grid-template-columns:1fr;}
 }
 @media (max-width:520px){
   .page-head__title{font-size:20px;}
@@ -640,7 +659,9 @@ const DEFAULT_DASHBOARD = Object.freeze({
   shareStatuses:    ['approved','completed','done','printed','paid'],
   dustThreshold:    0.005,
   bonusSharePrice:  1000,
-  withholdingTaxRate: 0
+  withholdingTaxRate: 0,
+  defaultMemberPercent: 70,
+  defaultSaccoPercent: 30
 });
 const ALWAYS_COUNTED_DEPOSIT  = ['approved','printed','completed','done','paid'];
 const ACTIVE_SERVICE_WITHDRAW = ['pending','approved','completed'];
@@ -680,7 +701,7 @@ const I18N = {
     role_cashier:'Cashier', role_teller:'Teller', role_accountant:'Accountant',
     role_auditor:'Auditor', role_member:'Member', role_viewer:'Viewer',
     logout:'Sign out',
-    pageTitle:'Dividends', pageSub:'Distribute annual profit proportionally to members by share holdings',
+    pageTitle:'Dividends', pageSub:'Distribute annual profit between members and SACCO capital',
     year:'Year', status:'Status', statusOpen:'Open', statusClosed:'Closed',
     netProfit:'Net Profit', distributed:'Distributed', customersPaid:'Customers Paid',
     avgDividend:'Avg Dividend', perShare:'Per Share', totalShares:'Total Shares',
@@ -689,21 +710,25 @@ const I18N = {
     regFee:'Registration Fee', otherIncome:'Other Income', interestPaid:'Interest Paid',
     paidPenalties:'Paid Penalties', totalIncome:'Total Income',
     saccoServices:'SACCO Service Withdrawals',
-    previewTitle:'Dividend Preview', previewSub:'Computed from year profit ÷ total closing shares',
-    previewNote:'Each customer receives their closing shares × dividend per share.',
+    previewTitle:'Dividend Preview', previewSub:'Computed from year profit ÷ total closing shares (at 100%)',
+    previewNote:'Preview shows 100% of profit. You choose the member/SACCO split when distributing.',
     distributeBtn:'Distribute Dividends', distributeConfirm:'Confirm Distribution',
-    distributeConfirmText:'This will create dividend records for all eligible customers.',
+    distributeConfirmText:'This will create dividend records for all eligible members and allocate retained capital to SACCO.',
     autoApprove:'Auto-approve all records (recommended for admins)',
+    memberSharePct:'Members Share (%)', saccoSharePct:'SACCO Capital (%)',
+    splitMembers:'To Members', splitSacco:'To SACCO Capital', splitTotal:'Total Profit',
+    memberAmount:'Member Amount', saccoAmount:'SACCO Capital Amount',
     batchTitle:'Distribution Batch', batchRef:'Batch Reference', batchCreated:'Created',
     batchPaid:'Marked Paid', batchClosed:'Closed', batchStatus:'Batch Status',
     batchTotals:'Totals', batchPrintYearly:'Print Yearly Report',
+    members:'Members', saccoCapital:'SACCO Capital',
     closeYear:'Close Year', closeYearText:'Close this year? No further changes will be allowed.',
     childrenTitle:'Dividend Records', childrenSub:'Individual payouts from this distribution',
     searchPlaceholder:'Search by customer, ID, serial…',
-    colHash:'#', colCustomer:'Customer', colSerial:'Serial No.', colType:'Type',
+    colHash:'#', colCustomer:'Customer', colSerial:'Serial No.', colType:'Payout Form',
     colShares:'Shares', colPercent:'Share %', colRate:'Rate', colGross:'Gross',
     colTax:'Tax', colNet:'Net Payout', colStatus:'Status', colDate:'Date', colActions:'Actions',
-    typeCash:'Cash', typeShares:'Bonus Shares',
+    typeCash:'Credited to Savings', typeShares:'Bonus Shares',
     statusPending:'Pending', statusPaid:'Paid', statusRejected:'Rejected',
     view:'View', edit:'Edit', reject:'Reject', approve:'Mark Paid', del:'Delete', print:'Print Voucher',
     noChildren:'No dividend records yet',
@@ -748,7 +773,8 @@ const I18N = {
     amountInWords:'Amount in words',
     memberSignature:'Member Signature', officialStamp:'Official Stamp',
     diagTitle:'Setup diagnostics',
-    readOnlyBanner:'Read-only mode: your role can view and print dividend reports, but cannot distribute, edit, or delete records. Only Super Admin can distribute dividends across all districts.'
+    readOnlyBanner:'Read-only mode: your role can view and print dividend reports, but cannot distribute, edit, or delete records. Only Super Admin can distribute dividends across all districts.',
+    invalidSplit:'Member share must be between 0% and 100%.'
   },
   am: {}, om: {}
 };
@@ -817,8 +843,6 @@ const customerById = (id) => {
     c.customerDocId === id
   ) || null;
 };
-/* ★ Prefer the name embedded on the transaction record (works even when
-   the customer is outside the current admin's district scope). */
 const nameFromTx = (tx) => {
   if (!tx) return '—';
   return tx.customerName || tx.memberName || customerName(customerById(tx.customerId));
@@ -1105,28 +1129,16 @@ function calculateYearProfitFromData({ year, cfg, income, repayments, loansTx = 
 
   const loanById = buildLoanMap(loansTx, loansCol);
   let paidInterest = 0;
-  let repaymentsWithPortion = 0;
-  let repaymentsComputed = 0;
-  let repaymentsSkipped = 0;
-
   for (const r of (repayments || [])) {
     if (!isInYear(r.date || r.timestamp, year)) continue;
     if (!isRepaymentCounted(r, cfg)) continue;
-
     if (typeof r.interestPortion === 'number' && r.interestPortion > 0) {
       paidInterest += num(r.interestPortion);
-      repaymentsWithPortion++;
-      continue;
-    }
-    if (typeof r.principalPortion === 'number' && typeof r.interestPortion !== 'number') {
-      repaymentsSkipped++;
       continue;
     }
     const loan = loanById.get(r.loanId) || loanById.get(r.loanDocId);
-    if (!loan) { repaymentsSkipped++; continue; }
-
+    if (!loan) continue;
     paidInterest += splitRepayment(num(r.amount), loan).interest;
-    repaymentsComputed++;
   }
   paidInterest = round2(paidInterest);
 
@@ -1182,39 +1194,29 @@ function bucketSharesForYear({ year, cfg, shares }) {
 
   for (const s of (shares || [])) {
     diag.total++;
-
     const rawType = String(s.type || s.txType || s.transactionType || '(none)')
       .toLowerCase().trim() || '(none)';
     diag.sampleTypes[rawType] = (diag.sampleTypes[rawType] || 0) + 1;
 
     if (!isShareCounted(s, cfg)) { diag.skippedStatus++; continue; }
-
     const rawCid = getShareCustomerKey(s);
     if (!rawCid) { diag.skippedNoCustomer++; continue; }
-
     const txDate = toDate(s.date || s.timestamp || s.createdAt || s.issueDate || s.purchaseDate || s.updatedAt);
     if (!txDate) { diag.skippedNoDate++; continue; }
-
     const txYear = txDate.getFullYear();
     if (txYear > year) { diag.futureYear++; continue; }
-
     const signed = getShareCount(s);
     if (!signed) { diag.skippedZero++; continue; }
-
     const kind  = classifyShareTx(s, signed);
     const count = Math.abs(signed);
-
     const cid = resolveCustomerDocId(rawCid, keyMap);
-
     if (known.size && !known.has(cid)) {
       diag.orphanRows++;
       diag.orphanShares += count;
       if (diag.unknownIds.length < 10) diag.unknownIds.push(String(rawCid));
       continue;
     }
-
     byCustomer[cid] ??= { opening: 0, bought: 0, sold: 0, closing: 0 };
-
     if (txYear < year) {
       byCustomer[cid].opening += (kind === 'buy' ? count : -count);
     } else {
@@ -1234,15 +1236,6 @@ function bucketSharesForYear({ year, cfg, shares }) {
     tOpen += c.opening; tBuy += c.bought; tSell += c.sold; tClose += c.closing;
   }
 
-  console.log('[dividends] share ledger', {
-    year,
-    shareDocs: diag.total,
-    customersLoaded: APP.customers.length,
-    matchedCustomers: Object.keys(byCustomer).length,
-    closingShares: round4(tClose),
-    diag
-  });
-
   return {
     byCustomer,
     totals: { opening: round4(tOpen), bought: round4(tBuy), sold: round4(tSell), closing: round4(tClose) },
@@ -1250,10 +1243,11 @@ function bucketSharesForYear({ year, cfg, shares }) {
   };
 }
 
-function buildPreview({ profit, ledger, customers, taxRate = 0 }) {
+function buildPreview({ profit, ledger, customers, taxRate = 0, memberPercent = 100 }) {
   const totalClosing = ledger.totals.closing;
   if (totalClosing <= 0 || profit.netProfit <= 0) return [];
-  const dps = profit.netProfit / totalClosing;
+  const memberPool = round2(profit.netProfit * (num(memberPercent) / 100));
+  const dps = memberPool / totalClosing;
   const rows = [];
   for (const c of (customers || [])) {
     const cd = ledger.byCustomer[c.id] || { opening:0, bought:0, sold:0, closing:0 };
@@ -1276,39 +1270,69 @@ function buildPreview({ profit, ledger, customers, taxRate = 0 }) {
 }
 
 async function getYearOverview(year) {
-  const [profit, ledger, batchSnap, yearCloseSnap] = await Promise.all([
+  const [profit, ledger, batchSnap, yearCloseSnap, saccoCapSnap] = await Promise.all([
     computeYearProfit(year, APP.settings),
     getShareLedgerForYear(year, APP.settings),
     getDocs(query(collection(db,'dividendBatches'),
       where('year','==',year), where('status','in',['pending','paid','closed']))),
     getDocs(query(collection(db,'transactions'),
-      where('type','==','year_close'), where('year','==',year)))
+      where('type','==','year_close'), where('year','==',year))),
+    getDocs(query(collection(db,'transactions'),
+      where('type','==','sacco_capital'), where('year','==',year)))
   ]);
 
   const batch = batchSnap.empty ? null : { id: batchSnap.docs[0].id, ...batchSnap.docs[0].data() };
   const yearClosed = !yearCloseSnap.empty;
 
+  const saccoCapital = saccoCapSnap.docs.reduce((s, d) => {
+    const x = d.data();
+    if (String(x.status || 'approved').toLowerCase() === 'approved') return s + num(x.amount);
+    return s;
+  }, 0);
+
   const customers = APP.customers.slice();
   const availableProfit = batch ? 0 : profit.netProfit;
+  const memberPercentDefault = num(APP.settings.defaultMemberPercent) || 70;
   const preview = batch ? [] : buildPreview({
-    profit, ledger, customers, taxRate: num(APP.settings.withholdingTaxRate)
+    profit, ledger, customers,
+    taxRate: num(APP.settings.withholdingTaxRate),
+    memberPercent: memberPercentDefault
   });
 
   return {
     year, yearClosed, batch, profit, availableProfit, ledger, preview,
+    saccoCapital: round2(saccoCapital),
+    memberPercentDefault,
+    saccoPercentDefault: round2(100 - memberPercentDefault),
     canDistribute: !batch && !yearClosed && availableProfit > 0 && preview.length > 0
   };
 }
 
-async function distributeBatch({ year, profit, ledger, previewRows, autoApprove, taxRate, user }) {
+/* ⚡ distributeBatch — now accepts memberPercent and splits profit into member + SACCO capital */
+async function distributeBatch({ year, profit, ledger, previewRows, autoApprove, taxRate, memberPercent, user }) {
   if (!previewRows || !previewRows.length) throw new Error('No eligible customers.');
   if (profit.netProfit <= 0) throw new Error('Net profit is zero.');
   if (ledger.totals.closing <= 0) throw new Error('No closing shares for the year.');
 
+  const memberPct = Math.min(100, Math.max(0, num(memberPercent)));
+  const saccoPct  = round2(100 - memberPct);
+  const totalProfit = round2(profit.netProfit);
+  const memberPortion = round2(totalProfit * memberPct / 100);
+  const saccoPortion  = round2(totalProfit - memberPortion);
+
   const cfg  = mergeDashboard(APP.settings);
   const dust = num(cfg.dustThreshold) || 0.005;
-  const eligible = previewRows.filter(r => num(r.netAmount) >= dust);
-  if (!eligible.length) throw new Error('All allocations below dust threshold.');
+
+  // Scale each row's gross/tax/net by memberPct
+  const scaledRows = previewRows.map(r => {
+    const gross = round2(num(r.grossAmount) * (memberPct / 100));
+    const tax   = round2(gross * (num(taxRate) / 100));
+    const net   = round2(gross - tax);
+    return { ...r, grossAmount: gross, taxAmount: tax, netAmount: net };
+  });
+
+  const eligible = scaledRows.filter(r => num(r.netAmount) >= dust);
+  if (!eligible.length) throw new Error('All allocations below dust threshold after applying the member split.');
 
   const totalGross = round2(eligible.reduce((s,r) => s + num(r.grossAmount), 0));
   const totalTax   = round2(eligible.reduce((s,r) => s + num(r.taxAmount), 0));
@@ -1336,9 +1360,23 @@ async function distributeBatch({ year, profit, ledger, previewRows, autoApprove,
       status: autoApprove ? 'paid' : 'pending',
       profitFormula: { ...profit },
       settingsSnapshot: { ...cfg, taxRate },
+      // ── split fields ──
+      totalProfit,
+      memberPortion,
+      saccoPortion,
+      memberPercent: memberPct,
+      saccoPercent: saccoPct,
+      // ── normal fields ──
       totalSharesClosing: ledger.totals.closing,
-      dividendPerShare: round4(profit.netProfit / ledger.totals.closing),
-      totals: { count: eligible.length, gross: totalGross, tax: totalTax, net: totalNet },
+      dividendPerShare: ledger.totals.closing > 0 ? round4(memberPortion / ledger.totals.closing) : 0,
+      totals: {
+        count: eligible.length,
+        gross: totalGross,
+        tax: totalTax,
+        net: totalNet,
+        member: memberPortion,
+        sacco: saccoPortion
+      },
       refNo,
       printCount: 0,
       createdBy: uid, createdByName: uname, createdAt: serverTimestamp(),
@@ -1354,16 +1392,35 @@ async function distributeBatch({ year, profit, ledger, previewRows, autoApprove,
     for (const row of slice) {
       const childRef = doc(collection(db, 'transactions'));
       childIds.push(childRef.id);
-      wb.set(childRef, childPayload({ row, batchId, year, autoApprove, uid, uname, refNo, taxRate }));
+      wb.set(childRef, childPayload({ row, batchId, year, autoApprove, uid, uname, refNo, taxRate, memberPct }));
     }
     await wb.commit();
   }
 
   try { await updateDoc(batchRef, { childIds }); } catch(e) { console.warn('childIds attach failed', e); }
 
-  return { batchId, refNo, count: eligible.length, totalNet, childIds };
+  /* ⚡ Create the SACCO capital allocation transaction (yearly tracked) */
+  if (saccoPortion > 0) {
+    try {
+      await addDoc(collection(db, 'transactions'), {
+        type: 'sacco_capital',
+        batchId, year, fiscalYear: String(year),
+        amount: saccoPortion,
+        percent: saccoPct,
+        source: 'dividend_allocation',
+        notes: `SACCO retained capital from ${year} dividend distribution (${saccoPct}% of ${totalProfit})`,
+        status: autoApprove ? 'approved' : 'pending',
+        date: new Date(),
+        createdAt: serverTimestamp(),
+        createdBy: uid, createdByName: uname,
+        ...(autoApprove ? { approvedAt: serverTimestamp(), approvedBy: uid, approvedByName: uname } : {})
+      });
+    } catch (e) { console.warn('[sacco_capital] create failed', e); }
+  }
+
+  return { batchId, refNo, count: eligible.length, totalNet, memberPortion, saccoPortion, childIds };
 }
-function childPayload({ row, batchId, year, autoApprove, uid, uname, refNo, taxRate }) {
+function childPayload({ row, batchId, year, autoApprove, uid, uname, refNo, taxRate, memberPct }) {
   const status = autoApprove ? 'paid' : 'pending';
   const base = {
     type: 'dividend', batchId, year, fiscalYear: String(year),
@@ -1382,6 +1439,7 @@ function childPayload({ row, batchId, year, autoApprove, uid, uname, refNo, taxR
     netAmount: round2(row.netAmount),
     sharesIssued: 0,
     overridden: false, overrideReason: '', originalAmount: null,
+    memberPercentSnapshot: num(memberPct),
     status,
     serialNumber: makeSerial(),
     refNo,
@@ -1412,7 +1470,7 @@ function makeSerial() {
 }
 
 /* ============================================================
- * COMBINED BATCH REFRESH — fixes delete / reject / override
+ * BATCH REFRESH
  * ============================================================ */
 async function refreshBatchAfterMutation(batchId, year) {
   if (!batchId) return;
@@ -1428,12 +1486,10 @@ async function refreshBatchAfterMutation(batchId, year) {
   if (snap.empty) {
     try { await deleteDoc(batchRef); }
     catch (e) { console.warn('[batch] delete failed', e); }
-
     if (year) {
       try { await deleteDoc(doc(db, 'yearIndex', String(year))); }
       catch (e) { console.warn('[yearIndex] delete failed', e); }
     }
-    console.log('[batch] emptied → batch + yearIndex removed for year', year);
     return;
   }
 
@@ -1604,11 +1660,7 @@ async function assertParentOpen(batchId) {
 }
 
 /* ============================================================
- * ROLES — Dividends
- * ------------------------------------------------------------
- * super_admin : full control across ALL districts
- * admin       : view + print only (no distribute, edit, delete, approve,
- *               reject, override, close year, no manual dividend)
+ * ROLES
  * ============================================================ */
 const ROLES = {
   super_admin:'role_super_admin', admin:'role_admin', manager:'role_manager',
@@ -1636,7 +1688,7 @@ const canDelete     = () => hasRole(...ROLE_GROUPS.deleteChild);
 const canCloseYear  = () => hasRole(...ROLE_GROUPS.closeYear);
 const canPrint      = () => hasRole(...ROLE_GROUPS.print);
 const isSuperAdmin  = () => APP.profile?.role === 'super_admin';
-const isReadOnly    = () => canView() && !canCreate();   // admin + others
+const isReadOnly    = () => canView() && !canCreate();
 
 /* ============================================================
  * NAV / SHELL
@@ -1856,11 +1908,14 @@ function renderOverview(ov) {
   const distTotal = batch?.totals?.net || 0;
   const customersPaid = batch?.totals?.count || 0;
   const avg = customersPaid ? distTotal / customersPaid : 0;
-  const dps = ov.ledger.totals.closing > 0 ? profit.netProfit / ov.ledger.totals.closing : 0;
+  const dps = ov.ledger.totals.closing > 0 ? num(batch?.dividendPerShare) || (profit.netProfit / ov.ledger.totals.closing) : 0;
   const diag = ov.ledger?.diag || null;
 
   const distributedNet  = num(distTotal);
   const remainingProfit = Math.max(0, round2(profit.netProfit - distributedNet));
+
+  const memberPortionShown = batch ? num(batch.memberPortion ?? batch.totals?.member ?? distTotal) : 0;
+  const saccoPortionShown  = batch ? num(batch.saccoPortion  ?? batch.totals?.sacco  ?? 0) : ov.saccoCapital;
 
   const kpisHtml = `
     <section class="stats">
@@ -1870,23 +1925,23 @@ function renderOverview(ov) {
         <div class="stat__value" style="font-size:19px">${esc(moneyShort(remainingProfit))}</div>
         <div class="stat__hint">
           ${distributedNet > 0
-            ? `${esc(money(profit.netProfit))} total − ${esc(money(distributedNet))} distributed`
+            ? `${esc(money(profit.netProfit))} total − ${esc(money(distributedNet))} to members`
             : esc(money(profit.netProfit))}
         </div>
       </div>
       <div class="stat stat--green">
-        <div class="stat__head"><div class="stat__label">${esc(t('distributed'))}</div>
+        <div class="stat__head"><div class="stat__label">${esc(t('splitMembers'))}</div>
           <div class="stat__icon"><i class="fas fa-gift"></i></div></div>
-        <div class="stat__value" style="font-size:19px">${esc(moneyShort(distTotal))}</div>
-        <div class="stat__hint">${esc(t('batchTotals'))}</div>
-      </div>
-      <div class="stat stat--blue">
-        <div class="stat__head"><div class="stat__label">${esc(t('customersPaid'))}</div>
-          <div class="stat__icon"><i class="fas fa-users"></i></div></div>
-        <div class="stat__value">${customersPaid}</div>
-        <div class="stat__hint">${esc(t('records'))} · ${APP.customers.length} customers loaded</div>
+        <div class="stat__value" style="font-size:19px">${esc(moneyShort(memberPortionShown))}</div>
+        <div class="stat__hint">${batch ? num(batch.memberPercent ?? 100).toFixed(1) + '% · ' + customersPaid + ' ' + esc(t('records')) : esc(t('batchTotals'))}</div>
       </div>
       <div class="stat stat--violet">
+        <div class="stat__head"><div class="stat__label">${esc(t('splitSacco'))}</div>
+          <div class="stat__icon"><i class="fas fa-building-columns"></i></div></div>
+        <div class="stat__value" style="font-size:19px">${esc(moneyShort(saccoPortionShown))}</div>
+        <div class="stat__hint">${batch ? num(batch.saccoPercent ?? 0).toFixed(1) + '%' : esc(t('noDataYet') || '—')}</div>
+      </div>
+      <div class="stat stat--blue">
         <div class="stat__head"><div class="stat__label">${esc(t('totalShares'))}</div>
           <div class="stat__icon"><i class="fas fa-chart-pie"></i></div></div>
         <div class="stat__value">${num(ov.ledger.totals.closing).toLocaleString()}</div>
@@ -1971,9 +2026,7 @@ function renderOverview(ov) {
     bodyHtml += `<div class="info-banner info-banner--danger">
       <i class="fas fa-users-slash"></i>
       <div>
-        <strong>No customers loaded.</strong> The <code>/customers</code> collection returned 0 documents
-        for role <code>${esc(APP.profile?.role || 'unknown')}</code>. Check Firestore security rules
-        and look for the <code>[sacco] customers…</code> lines in the browser console.
+        <strong>No customers loaded.</strong> Check Firestore security rules.
       </div></div>`;
   }
 
@@ -1988,21 +2041,7 @@ function renderOverview(ov) {
   } else if (ov.ledger.totals.closing <= 0) {
     bodyHtml += `<div class="info-banner info-banner--warning">
       <i class="fas fa-exclamation-triangle"></i>
-      <div>
-        <strong>${esc(t('noShares'))}.</strong> ${esc(t('noSharesText'))}
-        ${diag ? `<br><small>Scanned <strong>${diag.total}</strong> share records — skipped:
-          ${diag.skippedStatus} by status, ${diag.skippedNoDate} without a date,
-          ${diag.skippedZero} with zero/unknown quantity,
-          ${diag.skippedNoCustomer} without a customer reference.</small>` : ''}
-      </div></div>`;
-  } else {
-    bodyHtml += `<div class="info-banner info-banner--warning">
-      <i class="fas fa-exclamation-triangle"></i>
-      <div>
-        <strong>No matching shareholders.</strong>
-        ${num(ov.ledger.totals.closing).toLocaleString()} closing shares were found, but none of them
-        could be matched to a loaded customer record.
-      </div></div>`;
+      <div><strong>${esc(t('noShares'))}.</strong> ${esc(t('noSharesText'))}</div></div>`;
   }
 
   bodyHtml += renderChildrenCard();
@@ -2018,6 +2057,10 @@ function renderBatchCard(batch) {
   const statusClass = status === 'closed' ? 'tag--gray' : status === 'paid' ? 'tag--green' : 'tag--gold';
   const statusText  = status === 'closed' ? t('batchClosed') : status === 'paid' ? t('batchPaid') : t('statusPending');
   const p = batch.profitFormula || {};
+  const memberPortion = num(batch.memberPortion ?? batch.totals?.member ?? batch.totals?.net);
+  const saccoPortion  = num(batch.saccoPortion  ?? batch.totals?.sacco  ?? 0);
+  const memberPct     = num(batch.memberPercent  ?? (saccoPortion > 0 ? (memberPortion / (memberPortion + saccoPortion)) * 100 : 100));
+  const saccoPct      = num(batch.saccoPercent   ?? (saccoPortion > 0 ? 100 - memberPct : 0));
   return `
     <div class="card">
       <div class="card__head">
@@ -2034,17 +2077,19 @@ function renderBatchCard(batch) {
         </div>
       </div>
       <div class="card__body">
-        <div class="review" style="max-width:640px">
-          <div class="review__row"><span class="review__k">${esc(t('netProfit'))}</span>
-            <span class="review__v mono">${esc(money(p.netProfit))}</span></div>
+        <div class="review" style="max-width:680px">
+          <div class="review__row"><span class="review__k">${esc(t('netProfit'))} (total)</span>
+            <span class="review__v mono">${esc(money(p.netProfit ?? (memberPortion + saccoPortion)))}</span></div>
+          <div class="review__row" style="background:#f0fdf4"><span class="review__k" style="color:#067647">${esc(t('splitMembers'))} (${memberPct.toFixed(1)}%)</span>
+            <span class="review__v mono" style="color:#067647;font-weight:800">${esc(money(memberPortion))}</span></div>
+          <div class="review__row" style="background:#faf7ff"><span class="review__k" style="color:#5b21b6">${esc(t('splitSacco'))} (${saccoPct.toFixed(1)}%)</span>
+            <span class="review__v mono" style="color:#5b21b6;font-weight:800">${esc(money(saccoPortion))}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('totalShares'))}</span>
             <span class="review__v mono">${num(batch.totalSharesClosing).toLocaleString()}</span></div>
-          <div class="review__row"><span class="review__k">${esc(t('perShare'))}</span>
+          <div class="review__row"><span class="review__k">${esc(t('perShare'))} (members)</span>
             <span class="review__v mono">${esc(money(batch.dividendPerShare))}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('records'))}</span>
             <span class="review__v">${num(batch.totals?.count)}</span></div>
-          <div class="review__row"><span class="review__k">${esc(t('distributed'))}</span>
-            <span class="review__v mono" style="color:#067647;font-weight:800">${esc(money(batch.totals?.net))}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('batchCreated'))}</span>
             <span class="review__v">${esc(fmtDateTime(batch.createdAt))} · ${esc(batch.createdByName || '—')}</span></div>
           ${batch.paidAt ? `<div class="review__row"><span class="review__k">${esc(t('batchPaid'))}</span>
@@ -2058,6 +2103,10 @@ function renderBatchCard(batch) {
 
 function renderPreviewCard(ov) {
   const rows = ov.preview;
+  const memberPctPreview = num(ov.memberPercentDefault) || 70;
+  const memberPortionPreview = round2(num(ov.profit.netProfit) * memberPctPreview / 100);
+  const saccoPortionPreview  = round2(num(ov.profit.netProfit) - memberPortionPreview);
+
   let totalOpen = 0, totalBuy = 0, totalSell = 0, totalClose = 0, totalNet = 0;
   let html = '';
   rows.forEach((r, i) => {
@@ -2090,7 +2139,7 @@ function renderPreviewCard(ov) {
       <div class="card__head">
         <div>
           <div class="card__title"><i class="fas fa-eye"></i> ${esc(t('previewTitle'))}</div>
-          <div class="card__sub">${esc(t('previewSub'))}</div>
+          <div class="card__sub">${esc(t('previewSub'))} — shown at ${memberPctPreview.toFixed(0)}% to members</div>
         </div>
         <div class="card__actions">
           ${canCreate() ? `<button class="btn btn--success btn--sm" id="distributeBtn">
@@ -2102,6 +2151,20 @@ function renderPreviewCard(ov) {
           <i class="fas fa-info-circle"></i>
           <div>${esc(t('previewNote'))}</div>
         </div>
+
+        <div class="split-grid" style="margin-bottom:14px">
+          <div class="split-box split-box--members is-active">
+            <div class="split-box__label">${esc(t('splitMembers'))} (${memberPctPreview.toFixed(1)}%)</div>
+            <div class="split-box__pct">${esc(money(memberPortionPreview))}</div>
+            <div class="split-box__amt">${esc(t('memberAmount'))}</div>
+          </div>
+          <div class="split-box split-box--sacco is-active">
+            <div class="split-box__label">${esc(t('splitSacco'))} (${(100 - memberPctPreview).toFixed(1)}%)</div>
+            <div class="split-box__pct">${esc(money(saccoPortionPreview))}</div>
+            <div class="split-box__amt">${esc(t('saccoAmount'))}</div>
+          </div>
+        </div>
+
         <div class="tbl-wrap" style="max-height:440px;overflow-y:auto">
           <table class="tbl">
             <thead><tr>
@@ -2379,30 +2442,42 @@ function openModal({ size = '', head, body, foot }) {
   return root;
 }
 
+/* ⚡ Distribution modal — with member/SACCO split UI */
 function openDistributionModal(ov) {
   if (!canCreate()) { toast(t('noPermission'), 'error'); return; }
   if (!ov?.canDistribute) { toast(t('noPermission'), 'warning'); return; }
-  const totalNet = ov.preview.reduce((s,r) => s + num(r.netAmount), 0);
-  const totalGross = ov.preview.reduce((s,r) => s + num(r.grossAmount), 0);
-  const totalTax = ov.preview.reduce((s,r) => s + num(r.taxAmount), 0);
-  const uid = 'optAutoApprove';
+
+  const totalProfit = round2(num(ov.profit.netProfit));
+  const defaultMemberPct = num(ov.memberPercentDefault) || 70;
+
   const root = openModal({
+    size: 'lg',
     head: `
       <div class="modal__title">${esc(t('distributeConfirm'))}</div>
       <div class="modal__sub">${esc(t('distributeConfirmText'))}</div>`,
     body: `
-      <div class="review" style="margin-bottom:18px">
+      <div class="review" style="margin-bottom:16px">
         <div class="review__row"><span class="review__k">${esc(t('year'))}</span><span class="review__v">${ov.year}</span></div>
-        <div class="review__row"><span class="review__k">${esc(t('netProfit'))}</span><span class="review__v mono">${esc(money(ov.profit.netProfit))}</span></div>
+        <div class="review__row"><span class="review__k">${esc(t('netProfit'))}</span><span class="review__v mono" style="color:#b8860b;font-weight:800">${esc(money(totalProfit))}</span></div>
         <div class="review__row"><span class="review__k">${esc(t('totalShares'))}</span><span class="review__v mono">${num(ov.ledger.totals.closing).toLocaleString()}</span></div>
-        <div class="review__row"><span class="review__k">${esc(t('perShare'))}</span><span class="review__v mono">${esc(money(round4(ov.profit.netProfit / ov.ledger.totals.closing)))}</span></div>
         <div class="review__row"><span class="review__k">${esc(t('customersPaid'))}</span><span class="review__v">${ov.preview.length}</span></div>
-        <div class="review__row"><span class="review__k">${esc(t('colGross'))}</span><span class="review__v mono">${esc(money(totalGross))}</span></div>
-        <div class="review__row"><span class="review__k">${esc(t('colTax'))}</span><span class="review__v mono">${esc(money(totalTax))}</span></div>
-        <div class="review__row"><span class="review__k">${esc(t('colNet'))}</span><span class="review__v mono" style="color:#067647;font-weight:800">${esc(money(totalNet))}</span></div>
       </div>
-      <label style="display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:700;cursor:pointer">
-        <input type="checkbox" id="${uid}" checked style="width:18px;height:18px">
+
+      <div class="field-row" style="margin-bottom:14px">
+        <div class="field" style="margin-bottom:0">
+          <label class="field__required">${esc(t('memberSharePct'))}</label>
+          <input type="number" id="optMemberPct" min="0" max="100" step="0.1" value="${defaultMemberPct}" class="amount-input">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>${esc(t('saccoSharePct'))}</label>
+          <input type="number" id="optSaccoPct" readonly class="amount-input" style="background:#f8fafc">
+        </div>
+      </div>
+
+      <div class="split-grid" id="splitPreview"></div>
+
+      <label style="display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:700;cursor:pointer;margin-top:4px">
+        <input type="checkbox" id="optAutoApprove" checked style="width:18px;height:18px">
         ${esc(t('autoApprove'))}
       </label>`,
     foot: `
@@ -2411,14 +2486,41 @@ function openDistributionModal(ov) {
         <span class="lbl"><i class="fas fa-gift"></i> ${esc(t('distributeBtn'))}</span></button>`
   });
 
+  const pctInput = root.querySelector('#optMemberPct');
+  const saccoPctInput = root.querySelector('#optSaccoPct');
+  const previewEl = root.querySelector('#splitPreview');
+
+  function updatePreview() {
+    const mp = Math.min(100, Math.max(0, num(pctInput.value)));
+    const sp = round2(100 - mp);
+    const memberAmt = round2(totalProfit * mp / 100);
+    const saccoAmt  = round2(totalProfit - memberAmt);
+    saccoPctInput.value = sp.toFixed(1);
+    previewEl.innerHTML = `
+      <div class="split-box split-box--members is-active">
+        <div class="split-box__label">${esc(t('splitMembers'))} (${mp.toFixed(1)}%)</div>
+        <div class="split-box__pct">${esc(money(memberAmt))}</div>
+        <div class="split-box__amt">${esc(t('memberAmount'))}</div>
+      </div>
+      <div class="split-box split-box--sacco is-active">
+        <div class="split-box__label">${esc(t('splitSacco'))} (${sp.toFixed(1)}%)</div>
+        <div class="split-box__pct">${esc(money(saccoAmt))}</div>
+        <div class="split-box__amt">${esc(t('saccoAmount'))}</div>
+      </div>`;
+  }
+  pctInput.addEventListener('input', updatePreview);
+  updatePreview();
+
   root.querySelector('#confirmDist').addEventListener('click', async (e) => {
     const btn = e.currentTarget;
     const sp = btn.querySelector('.spinner-sm');
     const lbl = btn.querySelector('.lbl');
+    const memberPercent = Math.min(100, Math.max(0, num(pctInput.value)));
+    if (!isFinite(memberPercent)) { toast(t('invalidSplit'), 'error'); return; }
     btn.disabled = true; sp.classList.remove('hidden');
     lbl.innerHTML = `<span class="spinner-sm"></span> ${esc(t('loading'))}`;
     try {
-      const autoApprove = root.querySelector('#' + uid).checked;
+      const autoApprove = root.querySelector('#optAutoApprove').checked;
       const taxRate = num(APP.settings.withholdingTaxRate) || 0;
       await distributeBatch({
         year: ov.year,
@@ -2427,6 +2529,7 @@ function openDistributionModal(ov) {
         previewRows: ov.preview,
         autoApprove,
         taxRate,
+        memberPercent,
         user: APP.user
       });
       toast(t('createdOk'), 'success');
@@ -2619,10 +2722,10 @@ function openManualDividendModal(existing) {
     body: `
       <div class="type-picker" id="mTypePicker">
         <button type="button" class="type-btn ${state.payoutType === 'cash' ? 'is-on' : ''}" data-ptype="cash">
-          <span class="type-btn__icon"><i class="fas fa-money-bill-wave"></i></span>
+          <span class="type-btn__icon"><i class="fas fa-piggy-bank"></i></span>
           <span class="type-btn__main">
             <div class="type-btn__title">${esc(t('typeCash'))}</div>
-            <div class="type-btn__desc">Pay dividends in cash</div>
+            <div class="type-btn__desc">Credit to member's savings account</div>
           </span>
         </button>
         <button type="button" class="type-btn violet ${state.payoutType === 'shares' ? 'is-on' : ''}" data-ptype="shares">
@@ -2806,9 +2909,14 @@ function openManualDividendModal(existing) {
         mode: 'manual',
         status: state.status === 'paid' ? 'paid' : 'pending',
         profitFormula: { netProfit: 0, registrationFee: 0, otherIncome: 0, paidInterest: 0, paidPenalties: 0, serviceWithdrawals: 0, totalIncome: 0 },
+        totalProfit: 0,
+        memberPortion: gross,
+        saccoPortion: 0,
+        memberPercent: 100,
+        saccoPercent: 0,
         totalSharesClosing: 0,
         dividendPerShare: 0,
-        totals: { count: 1, gross, tax, net },
+        totals: { count: 1, gross, tax, net, member: gross, sacco: 0 },
         refNo,
         printCount: 0,
         createdBy: uid, createdByName: uname, createdAt: serverTimestamp()
@@ -2825,6 +2933,7 @@ function openManualDividendModal(existing) {
         grossAmount: round2(gross), taxRate: state.taxRate, taxAmount: tax, netAmount: net,
         sharesIssued,
         overridden: false, overrideReason: '', originalAmount: null,
+        memberPercentSnapshot: 100,
         status: state.status,
         serialNumber: makeSerial(), refNo,
         printCount: 0, printStatus: 'not_printed',
@@ -2905,7 +3014,7 @@ function showLogoutModal() {
 }
 
 /* ============================================================
- * PRINT — YEARLY REPORT
+ * PRINT — YEARLY REPORT (with member/SACCO split summary)
  * ============================================================ */
 async function printYearlyReport() {
   const host = document.getElementById('slip-print-host');
@@ -2915,15 +3024,25 @@ async function printYearlyReport() {
   const user = APP.profile || {};
 
   let allDivs = [];
+  let batch = null;
   try {
-    const snap = await getDocs(query(
-      collection(db, 'transactions'),
-      where('type', '==', 'dividend'),
-      where('year', '==', year)
-    ));
-    allDivs = snap.docs
+    const [divSnap, batchSnap] = await Promise.all([
+      getDocs(query(
+        collection(db, 'transactions'),
+        where('type', '==', 'dividend'),
+        where('year', '==', year)
+      )),
+      getDocs(query(
+        collection(db, 'dividendBatches'),
+        where('year', '==', year)
+      ))
+    ]);
+    allDivs = divSnap.docs
       .map(d => ({ id: d.id, ...d.data() }))
       .filter(tx => String(tx.status || '').toLowerCase() !== 'rejected');
+    if (!batchSnap.empty) {
+      batch = { id: batchSnap.docs[0].id, ...batchSnap.docs[0].data() };
+    }
   } catch (e) { console.warn('printYearlyReport: fetch failed', e); }
 
   let rows = [];
@@ -2951,7 +3070,7 @@ async function printYearlyReport() {
       r.dividendAmount += num(tx.netAmount);
     });
     rows = Array.from(byCustomer.values()).sort((a,b) => b.shares - a.shares);
-    refNo = allDivs[0]?.refNo || ('DIV-YR-' + year);
+    refNo = batch?.refNo || allDivs[0]?.refNo || ('DIV-YR-' + year);
     reportLabel = 'Yearly Dividend Report';
   } else if (APP.overview?.preview?.length) {
     rows = APP.overview.preview.map(r => ({
@@ -2986,6 +3105,13 @@ async function printYearlyReport() {
   const grandDividend = rows.reduce((s,r) => s + num(r.dividendAmount), 0);
   const dps = grandClosing > 0 ? grandDividend / grandClosing : 0;
   const printedAt = new Date().toLocaleString();
+
+  // Split totals
+  const totalProfit = num(batch?.totalProfit ?? batch?.profitFormula?.netProfit ?? grandDividend);
+  const memberPortion = num(batch?.memberPortion ?? grandDividend);
+  const saccoPortion  = num(batch?.saccoPortion ?? (totalProfit - memberPortion));
+  const memberPct = num(batch?.memberPercent ?? (totalProfit > 0 ? (memberPortion / totalProfit) * 100 : 100));
+  const saccoPct  = num(batch?.saccoPercent  ?? (totalProfit > 0 ? 100 - memberPct : 0));
 
   const rowsHtml = rows.map((r, i) => `
     <tr>
@@ -3022,6 +3148,12 @@ async function printYearlyReport() {
         <div class="item"><span class="lbl">Opening Shares</span><span class="val">${grandOpening.toFixed(2)}</span></div>
         <div class="item"><span class="lbl">Dividend / Share</span><span class="val">ETB ${num(dps).toFixed(4)}</span></div>
         <div class="item"><span class="lbl">Closing Shares</span><span class="val">${grandClosing.toFixed(2)}</span></div>
+      </div>
+
+      <div class="a4-summary-strip a4-summary-strip--split">
+        <div class="item"><span class="lbl">Total Profit</span><span class="val">${totalProfit.toFixed(2)}</span></div>
+        <div class="item"><span class="lbl">To Members (${memberPct.toFixed(1)}%)</span><span class="val is-green">${memberPortion.toFixed(2)}</span></div>
+        <div class="item"><span class="lbl">To SACCO Capital (${saccoPct.toFixed(1)}%)</span><span class="val is-violet">${saccoPortion.toFixed(2)}</span></div>
       </div>
 
       <table class="report-table">
@@ -3246,10 +3378,6 @@ function setLang(lang) {
 
 /* ============================================================
  * LOADERS
- * ------------------------------------------------------------
- * super_admin  → sees ALL districts (no filter)
- * admin        → scoped to their district
- * branch roles → scoped to their branch
  * ============================================================ */
 async function loadCustomers() {
   APP.bootIssues = APP.bootIssues.filter(x => !x.startsWith('Customers'));
@@ -3261,7 +3389,6 @@ async function loadCustomers() {
   } else if (['manager','cashier','teller','accountant'].includes(role) && APP.profile?.branchId) {
     conds.push(where('branchId', '==', APP.profile.branchId));
   }
-  /* super_admin: no conditions — loads every customer across all districts */
 
   try {
     const q1 = conds.length
@@ -3282,14 +3409,12 @@ async function loadCustomers() {
   try {
     const s2 = await getDocs(query(collection(db, 'customers'), limit(3000)));
     APP.customers = s2.docs.map(d => ({ id: d.id, ...d.data() }));
-    console.log('[sacco] customers loaded (unscoped):', APP.customers.length);
     if (APP.customers.length === 0) {
-      APP.bootIssues.push(`Customers collection returned 0 records. Either the collection is empty or Firestore rules block reading it for role <code>${esc(role)}</code>.`);
+      APP.bootIssues.push(`Customers collection returned 0 records.`);
     }
   } catch (e) {
-    console.error('[loadCustomers] unscoped failed:', e);
     APP.customers = [];
-    APP.bootIssues.push(`Customers query (unscoped) also failed: <code>${esc(e.code || e.message)}</code>. Firestore rules may block <code>/customers</code>.`);
+    APP.bootIssues.push(`Customers query (unscoped) failed: <code>${esc(e.code || e.message)}</code>.`);
   }
 }
 
@@ -3309,7 +3434,6 @@ async function loadLoansCollection() {
   try {
     const s = await getDocs(query(collection(db, 'loans'), limit(2000)));
     APP.loans = s.docs.map(d => ({ id: d.id, ...d.data() }));
-    console.log('[sacco] loans loaded:', APP.loans.length);
   } catch (e) { console.warn('[loadLoansCollection] failed:', e.code || e.message); }
 }
 async function loadSettings() {
@@ -3397,7 +3521,9 @@ async function loadAvailableYears() {
     return;
   }
 
-  console.log('[sacco] booting with role:', APP.profile.role, '| districtId:', APP.profile.districtId, '| branchId:', APP.profile.branchId);
+  console.log('[sacco] booting with role:', APP.profile.role,
+              '| districtId:', APP.profile.districtId,
+              '| branchId:', APP.profile.branchId);
 
   await Promise.all([
     loadSettings(),
@@ -3414,7 +3540,7 @@ async function loadAvailableYears() {
   setTimeout(() => document.getElementById('loader')?.classList.add('hide'), 150);
 })();
 
-console.log('[sacco] dividends page ready');
+console.log('[sacco] dividends page ready — with member/SACCO split');
 </script>
 
 </body>
