@@ -641,6 +641,7 @@ const BUY_SHARE_TYPES = ['share_buy','buy','purchase','share_purchase'];
 const SELL_SHARE_TYPES = ['share_sell','sell','share_sale'];
 const IN_SHARE_TYPES = ['share_transfer_in','transfer_in'];
 const OUT_SHARE_TYPES = ['share_transfer_out','transfer_out'];
+const PAID_DIVIDEND_STATUSES = ['paid','completed','approved','done'];
 
 function isSavingsCounted(tx) { if (!tx) return false; const s = String(tx.status || '').toLowerCase(); if (ALWAYS_COUNTED_DEPOSIT_STATUSES.includes(s)) return true; if (tx.printed === true) return true; return false; }
 function isWithdrawalCounted(tx) { if (!tx) return false; const s = String(tx.status || '').toLowerCase(); return ['approved','completed','done','paid','printed'].includes(s) || tx.printed === true; }
@@ -648,11 +649,35 @@ function isRepaymentCounted(r) { if (!r) return false; const s = String(r.status
 function isServiceWithdrawalCounted(sw) { if (!sw) return false; const s = String(sw.status || '').toLowerCase(); return ACTIVE_SERVICE_WITHDRAWAL_STATUSES.includes(s) || sw.printed === true; }
 function isPenaltyPaid(p) { if (!p) return false; const s = String(p.status || '').toLowerCase(); return s === 'paid' || s === 'done' || s === 'approved' || s === 'completed'; }
 function isPenaltyPaidFromSavings(p) { if (!p) return false; const raw = p.paymentMethod || p.paidFrom || p.paymentSource || p.source || p.method || p.paymentType || ''; const m = String(raw).toLowerCase().trim(); return !!m && PENALTY_FROM_SAVINGS.includes(m); }
+
+/* ⚡ Dividend helpers */
+function isDividendPaid(d) {
+  if (!d) return false;
+  const s = String(d.status || '').toLowerCase();
+  return PAID_DIVIDEND_STATUSES.includes(s);
+}
+function dividendMatchesYear(d, y) {
+  if (!d) return false;
+  if (d.year != null && Number(d.year) === y) return true;
+  if (d.fiscalYear != null && Number(d.fiscalYear) === y) return true;
+  return isInYear(d.date || d.createdAt, y);
+}
+
 function getSharePaymentMethod(s) { const raw = s.paymentMethod || s.paymentSource || s.paidFrom || s.source || s.fundingSource || s.method || s.paymentType || ''; return String(raw).toLowerCase().trim(); }
 function isSharePaidFromSavings(s) { const m = getSharePaymentMethod(s); if (!m) return true; return SAVINGS_PAYMENT_VALUES.includes(m); }
 function isShareCounted(s) { if (!s) return false; const st = String(s.status || '').toLowerCase(); if (COUNTED_SHARE_STATUSES.includes(st)) return true; if (s.printed === true) return true; if (!st && (s.amount != null || s.shares != null)) return true; return false; }
 function getShareCount(s) { if (!s) return 0; const d = num(s.shares) || num(s.shareCount) || num(s.quantity) || num(s.numberOfShares) || num(s.shareQuantity); if (d > 0) return d; const amt = num(s.amount) || num(s.totalAmount) || num(s.value); const price = num(s.pricePerShare) || num(s.sharePrice) || num(s.unitPrice); if (amt > 0 && price > 0) return amt / price; return 0; }
-function getShareAmount(s) { return num(s.amount) || num(s.totalAmount) || num(s.value) || num(s.shareValue); }
+
+/* ⚡ getShareAmount — now values dividend_bonus records where amount=0 but shares+price set */
+function getShareAmount(s) {
+  if (!s) return 0;
+  const direct = num(s.amount) || num(s.totalAmount) || num(s.value) || num(s.shareValue);
+  if (direct > 0) return direct;
+  const cnt   = num(s.shares) || num(s.shareCount) || num(s.quantity) || num(s.numberOfShares);
+  const price = num(s.pricePerShare) || num(s.sharePrice) || num(s.unitPrice);
+  if (cnt > 0 && price > 0) return cnt * price;
+  return 0;
+}
 function isRegistrationFeeIncome(it) { const x = String(it || '').toLowerCase().trim(); return x.includes('registration') || x === 'reg fee' || x === 'regfee' || x === 'membership fee'; }
 function calculateInterest(P, rate, months, type) {
   const p = num(P), r = num(rate)/100, n = num(months), mr = r/12;
@@ -1149,7 +1174,7 @@ function updateYearLabels() {
 }
 function updateYearStatus() {
   const y = APP.currentYear;
-  const hasDiv = filterWorkareaTxns(APP.txn.dividends).some(d => isInYear(d.date || d.createdAt, y));
+  const hasDiv = filterWorkareaTxns(APP.txn.dividends).some(d => isDividendPaid(d) && dividendMatchesYear(d, y));
   const el = document.getElementById('year-status');
   const txt = document.getElementById('year-status-text');
   if (!el || !txt) return;
@@ -1372,7 +1397,8 @@ function computeSharesAllYears() {
 /* ============================================================
    COMPUTE  — corrected formulas
    Net Saving    = Gross Saving − Withdrawals − Leaving − Penalty(from savings)
-   Net Profit    = Interest Paid + Paid Penalties + Registration Fee + Other Income
+   Gross Profit  = Interest Paid + Paid Penalties + Registration Fee + Other Income
+   Net Profit    = Gross Profit − Dividends Paid (for the year)
    Share Value   = Net Share Value
    Total Balance = Net Saving + Net Profit + Share Value − SACCO Service Withdrawals
    ============================================================ */
@@ -1417,8 +1443,12 @@ function computeYearNumbers() {
 
   const loansY = filterWorkareaTxns(APP.txn.loans).filter(l => isInYear(l.date||l.createdAt, y));
   const totalLoansIssued = loansY.reduce((s,l) => s + num(l.amount), 0);
-  const divY = filterWorkareaTxns(APP.txn.dividends).filter(d => isInYear(d.date||d.createdAt, y));
-  const totalDividends = divY.reduce((s,x) => s + num(x.netAmount != null ? x.netAmount : x.amount), 0);
+
+  /* ⚡ Dividends actually paid out — count by fiscal year, only paid records */
+  const divY = filterWorkareaTxns(APP.txn.dividends)
+    .filter(d => isDividendPaid(d) && dividendMatchesYear(d, y));
+  const totalDividends = round2(divY.reduce((s,x) => s + num(x.netAmount != null ? x.netAmount : x.amount), 0));
+
   const svcY = filterWorkareaTxns(APP.txn.serviceWithdrawals).filter(s => isInYear(s.date||s.createdAt, y)).filter(isServiceWithdrawalCounted);
   const totalSvc = svcY.reduce((s,x) => s + num(x.amount), 0);
 
@@ -1432,9 +1462,12 @@ function computeYearNumbers() {
   const regFee = incomeY.filter(isSavingsCounted).filter(p => isRegistrationFeeIncome(p.incomeType)).reduce((s,p) => s + num(p.amount), 0);
   const otherIncome = incomeY.filter(isSavingsCounted).filter(p => !isRegistrationFeeIncome(p.incomeType)).reduce((s,p) => s + num(p.amount), 0);
 
-  /* Net Profit = Interest Paid + Paid Penalties + Total Income (Reg Fee + Other Income)
-     NOTE: Service Withdrawals are NOT subtracted here — they reduce Total Balance instead. */
-  const netProfitY = round2(regFee + otherIncome + paidInterest + totalPenalties);
+  /* Gross Profit = Interest Paid + Paid Penalties + Total Income (Reg Fee + Other Income) */
+  const grossProfitY = round2(regFee + otherIncome + paidInterest + totalPenalties);
+
+  /* ⚡ Net Profit (remaining) = Gross Profit − Dividends distributed for this fiscal year.
+     Once a year's profit has been fully distributed, net profit for that year is 0. */
+  const netProfitY = Math.max(0, round2(grossProfitY - totalDividends));
 
   /* Total Balance = Net Saving + Net Profit + Share Value − SACCO Service Withdrawals */
   const currentBalance = round2(netSavingY + netProfitY + netShareValueY - totalSvc);
@@ -1458,7 +1491,8 @@ function computeYearNumbers() {
     paidPrincipal, paidInterest, netSavingY, netProfitY, currentBalance,
     totalPenalties, penFromSav, penExternal, regFee, otherIncome,
     netShareValueY, shareBuyAmount, shareCount, loansOutstanding,
-    totalCustomerShares
+    totalCustomerShares,
+    grossProfitY
   };
 }
 function computeAllYearNumbers() {
@@ -1493,13 +1527,26 @@ function computeAllYearNumbers() {
   const penaltiesAll = filterWorkareaTxns(APP.txn.penalties).filter(isPenaltyPaid).reduce((s,p) => s + num(p.amount), 0);
   const svcAll = filterWorkareaTxns(APP.txn.serviceWithdrawals).filter(isServiceWithdrawalCounted).reduce((s,x) => s + num(x.amount), 0);
 
-  /* Net Profit (All Years) = Interest Paid + Paid Penalties + Total Income (Reg Fee + Other) */
-  const netProfitAll = round2(regFeeAll + otherIncomeAll + interestAll + penaltiesAll);
+  /* ⚡ Dividends actually paid out (across all years) */
+  const dividendsAll = round2(
+    filterWorkareaTxns(APP.txn.dividends).filter(isDividendPaid)
+      .reduce((s,x) => s + num(x.netAmount != null ? x.netAmount : x.amount), 0)
+  );
+
+  /* Gross Profit (All Years) = Interest Paid + Paid Penalties + Total Income (Reg Fee + Other) */
+  const grossProfitAll = round2(regFeeAll + otherIncomeAll + interestAll + penaltiesAll);
+
+  /* ⚡ Net Profit (All Years, remaining) = Gross Profit − Dividends Paid */
+  const netProfitAll = Math.max(0, round2(grossProfitAll - dividendsAll));
 
   /* Total Balance (All Years) = Net Saving + Net Profit + Share Value − Service Withdrawals */
   const totalBalanceAll = round2(netSavingAll + netProfitAll + netShareValueAll - svcAll);
 
-  return { netSavingAll, netProfitAll, netShareValueAll, totalBalanceAll, shareBuyAll, shareCountAll: SHR.shareCount, svcAll };
+  return {
+    netSavingAll, netProfitAll, netShareValueAll, totalBalanceAll,
+    shareBuyAll, shareCountAll: SHR.shareCount, svcAll,
+    dividendsAll, grossProfitAll
+  };
 }
 function renderStatsValues() {
   const Y = computeYearNumbers();
@@ -1549,10 +1596,11 @@ function renderStatsValues() {
       `Gross ${esc(money(Y.grossSavings))} − W ${esc(money(Y.totalWithdrawals))} − Pen ${esc(money(Y.penFromSav))} − Leave ${esc(money(Y.totalLeaving))}` +
       `</span>`);
 
-    /* Net Profit hint: Interest Paid + Paid Penalties + Registration Fee + Other Income
-       (No service withdrawals — those hit Total Balance instead) */
+    /* ⚡ Net Profit hint: Gross Profit − Dividends Paid */
     setHint('s-netProfit',
-      `<span>Int ${esc(money(Y.paidInterest))} + Pen ${esc(money(Y.totalPenalties))} + Reg ${esc(money(Y.regFee))} + Other ${esc(money(Y.otherIncome))}</span>`);
+      `<span style="font-family:ui-monospace,monospace;font-size:10.5px">` +
+      `Int ${esc(money(Y.paidInterest))} + Pen ${esc(money(Y.totalPenalties))} + Reg ${esc(money(Y.regFee))} + Other ${esc(money(Y.otherIncome))} − Div ${esc(money(Y.totalDividends))}` +
+      `</span>`);
 
     /* Total Balance hint: Net Saving + Net Profit + Share Value − Service Withdrawals */
     setHint('s-curBalance',
@@ -1563,7 +1611,7 @@ function renderStatsValues() {
   if (!isMember()) {
     setStat('s-netProfitAll',   moneyFull(A.netProfitAll));
     setStat('s-balanceAll',     moneyFull(A.totalBalanceAll));
-    setStat('s-divPaid',        moneyFull(Y.totalDividends));
+    setStat('s-divPaid',        moneyFull(A.dividendsAll));
     setStat('s-netShareVal',    moneyFull(A.netShareValueAll));
     setStat('s-netShare-count', fmtCount(A.shareCountAll));
     setStat('s-netShare-buy',   moneyFull(A.shareBuyAll));
