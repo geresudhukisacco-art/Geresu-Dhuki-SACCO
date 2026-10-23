@@ -484,7 +484,13 @@ const I18N = {
     colYear:'Year', colBatchRef:'Batch Reference', colTotalProfit:'Total Profit',
     colSaccoPct:'SACCO %', colSaccoAmt:'SACCO Amount', colDate:'Date', colStatus:'Status',
     noSaccoCap:'No SACCO capital allocations',
-    noSaccoCapText:'SACCO capital appears here when dividends are distributed with a non-zero SACCO share.'
+    noSaccoCapText:'SACCO capital appears here when dividends are distributed with a non-zero SACCO share.',
+    memberDivTitle:'Member Dividend Distributions',
+    memberDivSub:'Grouped member payouts from profit distributions (all years)',
+    colRecipients:'Recipients', colMemberGross:'Member Gross', colMemberTax:'Tax Withheld',
+    colMemberNet:'Net Payout', colPaidDate:'Paid Date',
+    noMemberDiv:'No member dividend records yet',
+    noMemberDivText:'Distribute dividends from the Dividends page to populate this table.'
   }
 };
 I18N.am = { ...I18N.en };
@@ -886,7 +892,40 @@ function renderMain() {
     <div class="section-title" id="title-all">${esc(t('financeAllYears'))}</div>
     <section class="stats" id="stats-all"></section>
 
-    <!-- ⚡ NEW: SACCO Capital Allocations table -->
+    <!-- ⚡ Member Dividend Distributions table -->
+    <section class="card" id="memberDivCard" style="margin-bottom:22px;">
+      <div class="card__head">
+        <div>
+          <div class="card__title"><i class="fas fa-gift" style="color:#067647;"></i> ${esc(t('memberDivTitle'))}</div>
+          <div class="card__sub">${esc(t('memberDivSub'))}</div>
+        </div>
+        <span class="tag tag--gray" id="memberDivSummary">—</span>
+      </div>
+      <div class="card__body card__body--flush">
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>${esc(t('colYear'))}</th>
+                <th>${esc(t('colBatchRef'))}</th>
+                <th class="num">${esc(t('colRecipients'))}</th>
+                <th class="num">${esc(t('colMemberGross'))}</th>
+                <th class="num">${esc(t('colMemberTax'))}</th>
+                <th class="num">${esc(t('colMemberNet'))}</th>
+                <th class="num">${esc(t('colSaccoPct'))}</th>
+                <th>${esc(t('colPaidDate'))}</th>
+                <th>${esc(t('colStatus'))}</th>
+              </tr>
+            </thead>
+            <tbody id="memberDivBody">
+              <tr><td colspan="9" style="padding:32px;text-align:center;color:var(--muted);font-size:13px;">${esc(t('loading'))}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SACCO Capital Allocations table -->
     <section class="card" id="saccoCapitalCard" style="margin-bottom:22px;">
       <div class="card__head">
         <div>
@@ -997,6 +1036,7 @@ function renderMain() {
   renderQuickActions();
   if (APP.dataLoaded) {
     renderStatsValues();
+    renderMemberDividendTable();
     renderSaccoCapitalTable();
     renderChartPair();
     renderShareChart();
@@ -1214,6 +1254,8 @@ function renderStatsShells() {
     if (titleAll) titleAll.style.display = 'none';
     const scc = document.getElementById('saccoCapitalCard');
     if (scc) scc.style.display = 'none';
+    const mdc = document.getElementById('memberDivCard');
+    if (mdc) mdc.style.display = 'none';
   } else {
     const allCards = [
       {id:'s-netProfitAll', lk:'netProfitAllYears',    ic:'fa-chart-line', c:'purple'},
@@ -1228,7 +1270,87 @@ function renderStatsShells() {
   }
 }
 
-/* ⚡ NEW: SACCO Capital Allocations table */
+/* ⚡ NEW: Member Dividend Distributions table (grouped by batch) */
+function renderMemberDividendTable() {
+  const host = document.getElementById('memberDivBody');
+  const summaryEl = document.getElementById('memberDivSummary');
+  if (!host) return;
+
+  // Group dividend records by batchId
+  const grouped = new Map();
+  filterWorkareaTxns(APP.txn.dividends)
+    .filter(tx => isDividendPaid(tx))
+    .forEach(tx => {
+      const key = tx.batchId || `single_${tx.id}`;
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          batchId: key,
+          refNo: tx.refNo || '—',
+          year: Number(tx.year || tx.fiscalYear || 0),
+          gross: 0, tax: 0, net: 0,
+          count: 0,
+          saccoPct: 0,
+          memberPct: num(tx.memberPercentSnapshot) || 100,
+          date: tx.paidAt || tx.createdAt || tx.date
+        });
+      }
+      const g = grouped.get(key);
+      const gross = num(tx.grossAmount != null ? tx.grossAmount : (tx.netAmount != null ? tx.netAmount : tx.amount));
+      const tax   = num(tx.taxAmount || 0);
+      const net   = num(tx.netAmount != null ? tx.netAmount : gross);
+      g.gross += gross;
+      g.tax   += tax;
+      g.net   += net;
+      g.count += 1;
+      // Derive SACCO % from the first matching sacco_capital for this batch
+      if (!g.saccoPct) {
+        const sc = APP.txn.saccoCapital.find(s => s.batchId === key && isSaccoCapitalCounted(s));
+        if (sc) g.saccoPct = num(sc.percent);
+      }
+      const d = toDateSafe(tx.paidAt || tx.createdAt || tx.date);
+      const gd = toDateSafe(g.date);
+      if (d && (!gd || d < gd)) g.date = d;
+    });
+
+  const list = Array.from(grouped.values())
+    .sort((a, b) => {
+      if (a.year !== b.year) return b.year - a.year;
+      return (toDateSafe(b.date)?.getTime() || 0) - (toDateSafe(a.date)?.getTime() || 0);
+    });
+
+  if (!list.length) {
+    host.innerHTML = `<tr><td colspan="9" style="padding:40px 20px;text-align:center;color:var(--muted);">
+      <i class="fas fa-gift" style="display:block;font-size:36px;color:#cbd5e1;margin-bottom:12px;"></i>
+      <div style="font-weight:800;color:var(--text);font-size:14px;margin-bottom:4px;">${esc(t('noMemberDiv'))}</div>
+      <div style="font-size:12.5px;">${esc(t('noMemberDivText'))}</div>
+    </td></tr>`;
+    if (summaryEl) { summaryEl.className = 'tag tag--gray'; summaryEl.textContent = '0 batches'; }
+    return;
+  }
+
+  const totalNet = list.reduce((s, x) => s + x.net, 0);
+  if (summaryEl) {
+    summaryEl.className = 'tag tag--green';
+    summaryEl.textContent = `${list.length} batch${list.length === 1 ? '' : 'es'} · ${money(totalNet)} net`;
+  }
+
+  host.innerHTML = list.map(g => {
+    const dateStr = toDateSafe(g.date) ? toDateSafe(g.date).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }) : '—';
+    return `<tr>
+      <td><span class="tag tag--blue" style="font-size:11px;">${esc(String(g.year || '—'))}</span></td>
+      <td><span class="mono" style="font-size:11.5px;font-weight:700;color:var(--text-soft);">${esc(String(g.refNo).slice(0, 36))}</span></td>
+      <td class="num">${g.count}</td>
+      <td class="num">${esc(moneyFull(g.gross))}</td>
+      <td class="num">${g.tax > 0 ? esc(moneyFull(g.tax)) : '—'}</td>
+      <td class="num" style="color:#067647;font-weight:800;">${esc(moneyFull(g.net))}</td>
+      <td class="num">${g.saccoPct.toFixed(2)}%</td>
+      <td>${esc(dateStr)}</td>
+      <td><span class="tag tag--green">Paid</span></td>
+    </tr>`;
+  }).join('');
+}
+
+/* ⚡ SACCO Capital Allocations table */
 function renderSaccoCapitalTable() {
   const host = document.getElementById('saccoCapitalBody');
   const summaryEl = document.getElementById('saccoCapSummary');
@@ -1256,17 +1378,9 @@ function renderSaccoCapitalTable() {
   }
 
   const totalAmt = list.reduce((s, x) => s + num(x.amount), 0);
-  const totalProfitAmt = list.reduce((s, x) => {
-    const pct = num(x.percent);
-    const amt = num(x.amount);
-    return s + (pct > 0 ? amt / (pct / 100) : amt);
-  }, 0);
-
   if (summaryEl) {
     summaryEl.className = 'tag tag--violet';
-    summaryEl.style.background = '#f0eaff';
-    summaryEl.style.color = '#5b21b6';
-    summaryEl.textContent = `${list.length} records · ${money(totalAmt)}`;
+    summaryEl.textContent = `${list.length} record${list.length === 1 ? '' : 's'} · ${money(totalAmt)}`;
   }
 
   host.innerHTML = list.map(tx => {
@@ -1961,6 +2075,7 @@ function renderAll() {
   const wc = document.getElementById('wa-count');
   if (wc) wc.innerHTML = `<i class="fas fa-users"></i> ${applyWorkareaToAllCustomers().length} ${esc(t('customers'))}`;
   renderStatsValues();
+  renderMemberDividendTable();
   renderSaccoCapitalTable();
   renderChartPair();
   renderShareChart();
