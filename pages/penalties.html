@@ -1581,6 +1581,13 @@ async function testConnection() {
 /* ============================================================
    NET SAVINGS — FULL BREAKDOWN
    Net = Gross + Dividends − Withdrawals − Leavings − Penalties(from savings)
+   ------------------------------------------------------------
+   ⚡ FIX (2026): 'dividend' / 'dividends' come from dividends.html and
+   represent profit distribution paid in CASH or converted to BONUS SHARES.
+   They are NOT savings credits — including them caused net savings to be
+   inflated by every paid dividend. Likewise 'profit_income' is written by
+   deposits.html for registration fees / other SACCO income, not customer
+   savings. Both have been removed from DIVIDEND_TYPES.
    ============================================================ */
 async function getCustomerSavingsBreakdown(customerId) {
   const ZERO = { gross:0, dividends:0, withdrawals:0, leavings:0, penaltiesFromSavings:0, net:0 };
@@ -1593,9 +1600,12 @@ async function getCustomerSavingsBreakdown(customerId) {
       'individual_savings','individual_deposit','savings_deposit',
       'member_savings','member_deposit'
     ];
+    // ⚡ FIX: only *true* savings credits belong here.
+    // Removed: 'dividend','dividends' (dividends.html → profit distribution in cash/bonus shares)
+    // Removed: 'profit_income'      (deposits.html  → registration fee / SACCO income)
     const DIVIDEND_TYPES = [
-      'dividend','dividends','profit_income','profit_share','profit_distribution',
-      'interest_income','interest_paid','share_profit','annual_dividend','dividend_payment'
+      'profit_share','profit_distribution','interest_income','interest_paid',
+      'share_profit','annual_dividend','dividend_payment'
     ];
     const WITHDRAWAL_TYPES = [
       'withdrawal','withdrawals','withdraw',
@@ -1789,13 +1799,14 @@ async function refreshSavingsBalance() {
     const ok = b.net >= need;
 
     info.className = 'alert ' + (ok ? 'alert--success' : 'alert--error');
+    // ⚡ FIX: "Dividends" row removed — dividend records now correctly excluded
+    // from the savings ledger (see getCustomerSavingsBreakdown / DIVIDEND_TYPES).
     info.innerHTML = `
       <i class="fas fa-piggy-bank"></i>
       <div style="width:100%;">
         <div style="font-weight:800;margin-bottom:6px;">${esc(t('savingsAvailable'))}</div>
         <table class="sav-breakdown">
           <tr><td class="lbl pos">+ ${esc(t('grossSavings'))}</td><td class="amt pos">${fmtNum2(b.gross)}</td></tr>
-          <tr><td class="lbl pos">+ ${esc(t('dividends'))}</td><td class="amt pos">${fmtNum2(b.dividends)}</td></tr>
           <tr><td class="lbl neg">− ${esc(t('individualWithdrawals'))}</td><td class="amt neg">${fmtNum2(b.withdrawals)}</td></tr>
           <tr><td class="lbl neg">− ${esc(t('customerLeavings'))}</td><td class="amt neg">${fmtNum2(b.leavings)}</td></tr>
           <tr><td class="lbl neg">− ${esc(t('penaltiesFromSavings'))}</td><td class="amt neg">${fmtNum2(b.penaltiesFromSavings)}</td></tr>
