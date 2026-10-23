@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Dashboard — Geresu Dhuki SACCO</title>
+<title>Geresu Dhuki SACCO</title>
 <link rel="icon" type="image/png" href="../images/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -364,9 +364,7 @@ const LOGO_URL  = "../images/logo.png";
 const DEFAULT_SACCO_NAME = 'GERESU DHUKI SACCO';
 let S = null;
 
-/* ============================================================
-   SESSION
-   ============================================================ */
+/* SESSION */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
 let SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
@@ -413,9 +411,6 @@ async function loadSessionTimeout() {
   } catch(e){}
 }
 
-/* ============================================================
-   I18N
-   ============================================================ */
 const I18N = {
   en: {
     brandSub:'SACCO Management',
@@ -444,6 +439,7 @@ const I18N = {
     totalBalanceAllYears:'Total Balance (All Years)', netProfitAllYears:'Net Profit (All Years)',
     dividendsPaid:'Member Dividends', netShareValue:'Net Share Value',
     saccoCapitalYear:'SACCO Capital', saccoCapitalAllYears:'SACCO Capital (All Years)',
+    taxWithheldYear:'Tax Withheld', taxWithheldAllYears:'Tax Withheld (All Years)',
     fromSavings:'From Savings', external:'External', totalPenaltiesPaid:'Total Paid Penalties',
     principalPaid:'Paid Principal', interestPaid:'Paid Interest',
     customerLeaving:'Leaving', inScope:'In scope', sharesYear:'Share Value',
@@ -466,7 +462,6 @@ const I18N = {
     saccoIncome:'SACCO income', saccoIncomeTag:'SACCO'
   }
 };
-
 I18N.am = {
   ...I18N.en,
   brandSub:'የሳኮ አስተዳደር',
@@ -495,6 +490,7 @@ I18N.am = {
   totalBalanceAllYears:'ጠቅላላ ቀሪ ሒሳብ (ሁሉም ዓመታት)', netProfitAllYears:'የተጣራ ትርፍ (ሁሉም ዓመታት)',
   dividendsPaid:'የአባላት ክፍፍል', netShareValue:'የተጣራ አክሲዮን ዋጋ',
   saccoCapitalYear:'የሳኮ ካፒታል', saccoCapitalAllYears:'የሳኮ ካፒታል (ሁሉም ዓመታት)',
+  taxWithheldYear:'የተቀናሽ ታክስ', taxWithheldAllYears:'የተቀናሽ ታክስ (ሁሉም ዓመታት)',
   fromSavings:'ከቁጠባ', external:'ከውጭ', totalPenaltiesPaid:'ጠቅላላ የተከፈሉ ቅጣቶች',
   principalPaid:'የተከፈለ ዋና ገንዘብ', interestPaid:'የተከፈለ ወለድ',
   customerLeaving:'የሚወጡ', inScope:'በክልል ውስጥ', sharesYear:'የአክሲዮን ዋጋ',
@@ -516,7 +512,6 @@ I18N.am = {
   viewAll:'ሁሉንም ተመልከት →', noDistrictsInScope:'በክልል ውስጥ ወረዳዎች የሉም',
   saccoIncome:'የሳኮ ገቢ', saccoIncomeTag:'ሳኮ'
 };
-
 I18N.om = {
   ...I18N.en,
   brandSub:'Bulchiinsa SACCO',
@@ -545,6 +540,7 @@ I18N.om = {
   totalBalanceAllYears:'Haftee Waliigalaa (Waggoota Hunda)', netProfitAllYears:"Bu'aa Qulqulluu (Waggoota Hunda)",
   dividendsPaid:'Qooda Miseensotaa', netShareValue:'Gatii Hirmaataa Qulqulluu',
   saccoCapitalYear:'Kaappitaala SACCO', saccoCapitalAllYears:'Kaappitaala SACCO (Waggoota Hunda)',
+  taxWithheldYear:'Taaksii Qabame', taxWithheldAllYears:'Taaksii Qabame (Waggoota Hunda)',
   fromSavings:'Qusannaadhaa', external:'Alaadhaa', totalPenaltiesPaid:'Adaba Kaffalaman Waliigalaa',
   principalPaid:"Bu'uura Kaffalame", interestPaid:'Dhala Kaffalame',
   customerLeaving:"Ba'aa", inScope:'Naannoo keessatti', sharesYear:'Gatii Hirmaataa',
@@ -576,9 +572,6 @@ const t = (k, v) => {
   return s;
 };
 
-/* ============================================================
-   HELPERS
-   ============================================================ */
 const esc = (s) => (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const initials = (n) => (n || '?').split(/\s+/).slice(0,2).map(s => s[0]).join('').toUpperCase();
 const num = (n) => Number(n || 0);
@@ -634,9 +627,7 @@ function renderBrandTitle(name){
   return esc(head) + ' <span class="sacco-gold">' + esc(tail) + '</span>';
 }
 
-/* ============================================================
-   CLASSIFIERS
-   ============================================================ */
+/* CLASSIFIERS */
 const COUNTED_SHARE_STATUSES = ['approved','completed','done','printed','paid'];
 const REPAYMENT_STATUSES = ['approved','printed','paid','done'];
 const ACTIVE_SERVICE_WITHDRAWAL_STATUSES = ['pending','approved','completed'];
@@ -669,7 +660,6 @@ function dividendMatchesYear(d, y) {
   if (d.fiscalYear != null && Number(d.fiscalYear) === y) return true;
   return isInYear(d.date || d.createdAt, y);
 }
-
 /* ⚡ SACCO Capital helpers */
 function isSaccoCapitalCounted(tx) {
   if (!tx) return false;
@@ -715,9 +705,6 @@ function splitRepayment(amount, loan) {
   return { principal: round2(principal), interest: round2(interest) };
 }
 
-/* ============================================================
-   ROLES
-   ============================================================ */
 const ROLE_LABELS = { super_admin:'role_super_admin', admin:'role_admin', manager:'role_manager',
   cashier:'role_cashier', teller:'role_cashier', accountant:'role_cashier',
   auditor:'role_auditor', member:'role_member', viewer:'role_member' };
@@ -728,9 +715,6 @@ const isAuditor    = () => S?.role === 'auditor';
 const isBranchRole = () => ['manager','cashier','teller','accountant'].includes(S?.role);
 const isMember     = () => S?.role === 'member';
 
-/* ============================================================
-   STATE
-   ============================================================ */
 const APP = {
   saccoName: DEFAULT_SACCO_NAME,
   currentYear: new Date().getFullYear(),
@@ -747,9 +731,6 @@ const APP = {
 const CUSTOMER_MAP = new Map();
 const LOANS_BY_ID = new Map();
 
-/* ============================================================
-   SCOPE
-   ============================================================ */
 function scopeConstraints() {
   if (!S) return [];
   if (isSuper() || isAuditor()) return [];
@@ -776,9 +757,6 @@ async function fetchAllNoScope(coll, extra = []) {
   } catch (e) { console.warn('[fetchAllNoScope]', coll, e.code || e.message); return []; }
 }
 
-/* ============================================================
-   WORKING AREA
-   ============================================================ */
 function assignableDistricts() {
   if (isSuper() || isAuditor()) return APP.districts.slice();
   if (isDistrict() || isBranchRole()) return APP.districts.filter(d => d.id === S.districtId);
@@ -853,9 +831,6 @@ function scopeDistricts() {
   return [];
 }
 
-/* ============================================================
-   NAV
-   ============================================================ */
 const NAV = [
   { section:'navSecOverview', items:[{ key:'dashboard', label:'dashboard', icon:'fa-th-large', href:'dashboard.html', roles:['*'] }]},
   { section:'navSecNetwork', items:[
@@ -884,9 +859,6 @@ const NAV = [
 ];
 const canSeeNav = (item, role) => item.roles.includes('*') || item.roles.includes(role) || role === 'super_admin';
 
-/* ============================================================
-   SHELL
-   ============================================================ */
 function renderShell() {
   const navHtml = NAV.map(g => {
     const items = g.items.filter(it => canSeeNav(it, S.role));
@@ -976,9 +948,6 @@ function setLang(lang) {
   renderMain();
 }
 
-/* ============================================================
-   MAIN RENDER
-   ============================================================ */
 function renderMain() {
   const host = document.getElementById('mainContent'); if (!host) return;
   host.innerHTML = `
@@ -1238,9 +1207,6 @@ function fillDistrictChips() {
   });
 }
 
-/* ============================================================
-   STAT CARDS
-   ============================================================ */
 function statCard(id, labelKey, cls, icon, opts = {}) {
   const { hint, chips = false, chipMax = 3, split } = opts;
   return `<div class="stat stat--${cls}">
@@ -1319,9 +1285,6 @@ function renderStatsShells() {
   }
 }
 
-/* ============================================================
-   SHARES
-   ============================================================ */
 function getAllSharesInScope() {
   const txShares = APP.txn.shares || [];
   const colShares = APP.shareRecords || [];
@@ -1416,15 +1379,22 @@ function computeSharesAllYears() {
 }
 
 /* ============================================================
-   COMPUTE — corrected formulas with SACCO Capital
-   ------------------------------------------------------------
-   Gross Profit   = Interest Paid + Paid Penalties + Reg Fee + Other Income
-   Net Profit     = Gross Profit − Member Dividends − SACCO Capital
-                    (0 after full distribution)
-   Net Saving     = Gross Saving + Member Dividends − Withdrawals − Leaving − PenaltiesFromSavings
-   SACCO Capital  = sum of type 'sacco_capital' for the year (approved)
-   Total Balance  = Net Saving + Net Profit + Share Value + SACCO Capital − Service Withdrawals
-   ============================================================ */
+ * COMPUTE — aligned with dividends.html split logic
+ * ------------------------------------------------------------
+ * Each member dividend record has:
+ *   grossAmount = this row's portion of memberPortion (gross, pre-tax)
+ *   netAmount   = grossAmount − taxAmount (what members actually receive)
+ *   taxAmount   = withheld portion
+ *
+ * Net Profit (remaining) = Gross Profit − Σ(grossAmount) − Σ(sacco_capital)
+ *   After full distribution this is EXACTLY 0, even with tax.
+ *
+ * Net Saving (incl. dividends) = Net Saving + Σ(netAmount)
+ *   Because members see their netAmount credited to savings.
+ *
+ * Total Balance = Net Saving (incl. div) + Net Profit + Share Value + SACCO Capital − Svc
+ *   Stays constant across the distribution, except for tax that has left the SACCO.
+ * ============================================================ */
 function computeYearNumbers() {
   const y = APP.currentYear;
   const savingsY = filterWorkareaTxns(APP.txn.savings).filter(s => isInYear(s.date||s.createdAt, y) && isSavingsCounted(s));
@@ -1463,12 +1433,23 @@ function computeYearNumbers() {
   const loansY = filterWorkareaTxns(APP.txn.loans).filter(l => isInYear(l.date||l.createdAt, y));
   const totalLoansIssued = loansY.reduce((s,l) => s + num(l.amount), 0);
 
-  /* Member dividends (already in savings as credits) */
+  /* ⚡ Member dividends — split into gross / net / tax */
   const divY = filterWorkareaTxns(APP.txn.dividends)
     .filter(d => isDividendPaid(d) && dividendMatchesYear(d, y));
-  const totalDividends = round2(divY.reduce((s,x) => s + num(x.netAmount != null ? x.netAmount : x.amount), 0));
+  let memberDivGross = 0, memberDivNet = 0, memberDivTax = 0;
+  divY.forEach(x => {
+    const g = num(x.grossAmount != null ? x.grossAmount : (x.netAmount != null ? x.netAmount : x.amount));
+    const t = num(x.taxAmount || 0);
+    const n = num(x.netAmount != null ? x.netAmount : g);
+    memberDivGross += g;
+    memberDivTax   += t;
+    memberDivNet   += n;
+  });
+  memberDivGross = round2(memberDivGross);
+  memberDivNet   = round2(memberDivNet);
+  memberDivTax   = round2(memberDivTax);
 
-  /* SACCO Capital retained this year */
+  /* ⚡ SACCO Capital retained this year */
   const scY = filterWorkareaTxns(APP.txn.saccoCapital)
     .filter(s => isSaccoCapitalCounted(s) && saccoCapitalMatchesYear(s, y));
   const totalSaccoCapital = round2(scY.reduce((s,x) => s + num(x.amount), 0));
@@ -1489,15 +1470,16 @@ function computeYearNumbers() {
   /* Gross Profit = Interest Paid + Paid Penalties + Total Income */
   const grossProfitY = round2(regFee + otherIncome + paidInterest + totalPenalties);
 
-  /* Net Profit (remaining) = Gross Profit − Members − SACCO Capital */
-  const totalDistributedY = round2(totalDividends + totalSaccoCapital);
+  /* Net Profit (remaining) = Gross − member gross − SACCO capital
+     → 0 after full distribution (whether tax is 0 or not) */
+  const totalDistributedY = round2(memberDivGross + totalSaccoCapital);
   const netProfitY = Math.max(0, round2(grossProfitY - totalDistributedY));
 
-  /* Net Saving with dividends (member dividends are credited to savings) */
+  /* Net Saving with dividends (net amount credited to members) */
   const netSavingY = round2(grossSavings - totalWithdrawals - penFromSav - totalLeaving);
-  const netSavingWithDivY = round2(netSavingY + totalDividends);
+  const netSavingWithDivY = round2(netSavingY + memberDivNet);
 
-  /* Total Balance = Net Saving (incl. div) + Net Profit + Share Value + SACCO Capital − Service Withdrawals */
+  /* Total Balance = Net Saving (incl div) + Net Profit + Share Value + SACCO Capital − Service Withdrawals */
   const currentBalance = round2(netSavingWithDivY + netProfitY + netShareValueY + totalSaccoCapital - totalSvc);
 
   const loansAll = filterWorkareaTxns(APP.txn.loans);
@@ -1515,8 +1497,10 @@ function computeYearNumbers() {
   const totalCustomerShares = wc.reduce((s,c) => s + num(c.shares), 0) || shareCount;
 
   return {
-    grossSavings, totalWithdrawals, totalLeaving, totalRepayments, totalLoansIssued, totalDividends, totalSvc,
-    totalSaccoCapital,
+    grossSavings, totalWithdrawals, totalLeaving, totalRepayments, totalLoansIssued,
+    totalDividends: memberDivGross,       // for display "Member Dividends"
+    memberDivGross, memberDivNet, memberDivTax,
+    totalSaccoCapital, totalSvc,
     paidPrincipal, paidInterest, netSavingY, netSavingWithDivY, netProfitY, currentBalance,
     totalPenalties, penFromSav, penExternal, regFee, otherIncome,
     netShareValueY, shareBuyAmount, shareCount, loansOutstanding,
@@ -1556,13 +1540,19 @@ function computeAllYearNumbers() {
   const penaltiesAll = filterWorkareaTxns(APP.txn.penalties).filter(isPenaltyPaid).reduce((s,p) => s + num(p.amount), 0);
   const svcAll = filterWorkareaTxns(APP.txn.serviceWithdrawals).filter(isServiceWithdrawalCounted).reduce((s,x) => s + num(x.amount), 0);
 
-  /* Member dividends (all years, paid) */
-  const dividendsAll = round2(
-    filterWorkareaTxns(APP.txn.dividends).filter(isDividendPaid)
-      .reduce((s,x) => s + num(x.netAmount != null ? x.netAmount : x.amount), 0)
-  );
+  /* Member dividends — split */
+  const divAll = filterWorkareaTxns(APP.txn.dividends).filter(isDividendPaid);
+  let memberDivGrossAll = 0, memberDivNetAll = 0;
+  divAll.forEach(x => {
+    const g = num(x.grossAmount != null ? x.grossAmount : (x.netAmount != null ? x.netAmount : x.amount));
+    const n = num(x.netAmount != null ? x.netAmount : g);
+    memberDivGrossAll += g;
+    memberDivNetAll += n;
+  });
+  memberDivGrossAll = round2(memberDivGrossAll);
+  memberDivNetAll   = round2(memberDivNetAll);
 
-  /* SACCO capital (all years, approved) */
+  /* SACCO capital all years */
   const saccoCapitalAll = round2(
     filterWorkareaTxns(APP.txn.saccoCapital).filter(isSaccoCapitalCounted)
       .reduce((s,x) => s + num(x.amount), 0)
@@ -1571,20 +1561,21 @@ function computeAllYearNumbers() {
   /* Gross Profit (All Years) */
   const grossProfitAll = round2(regFeeAll + otherIncomeAll + interestAll + penaltiesAll);
 
-  /* Net Profit (All Years, remaining) = Gross − Members − SACCO Capital */
-  const totalDistributedAll = round2(dividendsAll + saccoCapitalAll);
+  /* Net Profit (remaining) = Gross − member gross − SACCO capital */
+  const totalDistributedAll = round2(memberDivGrossAll + saccoCapitalAll);
   const netProfitAll = Math.max(0, round2(grossProfitAll - totalDistributedAll));
 
-  /* Net Saving with member dividends credited */
-  const netSavingWithDivAll = round2(netSavingAll + dividendsAll);
+  /* Net Saving with net dividends */
+  const netSavingWithDivAll = round2(netSavingAll + memberDivNetAll);
 
-  /* Total Balance (All Years) = Net Saving (incl. div) + Net Profit + Shares + SACCO Capital − Service Withdrawals */
+  /* Total Balance (All Years) */
   const totalBalanceAll = round2(netSavingWithDivAll + netProfitAll + netShareValueAll + saccoCapitalAll - svcAll);
 
   return {
     netSavingAll, netSavingWithDivAll, netProfitAll, netShareValueAll, totalBalanceAll,
     shareBuyAll, shareCountAll: SHR.shareCount, svcAll,
-    dividendsAll, saccoCapitalAll, grossProfitAll, totalDistributedAll
+    dividendsGrossAll: memberDivGrossAll, dividendsNetAll: memberDivNetAll,
+    saccoCapitalAll, grossProfitAll, totalDistributedAll
   };
 }
 function renderStatsValues() {
@@ -1630,25 +1621,24 @@ function renderStatsValues() {
     setStat('s-share-count',  fmtCount(Y.shareCount));
     setStat('s-share-amount', moneyFull(Y.shareBuyAmount));
 
-    /* Net Saving hint: Gross + Div − W − Pen − Leave */
+    /* Net Saving hint */
     setHint('s-netSav',
       `<span style="font-family:ui-monospace,monospace;font-size:10.5px">` +
-      `Gross ${esc(money(Y.grossSavings))} + Div ${esc(money(Y.totalDividends))} − W ${esc(money(Y.totalWithdrawals))} − Pen ${esc(money(Y.penFromSav))} − Leave ${esc(money(Y.totalLeaving))}` +
+      `Gross ${esc(money(Y.grossSavings))} + Div(net) ${esc(money(Y.memberDivNet))} − W ${esc(money(Y.totalWithdrawals))} − Pen ${esc(money(Y.penFromSav))} − Leave ${esc(money(Y.totalLeaving))}` +
       `</span>`);
 
     /* SACCO Capital hint */
     setHint('s-saccoCapY',
-      `<span style="font-family:ui-monospace,monospace;font-size:10.5px">` +
-      `Retained this year from profit distribution` +
-      `</span>`);
+      `<span style="font-family:ui-monospace,monospace;font-size:10.5px">Retained this year from profit distribution</span>`);
 
-    /* Net Profit hint: Gross − Div − SaccoCapital */
+    /* Net Profit hint: Gross − member gross − SACCO (should be 0) */
     setHint('s-netProfit',
       `<span style="font-family:ui-monospace,monospace;font-size:10.5px">` +
-      `Gross ${esc(money(Y.grossProfitY))} − Mem Div ${esc(money(Y.totalDividends))} − SACCO ${esc(money(Y.totalSaccoCapital))}` +
+      `Gross ${esc(money(Y.grossProfitY))} − Mem ${esc(money(Y.memberDivGross))} − SACCO ${esc(money(Y.totalSaccoCapital))}` +
+      (Y.memberDivTax > 0 ? ` (tax ${esc(money(Y.memberDivTax))} withheld)` : '') +
       `</span>`);
 
-    /* Total Balance hint: NetSave + NetProfit + Share + SaccoCap − Svc */
+    /* Total Balance hint */
     setHint('s-curBalance',
       `<span style="font-family:ui-monospace,monospace;font-size:10.5px">` +
       `NetSave ${esc(money(Y.netSavingWithDivY))} + NetProfit ${esc(money(Y.netProfitY))} + Share ${esc(money(Y.netShareValueY))} + SACCO ${esc(money(Y.totalSaccoCapital))} − Svc ${esc(money(Y.totalSvc))}` +
@@ -1658,16 +1648,12 @@ function renderStatsValues() {
     setStat('s-netProfitAll',   moneyFull(A.netProfitAll));
     setStat('s-saccoCapAll',    moneyFull(A.saccoCapitalAll));
     setStat('s-balanceAll',     moneyFull(A.totalBalanceAll));
-    setStat('s-divPaid',        moneyFull(A.dividendsAll));
+    setStat('s-divPaid',        moneyFull(A.dividendsGrossAll));
     setStat('s-netShareVal',    moneyFull(A.netShareValueAll));
     setStat('s-netShare-count', fmtCount(A.shareCountAll));
     setStat('s-netShare-buy',   moneyFull(A.shareBuyAll));
 
-    setHint('s-saccoCapAll',
-      `<span style="font-family:ui-monospace,monospace;font-size:10.5px">` +
-      `Total retained across all years` +
-      `</span>`);
-
+    setHint('s-saccoCapAll', `<span style="font-family:ui-monospace,monospace;font-size:10.5px">Total retained across all years</span>`);
     setHint('s-balanceAll',
       `<span style="font-family:ui-monospace,monospace;font-size:10.5px">` +
       `NetSave ${esc(money(A.netSavingWithDivAll))} + NetProfit ${esc(money(A.netProfitAll))} + Share ${esc(money(A.netShareValueAll))} + SACCO ${esc(money(A.saccoCapitalAll))} − Svc ${esc(money(A.svcAll||0))}` +
@@ -1676,9 +1662,6 @@ function renderStatsValues() {
   fillDistrictChips();
 }
 
-/* ============================================================
-   CHARTS
-   ============================================================ */
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function monthlySum(list, year) {
   const out = new Array(12).fill(0);
@@ -1771,9 +1754,6 @@ function drawGroupedBars(container, labels, series) {
   container.innerHTML = html;
 }
 
-/* ============================================================
-   ACTIVITY
-   ============================================================ */
 const MAX_ACTIVITY = 10;
 function renderActivity() {
   const host = document.getElementById('activity');
@@ -1800,11 +1780,14 @@ function renderActivity() {
       const incLabel = x.incomeType || 'Income';
       const saccoTag = x.isSaccoIncome ? ' (' + t('saccoIncomeTag') + ')' : '';
       action = moneyFull(amt) + ' · ' + incLabel + saccoTag;
-      icon = 'fa-vault';
-      color = 'teal';
+      icon = 'fa-vault'; color = 'teal';
       if (!x.customerId && !x.isSaccoIncome) x.isSaccoIncome = true;
     }
-    else if (ty === 'dividend') { action = moneyFull(x.netAmount != null ? x.netAmount : amt) + ' ' + t('dividendTxt'); icon='fa-gift'; color='gold'; }
+    else if (ty === 'dividend') {
+      const netAmt = x.netAmount != null ? x.netAmount : amt;
+      action = moneyFull(netAmt) + ' ' + t('dividendTxt');
+      icon='fa-gift'; color='gold';
+    }
     else if (ty === 'sacco_capital') { action = moneyFull(amt) + ' ' + t('saccoCapitalTxt') + ' (' + t('retainedProfitTxt') + ')'; icon='fa-building-columns'; color='violet'; }
     else if (BUY_SHARE_TYPES.includes(ty)) { action = moneyFull(getShareAmount(x)) + ' ' + (isSharePaidFromSavings(x) ? t('shareBuySavings') : t('shareBuyCash')); icon='fa-chart-pie'; color='violet'; }
     else if (SELL_SHARE_TYPES.includes(ty)) { action = moneyFull(getShareAmount(x)) + ' ' + t('shareSell'); icon='fa-arrow-up'; color='pink'; }
@@ -1880,9 +1863,6 @@ function renderActivity() {
   if (countEl) countEl.textContent = String(top.length);
 }
 
-/* ============================================================
-   QUICK ACTIONS
-   ============================================================ */
 function renderQuickActions() {
   const host = document.getElementById('quick-actions');
   if (!host) return;
@@ -1945,9 +1925,6 @@ function renderQuickActions() {
     </a>`).join('');
 }
 
-/* ============================================================
-   PENDING
-   ============================================================ */
 function renderPending() {
   const host = document.getElementById('pending');
   if (!host) return;
@@ -1970,9 +1947,6 @@ function renderPending() {
   }).join('');
 }
 
-/* ============================================================
-   PENALTY BREAKDOWN
-   ============================================================ */
 function renderPenaltyBreakdown() {
   const host = document.getElementById('penalty-breakdown');
   if (!host) return;
@@ -2044,9 +2018,6 @@ function wireMainEvents() {
   });
 }
 
-/* ============================================================
-   LOAD
-   ============================================================ */
 async function loadAllData() {
   const [districts, branches] = await Promise.all([
     fetchAllNoScope('districts'),
@@ -2137,9 +2108,6 @@ async function loadAllData() {
   APP.dataLoaded = true;
 }
 
-/* ============================================================
-   BOOT
-   ============================================================ */
 (async function boot() {
   let saved = null;
   try { saved = localStorage.getItem(LANG_KEY); } catch(e){}
