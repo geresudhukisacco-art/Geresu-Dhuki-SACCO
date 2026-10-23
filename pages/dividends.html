@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Dividends — Geresu Dhuki SACCO</title>
+<title>Geresu Dhuki SACCO</title>
 <link rel="icon" type="image/png" href="../images/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -232,9 +232,6 @@ body.sidebar-collapsed .sidebar__logout span{display:none;}
 .tbl td.center{text-align:center;}
 .tbl .name{font-weight:800;color:var(--text);}
 .tbl .muted{font-size:11.5px;color:var(--muted);}
-.tbl .code{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:800;
-  color:#7a5210;font-size:10.5px;letter-spacing:.4px;
-  background:#fdf5e0;padding:3px 8px;border-radius:6px;display:inline-block;}
 .tbl .total-row td{background:#f0f7f2;font-weight:800;border-top:2px solid #128a5c;border-bottom:2px solid #128a5c;}
 .cust-cell{display:flex;align-items:center;gap:10px;}
 .cust-avatar{width:36px;height:36px;border-radius:50%;flex-shrink:0;
@@ -401,7 +398,7 @@ body.sb-open .overlay-mobile{display:block;}
   font-family:ui-monospace,Monaco,Menlo,Consolas,monospace;font-size:12.5px;
   color:var(--text-soft);line-height:1.8;font-weight:600;border:1px dashed var(--border);}
 
-.split-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
+.split-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px;}
 .split-box{padding:14px 16px;border-radius:12px;border:2px dashed var(--border);transition:.15s;}
 .split-box.is-active{border-style:solid;}
 .split-box--members.is-active{border-color:#19a974;background:linear-gradient(135deg,#f0fdf4,#fff);}
@@ -409,10 +406,12 @@ body.sb-open .overlay-mobile{display:block;}
 .split-box__label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
 .split-box--members .split-box__label{color:#067647;}
 .split-box--sacco .split-box__label{color:#5b21b6;}
-.split-box__pct{font-size:24px;font-weight:900;font-family:ui-monospace,monospace;letter-spacing:-.5px;}
+.split-box__pct{font-size:22px;font-weight:900;font-family:ui-monospace,monospace;letter-spacing:-.5px;}
 .split-box--members .split-box__pct{color:#067647;}
 .split-box--sacco .split-box__pct{color:#5b21b6;}
-.split-box__amt{font-size:13px;font-weight:700;margin-top:2px;color:var(--text-soft);font-family:ui-monospace,monospace;}
+.split-box__amt{font-size:12px;font-weight:700;margin-top:2px;color:var(--text-soft);font-family:ui-monospace,monospace;}
+.verify-line{margin-top:10px;padding:10px 14px;border-radius:10px;font-family:ui-monospace,monospace;font-size:12.5px;font-weight:800;text-align:center;background:#ecfdf3;color:#067647;border:1px solid #abefc6;}
+.verify-line.is-bad{background:#fef3f2;color:#b42318;border-color:#fecdca;}
 
 #slip-print-host{display:none;}
 
@@ -425,12 +424,10 @@ body.sb-open .overlay-mobile{display:block;}
     width:210mm !important;padding:0 !important;margin:0 !important;overflow:visible !important;}
   #slip-print-host, #slip-print-host *{
     -webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;color-adjust:exact !important;}
-
   #slip-print-host .slip{
     height:297mm !important;min-height:0 !important;overflow:hidden !important;
     page-break-inside:avoid !important;page-break-after:avoid !important;
   }
-
   #slip-print-host .report-doc{page-break-inside:auto;}
   #slip-print-host .report-doc .report-header{page-break-after:avoid;}
   #slip-print-host .report-doc .a4-summary-strip{page-break-inside:avoid;page-break-after:avoid;}
@@ -637,57 +634,35 @@ const db    = getFirestore(fbApp);
 const LOGIN_URL = "../index.html";
 const LOGO_URL  = "../images/logo.png";
 
-/* ============================================================
- * SESSION
- * ============================================================ */
 const SESSION_KEY = "sacco.session";
 function readSession(){try{const r=sessionStorage.getItem(SESSION_KEY);if(!r)return null;const s=JSON.parse(r);return (s&&s.uid)?s:null;}catch(e){return null;}}
 function clearSession(){try{sessionStorage.removeItem(SESSION_KEY);}catch(e){}}
 function isSessionRecordValid(s){return !!(s&&s.uid);}
 
-/* ============================================================
- * DEFAULTS
- * ============================================================ */
 const DEFAULT_DASHBOARD = Object.freeze({
-  includeRegistrationFee: true,
-  includeOtherIncome: true,
-  includePaidInterest: true,
-  includePaidPenalties: true,
-  includeServiceWithdrawals: true,
+  includeRegistrationFee: true, includeOtherIncome: true, includePaidInterest: true,
+  includePaidPenalties: true, includeServiceWithdrawals: true,
   depositStatuses:  ['approved','printed','completed','done','paid'],
   repaymentStatuses:['approved','printed','paid','done'],
   shareStatuses:    ['approved','completed','done','printed','paid'],
-  dustThreshold:    0.005,
-  bonusSharePrice:  1000,
-  withholdingTaxRate: 0,
-  defaultMemberPercent: 70,
-  defaultSaccoPercent: 30
+  dustThreshold:    0.005, bonusSharePrice: 1000, withholdingTaxRate: 0,
+  defaultMemberPercent: 70, defaultSaccoPercent: 30
 });
 const ALWAYS_COUNTED_DEPOSIT  = ['approved','printed','completed','done','paid'];
 const ACTIVE_SERVICE_WITHDRAW = ['pending','approved','completed'];
 const COUNTED_SHARE_STATUSES  = ['approved','completed','done','printed','paid'];
 
-/* ============================================================
- * APP STATE
- * ============================================================ */
 const APP = {
   user: null, profile: null,
   saccoName: 'Geresu Dhuki SACCO', shortName: 'GDS', currency: 'ETB',
-  customers: [], districts: [], branches: [],
-  loans: [],
+  customers: [], districts: [], branches: [], loans: [],
   settings: { ...DEFAULT_DASHBOARD },
-  years: [],
-  selectedYear: new Date().getFullYear(),
-  overview: null,
-  childrenPage: 1, childrenPageSize: 12,
-  unsubs: [],
-  bootIssues: []
+  years: [], selectedYear: new Date().getFullYear(),
+  overview: null, childrenPage: 1, childrenPageSize: 12,
+  unsubs: [], bootIssues: []
 };
 let LANG = 'en';
 
-/* ============================================================
- * I18N
- * ============================================================ */
 const I18N = {
   en: {
     brandSub:'SACCO Management',
@@ -718,6 +693,10 @@ const I18N = {
     memberSharePct:'Members Share (%)', saccoSharePct:'SACCO Capital (%)',
     splitMembers:'To Members', splitSacco:'To SACCO Capital', splitTotal:'Total Profit',
     memberAmount:'Member Amount', saccoAmount:'SACCO Capital Amount',
+    verification:'Verification: Members + SACCO = Total Profit',
+    verificationOk:'✓ Members + SACCO = Total Profit (verified)',
+    verificationBad:'⚠ Members + SACCO ≠ Total Profit',
+    taxApplied:'Tax applied', netAfterTax:'net after tax',
     batchTitle:'Distribution Batch', batchRef:'Batch Reference', batchCreated:'Created',
     batchPaid:'Marked Paid', batchClosed:'Closed', batchStatus:'Batch Status',
     batchTotals:'Totals', batchPrintYearly:'Print Yearly Report',
@@ -740,8 +719,7 @@ const I18N = {
     yearClosed:'This year is closed',
     yearClosedText:'All records are locked. Use the yearly report to review or print.',
     loading:'Loading…',
-    save:'Save', cancel:'Cancel', close:'Close',
-    delete:'Delete',
+    save:'Save', cancel:'Cancel', close:'Close', delete:'Delete',
     savedOk:'Saved successfully', createdOk:'Distribution created',
     approvedOk:'Marked as paid', rejectedOk:'Rejected',
     deletedOk:'Deleted', closedOk:'Year closed',
@@ -761,8 +739,7 @@ const I18N = {
     sharesHeld:'Shares Held', ratePerShare:'Rate/Share', taxRate:'Tax Rate (%)',
     grossAmount:'Gross Amount', taxAmount:'Tax', netAmount:'Net Payout',
     amountOverride:'Direct Amount Override', amountOverrideHint:'Optional. If set, overrides shares × rate.',
-    date:'Payment Date', reference:'Reference', notes:'Notes',
-    statusLbl:'Status',
+    date:'Payment Date', reference:'Reference', notes:'Notes', statusLbl:'Status',
     pickCustomer:'Select a customer', searchCustomers:'Search customers…',
     newManualSub:'Record a standalone dividend payout.',
     voucher:'Dividend Voucher', voucherSub:'Annual Dividend Distribution',
@@ -773,10 +750,9 @@ const I18N = {
     amountInWords:'Amount in words',
     memberSignature:'Member Signature', officialStamp:'Official Stamp',
     diagTitle:'Setup diagnostics',
-    readOnlyBanner:'Read-only mode: your role can view and print dividend reports, but cannot distribute, edit, or delete records. Only Super Admin can distribute dividends across all districts.',
+    readOnlyBanner:'Read-only mode: your role can view and print dividend reports, but cannot distribute, edit, or delete records.',
     invalidSplit:'Member share must be between 0% and 100%.'
-  },
-  am: {}, om: {}
+  }
 };
 I18N.am = { ...I18N.en };
 I18N.om = { ...I18N.en };
@@ -789,16 +765,13 @@ const t = (k, v) => {
   return s;
 };
 
-/* ============================================================
- * UTILITIES
- * ============================================================ */
 const esc = (s) => (s == null ? '' : String(s)).replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const initials = (n) => (n || '?').trim().split(/\s+/).slice(0,2).map(s => s[0]).join('').toUpperCase();
 const num    = v => { const n = Number(v); return isFinite(n) ? n : 0; };
 const round2 = n => Math.round(num(n) * 100) / 100;
 const round4 = n => Math.round(num(n) * 10000) / 10000;
-const money = (v) => (APP.currency || 'ETB') + ' ' + num(v).toLocaleString('en-US', { maximumFractionDigits: 2 });
+const money = (v) => (APP.currency || 'ETB') + ' ' + num(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const moneyShort = (v) => {
   const n = num(v), cur = APP.currency || 'ETB';
   if (!n) return cur + ' 0';
@@ -814,16 +787,8 @@ const toDate = (v) => {
   if (typeof v === 'string' || typeof v === 'number') { const d = new Date(v); return isNaN(d) ? null : d; }
   return null;
 };
-const fmtDate = (v) => {
-  const d = toDate(v);
-  if (!d) return '—';
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-};
-const fmtDateTime = (v) => {
-  const d = toDate(v);
-  if (!d) return '—';
-  return d.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
-};
+const fmtDate = (v) => { const d = toDate(v); if (!d) return '—'; return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); };
+const fmtDateTime = (v) => { const d = toDate(v); if (!d) return '—'; return d.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }); };
 const customerName = (c) => {
   if (!c) return '—';
   if (LANG === 'am' && c.fullNameAm) return c.fullNameAm;
@@ -835,12 +800,8 @@ const customerName = (c) => {
 const customerById = (id) => {
   if (!id) return null;
   return APP.customers.find(c =>
-    c.id === id ||
-    c.customerId === id ||
-    c.memberId === id ||
-    c.customerCode === id ||
-    c.memberCode === id ||
-    c.customerDocId === id
+    c.id === id || c.customerId === id || c.memberId === id ||
+    c.customerCode === id || c.memberCode === id || c.customerDocId === id
   ) || null;
 };
 const nameFromTx = (tx) => {
@@ -861,10 +822,7 @@ function toast(msg, type = 'success') {
 }
 let _debTimer;
 function debounce(fn, ms) {
-  return function (...args) {
-    clearTimeout(_debTimer);
-    _debTimer = setTimeout(() => fn.apply(this, args), ms);
-  };
+  return function (...args) { clearTimeout(_debTimer); _debTimer = setTimeout(() => fn.apply(this, args), ms); };
 }
 function numberToWords(n) {
   n = Math.floor(Math.abs(Number(n) || 0));
@@ -894,14 +852,10 @@ function amountInWords(amount, currency) {
   return s + ' Only';
 }
 
-/* ============================================================
- * BUSINESS LOGIC
- * ============================================================ */
 function mergeDashboard(src) {
   const s = src || {};
   return {
-    ...DEFAULT_DASHBOARD,
-    ...s,
+    ...DEFAULT_DASHBOARD, ...s,
     depositStatuses:  [...new Set([...DEFAULT_DASHBOARD.depositStatuses,   ...(s.depositStatuses   || [])])],
     repaymentStatuses:[...new Set([...DEFAULT_DASHBOARD.repaymentStatuses, ...(s.repaymentStatuses || [])])],
     shareStatuses:    [...new Set([...DEFAULT_DASHBOARD.shareStatuses,     ...(s.shareStatuses     || [])])]
@@ -928,20 +882,14 @@ function isRepaymentCounted(r, cfg) {
   return (cfg.repaymentStatuses || []).includes(String(r.status || '').toLowerCase().trim());
 }
 
-const CUSTOMER_KEY_FIELDS = [
-  'id','customerId','memberId','customerCode','memberCode',
-  'customerDocId','memberDocId','accountNumber','accountNo','uid'
-];
-
+const CUSTOMER_KEY_FIELDS = ['id','customerId','memberId','customerCode','memberCode','customerDocId','memberDocId','accountNumber','accountNo','uid'];
 function buildCustomerKeyMap() {
   const m = new Map();
   for (const c of (APP.customers || [])) {
     if (!c) continue;
     for (const f of CUSTOMER_KEY_FIELDS) {
-      const v = c[f];
-      if (v == null) continue;
-      const k = String(v).trim();
-      if (!k) continue;
+      const v = c[f]; if (v == null) continue;
+      const k = String(v).trim(); if (!k) continue;
       if (!m.has(k)) m.set(k, c.id);
       const lk = k.toLowerCase();
       if (!m.has(lk)) m.set(lk, c.id);
@@ -951,8 +899,7 @@ function buildCustomerKeyMap() {
 }
 function resolveCustomerDocId(rawId, keyMap) {
   if (rawId == null) return null;
-  const k = String(rawId).trim();
-  if (!k) return null;
+  const k = String(rawId).trim(); if (!k) return null;
   const map = keyMap || buildCustomerKeyMap();
   if (map.has(k)) return map.get(k);
   const lk = k.toLowerCase();
@@ -961,11 +908,7 @@ function resolveCustomerDocId(rawId, keyMap) {
 }
 function getShareCustomerKey(s) {
   if (!s) return null;
-  const cands = [
-    s.customerId, s.memberId, s.customerDocId, s.memberDocId,
-    s.customer_id, s.member_id, s.customerCode, s.memberCode,
-    s.customer, s.member, s.ownerId, s.userId
-  ];
+  const cands = [s.customerId, s.memberId, s.customerDocId, s.memberDocId, s.customer_id, s.member_id, s.customerCode, s.memberCode, s.customer, s.member, s.ownerId, s.userId];
   for (const v of cands) {
     if (v == null) continue;
     if (typeof v === 'object') {
@@ -973,14 +916,11 @@ function getShareCustomerKey(s) {
       if (inner) return String(inner).trim();
       continue;
     }
-    const k = String(v).trim();
-    if (k) return k;
+    const k = String(v).trim(); if (k) return k;
   }
   return null;
 }
-
 const EXCLUDED_SHARE_STATUSES = ['rejected','cancelled','canceled','void','deleted','failed','reversed','declined'];
-
 function isShareCounted(s, cfg) {
   if (!s) return false;
   const st = String(s.status || s.state || '').toLowerCase().trim();
@@ -990,29 +930,19 @@ function isShareCounted(s, cfg) {
   if ((cfg && cfg.shareStatuses || []).includes(st)) return true;
   return true;
 }
-
 function getShareCount(s) {
   if (!s) return 0;
-  const direct = [
-    s.shares, s.shareCount, s.quantity, s.numberOfShares,
-    s.noOfShares, s.shareQuantity, s.units, s.qty, s.totalShares
-  ];
-  for (const v of direct) {
-    const n = num(v);
-    if (n !== 0) return n;
-  }
+  const direct = [s.shares, s.shareCount, s.quantity, s.numberOfShares, s.noOfShares, s.shareQuantity, s.units, s.qty, s.totalShares];
+  for (const v of direct) { const n = num(v); if (n !== 0) return n; }
   const amt   = num(s.amount ?? s.totalAmount ?? s.value);
   const price = num(s.pricePerShare ?? s.sharePrice ?? s.price) || num(APP.settings?.bonusSharePrice);
   if (amt > 0 && price > 0) return amt / price;
   return 0;
 }
-
 const SHARE_SELL_HINTS = ['sell','sale','transfer_out','transferout','redeem','withdraw','refund','return','debit','cancel'];
 const SHARE_BUY_HINTS  = ['buy','purchase','transfer_in','transferin','bonus','subscribe','subscription','deposit','credit','issue','add','receive'];
-
 function classifyShareTx(s, signedCount) {
-  const raw = String(s.type || s.txType || s.transactionType || s.action || s.direction || '')
-    .toLowerCase().trim();
+  const raw = String(s.type || s.txType || s.transactionType || s.action || s.direction || '').toLowerCase().trim();
   const ty = raw.replace(/[\s\-]+/g, '_');
   if (ty) {
     for (const h of SHARE_SELL_HINTS) if (ty.includes(h)) return 'sell';
@@ -1021,16 +951,12 @@ function classifyShareTx(s, signedCount) {
   if (num(signedCount) < 0) return 'sell';
   return 'buy';
 }
-
 function isPenaltyPaid(p) {
   if (!p) return false;
   const s = String(p.status || '').toLowerCase();
   return s === 'paid' || s === 'done' || s === 'approved' || s === 'completed';
 }
-function isInYear(v, year) {
-  const d = toDate(v);
-  return !!d && d.getFullYear() === year;
-}
+function isInYear(v, year) { const d = toDate(v); return !!d && d.getFullYear() === year; }
 function calculateInterest(principal, rate, months, type) {
   const P = num(principal), r = num(rate) / 100, n = num(months), mr = r / 12;
   switch (type) {
@@ -1041,18 +967,11 @@ function calculateInterest(principal, rate, months, type) {
       const emi = P * mr * f / (f - 1);
       return (emi * n) - P;
     }
-    case 'simple':
-    case 'fixed':
     default: return P * r * (n / 12);
   }
 }
 function getLoanInterest(loan) {
-  return calculateInterest(
-    loan.amount ?? loan.principal,
-    loan.interestRate ?? loan.rate,
-    loan.repaymentPeriod ?? loan.duration,
-    loan.loanType || loan.interestType || 'simple'
-  );
+  return calculateInterest(loan.amount ?? loan.principal, loan.interestRate ?? loan.rate, loan.repaymentPeriod ?? loan.duration, loan.loanType || loan.interestType || 'simple');
 }
 function splitRepayment(amount, loan) {
   const P = num(loan.amount ?? loan.principal);
@@ -1062,7 +981,6 @@ function splitRepayment(amount, loan) {
   const interestPart = num(amount) * (I / T);
   return { principal: num(amount) - interestPart, interest: interestPart };
 }
-
 function buildLoanMap(loansTx, loansCol) {
   const m = new Map();
   const add = (l) => {
@@ -1070,15 +988,7 @@ function buildLoanMap(loansTx, loansCol) {
     const principal = num(l.principal) || num(l.amount);
     const duration  = num(l.duration)  || num(l.repaymentPeriod);
     const intType   = l.interestType || l.loanType || 'simple';
-    m.set(l.id, {
-      ...l,
-      amount: principal,
-      principal,
-      repaymentPeriod: duration,
-      duration,
-      loanType: intType,
-      interestType: intType
-    });
+    m.set(l.id, { ...l, amount: principal, principal, repaymentPeriod: duration, duration, loanType: intType, interestType: intType });
   };
   (loansTx || []).forEach(add);
   (loansCol || []).forEach(add);
@@ -1087,7 +997,6 @@ function buildLoanMap(loansTx, loansCol) {
 
 async function computeYearProfit(year, settings) {
   const cfg = mergeDashboard(settings);
-
   const [incS, repS, loanTxS, loanColS, svcS, penS] = await Promise.all([
     getDocs(query(collection(db,'transactions'), where('type','==','profit_income'))),
     getDocs(query(collection(db,'transactions'), where('type','==','repayment'))),
@@ -1096,18 +1005,9 @@ async function computeYearProfit(year, settings) {
     getDocs(query(collection(db,'transactions'), where('type','==','service_withdrawal'))),
     getDocs(query(collection(db,'transactions'), where('type','==','penalty')))
   ]);
-
   const loansTx  = loanTxS.docs.map(d => ({ id:d.id, ...d.data() }));
   const loansCol = loanColS.docs.map(d => ({ id:d.id, ...d.data() }));
   APP.loans = [...loansTx, ...loansCol];
-
-  console.log('[dividends] profit components — income:', incS.size,
-              '| repayments:', repS.size,
-              '| loans(tx):', loansTx.length,
-              '| loans(col):', loansCol.length,
-              '| svc:', svcS.size,
-              '| penalties:', penS.size);
-
   return calculateYearProfitFromData({
     year, cfg,
     income: incS.docs.map(d => ({ id:d.id, ...d.data() })),
@@ -1117,36 +1017,26 @@ async function computeYearProfit(year, settings) {
     penalties: penS.docs.map(d => ({ id:d.id, ...d.data() }))
   });
 }
-
 function calculateYearProfitFromData({ year, cfg, income, repayments, loansTx = [], loansCol = [], serviceWithdrawals, penalties }) {
   const yearIncome = (income || []).filter(p => isInYear(p.date || p.timestamp, year));
   const counted = yearIncome.filter(p => isDepositCounted(p, cfg));
-
-  const registrationFee = counted.filter(p => isRegistrationFee(p.incomeType))
-    .reduce((s,p) => s + num(p.amount), 0);
-  const otherIncome = counted.filter(p => isOtherIncome(p.incomeType))
-    .reduce((s,p) => s + num(p.amount), 0);
-
+  const registrationFee = counted.filter(p => isRegistrationFee(p.incomeType)).reduce((s,p) => s + num(p.amount), 0);
+  const otherIncome = counted.filter(p => isOtherIncome(p.incomeType)).reduce((s,p) => s + num(p.amount), 0);
   const loanById = buildLoanMap(loansTx, loansCol);
   let paidInterest = 0;
   for (const r of (repayments || [])) {
     if (!isInYear(r.date || r.timestamp, year)) continue;
     if (!isRepaymentCounted(r, cfg)) continue;
-    if (typeof r.interestPortion === 'number' && r.interestPortion > 0) {
-      paidInterest += num(r.interestPortion);
-      continue;
-    }
+    if (typeof r.interestPortion === 'number' && r.interestPortion > 0) { paidInterest += num(r.interestPortion); continue; }
     const loan = loanById.get(r.loanId) || loanById.get(r.loanDocId);
     if (!loan) continue;
     paidInterest += splitRepayment(num(r.amount), loan).interest;
   }
   paidInterest = round2(paidInterest);
-
   const svcOut = (serviceWithdrawals || [])
     .filter(s => isInYear(s.date || s.timestamp || s.createdAt, year))
     .filter(isServiceWithdrawalCounted)
     .reduce((s,x) => s + num(x.amount), 0);
-
   let paidPenalties = 0;
   for (const p of (penalties || [])) {
     if (!isPenaltyPaid(p)) continue;
@@ -1155,49 +1045,32 @@ function calculateYearProfitFromData({ year, cfg, income, repayments, loansTx = 
     paidPenalties += num(p.amount);
   }
   paidPenalties = round2(paidPenalties);
-
   const totalIncome = round2(registrationFee + otherIncome + paidInterest + paidPenalties);
   const netProfit   = Math.max(0, round2(totalIncome - svcOut));
-
   return {
     registrationFee: round2(registrationFee),
     otherIncome: round2(otherIncome),
-    paidInterest,
-    paidPenalties,
+    paidInterest, paidPenalties,
     serviceWithdrawals: round2(svcOut),
-    totalIncome,
-    netProfit
+    totalIncome, netProfit
   };
 }
 
 async function getShareLedgerForYear(year, settings) {
   const cfg = mergeDashboard(settings);
   const snap = await getDocs(query(collection(db, 'shares')));
-  return bucketSharesForYear({
-    year, cfg,
-    shares: snap.docs.map(d => ({ id:d.id, ...d.data() }))
-  });
+  return bucketSharesForYear({ year, cfg, shares: snap.docs.map(d => ({ id:d.id, ...d.data() })) });
 }
-
 function bucketSharesForYear({ year, cfg, shares }) {
   const byCustomer = Object.create(null);
   let tOpen = 0, tBuy = 0, tSell = 0, tClose = 0;
-
-  const diag = {
-    total: 0, skippedStatus: 0, skippedNoCustomer: 0, skippedNoDate: 0,
-    skippedZero: 0, futureYear: 0, orphanRows: 0, orphanShares: 0,
-    unknownIds: [], sampleTypes: {}
-  };
-
+  const diag = { total: 0, skippedStatus: 0, skippedNoCustomer: 0, skippedNoDate: 0, skippedZero: 0, futureYear: 0, orphanRows: 0, orphanShares: 0, unknownIds: [], sampleTypes: {} };
   const keyMap = buildCustomerKeyMap();
   const known  = new Set((APP.customers || []).map(c => c.id));
-
   for (const s of (shares || [])) {
     diag.total++;
-    const rawType = String(s.type || s.txType || s.transactionType || '(none)')
-      .toLowerCase().trim() || '(none)';
+    const rawType = String(s.type || s.txType || s.transactionType || '(none)').toLowerCase().trim() || '(none)';
     diag.sampleTypes[rawType] = (diag.sampleTypes[rawType] || 0) + 1;
-
     if (!isShareCounted(s, cfg)) { diag.skippedStatus++; continue; }
     const rawCid = getShareCustomerKey(s);
     if (!rawCid) { diag.skippedNoCustomer++; continue; }
@@ -1217,25 +1090,16 @@ function bucketSharesForYear({ year, cfg, shares }) {
       continue;
     }
     byCustomer[cid] ??= { opening: 0, bought: 0, sold: 0, closing: 0 };
-    if (txYear < year) {
-      byCustomer[cid].opening += (kind === 'buy' ? count : -count);
-    } else {
-      if (kind === 'buy') byCustomer[cid].bought += count;
-      else                byCustomer[cid].sold   += count;
-    }
+    if (txYear < year) byCustomer[cid].opening += (kind === 'buy' ? count : -count);
+    else { if (kind === 'buy') byCustomer[cid].bought += count; else byCustomer[cid].sold += count; }
   }
-
   for (const cid of Object.keys(byCustomer)) {
     const c = byCustomer[cid];
     if (c.opening < 0) c.opening = 0;
     c.closing = Math.max(0, c.opening + c.bought - c.sold);
-    c.opening = round4(c.opening);
-    c.bought  = round4(c.bought);
-    c.sold    = round4(c.sold);
-    c.closing = round4(c.closing);
+    c.opening = round4(c.opening); c.bought = round4(c.bought); c.sold = round4(c.sold); c.closing = round4(c.closing);
     tOpen += c.opening; tBuy += c.bought; tSell += c.sold; tClose += c.closing;
   }
-
   return {
     byCustomer,
     totals: { opening: round4(tOpen), bought: round4(tBuy), sold: round4(tSell), closing: round4(tClose) },
@@ -1257,12 +1121,9 @@ function buildPreview({ profit, ledger, customers, taxRate = 0, memberPercent = 
     const tax   = round2(gross * (num(taxRate) / 100));
     const net   = round2(gross - tax);
     rows.push({
-      customerId: c.id,
-      customerName: customerName(c),
-      customerIdShort: c.customerId || c.memberId || '',
+      customerId: c.id, customerName: customerName(c), customerIdShort: c.customerId || c.memberId || '',
       opening: cd.opening, bought: cd.bought, sold: cd.sold, shares: cd.closing,
-      sharePercent,
-      grossAmount: gross, taxAmount: tax, netAmount: net
+      sharePercent, grossAmount: gross, taxAmount: tax, netAmount: net
     });
   }
   rows.sort((a,b) => b.shares - a.shares);
@@ -1273,23 +1134,18 @@ async function getYearOverview(year) {
   const [profit, ledger, batchSnap, yearCloseSnap, saccoCapSnap] = await Promise.all([
     computeYearProfit(year, APP.settings),
     getShareLedgerForYear(year, APP.settings),
-    getDocs(query(collection(db,'dividendBatches'),
-      where('year','==',year), where('status','in',['pending','paid','closed']))),
-    getDocs(query(collection(db,'transactions'),
-      where('type','==','year_close'), where('year','==',year))),
-    getDocs(query(collection(db,'transactions'),
-      where('type','==','sacco_capital'), where('year','==',year)))
+    getDocs(query(collection(db,'dividendBatches'), where('year','==',year), where('status','in',['pending','paid','closed']))),
+    getDocs(query(collection(db,'transactions'), where('type','==','year_close'), where('year','==',year))),
+    getDocs(query(collection(db,'transactions'), where('type','==','sacco_capital'), where('year','==',year)))
   ]);
-
   const batch = batchSnap.empty ? null : { id: batchSnap.docs[0].id, ...batchSnap.docs[0].data() };
   const yearClosed = !yearCloseSnap.empty;
-
   const saccoCapital = saccoCapSnap.docs.reduce((s, d) => {
     const x = d.data();
-    if (String(x.status || 'approved').toLowerCase() === 'approved') return s + num(x.amount);
+    const st = String(x.status || 'approved').toLowerCase();
+    if (['approved','paid','completed','done'].includes(st)) return s + num(x.amount);
     return s;
   }, 0);
-
   const customers = APP.customers.slice();
   const availableProfit = batch ? 0 : profit.netProfit;
   const memberPercentDefault = num(APP.settings.defaultMemberPercent) || 70;
@@ -1298,7 +1154,6 @@ async function getYearOverview(year) {
     taxRate: num(APP.settings.withholdingTaxRate),
     memberPercent: memberPercentDefault
   });
-
   return {
     year, yearClosed, batch, profit, availableProfit, ledger, preview,
     saccoCapital: round2(saccoCapital),
@@ -1308,7 +1163,29 @@ async function getYearOverview(year) {
   };
 }
 
-/* ⚡ distributeBatch — now accepts memberPercent and splits profit into member + SACCO capital */
+/* ============================================================
+ * ⚡ DISTRIBUTE — EXACT split, no drift, no losses
+ * ------------------------------------------------------------
+ * Given:
+ *   totalProfit  = profit.netProfit
+ *   memberPct    = user's chosen percent (0..100)
+ *   saccoPct     = 100 - memberPct
+ *
+ * Compute:
+ *   memberPortion = round2(totalProfit × memberPct / 100)  ← EXACT target
+ *   saccoPortion  = totalProfit − memberPortion             ← exact complement
+ *
+ * Distribute memberPortion across shareholders:
+ *   - Sort by shares descending
+ *   - Give every row except the LARGEST its rounded proportional amount
+ *   - Give the LARGEST row (memberPortion − sum of others)
+ *   → Sum of member row grosses = memberPortion EXACTLY
+ *
+ * Result:
+ *   sum(member.grossAmount) === memberPortion   ✓
+ *   memberPortion + saccoPortion === totalProfit ✓
+ *   No money is lost, no dust is dropped, no double-counting.
+ * ============================================================ */
 async function distributeBatch({ year, profit, ledger, previewRows, autoApprove, taxRate, memberPercent, user }) {
   if (!previewRows || !previewRows.length) throw new Error('No eligible customers.');
   if (profit.netProfit <= 0) throw new Error('Net profit is zero.');
@@ -1317,26 +1194,47 @@ async function distributeBatch({ year, profit, ledger, previewRows, autoApprove,
   const memberPct = Math.min(100, Math.max(0, num(memberPercent)));
   const saccoPct  = round2(100 - memberPct);
   const totalProfit = round2(profit.netProfit);
+
+  // ── Hard targets. Both sum to totalProfit exactly.
   const memberPortion = round2(totalProfit * memberPct / 100);
   const saccoPortion  = round2(totalProfit - memberPortion);
 
-  const cfg  = mergeDashboard(APP.settings);
-  const dust = num(cfg.dustThreshold) || 0.005;
+  const cfg = mergeDashboard(APP.settings);
+  const totalShares = ledger.totals.closing;
 
-  // Scale each row's gross/tax/net by memberPct
-  const scaledRows = previewRows.map(r => {
-    const gross = round2(num(r.grossAmount) * (memberPct / 100));
-    const tax   = round2(gross * (num(taxRate) / 100));
-    const net   = round2(gross - tax);
-    return { ...r, grossAmount: gross, taxAmount: tax, netAmount: net };
-  });
+  // ── Sort by shares descending so the largest row can absorb rounding residuals
+  const sortedPreview = previewRows.slice().sort((a,b) => num(b.shares) - num(a.shares));
 
-  const eligible = scaledRows.filter(r => num(r.netAmount) >= dust);
-  if (!eligible.length) throw new Error('All allocations below dust threshold after applying the member split.');
+  // ── Allocate memberPortion across rows with EXACT arithmetic
+  //    Every row except index 0 (largest) gets round2(memberPortion × shareFraction)
+  //    Index 0 gets whatever is left → guarantees sum === memberPortion
+  let runningSum = 0;
+  const allocated = new Array(sortedPreview.length);
+  for (let i = 1; i < sortedPreview.length; i++) {
+    const r = sortedPreview[i];
+    const shareFraction = totalShares > 0 ? num(r.shares) / totalShares : 0;
+    const gross = round2(memberPortion * shareFraction);
+    runningSum = round2(runningSum + gross);
+    const tax = round2(gross * (num(taxRate) / 100));
+    const net = round2(gross - tax);
+    allocated[i] = { ...r, grossAmount: gross, taxAmount: tax, netAmount: net };
+  }
+  // Largest row gets the exact remainder
+  if (sortedPreview.length > 0) {
+    const r = sortedPreview[0];
+    const gross = round2(memberPortion - runningSum);
+    const tax = round2(gross * (num(taxRate) / 100));
+    const net = round2(gross - tax);
+    allocated[0] = { ...r, grossAmount: gross, taxAmount: tax, netAmount: net };
+  }
 
-  const totalGross = round2(eligible.reduce((s,r) => s + num(r.grossAmount), 0));
-  const totalTax   = round2(eligible.reduce((s,r) => s + num(r.taxAmount), 0));
-  const totalNet   = round2(eligible.reduce((s,r) => s + num(r.netAmount), 0));
+  // Sanity check — should ALWAYS hold
+  const actualMemberSum = round2(allocated.reduce((s,r) => s + num(r.grossAmount), 0));
+  const verified = Math.abs(actualMemberSum - memberPortion) < 0.01;
+
+  const totalGross = round2(allocated.reduce((s,r) => s + num(r.grossAmount), 0));
+  const totalTax   = round2(allocated.reduce((s,r) => s + num(r.taxAmount), 0));
+  const totalNet   = round2(allocated.reduce((s,r) => s + num(r.netAmount), 0));
 
   const uid   = user?.uid || null;
   const uname = user?.displayName || (user?.email ? user.email.split('@')[0] : 'system');
@@ -1360,20 +1258,21 @@ async function distributeBatch({ year, profit, ledger, previewRows, autoApprove,
       status: autoApprove ? 'paid' : 'pending',
       profitFormula: { ...profit },
       settingsSnapshot: { ...cfg, taxRate },
-      // ── split fields ──
+      // ── Split fields (exact) ──
       totalProfit,
       memberPortion,
       saccoPortion,
       memberPercent: memberPct,
       saccoPercent: saccoPct,
-      // ── normal fields ──
-      totalSharesClosing: ledger.totals.closing,
-      dividendPerShare: ledger.totals.closing > 0 ? round4(memberPortion / ledger.totals.closing) : 0,
+      verified,
+      // ── Normal fields ──
+      totalSharesClosing: totalShares,
+      dividendPerShare: totalShares > 0 ? round4(memberPortion / totalShares) : 0,
       totals: {
-        count: eligible.length,
-        gross: totalGross,
+        count: allocated.length,
+        gross: totalGross,       // === memberPortion
         tax: totalTax,
-        net: totalNet,
+        net: totalNet,           // memberPortion − tax
         member: memberPortion,
         sacco: saccoPortion
       },
@@ -1386,8 +1285,8 @@ async function distributeBatch({ year, profit, ledger, previewRows, autoApprove,
 
   const CHUNK = 450;
   const childIds = [];
-  for (let i = 0; i < eligible.length; i += CHUNK) {
-    const slice = eligible.slice(i, i + CHUNK);
+  for (let i = 0; i < allocated.length; i += CHUNK) {
+    const slice = allocated.slice(i, i + CHUNK);
     const wb = writeBatch(db);
     for (const row of slice) {
       const childRef = doc(collection(db, 'transactions'));
@@ -1399,7 +1298,7 @@ async function distributeBatch({ year, profit, ledger, previewRows, autoApprove,
 
   try { await updateDoc(batchRef, { childIds }); } catch(e) { console.warn('childIds attach failed', e); }
 
-  /* ⚡ Create the SACCO capital allocation transaction (yearly tracked) */
+  // SACCO capital transaction (yearly track) — only if > 0
   if (saccoPortion > 0) {
     try {
       await addDoc(collection(db, 'transactions'), {
@@ -1418,17 +1317,14 @@ async function distributeBatch({ year, profit, ledger, previewRows, autoApprove,
     } catch (e) { console.warn('[sacco_capital] create failed', e); }
   }
 
-  return { batchId, refNo, count: eligible.length, totalNet, memberPortion, saccoPortion, childIds };
+  return { batchId, refNo, count: allocated.length, totalNet, memberPortion, saccoPortion, verified, childIds };
 }
 function childPayload({ row, batchId, year, autoApprove, uid, uname, refNo, taxRate, memberPct }) {
   const status = autoApprove ? 'paid' : 'pending';
   const base = {
     type: 'dividend', batchId, year, fiscalYear: String(year),
-    customerId: row.customerId,
-    memberId: row.customerId,
-    customerDocId: row.customerId,
-    customerName: row.customerName,
-    customerIdShort: row.customerIdShort || '',
+    customerId: row.customerId, memberId: row.customerId, customerDocId: row.customerId,
+    customerName: row.customerName, customerIdShort: row.customerIdShort || '',
     payoutType: 'cash',
     sharesHeld: round4(row.shares),
     ratePerShare: row.shares > 0 ? round4(num(row.grossAmount) / num(row.shares)) : 0,
@@ -1469,49 +1365,28 @@ function makeSerial() {
   return `DV-${yr}-${rnd}-${suf}`;
 }
 
-/* ============================================================
- * BATCH REFRESH
- * ============================================================ */
 async function refreshBatchAfterMutation(batchId, year) {
   if (!batchId) return;
-
-  const snap = await getDocs(query(
-    collection(db,'transactions'),
-    where('batchId','==',batchId),
-    where('type','==','dividend')
-  ));
-
+  const snap = await getDocs(query(collection(db,'transactions'), where('batchId','==',batchId), where('type','==','dividend')));
   const batchRef = doc(db, 'dividendBatches', batchId);
-
   if (snap.empty) {
-    try { await deleteDoc(batchRef); }
-    catch (e) { console.warn('[batch] delete failed', e); }
-    if (year) {
-      try { await deleteDoc(doc(db, 'yearIndex', String(year))); }
-      catch (e) { console.warn('[yearIndex] delete failed', e); }
-    }
+    try { await deleteDoc(batchRef); } catch (e) {}
+    if (year) { try { await deleteDoc(doc(db, 'yearIndex', String(year))); } catch (e) {} }
     return;
   }
-
   let g = 0, t2 = 0, n = 0, c = 0;
   let allPaid = true, allResolved = true;
-
   snap.forEach(d => {
     const x = d.data();
     const s = String(x.status || '').toLowerCase();
     if (s !== 'paid') allPaid = false;
     if (s !== 'paid' && s !== 'rejected') allResolved = false;
     if (s === 'rejected') return;
-    g  += num(x.grossAmount);
-    t2 += num(x.taxAmount);
-    n  += num(x.netAmount);
-    c++;
+    g += num(x.grossAmount); t2 += num(x.taxAmount); n += num(x.netAmount); c++;
   });
-
   const cur = await getDoc(batchRef);
   if (!cur.exists()) return;
   if (cur.data().status === 'closed') return;
-
   await updateDoc(batchRef, {
     status: (allPaid || allResolved) ? 'paid' : 'pending',
     'totals.count': c,
@@ -1521,22 +1396,15 @@ async function refreshBatchAfterMutation(batchId, year) {
     updatedAt: serverTimestamp()
   });
 }
-
 async function markChildPaid(childId, user) {
   const ref = doc(db, 'transactions', childId);
   const snap = await getDoc(ref);
   if (!snap.exists()) throw new Error('Record not found.');
   const tx = snap.data();
   await assertParentOpen(tx.batchId);
-
   const uid = user?.uid || null;
   const uname = user?.displayName || (user?.email ? user.email.split('@')[0] : 'system');
-
-  await updateDoc(ref, {
-    status: 'paid',
-    paidAt: serverTimestamp(), paidBy: uid, paidByName: uname
-  });
-
+  await updateDoc(ref, { status: 'paid', paidAt: serverTimestamp(), paidBy: uid, paidByName: uname });
   const isShares = String(tx.payoutType || 'cash').toLowerCase() === 'shares';
   const sharesIssued = num(tx.sharesIssued);
   if (isShares && sharesIssued > 0) {
@@ -1544,16 +1412,11 @@ async function markChildPaid(childId, user) {
       type: 'dividend_bonus',
       customerId: tx.customerId, memberId: tx.memberId || tx.customerId,
       customerDocId: tx.customerDocId || null, customerName: tx.customerName || '',
-      shares: sharesIssued,
-      pricePerShare: num(APP.settings.bonusSharePrice) || 1000,
-      amount: 0,
-      date: new Date(),
-      paymentMethod: 'dividend',
-      reference: tx.serialNumber || '',
+      shares: sharesIssued, pricePerShare: num(APP.settings.bonusSharePrice) || 1000, amount: 0,
+      date: new Date(), paymentMethod: 'dividend', reference: tx.serialNumber || '',
       notes: `Bonus shares from dividend ${tx.fiscalYear || ''}`,
       status: 'approved', source: 'dividend',
-      dividendId: childId, batchId: tx.batchId || null,
-      fiscalYear: tx.fiscalYear || '',
+      dividendId: childId, batchId: tx.batchId || null, fiscalYear: tx.fiscalYear || '',
       serialNumber: (tx.serialNumber || '') + '-BS',
       createdAt: serverTimestamp(),
       createdBy: uid, createdByName: uname,
@@ -1562,7 +1425,6 @@ async function markChildPaid(childId, user) {
   }
   if (tx.batchId) await refreshBatchAfterMutation(tx.batchId, tx.year || tx.fiscalYear);
 }
-
 async function rejectChild(childId, reason, user) {
   if (!reason || reason.trim().length < 3) throw new Error('Rejection reason required.');
   const ref = doc(db, 'transactions', childId);
@@ -1570,19 +1432,13 @@ async function rejectChild(childId, reason, user) {
   if (!snap.exists()) throw new Error('Record not found.');
   const tx = snap.data();
   await assertParentOpen(tx.batchId);
-
   const uid = user?.uid || null;
   const uname = user?.displayName || (user?.email ? user.email.split('@')[0] : 'system');
-
   await updateDoc(ref, {
-    status: 'rejected',
-    rejectedAt: serverTimestamp(),
-    rejectedBy: uid, rejectedByName: uname,
-    rejectionReason: reason.trim()
+    status: 'rejected', rejectedAt: serverTimestamp(), rejectedBy: uid, rejectedByName: uname, rejectionReason: reason.trim()
   });
   if (tx.batchId) await refreshBatchAfterMutation(tx.batchId, tx.year || tx.fiscalYear);
 }
-
 async function overrideChild(childId, patch, reason, user) {
   if (!reason || reason.trim().length < 5) throw new Error('Override reason must be at least 5 characters.');
   const ref = doc(db, 'transactions', childId);
@@ -1591,33 +1447,26 @@ async function overrideChild(childId, patch, reason, user) {
   const tx = snap.data();
   await assertParentOpen(tx.batchId);
   if (String(tx.status) === 'paid') throw new Error('Cannot override a paid record.');
-
   const uid = user?.uid || null;
   const uname = user?.displayName || (user?.email ? user.email.split('@')[0] : 'system');
-
   const gross = num(patch.grossAmount ?? tx.grossAmount);
   const taxPct = num(patch.taxRate ?? tx.taxRate);
   const tax = round2(gross * taxPct / 100);
   const net = round2(gross - tax);
-
   await updateDoc(ref, {
     grossAmount: gross, taxRate: taxPct, taxAmount: tax, netAmount: net,
-    overridden: true,
-    originalAmount: tx.originalAmount != null ? tx.originalAmount : num(tx.grossAmount),
-    overrideReason: reason.trim(),
-    overrideBy: uid, overrideByName: uname, overrideAt: serverTimestamp(),
+    overridden: true, originalAmount: tx.originalAmount != null ? tx.originalAmount : num(tx.grossAmount),
+    overrideReason: reason.trim(), overrideBy: uid, overrideByName: uname, overrideAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
   if (tx.batchId) await refreshBatchAfterMutation(tx.batchId, tx.year || tx.fiscalYear);
 }
-
 async function deleteChild(childId, user) {
   const ref = doc(db, 'transactions', childId);
   const snap = await getDoc(ref);
   if (!snap.exists()) return;
   const tx = snap.data();
   await assertParentOpen(tx.batchId);
-
   if (String(tx.payoutType).toLowerCase() === 'shares' && String(tx.status).toLowerCase() === 'paid') {
     const q = query(collection(db, 'shares'), where('dividendId','==',childId));
     const s = await getDocs(q);
@@ -1628,27 +1477,16 @@ async function deleteChild(childId, user) {
   await deleteDoc(ref);
   if (tx.batchId) await refreshBatchAfterMutation(tx.batchId, tx.year || tx.fiscalYear);
 }
-
 async function closeYear(year, user) {
-  const q = query(collection(db,'dividendBatches'),
-    where('year','==',year), where('status','in',['pending','paid']));
+  const q = query(collection(db,'dividendBatches'), where('year','==',year), where('status','in',['pending','paid']));
   const snap = await getDocs(q);
   if (snap.empty) throw new Error(`No batch found for ${year}.`);
-
   const uid = user?.uid || null;
   const uname = user?.displayName || (user?.email ? user.email.split('@')[0] : 'system');
-
   const wb = writeBatch(db);
-  snap.forEach(d => wb.update(d.ref, {
-    status: 'closed',
-    closedAt: serverTimestamp(), closedBy: uid, closedByName: uname
-  }));
+  snap.forEach(d => wb.update(d.ref, { status: 'closed', closedAt: serverTimestamp(), closedBy: uid, closedByName: uname }));
   const closeTxRef = doc(collection(db,'transactions'));
-  wb.set(closeTxRef, {
-    type: 'year_close', year,
-    createdAt: serverTimestamp(),
-    createdBy: uid, createdByName: uname
-  });
+  wb.set(closeTxRef, { type: 'year_close', year, createdAt: serverTimestamp(), createdBy: uid, createdByName: uname });
   await wb.commit();
   return closeTxRef.id;
 }
@@ -1659,23 +1497,12 @@ async function assertParentOpen(batchId) {
     throw new Error('The parent batch is closed — no further changes allowed.');
 }
 
-/* ============================================================
- * ROLES
- * ============================================================ */
-const ROLES = {
-  super_admin:'role_super_admin', admin:'role_admin', manager:'role_manager',
-  cashier:'role_cashier', teller:'role_teller', accountant:'role_accountant',
-  auditor:'role_auditor', member:'role_member', viewer:'role_viewer'
-};
+const ROLES = { super_admin:'role_super_admin', admin:'role_admin', manager:'role_manager', cashier:'role_cashier', teller:'role_teller', accountant:'role_accountant', auditor:'role_auditor', member:'role_member', viewer:'role_viewer' };
 const roleLabel = (r) => ROLES[r] ? t(ROLES[r]) : (r || '').replace(/_/g,' ');
 const ROLE_GROUPS = {
   viewAll:      ['super_admin','admin','manager','accountant','auditor','cashier','teller','viewer'],
-  createBatch:  ['super_admin'],
-  approveChild: ['super_admin'],
-  overrideChild:['super_admin'],
-  rejectChild:  ['super_admin'],
-  deleteChild:  ['super_admin'],
-  closeYear:    ['super_admin'],
+  createBatch:  ['super_admin'], approveChild: ['super_admin'], overrideChild:['super_admin'],
+  rejectChild:  ['super_admin'], deleteChild:  ['super_admin'], closeYear:    ['super_admin'],
   print:        ['super_admin','admin','manager','accountant','auditor']
 };
 const hasRole = (...roles) => roles.includes(APP.profile?.role);
@@ -1687,17 +1514,11 @@ const canReject     = () => hasRole(...ROLE_GROUPS.rejectChild);
 const canDelete     = () => hasRole(...ROLE_GROUPS.deleteChild);
 const canCloseYear  = () => hasRole(...ROLE_GROUPS.closeYear);
 const canPrint      = () => hasRole(...ROLE_GROUPS.print);
-const isSuperAdmin  = () => APP.profile?.role === 'super_admin';
 const isReadOnly    = () => canView() && !canCreate();
 
-/* ============================================================
- * NAV / SHELL
- * ============================================================ */
 function navDef() {
   return [
-    { section: t('navOverview'), items: [
-      { key:'dashboard', label: t('dashboard'), icon:'fa-th-large', href:'dashboard.html', roles:['*'] }
-    ]},
+    { section: t('navOverview'), items: [{ key:'dashboard', label: t('dashboard'), icon:'fa-th-large', href:'dashboard.html', roles:['*'] }]},
     { section: t('navNetwork'), items: [
       { key:'districts', label: t('districts'), icon:'fa-map-marked-alt', href:'districts.html', roles:['super_admin','admin','auditor'] },
       { key:'branches',  label: t('branches'),  icon:'fa-code-branch',    href:'branches.html',  roles:['super_admin','admin','auditor','manager','cashier'] }
@@ -1732,9 +1553,7 @@ function renderShell() {
     return `<div class="sidebar__section">${esc(group.section)}</div>` +
       items.map(it => {
         const active = it.key === 'dividends' ? ' is-active' : '';
-        return `<a class="nav-item${active}" href="${it.href}" data-tooltip="${esc(it.label)}">
-          <i class="fas ${it.icon}"></i><span class="nav-item__label">${esc(it.label)}</span>
-        </a>`;
+        return `<a class="nav-item${active}" href="${it.href}" data-tooltip="${esc(it.label)}"><i class="fas ${it.icon}"></i><span class="nav-item__label">${esc(it.label)}</span></a>`;
       }).join('');
   }).join('');
   const p = APP.profile || {};
@@ -1748,19 +1567,13 @@ function renderShell() {
             <div class="sidebar__title">${esc(APP.saccoName)}</div>
             <div class="sidebar__subtitle">${esc(t('brandSub'))}</div>
           </div>
-          <button class="sidebar__collapse" id="sbCollapseBtn" aria-label="Toggle sidebar">
-            <i class="fas fa-chevron-left"></i>
-          </button>
+          <button class="sidebar__collapse" id="sbCollapseBtn"><i class="fas fa-chevron-left"></i></button>
         </div>
         <nav class="sidebar__nav">${navHtml}</nav>
-        <div class="sidebar__footer">
-          <button class="sidebar__logout" id="sbLogout">
-            <i class="fas fa-sign-out-alt"></i><span>${esc(t('logout'))}</span>
-          </button>
-        </div>
+        <div class="sidebar__footer"><button class="sidebar__logout" id="sbLogout"><i class="fas fa-sign-out-alt"></i><span>${esc(t('logout'))}</span></button></div>
       </aside>
       <header class="topbar">
-        <button class="topbar__menu" id="btnMenu" aria-label="Open menu"><i class="fas fa-bars"></i></button>
+        <button class="topbar__menu" id="btnMenu"><i class="fas fa-bars"></i></button>
         <div class="topbar__spacer"></div>
         <div class="topbar__actions">
           <div class="lang-toggle">
@@ -1775,13 +1588,8 @@ function renderShell() {
               <span class="user-btn__role">${esc(roleLabel(p.role))}</span>
             </div>
             <div class="dropdown__panel hidden" id="userMenu">
-              <div class="dropdown__header">
-                <strong>${esc(p.fullName || p.name || 'User')}</strong>
-                <span>${esc(p.email || '')} · ${esc(roleLabel(p.role))}</span>
-              </div>
-              <button class="dropdown__item dropdown__item--danger" id="menuLogout">
-                <i class="fas fa-sign-out-alt"></i><span>${esc(t('logout'))}</span>
-              </button>
+              <div class="dropdown__header"><strong>${esc(p.fullName || p.name || 'User')}</strong><span>${esc(p.email || '')} · ${esc(roleLabel(p.role))}</span></div>
+              <button class="dropdown__item dropdown__item--danger" id="menuLogout"><i class="fas fa-sign-out-alt"></i><span>${esc(t('logout'))}</span></button>
             </div>
           </div>
         </div>
@@ -1800,34 +1608,23 @@ function renderShell() {
   document.getElementById('sbLogout')?.addEventListener('click', showLogoutModal);
   document.getElementById('menuLogout')?.addEventListener('click', showLogoutModal);
   const ub = document.getElementById('userBtn');
-  ub?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    document.getElementById('userMenu')?.classList.toggle('hidden');
-  });
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('#userBtn')) document.getElementById('userMenu')?.classList.add('hidden');
-  });
+  ub?.addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('userMenu')?.classList.toggle('hidden'); });
+  document.addEventListener('click', (e) => { if (!e.target.closest('#userBtn')) document.getElementById('userMenu')?.classList.add('hidden'); });
   try { if (localStorage.getItem('sacco.sidebar') === 'collapsed') document.body.classList.add('sidebar-collapsed'); } catch(e){}
 }
 
-/* ============================================================
- * MAIN RENDER
- * ============================================================ */
 async function renderMain() {
   const host = document.getElementById('mainContent');
   if (!host) return;
   if (!canView()) {
-    host.innerHTML = `
-      <div class="empty" style="background:#fff;border:1px solid var(--border);border-radius:20px;padding:80px 24px;">
-        <i class="fas fa-lock"></i>
-        <div class="empty__title">${esc(t('accessDenied'))}</div>
-        <div class="empty__text">${esc(t('accessDeniedText'))}</div>
-        <div style="margin-top:22px;"><a class="btn btn--primary" href="dashboard.html">
-          <i class="fas fa-arrow-left"></i> ${esc(t('backToDashboard'))}</a></div>
-      </div>`;
+    host.innerHTML = `<div class="empty" style="background:#fff;border:1px solid var(--border);border-radius:20px;padding:80px 24px;">
+      <i class="fas fa-lock"></i>
+      <div class="empty__title">${esc(t('accessDenied'))}</div>
+      <div class="empty__text">${esc(t('accessDeniedText'))}</div>
+      <div style="margin-top:22px;"><a class="btn btn--primary" href="dashboard.html"><i class="fas fa-arrow-left"></i> ${esc(t('backToDashboard'))}</a></div>
+    </div>`;
     return;
   }
-
   host.innerHTML = `
     <div class="page-head">
       <div>
@@ -1835,44 +1632,23 @@ async function renderMain() {
         <p class="page-head__sub">${esc(t('pageSub'))}</p>
       </div>
       <div class="page-head__actions">
-        ${canCreate() ? `<button class="btn btn--gold btn--sm" id="newManualBtn">
-          <i class="fas fa-plus"></i> ${esc(t('newManual'))}
-        </button>` : ''}
+        ${canCreate() ? `<button class="btn btn--gold btn--sm" id="newManualBtn"><i class="fas fa-plus"></i> ${esc(t('newManual'))}</button>` : ''}
       </div>
     </div>
-
     <div class="year-bar">
       <label><i class="fas fa-calendar"></i> ${esc(t('year'))}</label>
-      <select id="yearSelect">${(APP.years.length ? APP.years : [APP.selectedYear]).map(y =>
-        `<option value="${y}" ${y === APP.selectedYear ? 'selected' : ''}>${y}</option>`).join('')}</select>
+      <select id="yearSelect">${(APP.years.length ? APP.years : [APP.selectedYear]).map(y => `<option value="${y}" ${y === APP.selectedYear ? 'selected' : ''}>${y}</option>`).join('')}</select>
       <span class="year-status year-status--open" id="yearStatus"></span>
       <div class="year-bar__spacer"></div>
       <button class="btn btn--sm" id="printYearlyBtn"><i class="fas fa-print"></i> ${esc(t('yearlyReport'))}</button>
     </div>
-
-    ${isReadOnly() ? `
-      <div class="info-banner info-banner--info">
-        <i class="fas fa-eye"></i>
-        <div>${esc(t('readOnlyBanner'))}</div>
-      </div>` : ''}
-
-    ${APP.bootIssues.length ? `
-      <div class="info-banner info-banner--warning">
-        <i class="fas fa-exclamation-triangle"></i>
-        <div>
-          <strong>${esc(t('diagTitle'))}:</strong>
-          <ul style="margin:6px 0 0 18px;line-height:1.7">
-            ${APP.bootIssues.map(i => `<li>${i}</li>`).join('')}
-          </ul>
-        </div>
-      </div>` : ''}
-
+    ${isReadOnly() ? `<div class="info-banner info-banner--info"><i class="fas fa-eye"></i><div>${esc(t('readOnlyBanner'))}</div></div>` : ''}
+    ${APP.bootIssues.length ? `<div class="info-banner info-banner--warning"><i class="fas fa-exclamation-triangle"></i><div><strong>${esc(t('diagTitle'))}:</strong><ul style="margin:6px 0 0 18px;line-height:1.7">${APP.bootIssues.map(i => `<li>${i}</li>`).join('')}</ul></div></div>` : ''}
     <div id="overviewArea"><div class="empty"><div class="spin" style="margin:0 auto;"></div></div></div>
   `;
   wireMainEvents();
   await loadAndRenderOverview();
 }
-
 async function loadAndRenderOverview() {
   const area = document.getElementById('overviewArea');
   if (!area) return;
@@ -1883,9 +1659,7 @@ async function loadAndRenderOverview() {
     renderOverview(ov);
   } catch (e) {
     console.error(e);
-    area.innerHTML = `<div class="info-banner info-banner--danger">
-      <i class="fas fa-exclamation-circle"></i>
-      <div><strong>Error:</strong> ${esc(e.message)}</div></div>`;
+    area.innerHTML = `<div class="info-banner info-banner--danger"><i class="fas fa-exclamation-circle"></i><div><strong>Error:</strong> ${esc(e.message)}</div></div>`;
   }
 }
 
@@ -1902,54 +1676,45 @@ function renderOverview(ov) {
       yearStatusEl.innerHTML = `<i class="fas fa-check-circle"></i> ${esc(t('statusOpen'))}`;
     }
   }
-
   const profit = ov.profit;
   const batch = ov.batch;
-  const distTotal = batch?.totals?.net || 0;
-  const customersPaid = batch?.totals?.count || 0;
-  const avg = customersPaid ? distTotal / customersPaid : 0;
-  const dps = ov.ledger.totals.closing > 0 ? num(batch?.dividendPerShare) || (profit.netProfit / ov.ledger.totals.closing) : 0;
-  const diag = ov.ledger?.diag || null;
 
-  const distributedNet  = num(distTotal);
-  const remainingProfit = Math.max(0, round2(profit.netProfit - distributedNet));
-
-  const memberPortionShown = batch ? num(batch.memberPortion ?? batch.totals?.member ?? distTotal) : 0;
+  // ⚡ KPI values
+  const memberPortionShown = batch ? num(batch.memberPortion ?? batch.totals?.member ?? 0) : 0;
   const saccoPortionShown  = batch ? num(batch.saccoPortion  ?? batch.totals?.sacco  ?? 0) : ov.saccoCapital;
+  const totalAllocated     = round2(memberPortionShown + saccoPortionShown);
+  // ⚡ FIX: remaining profit = totalProfit − (member + sacco), NOT just member
+  const remainingProfit    = Math.max(0, round2(profit.netProfit - totalAllocated));
+
+  const customersPaid = batch?.totals?.count || 0;
+  const avg = customersPaid ? memberPortionShown / customersPaid : 0;
+  const dps = ov.ledger.totals.closing > 0 ? num(batch?.dividendPerShare) || (memberPortionShown / ov.ledger.totals.closing) : 0;
+  const diag = ov.ledger?.diag || null;
 
   const kpisHtml = `
     <section class="stats">
       <div class="stat stat--gold">
-        <div class="stat__head"><div class="stat__label">${esc(t('netProfit'))}</div>
-          <div class="stat__icon"><i class="fas fa-coins"></i></div></div>
+        <div class="stat__head"><div class="stat__label">${esc(t('netProfit'))}</div><div class="stat__icon"><i class="fas fa-coins"></i></div></div>
         <div class="stat__value" style="font-size:19px">${esc(moneyShort(remainingProfit))}</div>
-        <div class="stat__hint">
-          ${distributedNet > 0
-            ? `${esc(money(profit.netProfit))} total − ${esc(money(distributedNet))} to members`
-            : esc(money(profit.netProfit))}
-        </div>
+        <div class="stat__hint">${batch ? `${esc(money(profit.netProfit))} total − ${esc(money(totalAllocated))} allocated` : esc(money(profit.netProfit))}</div>
       </div>
       <div class="stat stat--green">
-        <div class="stat__head"><div class="stat__label">${esc(t('splitMembers'))}</div>
-          <div class="stat__icon"><i class="fas fa-gift"></i></div></div>
+        <div class="stat__head"><div class="stat__label">${esc(t('splitMembers'))}</div><div class="stat__icon"><i class="fas fa-gift"></i></div></div>
         <div class="stat__value" style="font-size:19px">${esc(moneyShort(memberPortionShown))}</div>
         <div class="stat__hint">${batch ? num(batch.memberPercent ?? 100).toFixed(1) + '% · ' + customersPaid + ' ' + esc(t('records')) : esc(t('batchTotals'))}</div>
       </div>
       <div class="stat stat--violet">
-        <div class="stat__head"><div class="stat__label">${esc(t('splitSacco'))}</div>
-          <div class="stat__icon"><i class="fas fa-building-columns"></i></div></div>
+        <div class="stat__head"><div class="stat__label">${esc(t('splitSacco'))}</div><div class="stat__icon"><i class="fas fa-building-columns"></i></div></div>
         <div class="stat__value" style="font-size:19px">${esc(moneyShort(saccoPortionShown))}</div>
-        <div class="stat__hint">${batch ? num(batch.saccoPercent ?? 0).toFixed(1) + '%' : esc(t('noDataYet') || '—')}</div>
+        <div class="stat__hint">${batch ? num(batch.saccoPercent ?? 0).toFixed(1) + '%' : '—'}</div>
       </div>
       <div class="stat stat--blue">
-        <div class="stat__head"><div class="stat__label">${esc(t('totalShares'))}</div>
-          <div class="stat__icon"><i class="fas fa-chart-pie"></i></div></div>
+        <div class="stat__head"><div class="stat__label">${esc(t('totalShares'))}</div><div class="stat__icon"><i class="fas fa-chart-pie"></i></div></div>
         <div class="stat__value">${num(ov.ledger.totals.closing).toLocaleString()}</div>
         <div class="stat__hint">Closing</div>
       </div>
       <div class="stat stat--gold">
-        <div class="stat__head"><div class="stat__label">${esc(t('perShare'))}</div>
-          <div class="stat__icon"><i class="fas fa-percentage"></i></div></div>
+        <div class="stat__head"><div class="stat__label">${esc(t('perShare'))}</div><div class="stat__icon"><i class="fas fa-percentage"></i></div></div>
         <div class="stat__value" style="font-size:19px">${esc(money(dps.toFixed(4)))}</div>
         <div class="stat__hint">${esc(t('avgDividend'))}: ${esc(money(avg))}</div>
       </div>
@@ -1957,97 +1722,35 @@ function renderOverview(ov) {
 
   const breakdownHtml = `
     <div class="card">
-      <div class="card__head">
-        <div>
-          <div class="card__title"><i class="fas fa-calculator"></i> ${esc(t('profitBreakdown'))}</div>
-          <div class="card__sub">${esc(t('profitBreakdownSub'))}</div>
-        </div>
-      </div>
+      <div class="card__head"><div><div class="card__title"><i class="fas fa-calculator"></i> ${esc(t('profitBreakdown'))}</div><div class="card__sub">${esc(t('profitBreakdownSub'))}</div></div></div>
       <div class="card__body">
         <div class="breakdown">
-          <div class="breakdown__cell is-income">
-            <div class="breakdown__label">${esc(t('regFee'))}</div>
-            <div class="breakdown__value">${esc(money(profit.registrationFee))}</div>
-          </div>
-          <div class="breakdown__cell is-income">
-            <div class="breakdown__label">${esc(t('otherIncome'))}</div>
-            <div class="breakdown__value">${esc(money(profit.otherIncome))}</div>
-          </div>
-          <div class="breakdown__cell is-income">
-            <div class="breakdown__label">${esc(t('interestPaid'))}</div>
-            <div class="breakdown__value">${esc(money(profit.paidInterest))}</div>
-          </div>
-          <div class="breakdown__cell is-income">
-            <div class="breakdown__label">${esc(t('paidPenalties'))}</div>
-            <div class="breakdown__value">${esc(money(profit.paidPenalties))}</div>
-          </div>
-          <div class="breakdown__cell is-total">
-            <div class="breakdown__label">${esc(t('totalIncome'))}</div>
-            <div class="breakdown__value">${esc(money(profit.totalIncome))}</div>
-          </div>
-          <div class="breakdown__cell is-expense">
-            <div class="breakdown__label">${esc(t('saccoServices'))}</div>
-            <div class="breakdown__value">− ${esc(money(profit.serviceWithdrawals))}</div>
-          </div>
-          <div class="breakdown__cell is-net">
-            <div class="breakdown__label">${esc(t('netProfit'))}</div>
-            <div class="breakdown__value">${esc(money(profit.netProfit))}</div>
-          </div>
+          <div class="breakdown__cell is-income"><div class="breakdown__label">${esc(t('regFee'))}</div><div class="breakdown__value">${esc(money(profit.registrationFee))}</div></div>
+          <div class="breakdown__cell is-income"><div class="breakdown__label">${esc(t('otherIncome'))}</div><div class="breakdown__value">${esc(money(profit.otherIncome))}</div></div>
+          <div class="breakdown__cell is-income"><div class="breakdown__label">${esc(t('interestPaid'))}</div><div class="breakdown__value">${esc(money(profit.paidInterest))}</div></div>
+          <div class="breakdown__cell is-income"><div class="breakdown__label">${esc(t('paidPenalties'))}</div><div class="breakdown__value">${esc(money(profit.paidPenalties))}</div></div>
+          <div class="breakdown__cell is-total"><div class="breakdown__label">${esc(t('totalIncome'))}</div><div class="breakdown__value">${esc(money(profit.totalIncome))}</div></div>
+          <div class="breakdown__cell is-expense"><div class="breakdown__label">${esc(t('saccoServices'))}</div><div class="breakdown__value">− ${esc(money(profit.serviceWithdrawals))}</div></div>
+          <div class="breakdown__cell is-net"><div class="breakdown__label">${esc(t('netProfit'))}</div><div class="breakdown__value">${esc(money(profit.netProfit))}</div></div>
         </div>
         <div class="breakdown__formula">
-          Net Profit = Reg Fee (${esc(money(profit.registrationFee))})
-          + Other Income (${esc(money(profit.otherIncome))})
-          + Interest Paid (${esc(money(profit.paidInterest))})
-          + Paid Penalties (${esc(money(profit.paidPenalties))})
-          − SACCO Service Withdrawals (${esc(money(profit.serviceWithdrawals))})
-          = <strong>${esc(money(profit.netProfit))}</strong>
+          Net Profit = Reg Fee (${esc(money(profit.registrationFee))}) + Other Income (${esc(money(profit.otherIncome))}) + Interest Paid (${esc(money(profit.paidInterest))}) + Paid Penalties (${esc(money(profit.paidPenalties))}) − SACCO Service Withdrawals (${esc(money(profit.serviceWithdrawals))}) = <strong>${esc(money(profit.netProfit))}</strong>
         </div>
       </div>
     </div>`;
 
   let bodyHtml = breakdownHtml;
+  if (ov.yearClosed) bodyHtml += `<div class="info-banner info-banner--danger"><i class="fas fa-lock"></i><div><strong>${esc(t('yearClosed'))}.</strong> ${esc(t('yearClosedText'))}</div></div>`;
+  if (diag && diag.orphanShares > 0) bodyHtml += `<div class="info-banner info-banner--warning"><i class="fas fa-user-slash"></i><div><strong>${num(diag.orphanShares).toLocaleString()} shares belong to customers that are not loaded</strong> (${diag.orphanRows} share records). They were excluded.<br>Sample unresolved IDs: <code>${diag.unknownIds.map(esc).join('</code>, <code>')}</code></div></div>`;
+  if (!APP.customers.length) bodyHtml += `<div class="info-banner info-banner--danger"><i class="fas fa-users-slash"></i><div><strong>No customers loaded.</strong></div></div>`;
 
-  if (ov.yearClosed) {
-    bodyHtml += `<div class="info-banner info-banner--danger">
-      <i class="fas fa-lock"></i>
-      <div><strong>${esc(t('yearClosed'))}.</strong> ${esc(t('yearClosedText'))}</div></div>`;
-  }
-
-  if (diag && diag.orphanShares > 0) {
-    bodyHtml += `<div class="info-banner info-banner--warning">
-      <i class="fas fa-user-slash"></i>
-      <div>
-        <strong>${num(diag.orphanShares).toLocaleString()} shares belong to customers that are not loaded</strong>
-        (${diag.orphanRows} share records). They were excluded from this distribution.<br>
-        Sample unresolved IDs: <code>${diag.unknownIds.map(esc).join('</code>, <code>')}</code>
-      </div></div>`;
-  }
-  if (!APP.customers.length) {
-    bodyHtml += `<div class="info-banner info-banner--danger">
-      <i class="fas fa-users-slash"></i>
-      <div>
-        <strong>No customers loaded.</strong> Check Firestore security rules.
-      </div></div>`;
-  }
-
-  if (batch) {
-    bodyHtml += renderBatchCard(batch);
-  } else if (profit.netProfit > 0 && ov.preview.length > 0) {
-    bodyHtml += renderPreviewCard(ov);
-  } else if (profit.netProfit <= 0) {
-    bodyHtml += `<div class="info-banner info-banner--warning">
-      <i class="fas fa-exclamation-triangle"></i>
-      <div><strong>${esc(t('noProfit'))}.</strong> ${esc(t('noProfitText'))}</div></div>`;
-  } else if (ov.ledger.totals.closing <= 0) {
-    bodyHtml += `<div class="info-banner info-banner--warning">
-      <i class="fas fa-exclamation-triangle"></i>
-      <div><strong>${esc(t('noShares'))}.</strong> ${esc(t('noSharesText'))}</div></div>`;
-  }
+  if (batch) bodyHtml += renderBatchCard(batch);
+  else if (profit.netProfit > 0 && ov.preview.length > 0) bodyHtml += renderPreviewCard(ov);
+  else if (profit.netProfit <= 0) bodyHtml += `<div class="info-banner info-banner--warning"><i class="fas fa-exclamation-triangle"></i><div><strong>${esc(t('noProfit'))}.</strong> ${esc(t('noProfitText'))}</div></div>`;
+  else if (ov.ledger.totals.closing <= 0) bodyHtml += `<div class="info-banner info-banner--warning"><i class="fas fa-exclamation-triangle"></i><div><strong>${esc(t('noShares'))}.</strong> ${esc(t('noSharesText'))}</div></div>`;
 
   bodyHtml += renderChildrenCard();
-
   area.innerHTML = kpisHtml + bodyHtml;
-
   wireOverviewEvents(ov);
   renderChildrenTable(ov.batch);
 }
@@ -2057,10 +1760,19 @@ function renderBatchCard(batch) {
   const statusClass = status === 'closed' ? 'tag--gray' : status === 'paid' ? 'tag--green' : 'tag--gold';
   const statusText  = status === 'closed' ? t('batchClosed') : status === 'paid' ? t('batchPaid') : t('statusPending');
   const p = batch.profitFormula || {};
-  const memberPortion = num(batch.memberPortion ?? batch.totals?.member ?? batch.totals?.net);
-  const saccoPortion  = num(batch.saccoPortion  ?? batch.totals?.sacco  ?? 0);
-  const memberPct     = num(batch.memberPercent  ?? (saccoPortion > 0 ? (memberPortion / (memberPortion + saccoPortion)) * 100 : 100));
-  const saccoPct      = num(batch.saccoPercent   ?? (saccoPortion > 0 ? 100 - memberPct : 0));
+
+  // ⚡ Exact split fields
+  const totalProfit    = num(batch.totalProfit ?? p.netProfit ?? 0);
+  const memberPortion  = num(batch.memberPortion ?? batch.totals?.member ?? 0);
+  const saccoPortion   = num(batch.saccoPortion  ?? batch.totals?.sacco  ?? 0);
+  const memberPct      = num(batch.memberPercent ?? (totalProfit > 0 ? (memberPortion / totalProfit) * 100 : 100));
+  const saccoPct       = num(batch.saccoPercent  ?? (100 - memberPct));
+  const sumCheck       = round2(memberPortion + saccoPortion);
+  const verified       = Math.abs(sumCheck - totalProfit) < 0.01;
+
+  const taxAmount = num(batch.totals?.tax || 0);
+  const netToMembers = num(batch.totals?.net ?? memberPortion);
+
   return `
     <div class="card">
       <div class="card__head">
@@ -2071,19 +1783,29 @@ function renderBatchCard(batch) {
           <div class="card__sub">${esc(t('batchRef'))}: <strong class="mono">${esc(batch.refNo || '—')}</strong></div>
         </div>
         <div class="card__actions">
-          ${canCloseYear() && !batch.closedAt && batch.status !== 'closed'
-            ? `<button class="btn btn--sm" id="closeYearBtn"><i class="fas fa-lock"></i> ${esc(t('closeYear'))}</button>` : ''}
+          ${canCloseYear() && !batch.closedAt && batch.status !== 'closed' ? `<button class="btn btn--sm" id="closeYearBtn"><i class="fas fa-lock"></i> ${esc(t('closeYear'))}</button>` : ''}
           ${canPrint() ? `<button class="btn btn--sm" id="batchPrintBtn"><i class="fas fa-print"></i> ${esc(t('batchPrintYearly'))}</button>` : ''}
         </div>
       </div>
       <div class="card__body">
-        <div class="review" style="max-width:680px">
-          <div class="review__row"><span class="review__k">${esc(t('netProfit'))} (total)</span>
-            <span class="review__v mono">${esc(money(p.netProfit ?? (memberPortion + saccoPortion)))}</span></div>
-          <div class="review__row" style="background:#f0fdf4"><span class="review__k" style="color:#067647">${esc(t('splitMembers'))} (${memberPct.toFixed(1)}%)</span>
+        <div class="review" style="max-width:720px">
+          <div class="review__row"><span class="review__k">${esc(t('splitTotal'))}</span>
+            <span class="review__v mono" style="font-weight:800">${esc(money(totalProfit))}</span></div>
+          <div class="review__row" style="background:#f0fdf4"><span class="review__k" style="color:#067647">${esc(t('splitMembers'))} (${memberPct.toFixed(2)}%)</span>
             <span class="review__v mono" style="color:#067647;font-weight:800">${esc(money(memberPortion))}</span></div>
-          <div class="review__row" style="background:#faf7ff"><span class="review__k" style="color:#5b21b6">${esc(t('splitSacco'))} (${saccoPct.toFixed(1)}%)</span>
+          ${taxAmount > 0 ? `<div class="review__row"><span class="review__k">↳ ${esc(t('taxApplied'))}</span>
+            <span class="review__v mono" style="color:#b8860b">− ${esc(money(taxAmount))}</span></div>
+          <div class="review__row"><span class="review__k">↳ ${esc(t('netAfterTax'))}</span>
+            <span class="review__v mono" style="color:#067647">${esc(money(netToMembers))}</span></div>` : ''}
+          <div class="review__row" style="background:#faf7ff"><span class="review__k" style="color:#5b21b6">${esc(t('splitSacco'))} (${saccoPct.toFixed(2)}%)</span>
             <span class="review__v mono" style="color:#5b21b6;font-weight:800">${esc(money(saccoPortion))}</span></div>
+          <div class="review__row" style="border-top:2px solid var(--border)">
+            <span class="review__k" style="font-weight:800">Sum Check</span>
+            <span class="review__v mono" style="font-weight:800;color:${verified ? '#067647' : '#b42318'}">
+              ${esc(money(memberPortion))} + ${esc(money(saccoPortion))} = ${esc(money(sumCheck))}
+              ${verified ? ' ✓' : ' ⚠ mismatch'}
+            </span>
+          </div>
           <div class="review__row"><span class="review__k">${esc(t('totalShares'))}</span>
             <span class="review__v mono">${num(batch.totalSharesClosing).toLocaleString()}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('perShare'))} (members)</span>
@@ -2092,10 +1814,8 @@ function renderBatchCard(batch) {
             <span class="review__v">${num(batch.totals?.count)}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('batchCreated'))}</span>
             <span class="review__v">${esc(fmtDateTime(batch.createdAt))} · ${esc(batch.createdByName || '—')}</span></div>
-          ${batch.paidAt ? `<div class="review__row"><span class="review__k">${esc(t('batchPaid'))}</span>
-            <span class="review__v">${esc(fmtDateTime(batch.paidAt))} · ${esc(batch.paidByName || '—')}</span></div>` : ''}
-          ${batch.closedAt ? `<div class="review__row"><span class="review__k">${esc(t('batchClosed'))}</span>
-            <span class="review__v">${esc(fmtDateTime(batch.closedAt))} · ${esc(batch.closedByName || '—')}</span></div>` : ''}
+          ${batch.paidAt ? `<div class="review__row"><span class="review__k">${esc(t('batchPaid'))}</span><span class="review__v">${esc(fmtDateTime(batch.paidAt))} · ${esc(batch.paidByName || '—')}</span></div>` : ''}
+          ${batch.closedAt ? `<div class="review__row"><span class="review__k">${esc(t('batchClosed'))}</span><span class="review__v">${esc(fmtDateTime(batch.closedAt))} · ${esc(batch.closedByName || '—')}</span></div>` : ''}
         </div>
       </div>
     </div>`;
@@ -2106,6 +1826,8 @@ function renderPreviewCard(ov) {
   const memberPctPreview = num(ov.memberPercentDefault) || 70;
   const memberPortionPreview = round2(num(ov.profit.netProfit) * memberPctPreview / 100);
   const saccoPortionPreview  = round2(num(ov.profit.netProfit) - memberPortionPreview);
+  const sumPreview = round2(memberPortionPreview + saccoPortionPreview);
+  const verified = Math.abs(sumPreview - num(ov.profit.netProfit)) < 0.01;
 
   let totalOpen = 0, totalBuy = 0, totalSell = 0, totalClose = 0, totalNet = 0;
   let html = '';
@@ -2114,8 +1836,7 @@ function renderPreviewCard(ov) {
     totalClose += r.shares; totalNet += r.netAmount;
     html += `<tr>
       <td class="center">${i + 1}</td>
-      <td><div class="name">${esc(r.customerName)}</div>
-        ${r.customerIdShort ? `<div class="muted mono">${esc(r.customerIdShort)}</div>` : ''}</td>
+      <td><div class="name">${esc(r.customerName)}</div>${r.customerIdShort ? `<div class="muted mono">${esc(r.customerIdShort)}</div>` : ''}</td>
       <td class="num">${r.opening.toFixed(2)}</td>
       <td class="num" style="color:#128a5c">${r.bought > 0 ? '+' + r.bought.toFixed(2) : '—'}</td>
       <td class="num" style="color:#b42318">${r.sold > 0 ? '-' + r.sold.toFixed(2) : '—'}</td>
@@ -2142,17 +1863,13 @@ function renderPreviewCard(ov) {
           <div class="card__sub">${esc(t('previewSub'))} — shown at ${memberPctPreview.toFixed(0)}% to members</div>
         </div>
         <div class="card__actions">
-          ${canCreate() ? `<button class="btn btn--success btn--sm" id="distributeBtn">
-            <i class="fas fa-gift"></i> ${esc(t('distributeBtn'))}</button>` : ''}
+          ${canCreate() ? `<button class="btn btn--success btn--sm" id="distributeBtn"><i class="fas fa-gift"></i> ${esc(t('distributeBtn'))}</button>` : ''}
         </div>
       </div>
       <div class="card__body" style="padding-top:14px">
-        <div class="info-banner info-banner--success">
-          <i class="fas fa-info-circle"></i>
-          <div>${esc(t('previewNote'))}</div>
-        </div>
+        <div class="info-banner info-banner--success"><i class="fas fa-info-circle"></i><div>${esc(t('previewNote'))}</div></div>
 
-        <div class="split-grid" style="margin-bottom:14px">
+        <div class="split-grid">
           <div class="split-box split-box--members is-active">
             <div class="split-box__label">${esc(t('splitMembers'))} (${memberPctPreview.toFixed(1)}%)</div>
             <div class="split-box__pct">${esc(money(memberPortionPreview))}</div>
@@ -2164,8 +1881,12 @@ function renderPreviewCard(ov) {
             <div class="split-box__amt">${esc(t('saccoAmount'))}</div>
           </div>
         </div>
+        <div class="verify-line ${verified ? '' : 'is-bad'}">
+          ${verified ? '✓ ' : '⚠ '}${esc(money(memberPortionPreview))} + ${esc(money(saccoPortionPreview))} = ${esc(money(sumPreview))}
+          ${verified ? '' : ' — mismatch vs ' + esc(money(ov.profit.netProfit))}
+        </div>
 
-        <div class="tbl-wrap" style="max-height:440px;overflow-y:auto">
+        <div class="tbl-wrap" style="max-height:440px;overflow-y:auto;margin-top:14px">
           <table class="tbl">
             <thead><tr>
               <th class="center">${esc(t('colHash'))}</th>
@@ -2188,60 +1909,39 @@ function renderChildrenCard() {
   return `
     <div class="card" id="childrenCard">
       <div class="card__head">
-        <div>
-          <div class="card__title"><i class="fas fa-list"></i> ${esc(t('childrenTitle'))}</div>
-          <div class="card__sub">${esc(t('childrenSub'))}</div>
-        </div>
+        <div><div class="card__title"><i class="fas fa-list"></i> ${esc(t('childrenTitle'))}</div><div class="card__sub">${esc(t('childrenSub'))}</div></div>
       </div>
       <div style="padding:12px 22px;border-bottom:1px solid var(--border-soft);background:var(--bg-soft)">
-        <input type="search" id="childSearch" placeholder="${esc(t('searchPlaceholder'))}"
-          style="width:100%;max-width:380px;height:42px;padding:0 14px;border:1px solid var(--border);border-radius:11px;font-size:13.5px">
+        <input type="search" id="childSearch" placeholder="${esc(t('searchPlaceholder'))}" style="width:100%;max-width:380px;height:42px;padding:0 14px;border:1px solid var(--border);border-radius:11px;font-size:13.5px">
       </div>
       <div id="childrenHost"><div class="empty"><div class="spin" style="margin:0 auto"></div></div></div>
     </div>`;
 }
 
 let _childCache = { rows: [], filtered: [] };
-
 async function renderChildrenTable(batch) {
   const host = document.getElementById('childrenHost');
   if (!host) return;
   if (!batch) {
     _childCache = { rows: [], filtered: [] };
-    host.innerHTML = `<div class="empty">
-      <i class="fas fa-gift"></i>
-      <div class="empty__title">${esc(t('noChildren'))}</div>
-      <div class="empty__text">${esc(t('noChildrenText'))}</div>
-    </div>`;
+    host.innerHTML = `<div class="empty"><i class="fas fa-gift"></i><div class="empty__title">${esc(t('noChildren'))}</div><div class="empty__text">${esc(t('noChildrenText'))}</div></div>`;
     return;
   }
-
   try {
-    const snap = await getDocs(query(
-      collection(db,'transactions'),
-      where('batchId','==',batch.id),
-      where('type','==','dividend')
-    ));
+    const snap = await getDocs(query(collection(db,'transactions'), where('batchId','==',batch.id), where('type','==','dividend')));
     const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    rows.sort((a,b) => (num(b.netAmount) - num(a.netAmount))
-      || nameFromTx(a).localeCompare(nameFromTx(b)));
+    rows.sort((a,b) => (num(b.netAmount) - num(a.netAmount)) || nameFromTx(a).localeCompare(nameFromTx(b)));
     _childCache.rows = rows;
     _childCache.filtered = rows.slice();
     _renderChildrenRows(host);
   } catch (e) {
-    host.innerHTML = `<div class="info-banner info-banner--danger">
-      <i class="fas fa-exclamation-circle"></i>
-      <div>${esc(e.message)}</div></div>`;
+    host.innerHTML = `<div class="info-banner info-banner--danger"><i class="fas fa-exclamation-circle"></i><div>${esc(e.message)}</div></div>`;
   }
 }
-
 function _renderChildrenRows(host) {
   const rows = _childCache.filtered;
   if (!rows.length) {
-    host.innerHTML = `<div class="empty">
-      <i class="fas fa-search"></i>
-      <div class="empty__title">${esc(t('noChildren'))}</div>
-    </div>`;
+    host.innerHTML = `<div class="empty"><i class="fas fa-search"></i><div class="empty__title">${esc(t('noChildren'))}</div></div>`;
     return;
   }
   const pages = Math.max(1, Math.ceil(rows.length / APP.childrenPageSize));
@@ -2262,15 +1962,7 @@ function _renderChildrenRows(host) {
     const ty = String(tx.payoutType || 'cash').toLowerCase();
     return `<tr>
       <td class="center">${start + i + 1}</td>
-      <td>
-        <div class="cust-cell">
-          <div class="cust-avatar">${avatar}</div>
-          <div>
-            <div class="name">${esc(displayName)}</div>
-            <div class="muted mono">${esc(tx.serialNumber || '—')}</div>
-          </div>
-        </div>
-      </td>
+      <td><div class="cust-cell"><div class="cust-avatar">${avatar}</div><div><div class="name">${esc(displayName)}</div><div class="muted mono">${esc(tx.serialNumber || '—')}</div></div></div></td>
       <td><span class="tag ${ty === 'shares' ? 'tag--violet' : 'tag--gold'}">${esc(ty === 'shares' ? t('typeShares') : t('typeCash'))}</span></td>
       <td class="num">${num(tx.sharesHeld).toFixed(2)}</td>
       <td class="num">${num(tx.sharePercent).toFixed(3)}%</td>
@@ -2313,38 +2005,17 @@ function _renderChildrenRows(host) {
     </div>
     ${renderPager(rows.length, pages, start, slice.length)}
   `;
-
-  host.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => {
-    handleChildAction(b.dataset.act, b.dataset.id);
-  }));
+  host.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => handleChildAction(b.dataset.act, b.dataset.id)));
   host.querySelectorAll('[data-page]').forEach(b => b.addEventListener('click', () => {
     const p = Number(b.dataset.page);
     if (p >= 1 && p <= pages) { APP.childrenPage = p; _renderChildrenRows(host); }
   }));
 }
-
 function renderPager(total, pages, start, shown) {
-  if (total <= APP.childrenPageSize) {
-    return `<div class="pagination"><div class="pagination__info">
-      ${esc(t('showing'))} <strong>${total}</strong> ${esc(t('records'))}
-    </div></div>`;
-  }
-  const range = [];
-  const s = Math.max(1, APP.childrenPage - 2);
-  const e = Math.min(pages, s + 4);
+  if (total <= APP.childrenPageSize) return `<div class="pagination"><div class="pagination__info">${esc(t('showing'))} <strong>${total}</strong> ${esc(t('records'))}</div></div>`;
+  const range = []; const s = Math.max(1, APP.childrenPage - 2); const e = Math.min(pages, s + 4);
   for (let i = s; i <= e; i++) range.push(i);
-  return `
-    <div class="pagination">
-      <div class="pagination__info">
-        ${esc(t('showing'))} <strong>${start + 1}–${start + shown}</strong>
-        ${esc(t('of'))} <strong>${total}</strong> ${esc(t('records'))}
-      </div>
-      <div class="pagination__controls">
-        <button data-page="${APP.childrenPage - 1}" ${APP.childrenPage === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>
-        ${range.map(p => `<button data-page="${p}" class="${p === APP.childrenPage ? 'is-current' : ''}">${p}</button>`).join('')}
-        <button data-page="${APP.childrenPage + 1}" ${APP.childrenPage === pages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>
-      </div>
-    </div>`;
+  return `<div class="pagination"><div class="pagination__info">${esc(t('showing'))} <strong>${start + 1}–${start + shown}</strong> ${esc(t('of'))} <strong>${total}</strong> ${esc(t('records'))}</div><div class="pagination__controls"><button data-page="${APP.childrenPage - 1}" ${APP.childrenPage === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>${range.map(p => `<button data-page="${p}" class="${p === APP.childrenPage ? 'is-current' : ''}">${p}</button>`).join('')}<button data-page="${APP.childrenPage + 1}" ${APP.childrenPage === pages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button></div></div>`;
 }
 
 function wireMainEvents() {
@@ -2356,13 +2027,11 @@ function wireMainEvents() {
   document.getElementById('printYearlyBtn')?.addEventListener('click', () => printYearlyReport());
   document.getElementById('newManualBtn')?.addEventListener('click', () => openManualDividendModal(null));
 }
-
 function wireOverviewEvents(ov) {
   const ov2 = ov || APP.overview;
   document.getElementById('distributeBtn')?.addEventListener('click', () => openDistributionModal(ov2));
   document.getElementById('closeYearBtn')?.addEventListener('click', () => openCloseYearModal(ov2));
   document.getElementById('batchPrintBtn')?.addEventListener('click', () => printYearlyReport());
-
   const s = document.getElementById('childSearch');
   s?.addEventListener('input', debounce(() => {
     const q = s.value.trim().toLowerCase();
@@ -2378,31 +2047,15 @@ function wireOverviewEvents(ov) {
     if (host) _renderChildrenRows(host);
   }, 200));
 }
-
 async function handleChildAction(action, id) {
   const tx = _childCache.rows.find(r => r.id === id);
   if (!tx) return;
-  if (action === 'view')   return openViewChildModal(tx);
-  if (action === 'approve') {
-    if (!canApprove()) { toast(t('noPermission'), 'error'); return; }
-    return approveChildFlow(tx);
-  }
-  if (action === 'reject') {
-    if (!canReject()) { toast(t('noPermission'), 'error'); return; }
-    return openRejectModal(tx);
-  }
-  if (action === 'edit') {
-    if (!canOverride()) { toast(t('noPermission'), 'error'); return; }
-    return openManualDividendModal(tx);
-  }
-  if (action === 'delete') {
-    if (!canDelete()) { toast(t('noPermission'), 'error'); return; }
-    return openDeleteChildModal(tx);
-  }
-  if (action === 'print') {
-    if (!canPrint()) { toast(t('noPermission'), 'error'); return; }
-    return printVoucher(tx);
-  }
+  if (action === 'view') return openViewChildModal(tx);
+  if (action === 'approve') { if (!canApprove()) { toast(t('noPermission'), 'error'); return; } return approveChildFlow(tx); }
+  if (action === 'reject') { if (!canReject()) { toast(t('noPermission'), 'error'); return; } return openRejectModal(tx); }
+  if (action === 'edit') { if (!canOverride()) { toast(t('noPermission'), 'error'); return; } return openManualDividendModal(tx); }
+  if (action === 'delete') { if (!canDelete()) { toast(t('noPermission'), 'error'); return; } return openDeleteChildModal(tx); }
+  if (action === 'print') { if (!canPrint()) { toast(t('noPermission'), 'error'); return; } return printVoucher(tx); }
 }
 async function approveChildFlow(tx) {
   if (!canApprove()) { toast(t('noPermission'), 'error'); return; }
@@ -2413,7 +2066,6 @@ async function approveChildFlow(tx) {
   } catch (e) { toast(t('errorSave') + e.message, 'error'); }
 }
 
-/* MODALS */
 let escHandler = null;
 function closeModal() {
   const el = document.getElementById('modal-backdrop');
@@ -2425,15 +2077,7 @@ function openModal({ size = '', head, body, foot }) {
   const root = document.createElement('div');
   root.className = 'modal-backdrop';
   root.id = 'modal-backdrop';
-  root.innerHTML = `
-    <div class="modal ${size ? 'modal--' + size : ''}">
-      <div class="modal__head">
-        <div>${head}</div>
-        <button class="modal__close" data-close><i class="fas fa-times"></i></button>
-      </div>
-      <div class="modal__body">${body}</div>
-      ${foot ? `<div class="modal__foot">${foot}</div>` : ''}
-    </div>`;
+  root.innerHTML = `<div class="modal ${size ? 'modal--' + size : ''}"><div class="modal__head"><div>${head}</div><button class="modal__close" data-close><i class="fas fa-times"></i></button></div><div class="modal__body">${body}</div>${foot ? `<div class="modal__foot">${foot}</div>` : ''}</div>`;
   document.body.appendChild(root);
   escHandler = (e) => { if (e.key === 'Escape') closeModal(); };
   document.addEventListener('keydown', escHandler);
@@ -2442,7 +2086,7 @@ function openModal({ size = '', head, body, foot }) {
   return root;
 }
 
-/* ⚡ Distribution modal — with member/SACCO split UI */
+/* ⚡ Distribution modal with explicit split preview + verification */
 function openDistributionModal(ov) {
   if (!canCreate()) { toast(t('noPermission'), 'error'); return; }
   if (!ov?.canDistribute) { toast(t('noPermission'), 'warning'); return; }
@@ -2452,13 +2096,11 @@ function openDistributionModal(ov) {
 
   const root = openModal({
     size: 'lg',
-    head: `
-      <div class="modal__title">${esc(t('distributeConfirm'))}</div>
-      <div class="modal__sub">${esc(t('distributeConfirmText'))}</div>`,
+    head: `<div class="modal__title">${esc(t('distributeConfirm'))}</div><div class="modal__sub">${esc(t('distributeConfirmText'))}</div>`,
     body: `
       <div class="review" style="margin-bottom:16px">
         <div class="review__row"><span class="review__k">${esc(t('year'))}</span><span class="review__v">${ov.year}</span></div>
-        <div class="review__row"><span class="review__k">${esc(t('netProfit'))}</span><span class="review__v mono" style="color:#b8860b;font-weight:800">${esc(money(totalProfit))}</span></div>
+        <div class="review__row"><span class="review__k">${esc(t('netProfit'))} (total)</span><span class="review__v mono" style="color:#b8860b;font-weight:800">${esc(money(totalProfit))}</span></div>
         <div class="review__row"><span class="review__k">${esc(t('totalShares'))}</span><span class="review__v mono">${num(ov.ledger.totals.closing).toLocaleString()}</span></div>
         <div class="review__row"><span class="review__k">${esc(t('customersPaid'))}</span><span class="review__v">${ov.preview.length}</span></div>
       </div>
@@ -2475,38 +2117,44 @@ function openDistributionModal(ov) {
       </div>
 
       <div class="split-grid" id="splitPreview"></div>
+      <div class="verify-line" id="verifyLine"></div>
 
-      <label style="display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:700;cursor:pointer;margin-top:4px">
+      <label style="display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:700;cursor:pointer;margin-top:14px">
         <input type="checkbox" id="optAutoApprove" checked style="width:18px;height:18px">
         ${esc(t('autoApprove'))}
       </label>`,
-    foot: `
-      <button class="btn" data-close>${esc(t('cancel'))}</button>
-      <button class="btn btn--success" id="confirmDist"><span class="spinner-sm hidden"></span>
-        <span class="lbl"><i class="fas fa-gift"></i> ${esc(t('distributeBtn'))}</span></button>`
+    foot: `<button class="btn" data-close>${esc(t('cancel'))}</button><button class="btn btn--success" id="confirmDist"><span class="spinner-sm hidden"></span><span class="lbl"><i class="fas fa-gift"></i> ${esc(t('distributeBtn'))}</span></button>`
   });
 
   const pctInput = root.querySelector('#optMemberPct');
   const saccoPctInput = root.querySelector('#optSaccoPct');
   const previewEl = root.querySelector('#splitPreview');
+  const verifyEl = root.querySelector('#verifyLine');
 
   function updatePreview() {
     const mp = Math.min(100, Math.max(0, num(pctInput.value)));
     const sp = round2(100 - mp);
     const memberAmt = round2(totalProfit * mp / 100);
     const saccoAmt  = round2(totalProfit - memberAmt);
-    saccoPctInput.value = sp.toFixed(1);
+    const sumAmt    = round2(memberAmt + saccoAmt);
+    const diff      = round2(totalProfit - sumAmt);
+    const ok        = Math.abs(diff) < 0.01;
+    saccoPctInput.value = sp.toFixed(2);
     previewEl.innerHTML = `
       <div class="split-box split-box--members is-active">
-        <div class="split-box__label">${esc(t('splitMembers'))} (${mp.toFixed(1)}%)</div>
+        <div class="split-box__label">${esc(t('splitMembers'))} (${mp.toFixed(2)}%)</div>
         <div class="split-box__pct">${esc(money(memberAmt))}</div>
         <div class="split-box__amt">${esc(t('memberAmount'))}</div>
       </div>
       <div class="split-box split-box--sacco is-active">
-        <div class="split-box__label">${esc(t('splitSacco'))} (${sp.toFixed(1)}%)</div>
+        <div class="split-box__label">${esc(t('splitSacco'))} (${sp.toFixed(2)}%)</div>
         <div class="split-box__pct">${esc(money(saccoAmt))}</div>
         <div class="split-box__amt">${esc(t('saccoAmount'))}</div>
       </div>`;
+    verifyEl.className = 'verify-line ' + (ok ? '' : 'is-bad');
+    verifyEl.innerHTML = ok
+      ? `✓ ${esc(money(memberAmt))} + ${esc(money(saccoAmt))} = ${esc(money(sumAmt))} (${esc(t('splitTotal'))}: ${esc(money(totalProfit))})`
+      : `⚠ ${esc(money(memberAmt))} + ${esc(money(saccoAmt))} = ${esc(money(sumAmt))} ≠ ${esc(money(totalProfit))}`;
   }
   pctInput.addEventListener('input', updatePreview);
   updatePreview();
@@ -2522,17 +2170,15 @@ function openDistributionModal(ov) {
     try {
       const autoApprove = root.querySelector('#optAutoApprove').checked;
       const taxRate = num(APP.settings.withholdingTaxRate) || 0;
-      await distributeBatch({
-        year: ov.year,
-        profit: ov.profit,
-        ledger: ov.ledger,
-        previewRows: ov.preview,
-        autoApprove,
-        taxRate,
-        memberPercent,
-        user: APP.user
+      const result = await distributeBatch({
+        year: ov.year, profit: ov.profit, ledger: ov.ledger,
+        previewRows: ov.preview, autoApprove, taxRate, memberPercent, user: APP.user
       });
-      toast(t('createdOk'), 'success');
+      if (!result.verified) {
+        toast('Distribution saved but sum check failed. Please audit.', 'warning');
+      } else {
+        toast(t('createdOk'), 'success');
+      }
       closeModal();
       await loadAndRenderOverview();
     } catch (err) {
@@ -2549,17 +2195,11 @@ function openCloseYearModal(ov) {
     size: 'sm',
     head: `<div class="modal__title">${esc(t('closeYear'))}</div>`,
     body: `<p style="font-size:14px;color:var(--text-soft)">${esc(t('closeYearText'))}</p>`,
-    foot: `
-      <button class="btn" data-close>${esc(t('cancel'))}</button>
-      <button class="btn btn--danger" id="confirmClose"><i class="fas fa-lock"></i> ${esc(t('closeYear'))}</button>`
+    foot: `<button class="btn" data-close>${esc(t('cancel'))}</button><button class="btn btn--danger" id="confirmClose"><i class="fas fa-lock"></i> ${esc(t('closeYear'))}</button>`
   });
   root.querySelector('#confirmClose').addEventListener('click', async () => {
-    try {
-      await closeYear(ov.year, APP.user);
-      toast(t('closedOk'), 'success');
-      closeModal();
-      await loadAndRenderOverview();
-    } catch (e) { toast(t('errorSave') + e.message, 'error'); }
+    try { await closeYear(ov.year, APP.user); toast(t('closedOk'), 'success'); closeModal(); await loadAndRenderOverview(); }
+    catch (e) { toast(t('errorSave') + e.message, 'error'); }
   });
 }
 
@@ -2572,86 +2212,49 @@ function openViewChildModal(tx) {
   const statusTxt = status === 'paid' ? t('statusPaid') : status === 'rejected' ? t('statusRejected') : t('statusPending');
   const root = openModal({
     size: 'lg',
-    head: `<div class="modal__title">${esc(t('view'))}</div>
-           <div class="modal__sub">${esc(tx.serialNumber || '')} · ${esc(fmtDateTime(tx.createdAt))}</div>`,
-    body: `
-      <div class="review" style="margin-bottom:18px">
-        <div class="review__row"><span class="review__k">${esc(t('colSerial'))}</span>
-          <span class="review__v mono">${esc(tx.serialNumber || '—')}</span></div>
-        <div class="review__row"><span class="review__k">${esc(t('customer'))}</span>
-          <span class="review__v">${esc(displayName)}</span></div>
-        <div class="review__row"><span class="review__k">${esc(t('paymentType'))}</span>
-          <span class="review__v"><span class="tag ${ty === 'shares' ? 'tag--violet' : 'tag--gold'}">${esc(ty === 'shares' ? t('typeShares') : t('typeCash'))}</span></span></div>
-        <div class="review__row"><span class="review__k">${esc(t('fiscalYear'))}</span>
-          <span class="review__v">${esc(tx.fiscalYear || tx.year || '—')}</span></div>
-        <div class="review__row"><span class="review__k">${esc(t('sharesHeld'))}</span>
-          <span class="review__v mono">${num(tx.sharesHeld).toFixed(2)}</span></div>
-        <div class="review__row"><span class="review__k">${esc(t('colPercent'))}</span>
-          <span class="review__v mono">${num(tx.sharePercent).toFixed(3)}%</span></div>
-        <div class="review__row"><span class="review__k">${esc(t('ratePerShare'))}</span>
-          <span class="review__v mono">${esc(money(tx.ratePerShare))}</span></div>
-        <div class="review__row"><span class="review__k">${esc(t('grossAmount'))}</span>
-          <span class="review__v mono">${esc(money(tx.grossAmount))}</span></div>
-        <div class="review__row"><span class="review__k">${esc(t('taxAmount'))} (${num(tx.taxRate)}%)</span>
-          <span class="review__v mono">${esc(money(tx.taxAmount))}</span></div>
-        <div class="review__row"><span class="review__k">${esc(t('netAmount'))}</span>
-          <span class="review__v mono" style="color:#067647;font-weight:800">${esc(money(tx.netAmount))}</span></div>
-        <div class="review__row"><span class="review__k">${esc(t('amountInWords'))}</span>
-          <span class="review__v"><em>${esc(amountInWords(tx.netAmount, APP.currency))}</em></span></div>
-        <div class="review__row"><span class="review__k">${esc(t('status'))}</span>
-          <span class="review__v"><span class="tag ${statusTag}">${esc(statusTxt)}</span></span></div>
-        <div class="review__row"><span class="review__k">${esc(t('date'))}</span>
-          <span class="review__v">${esc(fmtDate(tx.date || tx.createdAt))}</span></div>
-        ${tx.rejectionReason ? `<div class="review__row"><span class="review__k">${esc(t('rejectionReason'))}</span>
-          <span class="review__v" style="color:#b42318">${esc(tx.rejectionReason)}</span></div>` : ''}
-        ${tx.overridden ? `<div class="review__row"><span class="review__k">${esc(t('overrideReason'))}</span>
-          <span class="review__v" style="color:#b8860b">${esc(tx.overrideReason)}</span></div>` : ''}
-      </div>`,
-    foot: `
-      <button class="btn" data-close>${esc(t('close'))}</button>
-      ${canPrint() && status === 'paid' ? `<button class="btn btn--gold" id="viewPrintBtn">
-        <i class="fas fa-print"></i> ${esc(t('printBtn'))}</button>` : ''}
-      ${canOverride() && status !== 'paid' ? `<button class="btn btn--primary" id="viewEditBtn">
-        <i class="fas fa-pen"></i> ${esc(t('edit'))}</button>` : ''}`
+    head: `<div class="modal__title">${esc(t('view'))}</div><div class="modal__sub">${esc(tx.serialNumber || '')} · ${esc(fmtDateTime(tx.createdAt))}</div>`,
+    body: `<div class="review" style="margin-bottom:18px">
+      <div class="review__row"><span class="review__k">${esc(t('colSerial'))}</span><span class="review__v mono">${esc(tx.serialNumber || '—')}</span></div>
+      <div class="review__row"><span class="review__k">${esc(t('customer'))}</span><span class="review__v">${esc(displayName)}</span></div>
+      <div class="review__row"><span class="review__k">${esc(t('paymentType'))}</span><span class="review__v"><span class="tag ${ty === 'shares' ? 'tag--violet' : 'tag--gold'}">${esc(ty === 'shares' ? t('typeShares') : t('typeCash'))}</span></span></div>
+      <div class="review__row"><span class="review__k">${esc(t('fiscalYear'))}</span><span class="review__v">${esc(tx.fiscalYear || tx.year || '—')}</span></div>
+      <div class="review__row"><span class="review__k">${esc(t('sharesHeld'))}</span><span class="review__v mono">${num(tx.sharesHeld).toFixed(2)}</span></div>
+      <div class="review__row"><span class="review__k">${esc(t('colPercent'))}</span><span class="review__v mono">${num(tx.sharePercent).toFixed(3)}%</span></div>
+      <div class="review__row"><span class="review__k">${esc(t('ratePerShare'))}</span><span class="review__v mono">${esc(money(tx.ratePerShare))}</span></div>
+      <div class="review__row"><span class="review__k">${esc(t('grossAmount'))}</span><span class="review__v mono">${esc(money(tx.grossAmount))}</span></div>
+      <div class="review__row"><span class="review__k">${esc(t('taxAmount'))} (${num(tx.taxRate)}%)</span><span class="review__v mono">${esc(money(tx.taxAmount))}</span></div>
+      <div class="review__row"><span class="review__k">${esc(t('netAmount'))}</span><span class="review__v mono" style="color:#067647;font-weight:800">${esc(money(tx.netAmount))}</span></div>
+      <div class="review__row"><span class="review__k">${esc(t('amountInWords'))}</span><span class="review__v"><em>${esc(amountInWords(tx.netAmount, APP.currency))}</em></span></div>
+      <div class="review__row"><span class="review__k">${esc(t('status'))}</span><span class="review__v"><span class="tag ${statusTag}">${esc(statusTxt)}</span></span></div>
+      <div class="review__row"><span class="review__k">${esc(t('date'))}</span><span class="review__v">${esc(fmtDate(tx.date || tx.createdAt))}</span></div>
+      ${tx.rejectionReason ? `<div class="review__row"><span class="review__k">${esc(t('rejectionReason'))}</span><span class="review__v" style="color:#b42318">${esc(tx.rejectionReason)}</span></div>` : ''}
+      ${tx.overridden ? `<div class="review__row"><span class="review__k">${esc(t('overrideReason'))}</span><span class="review__v" style="color:#b8860b">${esc(tx.overrideReason)}</span></div>` : ''}
+    </div>`,
+    foot: `<button class="btn" data-close>${esc(t('close'))}</button>
+      ${canPrint() && status === 'paid' ? `<button class="btn btn--gold" id="viewPrintBtn"><i class="fas fa-print"></i> ${esc(t('printBtn'))}</button>` : ''}
+      ${canOverride() && status !== 'paid' ? `<button class="btn btn--primary" id="viewEditBtn"><i class="fas fa-pen"></i> ${esc(t('edit'))}</button>` : ''}`
   });
-  root.querySelector('#viewPrintBtn')?.addEventListener('click', () => {
-    closeModal(); setTimeout(() => printVoucher(tx), 100);
-  });
-  root.querySelector('#viewEditBtn')?.addEventListener('click', () => {
-    closeModal(); setTimeout(() => openManualDividendModal(tx), 100);
-  });
+  root.querySelector('#viewPrintBtn')?.addEventListener('click', () => { closeModal(); setTimeout(() => printVoucher(tx), 100); });
+  root.querySelector('#viewEditBtn')?.addEventListener('click', () => { closeModal(); setTimeout(() => openManualDividendModal(tx), 100); });
 }
 
 function openRejectModal(tx) {
   if (!canReject()) { toast(t('noPermission'), 'error'); return; }
   const root = openModal({
     size: 'sm',
-    head: `<div class="modal__title">${esc(t('rejectTitle'))}</div>
-           <div class="modal__sub">${esc(t('rejectText'))}</div>`,
-    body: `
-      <div class="field">
-        <label class="field__required">${esc(t('rejectionReason'))}</label>
-        <textarea id="rReason" placeholder=""></textarea>
-        <p class="field__hint" id="rErr" style="color:#b42318;display:none">${esc(t('invalidRejection'))}</p>
-      </div>`,
-    foot: `
-      <button class="btn" data-close>${esc(t('cancel'))}</button>
-      <button class="btn btn--danger" id="rConfirm"><span class="spinner-sm hidden"></span>
-        <span class="lbl"><i class="fas fa-times"></i> ${esc(t('reject'))}</span></button>`
+    head: `<div class="modal__title">${esc(t('rejectTitle'))}</div><div class="modal__sub">${esc(t('rejectText'))}</div>`,
+    body: `<div class="field"><label class="field__required">${esc(t('rejectionReason'))}</label><textarea id="rReason"></textarea><p class="field__hint" id="rErr" style="color:#b42318;display:none">${esc(t('invalidRejection'))}</p></div>`,
+    foot: `<button class="btn" data-close>${esc(t('cancel'))}</button><button class="btn btn--danger" id="rConfirm"><span class="spinner-sm hidden"></span><span class="lbl"><i class="fas fa-times"></i> ${esc(t('reject'))}</span></button>`
   });
   root.querySelector('#rConfirm').addEventListener('click', async (e) => {
     const reason = root.querySelector('#rReason').value.trim();
-    if (reason.length < 3) {
-      root.querySelector('#rErr').style.display = 'block';
-      return;
-    }
+    if (reason.length < 3) { root.querySelector('#rErr').style.display = 'block'; return; }
     const btn = e.currentTarget;
     btn.disabled = true; btn.querySelector('.spinner-sm').classList.remove('hidden');
     try {
       await rejectChild(tx.id, reason, APP.user);
       toast(t('rejectedOk'), 'success');
-      closeModal();
-      await loadAndRenderOverview();
+      closeModal(); await loadAndRenderOverview();
     } catch (err) {
       toast(t('errorSave') + err.message, 'error');
       btn.disabled = false; btn.querySelector('.spinner-sm').classList.add('hidden');
@@ -2664,18 +2267,9 @@ function openDeleteChildModal(tx) {
   const displayName = nameFromTx(tx);
   const root = openModal({
     size: 'sm',
-    head: `<div class="modal__title">${esc(t('deleteTitle'))}</div>
-           <div class="modal__sub">${esc(t('deleteText'))}</div>`,
-    body: `
-      <div style="font-weight:800;font-size:15px;margin-bottom:6px">${esc(displayName)}</div>
-      <div style="font-size:13px;color:var(--muted)">
-        <span class="mono">${esc(tx.serialNumber || '')}</span>
-        · <span class="mono">${esc(money(tx.netAmount))}</span>
-      </div>`,
-    foot: `
-      <button class="btn" data-close>${esc(t('cancel'))}</button>
-      <button class="btn btn--danger" id="dConfirm"><span class="spinner-sm hidden"></span>
-        <span class="lbl"><i class="fas fa-trash"></i> ${esc(t('delete'))}</span></button>`
+    head: `<div class="modal__title">${esc(t('deleteTitle'))}</div><div class="modal__sub">${esc(t('deleteText'))}</div>`,
+    body: `<div style="font-weight:800;font-size:15px;margin-bottom:6px">${esc(displayName)}</div><div style="font-size:13px;color:var(--muted)"><span class="mono">${esc(tx.serialNumber || '')}</span> · <span class="mono">${esc(money(tx.netAmount))}</span></div>`,
+    foot: `<button class="btn" data-close>${esc(t('cancel'))}</button><button class="btn btn--danger" id="dConfirm"><span class="spinner-sm hidden"></span><span class="lbl"><i class="fas fa-trash"></i> ${esc(t('delete'))}</span></button>`
   });
   root.querySelector('#dConfirm').addEventListener('click', async (e) => {
     const btn = e.currentTarget;
@@ -2683,8 +2277,7 @@ function openDeleteChildModal(tx) {
     try {
       await deleteChild(tx.id, APP.user);
       toast(t('deletedOk'), 'success');
-      closeModal();
-      await loadAndRenderOverview();
+      closeModal(); await loadAndRenderOverview();
     } catch (err) {
       toast(t('errorDelete') + err.message, 'error');
       btn.disabled = false; btn.querySelector('.spinner-sm').classList.add('hidden');
@@ -2696,97 +2289,52 @@ function openManualDividendModal(existing) {
   const isEdit = !!existing;
   if (isEdit ? !canOverride() : !canCreate()) { toast(t('noPermission'), 'error'); return; }
   const c0 = existing ? customerById(existing.customerId) : null;
-  const sharesHeld = existing
-    ? num(existing.sharesHeld)
-    : (c0 ? num(APP.overview?.ledger.byCustomer[c0.id]?.closing) : 0);
+  const sharesHeld = existing ? num(existing.sharesHeld) : (c0 ? num(APP.overview?.ledger.byCustomer[c0.id]?.closing) : 0);
 
   const state = {
-    customerId: existing?.customerId || '',
-    customerName: existing?.customerName || '',
-    customerIdShort: existing?.customerIdShort || '',
-    payoutType: existing?.payoutType || 'cash',
-    sharesHeld: sharesHeld || 0,
-    ratePerShare: num(existing?.ratePerShare) || 0,
+    customerId: existing?.customerId || '', customerName: existing?.customerName || '',
+    customerIdShort: existing?.customerIdShort || '', payoutType: existing?.payoutType || 'cash',
+    sharesHeld: sharesHeld || 0, ratePerShare: num(existing?.ratePerShare) || 0,
     taxRate: num(existing?.taxRate) || num(APP.settings.withholdingTaxRate) || 0,
     amountOverride: existing?.overridden ? num(existing.grossAmount) : '',
     date: existing?.date ? (toDate(existing.date)?.toISOString().slice(0,10) || '') : new Date().toISOString().slice(0,10),
-    reference: existing?.reference || '',
-    notes: existing?.notes || '',
-    status: existing?.status || 'pending'
+    reference: existing?.reference || '', notes: existing?.notes || '', status: existing?.status || 'pending'
   };
 
   const root = openModal({
     size: 'lg',
-    head: `<div class="modal__title">${esc(isEdit ? t('editRecord') : t('newManual'))}</div>
-           <div class="modal__sub">${esc(isEdit ? t('editRecordSub') : t('newManualSub'))}</div>`,
+    head: `<div class="modal__title">${esc(isEdit ? t('editRecord') : t('newManual'))}</div><div class="modal__sub">${esc(isEdit ? t('editRecordSub') : t('newManualSub'))}</div>`,
     body: `
       <div class="type-picker" id="mTypePicker">
         <button type="button" class="type-btn ${state.payoutType === 'cash' ? 'is-on' : ''}" data-ptype="cash">
           <span class="type-btn__icon"><i class="fas fa-piggy-bank"></i></span>
-          <span class="type-btn__main">
-            <div class="type-btn__title">${esc(t('typeCash'))}</div>
-            <div class="type-btn__desc">Credit to member's savings account</div>
-          </span>
+          <span class="type-btn__main"><div class="type-btn__title">${esc(t('typeCash'))}</div><div class="type-btn__desc">Credit to member's savings account</div></span>
         </button>
         <button type="button" class="type-btn violet ${state.payoutType === 'shares' ? 'is-on' : ''}" data-ptype="shares">
           <span class="type-btn__icon"><i class="fas fa-chart-pie"></i></span>
-          <span class="type-btn__main">
-            <div class="type-btn__title">${esc(t('typeShares'))}</div>
-            <div class="type-btn__desc">Convert to bonus shares</div>
-          </span>
+          <span class="type-btn__main"><div class="type-btn__title">${esc(t('typeShares'))}</div><div class="type-btn__desc">Convert to bonus shares</div></span>
         </button>
       </div>
-
       <div id="mCustomerArea">${renderManualCustomerPicker(state)}</div>
-
       <div class="field-row">
-        <div class="field"><label class="field__required">${esc(t('fiscalYear'))}</label>
-          <input id="mFY" value="${esc(existing?.fiscalYear || String(APP.selectedYear))}"></div>
-        <div class="field"><label class="field__required">${esc(t('date'))}</label>
-          <input id="mDate" type="date" value="${esc(state.date)}"></div>
+        <div class="field"><label class="field__required">${esc(t('fiscalYear'))}</label><input id="mFY" value="${esc(existing?.fiscalYear || String(APP.selectedYear))}"></div>
+        <div class="field"><label class="field__required">${esc(t('date'))}</label><input id="mDate" type="date" value="${esc(state.date)}"></div>
       </div>
-
       <div class="field-row-3">
-        <div class="field"><label class="field__required">${esc(t('sharesHeld'))}</label>
-          <input id="mShares" class="amount-input" type="number" min="0" step="0.01" value="${state.sharesHeld}"></div>
-        <div class="field"><label class="field__required">${esc(t('ratePerShare'))}</label>
-          <input id="mRate" class="amount-input" type="number" min="0" step="0.0001" value="${state.ratePerShare || ''}"></div>
-        <div class="field"><label>${esc(t('taxRate'))}</label>
-          <input id="mTax" class="amount-input" type="number" min="0" max="100" step="0.1" value="${state.taxRate}"></div>
+        <div class="field"><label class="field__required">${esc(t('sharesHeld'))}</label><input id="mShares" class="amount-input" type="number" min="0" step="0.01" value="${state.sharesHeld}"></div>
+        <div class="field"><label class="field__required">${esc(t('ratePerShare'))}</label><input id="mRate" class="amount-input" type="number" min="0" step="0.0001" value="${state.ratePerShare || ''}"></div>
+        <div class="field"><label>${esc(t('taxRate'))}</label><input id="mTax" class="amount-input" type="number" min="0" max="100" step="0.1" value="${state.taxRate}"></div>
       </div>
-
-      <div class="field">
-        <label>${esc(t('amountOverride'))}</label>
-        <input id="mOv" class="amount-input" type="number" min="0" step="0.01" value="${state.amountOverride}" placeholder="—">
-        <p class="field__hint">${esc(t('amountOverrideHint'))}</p>
-      </div>
-
+      <div class="field"><label>${esc(t('amountOverride'))}</label><input id="mOv" class="amount-input" type="number" min="0" step="0.01" value="${state.amountOverride}" placeholder="—"><p class="field__hint">${esc(t('amountOverrideHint'))}</p></div>
       <div class="payout-preview" id="mPreview"></div>
-
       <div class="field-row">
-        <div class="field"><label>${esc(t('reference'))}</label>
-          <input id="mRef" value="${esc(state.reference)}"></div>
-        <div class="field"><label>${esc(t('statusLbl'))}</label>
-          <select id="mStatus">
-            <option value="pending" ${state.status === 'pending' ? 'selected' : ''}>${esc(t('statusPending'))}</option>
-            <option value="paid" ${state.status === 'paid' ? 'selected' : ''}>${esc(t('statusPaid'))}</option>
-          </select>
-        </div>
+        <div class="field"><label>${esc(t('reference'))}</label><input id="mRef" value="${esc(state.reference)}"></div>
+        <div class="field"><label>${esc(t('statusLbl'))}</label><select id="mStatus"><option value="pending" ${state.status === 'pending' ? 'selected' : ''}>${esc(t('statusPending'))}</option><option value="paid" ${state.status === 'paid' ? 'selected' : ''}>${esc(t('statusPaid'))}</option></select></div>
       </div>
-
-      <div class="field"><label>${esc(t('notes'))}</label>
-        <textarea id="mNotes">${esc(state.notes)}</textarea></div>
-
-      ${isEdit ? `<div class="field">
-        <label class="field__required">${esc(t('overrideReason'))}</label>
-        <textarea id="mReason" placeholder=""></textarea>
-        <p class="field__hint">${esc(t('overrideReasonHint'))}</p>
-      </div>` : ''}
+      <div class="field"><label>${esc(t('notes'))}</label><textarea id="mNotes">${esc(state.notes)}</textarea></div>
+      ${isEdit ? `<div class="field"><label class="field__required">${esc(t('overrideReason'))}</label><textarea id="mReason"></textarea><p class="field__hint">${esc(t('overrideReasonHint'))}</p></div>` : ''}
     `,
-    foot: `
-      <button class="btn" data-close>${esc(t('cancel'))}</button>
-      <button class="btn btn--primary" id="mSave"><span class="spinner-sm hidden"></span>
-        <span class="lbl"><i class="fas fa-save"></i> ${esc(t('save'))}</span></button>`
+    foot: `<button class="btn" data-close>${esc(t('cancel'))}</button><button class="btn btn--primary" id="mSave"><span class="spinner-sm hidden"></span><span class="lbl"><i class="fas fa-save"></i> ${esc(t('save'))}</span></button>`
   });
 
   function readState() {
@@ -2807,33 +2355,13 @@ function openManualDividendModal(existing) {
     const sharePrice = num(APP.settings.bonusSharePrice) || 1000;
     const sharesIssued = isShares && sharePrice > 0 ? Math.floor(net / sharePrice) : 0;
     root.querySelector('#mPreview').innerHTML = `
-      <div class="payout-preview__cell">
-        <div class="payout-preview__label">${esc(t('grossAmount'))}</div>
-        <div class="payout-preview__value">${esc(money(gross))}</div>
-      </div>
-      <div class="payout-preview__cell">
-        <div class="payout-preview__label">${esc(t('taxAmount'))}</div>
-        <div class="payout-preview__value is-violet">${esc(money(tax))}</div>
-      </div>
-      <div class="payout-preview__cell">
-        <div class="payout-preview__label">${esc(t('netAmount'))}</div>
-        <div class="payout-preview__value is-green">${esc(money(net))}</div>
-      </div>
-      ${isShares ? `<div class="payout-preview__cell">
-        <div class="payout-preview__label">${esc(t('typeShares'))}</div>
-        <div class="payout-preview__value is-violet">${sharesIssued.toLocaleString()} sh</div>
-      </div>` : ''}`;
+      <div class="payout-preview__cell"><div class="payout-preview__label">${esc(t('grossAmount'))}</div><div class="payout-preview__value">${esc(money(gross))}</div></div>
+      <div class="payout-preview__cell"><div class="payout-preview__label">${esc(t('taxAmount'))}</div><div class="payout-preview__value is-violet">${esc(money(tax))}</div></div>
+      <div class="payout-preview__cell"><div class="payout-preview__label">${esc(t('netAmount'))}</div><div class="payout-preview__value is-green">${esc(money(net))}</div></div>
+      ${isShares ? `<div class="payout-preview__cell"><div class="payout-preview__label">${esc(t('typeShares'))}</div><div class="payout-preview__value is-violet">${sharesIssued.toLocaleString()} sh</div></div>` : ''}`;
   }
-
-  root.querySelectorAll('[data-ptype]').forEach(b => b.addEventListener('click', () => {
-    root.querySelectorAll('[data-ptype]').forEach(x => x.classList.remove('is-on'));
-    b.classList.add('is-on');
-    refreshPreview();
-  }));
-  ['#mShares','#mRate','#mTax','#mOv'].forEach(sel => {
-    const el = root.querySelector(sel);
-    el?.addEventListener('input', debounce(refreshPreview, 200));
-  });
+  root.querySelectorAll('[data-ptype]').forEach(b => b.addEventListener('click', () => { root.querySelectorAll('[data-ptype]').forEach(x => x.classList.remove('is-on')); b.classList.add('is-on'); refreshPreview(); }));
+  ['#mShares','#mRate','#mTax','#mOv'].forEach(sel => root.querySelector(sel)?.addEventListener('input', debounce(refreshPreview, 200)));
   refreshPreview();
 
   function wireCustomerPicker() {
@@ -2842,10 +2370,7 @@ function openManualDividendModal(existing) {
     if (!search || !list) return;
     search.addEventListener('input', () => {
       const q = search.value.trim().toLowerCase();
-      list.querySelectorAll('.customer-pick__item').forEach(el => {
-        const show = !q || el.textContent.toLowerCase().includes(q);
-        el.style.display = show ? 'flex' : 'none';
-      });
+      list.querySelectorAll('.customer-pick__item').forEach(el => { el.style.display = !q || el.textContent.toLowerCase().includes(q) ? 'flex' : 'none'; });
     });
     list.querySelectorAll('.customer-pick__item').forEach(el => {
       el.addEventListener('click', () => {
@@ -2877,13 +2402,8 @@ function openManualDividendModal(existing) {
       btn.disabled = true; btn.querySelector('.spinner-sm').classList.remove('hidden');
       try {
         await overrideChild(existing.id, { grossAmount: gross, taxRate: state.taxRate }, reason, APP.user);
-        toast(t('savedOk'), 'success');
-        closeModal();
-        await loadAndRenderOverview();
-      } catch (err) {
-        toast(t('errorSave') + err.message, 'error');
-        btn.disabled = false; btn.querySelector('.spinner-sm').classList.add('hidden');
-      }
+        toast(t('savedOk'), 'success'); closeModal(); await loadAndRenderOverview();
+      } catch (err) { toast(t('errorSave') + err.message, 'error'); btn.disabled = false; btn.querySelector('.spinner-sm').classList.add('hidden'); }
       return;
     }
 
@@ -2904,97 +2424,57 @@ function openManualDividendModal(existing) {
 
       const wb = writeBatch(db);
       wb.set(batchRef, {
-        year,
-        fiscalLabel: root.querySelector('#mFY').value || String(year),
-        mode: 'manual',
-        status: state.status === 'paid' ? 'paid' : 'pending',
+        year, fiscalLabel: root.querySelector('#mFY').value || String(year),
+        mode: 'manual', status: state.status === 'paid' ? 'paid' : 'pending',
         profitFormula: { netProfit: 0, registrationFee: 0, otherIncome: 0, paidInterest: 0, paidPenalties: 0, serviceWithdrawals: 0, totalIncome: 0 },
-        totalProfit: 0,
-        memberPortion: gross,
-        saccoPortion: 0,
-        memberPercent: 100,
-        saccoPercent: 0,
-        totalSharesClosing: 0,
-        dividendPerShare: 0,
+        totalProfit: gross, memberPortion: gross, saccoPortion: 0,
+        memberPercent: 100, saccoPercent: 0, verified: true,
+        totalSharesClosing: 0, dividendPerShare: 0,
         totals: { count: 1, gross, tax, net, member: gross, sacco: 0 },
-        refNo,
-        printCount: 0,
-        createdBy: uid, createdByName: uname, createdAt: serverTimestamp()
+        refNo, printCount: 0, createdBy: uid, createdByName: uname, createdAt: serverTimestamp()
       });
       wb.set(childRef, {
-        type: 'dividend', batchId, year,
-        fiscalYear: root.querySelector('#mFY').value || String(year),
+        type: 'dividend', batchId, year, fiscalYear: root.querySelector('#mFY').value || String(year),
         customerId: state.customerId, memberId: state.customerId, customerDocId: state.customerId,
         customerName: state.customerName, customerIdShort: state.customerIdShort || '',
-        payoutType: state.payoutType,
-        sharesHeld: state.sharesHeld,
-        ratePerShare: state.ratePerShare,
-        sharePercent: 0,
-        grossAmount: round2(gross), taxRate: state.taxRate, taxAmount: tax, netAmount: net,
-        sharesIssued,
-        overridden: false, overrideReason: '', originalAmount: null,
-        memberPercentSnapshot: 100,
-        status: state.status,
-        serialNumber: makeSerial(), refNo,
-        printCount: 0, printStatus: 'not_printed',
+        payoutType: state.payoutType, sharesHeld: state.sharesHeld, ratePerShare: state.ratePerShare,
+        sharePercent: 0, grossAmount: round2(gross), taxRate: state.taxRate, taxAmount: tax, netAmount: net,
+        sharesIssued, overridden: false, overrideReason: '', originalAmount: null, memberPercentSnapshot: 100,
+        status: state.status, serialNumber: makeSerial(), refNo, printCount: 0, printStatus: 'not_printed',
         date: root.querySelector('#mDate').value ? new Date(root.querySelector('#mDate').value) : new Date(),
-        reference: root.querySelector('#mRef').value || '',
-        notes: root.querySelector('#mNotes').value || '',
-        createdAt: serverTimestamp(),
-        createdBy: uid, createdByName: uname,
+        reference: root.querySelector('#mRef').value || '', notes: root.querySelector('#mNotes').value || '',
+        createdAt: serverTimestamp(), createdBy: uid, createdByName: uname,
         ...(state.status === 'paid' ? { paidAt: serverTimestamp(), paidBy: uid, paidByName: uname } : {})
       });
       await wb.commit();
 
       if (isShares && sharesIssued > 0 && state.status === 'paid') {
         await addDoc(collection(db, 'shares'), {
-          type: 'dividend_bonus',
-          customerId: state.customerId, memberId: state.customerId, customerDocId: state.customerId,
-          customerName: state.customerName,
-          shares: sharesIssued, pricePerShare: sharePrice, amount: 0,
+          type: 'dividend_bonus', customerId: state.customerId, memberId: state.customerId, customerDocId: state.customerId,
+          customerName: state.customerName, shares: sharesIssued, pricePerShare: sharePrice, amount: 0,
           date: new Date(), paymentMethod: 'dividend', reference: makeSerial(),
-          notes: `Manual bonus shares (${year})`,
-          status: 'approved', source: 'dividend',
-          dividendId: childRef.id, batchId,
-          fiscalYear: String(year),
-          createdAt: serverTimestamp(),
-          createdBy: uid, createdByName: uname,
-          approvedAt: serverTimestamp(), approvedBy: uid
+          notes: `Manual bonus shares (${year})`, status: 'approved', source: 'dividend',
+          dividendId: childRef.id, batchId, fiscalYear: String(year),
+          createdAt: serverTimestamp(), createdBy: uid, createdByName: uname, approvedAt: serverTimestamp(), approvedBy: uid
         });
       }
-
-      toast(t('createdOk'), 'success');
-      closeModal();
-      await loadAndRenderOverview();
-    } catch (err) {
-      toast(t('errorSave') + err.message, 'error');
-      btn.disabled = false; btn.querySelector('.spinner-sm')?.classList.add('hidden');
-    }
+      toast(t('createdOk'), 'success'); closeModal(); await loadAndRenderOverview();
+    } catch (err) { toast(t('errorSave') + err.message, 'error'); btn.disabled = false; btn.querySelector('.spinner-sm')?.classList.add('hidden'); }
   });
 }
-
 function renderManualCustomerPicker(state) {
   const list = APP.customers.slice().sort((a,b) => customerName(a).localeCompare(customerName(b)));
   const rows = list.map(c => {
     const isOn = state.customerId === (c.customerId || c.id) || state.customerId === c.id;
     const shares = num(APP.overview?.ledger.byCustomer[c.id]?.closing);
     const avatar = c.photoURL ? `<img src="${esc(c.photoURL)}" alt="">` : esc(initials(customerName(c)));
-    return `<div class="customer-pick__item ${isOn ? 'is-on' : ''}"
-      data-cid="${esc(c.id)}" data-ccode="${esc(c.customerId || c.id)}"
-      data-cname="${esc(customerName(c))}" data-cshares="${shares}">
+    return `<div class="customer-pick__item ${isOn ? 'is-on' : ''}" data-cid="${esc(c.id)}" data-ccode="${esc(c.customerId || c.id)}" data-cname="${esc(customerName(c))}" data-cshares="${shares}">
       <div class="customer-pick__avatar">${avatar}</div>
-      <div class="customer-pick__main">
-        <div class="customer-pick__name">${esc(customerName(c))}
-          ${c.customerId ? `<span class="customer-pick__bal">${esc(c.customerId)}</span>` : ''}</div>
-        <div class="customer-pick__meta">${shares.toLocaleString()} shares</div>
-      </div>
+      <div class="customer-pick__main"><div class="customer-pick__name">${esc(customerName(c))}${c.customerId ? `<span class="customer-pick__bal">${esc(c.customerId)}</span>` : ''}</div><div class="customer-pick__meta">${shares.toLocaleString()} shares</div></div>
       <div class="customer-pick__radio"></div>
     </div>`;
   }).join('');
-  return `
-    <div class="field"><label class="field__required">${esc(t('pickCustomer'))}</label>
-      <input id="mCustSearch" type="text" placeholder="${esc(t('searchCustomers'))}"></div>
-    <div class="customer-pick" id="mCustList" style="margin-bottom:18px">${rows}</div>`;
+  return `<div class="field"><label class="field__required">${esc(t('pickCustomer'))}</label><input id="mCustSearch" type="text" placeholder="${esc(t('searchCustomers'))}"></div><div class="customer-pick" id="mCustList" style="margin-bottom:18px">${rows}</div>`;
 }
 
 function showLogoutModal() {
@@ -3002,9 +2482,7 @@ function showLogoutModal() {
     size: 'sm',
     head: `<div class="modal__title">${esc(t('logoutTitle'))}</div>`,
     body: `<p style="font-size:14px">${esc(t('logoutText'))}</p>`,
-    foot: `
-      <button class="btn" data-close>${esc(t('cancel'))}</button>
-      <button class="btn btn--danger" id="confirmLogout"><i class="fas fa-sign-out-alt"></i> ${esc(t('logout'))}</button>`
+    foot: `<button class="btn" data-close>${esc(t('cancel'))}</button><button class="btn btn--danger" id="confirmLogout"><i class="fas fa-sign-out-alt"></i> ${esc(t('logout'))}</button>`
   });
   root.querySelector('#confirmLogout').addEventListener('click', async () => {
     try { sessionStorage.clear(); } catch(e){}
@@ -3013,13 +2491,9 @@ function showLogoutModal() {
   });
 }
 
-/* ============================================================
- * PRINT — YEARLY REPORT (with member/SACCO split summary)
- * ============================================================ */
 async function printYearlyReport() {
   const host = document.getElementById('slip-print-host');
   if (!host) return;
-
   const year = APP.selectedYear;
   const user = APP.profile || {};
 
@@ -3027,28 +2501,14 @@ async function printYearlyReport() {
   let batch = null;
   try {
     const [divSnap, batchSnap] = await Promise.all([
-      getDocs(query(
-        collection(db, 'transactions'),
-        where('type', '==', 'dividend'),
-        where('year', '==', year)
-      )),
-      getDocs(query(
-        collection(db, 'dividendBatches'),
-        where('year', '==', year)
-      ))
+      getDocs(query(collection(db, 'transactions'), where('type', '==', 'dividend'), where('year', '==', year))),
+      getDocs(query(collection(db, 'dividendBatches'), where('year', '==', year)))
     ]);
-    allDivs = divSnap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .filter(tx => String(tx.status || '').toLowerCase() !== 'rejected');
-    if (!batchSnap.empty) {
-      batch = { id: batchSnap.docs[0].id, ...batchSnap.docs[0].data() };
-    }
-  } catch (e) { console.warn('printYearlyReport: fetch failed', e); }
+    allDivs = divSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(tx => String(tx.status || '').toLowerCase() !== 'rejected');
+    if (!batchSnap.empty) batch = { id: batchSnap.docs[0].id, ...batchSnap.docs[0].data() };
+  } catch (e) {}
 
-  let rows = [];
-  let refNo = '';
-  let reportLabel = '';
-
+  let rows = [], refNo = '', reportLabel = '';
   if (allDivs.length) {
     const byCustomer = new Map();
     allDivs.forEach(tx => {
@@ -3056,46 +2516,30 @@ async function printYearlyReport() {
       if (!cid) return;
       if (!byCustomer.has(cid)) {
         const c = customerById(cid);
-        byCustomer.set(cid, {
-          customerId: cid,
-          customerName: tx.customerName || customerName(c),
-          customerIdShort: tx.customerIdShort || c?.customerId || '',
-          shares: 0, grossAmount: 0, taxAmount: 0, dividendAmount: 0
-        });
+        byCustomer.set(cid, { customerId: cid, customerName: tx.customerName || customerName(c), customerIdShort: tx.customerIdShort || c?.customerId || '', shares: 0, grossAmount: 0, taxAmount: 0, dividendAmount: 0 });
       }
       const r = byCustomer.get(cid);
       r.shares = Math.max(r.shares, num(tx.sharesHeld));
-      r.grossAmount   += num(tx.grossAmount);
-      r.taxAmount     += num(tx.taxAmount);
+      r.grossAmount += num(tx.grossAmount);
+      r.taxAmount += num(tx.taxAmount);
       r.dividendAmount += num(tx.netAmount);
     });
     rows = Array.from(byCustomer.values()).sort((a,b) => b.shares - a.shares);
     refNo = batch?.refNo || allDivs[0]?.refNo || ('DIV-YR-' + year);
     reportLabel = 'Yearly Dividend Report';
   } else if (APP.overview?.preview?.length) {
-    rows = APP.overview.preview.map(r => ({
-      customerId: r.customerId,
-      customerName: r.customerName,
-      customerIdShort: r.customerIdShort,
-      shares: num(r.shares),
-      grossAmount: num(r.grossAmount),
-      taxAmount: num(r.taxAmount),
-      dividendAmount: num(r.netAmount)
-    }));
+    rows = APP.overview.preview.map(r => ({ customerId: r.customerId, customerName: r.customerName, customerIdShort: r.customerIdShort, shares: num(r.shares), grossAmount: num(r.grossAmount), taxAmount: num(r.taxAmount), dividendAmount: num(r.netAmount) }));
     refNo = 'DIV-PREVIEW-' + year;
     reportLabel = 'Dividend Projection (not yet distributed)';
   } else {
-    toast('No dividend data for ' + year, 'warning');
-    return;
+    toast('No dividend data for ' + year, 'warning'); return;
   }
 
   const ledger = APP.overview?.ledger;
   const byCust = ledger?.byCustomer || {};
   rows.forEach(r => {
     const l = byCust[r.customerId] || {};
-    r.opening = num(l.opening);
-    r.bought  = num(l.bought);
-    r.sold    = num(l.sold);
+    r.opening = num(l.opening); r.bought = num(l.bought); r.sold = num(l.sold);
   });
 
   const grandOpening  = num(ledger?.totals?.opening)  || rows.reduce((s,r) => s + r.opening, 0);
@@ -3106,156 +2550,69 @@ async function printYearlyReport() {
   const dps = grandClosing > 0 ? grandDividend / grandClosing : 0;
   const printedAt = new Date().toLocaleString();
 
-  // Split totals
   const totalProfit = num(batch?.totalProfit ?? batch?.profitFormula?.netProfit ?? grandDividend);
   const memberPortion = num(batch?.memberPortion ?? grandDividend);
   const saccoPortion  = num(batch?.saccoPortion ?? (totalProfit - memberPortion));
   const memberPct = num(batch?.memberPercent ?? (totalProfit > 0 ? (memberPortion / totalProfit) * 100 : 100));
   const saccoPct  = num(batch?.saccoPercent  ?? (totalProfit > 0 ? 100 - memberPct : 0));
 
-  const rowsHtml = rows.map((r, i) => `
-    <tr>
-      <td class="center">${i + 1}</td>
-      <td>${esc(r.customerName)}</td>
-      <td class="center">${esc(r.customerIdShort || '—')}</td>
-      <td class="right">${r.opening.toFixed(2)}</td>
-      <td class="right tx-buy">${r.bought > 0 ? '+' + r.bought.toFixed(2) : '—'}</td>
-      <td class="right tx-sell">${r.sold > 0 ? '-' + r.sold.toFixed(2) : '—'}</td>
-      <td class="right"><strong>${r.shares.toFixed(2)}</strong></td>
-      <td class="right"><strong>${r.dividendAmount.toFixed(2)}</strong></td>
-    </tr>`).join('');
+  const rowsHtml = rows.map((r, i) => `<tr><td class="center">${i + 1}</td><td>${esc(r.customerName)}</td><td class="center">${esc(r.customerIdShort || '—')}</td><td class="right">${r.opening.toFixed(2)}</td><td class="right tx-buy">${r.bought > 0 ? '+' + r.bought.toFixed(2) : '—'}</td><td class="right tx-sell">${r.sold > 0 ? '-' + r.sold.toFixed(2) : '—'}</td><td class="right"><strong>${r.shares.toFixed(2)}</strong></td><td class="right"><strong>${r.dividendAmount.toFixed(2)}</strong></td></tr>`).join('');
 
   host.innerHTML = `
     <div class="report-doc">
       <div class="report-header">
-        <div class="left">
-          <div class="logo"><img src="${LOGO_URL}" onerror="this.style.display='none'"></div>
-          <div>
-            <h1>${esc(APP.saccoName.toUpperCase())}</h1>
-            <p>${esc(reportLabel)} — ${year}</p>
-          </div>
-        </div>
-        <div class="right">
-          <div class="title">Shareholder Summary</div>
-          <div>Ref: ${esc(refNo)}</div>
-          <div>Printed: ${esc(printedAt)}</div>
-          <div>By: ${esc(user.fullName || user.name || user.email || '—')}</div>
-        </div>
+        <div class="left"><div class="logo"><img src="${LOGO_URL}" onerror="this.style.display='none'"></div><div><h1>${esc(APP.saccoName.toUpperCase())}</h1><p>${esc(reportLabel)} — ${year}</p></div></div>
+        <div class="right"><div class="title">Shareholder Summary</div><div>Ref: ${esc(refNo)}</div><div>Printed: ${esc(printedAt)}</div><div>By: ${esc(user.fullName || user.name || user.email || '—')}</div></div>
       </div>
-
       <div class="a4-summary-strip">
         <div class="item"><span class="lbl">Financial Year</span><span class="val">${year}</span></div>
         <div class="item"><span class="lbl">Opening Shares</span><span class="val">${grandOpening.toFixed(2)}</span></div>
         <div class="item"><span class="lbl">Dividend / Share</span><span class="val">ETB ${num(dps).toFixed(4)}</span></div>
         <div class="item"><span class="lbl">Closing Shares</span><span class="val">${grandClosing.toFixed(2)}</span></div>
       </div>
-
       <div class="a4-summary-strip a4-summary-strip--split">
         <div class="item"><span class="lbl">Total Profit</span><span class="val">${totalProfit.toFixed(2)}</span></div>
-        <div class="item"><span class="lbl">To Members (${memberPct.toFixed(1)}%)</span><span class="val is-green">${memberPortion.toFixed(2)}</span></div>
-        <div class="item"><span class="lbl">To SACCO Capital (${saccoPct.toFixed(1)}%)</span><span class="val is-violet">${saccoPortion.toFixed(2)}</span></div>
+        <div class="item"><span class="lbl">To Members (${memberPct.toFixed(2)}%)</span><span class="val is-green">${memberPortion.toFixed(2)}</span></div>
+        <div class="item"><span class="lbl">To SACCO Capital (${saccoPct.toFixed(2)}%)</span><span class="val is-violet">${saccoPortion.toFixed(2)}</span></div>
       </div>
-
       <table class="report-table">
-        <thead>
-          <tr>
-            <th class="center" style="width:5%">#</th>
-            <th style="width:26%">Customer</th>
-            <th class="center" style="width:11%">Customer ID</th>
-            <th class="right" style="width:11%">Opening</th>
-            <th class="right" style="width:11%">Bought</th>
-            <th class="right" style="width:11%">Sold</th>
-            <th class="right" style="width:11%">Closing</th>
-            <th class="right" style="width:14%">Dividend</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rowsHtml || '<tr><td colspan="8" style="text-align:center;padding:20px;color:#666">No shareholders.</td></tr>'}
-        </tbody>
-        <tfoot>
-          <tr class="total-row">
-            <td colspan="3" class="right"><strong>GRAND TOTAL</strong></td>
-            <td class="right"><strong>${grandOpening.toFixed(2)}</strong></td>
-            <td class="right tx-buy"><strong>+${grandBought.toFixed(2)}</strong></td>
-            <td class="right tx-sell"><strong>-${grandSold.toFixed(2)}</strong></td>
-            <td class="right"><strong>${grandClosing.toFixed(2)}</strong></td>
-            <td class="right"><strong>${grandDividend.toFixed(2)}</strong></td>
-          </tr>
-        </tfoot>
+        <thead><tr><th class="center" style="width:5%">#</th><th style="width:26%">Customer</th><th class="center" style="width:11%">Customer ID</th><th class="right" style="width:11%">Opening</th><th class="right" style="width:11%">Bought</th><th class="right" style="width:11%">Sold</th><th class="right" style="width:11%">Closing</th><th class="right" style="width:14%">Dividend</th></tr></thead>
+        <tbody>${rowsHtml || '<tr><td colspan="8" style="text-align:center;padding:20px;color:#666">No shareholders.</td></tr>'}</tbody>
+        <tfoot><tr class="total-row"><td colspan="3" class="right"><strong>GRAND TOTAL</strong></td><td class="right"><strong>${grandOpening.toFixed(2)}</strong></td><td class="right tx-buy"><strong>+${grandBought.toFixed(2)}</strong></td><td class="right tx-sell"><strong>-${grandSold.toFixed(2)}</strong></td><td class="right"><strong>${grandClosing.toFixed(2)}</strong></td><td class="right"><strong>${grandDividend.toFixed(2)}</strong></td></tr></tfoot>
       </table>
-
-      <div class="report-signatures">
-        <div class="sig"><div class="sig-line">Prepared By (Accountant)</div></div>
-        <div class="sig"><div class="sig-line">Approved By (Manager)</div></div>
-      </div>
-
-      <div class="report-footer">
-        <div class="thanks">If We Work Together, We Grow Together!</div>
-        <div>Year ${year} · Total shareholders: ${rows.length}</div>
-      </div>
+      <div class="report-signatures"><div class="sig"><div class="sig-line">Prepared By (Accountant)</div></div><div class="sig"><div class="sig-line">Approved By (Manager)</div></div></div>
+      <div class="report-footer"><div class="thanks">If We Work Together, We Grow Together!</div><div>Year ${year} · Total shareholders: ${rows.length}</div></div>
     </div>`;
-
   setTimeout(() => window.print(), 150);
 }
 
-/* ============================================================
- * PRINT — VOUCHER
- * ============================================================ */
 async function printVoucher(tx) {
   if (!canPrint()) { toast(t('noPermission'), 'error'); return; }
-  if (String(tx.status || '').toLowerCase() !== 'paid') {
-    toast('Only paid dividends can be printed.', 'warning'); return;
-  }
+  if (String(tx.status || '').toLowerCase() !== 'paid') { toast('Only paid dividends can be printed.', 'warning'); return; }
   const prevCount = Number(tx.printCount || 0);
   const newCount = prevCount + 1;
   const watermark = newCount === 1 ? t('printOriginal') : t('printCopy');
-
   try {
-    await updateDoc(doc(db, 'transactions', tx.id), {
-      printCount: newCount,
-      printStatus: 'printed',
-      lastPrintedAt: serverTimestamp(),
-      lastPrintedByName: APP.profile?.fullName || APP.profile?.name || ''
-    });
+    await updateDoc(doc(db, 'transactions', tx.id), { printCount: newCount, printStatus: 'printed', lastPrintedAt: serverTimestamp(), lastPrintedByName: APP.profile?.fullName || APP.profile?.name || '' });
     tx.printCount = newCount;
-  } catch (e) { console.warn(e); }
-
+  } catch (e) {}
   const host = document.getElementById('slip-print-host');
   host.innerHTML = buildVoucherHtml(tx, watermark);
-
   const overlay = document.createElement('div');
-  overlay.className = 'slip-overlay';
-  overlay.id = 'slip-overlay';
-  overlay.innerHTML = `
-    <div class="slip-toolbar">
-      <div class="slip-toolbar__title">
-        <i class="fas fa-gift" style="color:#d4a017"></i> ${esc(t('voucher'))}
-        <span class="tag tag--gold tag--no-dot" style="margin-left:8px">${esc(watermark)}</span>
-      </div>
-      <button class="primary" id="slipPrintBtn"><i class="fas fa-print"></i> ${esc(t('printBtn'))}</button>
-      <button id="slipCloseBtn"><i class="fas fa-times"></i> ${esc(t('closeBtn'))}</button>
-    </div>
-    ${buildVoucherHtml(tx, watermark)}
-  `;
+  overlay.className = 'slip-overlay'; overlay.id = 'slip-overlay';
+  overlay.innerHTML = `<div class="slip-toolbar"><div class="slip-toolbar__title"><i class="fas fa-gift" style="color:#d4a017"></i> ${esc(t('voucher'))}<span class="tag tag--gold tag--no-dot" style="margin-left:8px">${esc(watermark)}</span></div><button class="primary" id="slipPrintBtn"><i class="fas fa-print"></i> ${esc(t('printBtn'))}</button><button id="slipCloseBtn"><i class="fas fa-times"></i> ${esc(t('closeBtn'))}</button></div>${buildVoucherHtml(tx, watermark)}`;
   document.body.appendChild(overlay);
-  document.getElementById('slipPrintBtn').addEventListener('click', () => {
-    const h = document.getElementById('slip-print-host');
-    h.innerHTML = buildVoucherHtml(tx, watermark);
-    setTimeout(() => window.print(), 60);
-  });
+  document.getElementById('slipPrintBtn').addEventListener('click', () => { document.getElementById('slip-print-host').innerHTML = buildVoucherHtml(tx, watermark); setTimeout(() => window.print(), 60); });
   document.getElementById('slipCloseBtn').addEventListener('click', closeSlipOverlay);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) closeSlipOverlay(); });
   escHandler = (e) => { if (e.key === 'Escape') closeSlipOverlay(); };
   document.addEventListener('keydown', escHandler);
 }
 function closeSlipOverlay() {
-  const el = document.getElementById('slip-overlay');
-  if (el) el.remove();
+  const el = document.getElementById('slip-overlay'); if (el) el.remove();
   if (escHandler) { document.removeEventListener('keydown', escHandler); escHandler = null; }
-  const host = document.getElementById('slip-print-host');
-  if (host) host.innerHTML = '';
+  const host = document.getElementById('slip-print-host'); if (host) host.innerHTML = '';
 }
-
 function buildVoucherHtml(tx, watermark) {
   const c = customerById(tx.customerId);
   const cNameRaw = nameFromTx(tx);
@@ -3274,42 +2631,26 @@ function buildVoucherHtml(tx, watermark) {
 
   return `
     <div class="slip">
-      <div class="slip__watermark">
-        <img src="${esc(LOGO_URL)}" onerror="this.style.display='none'">
-        <div class="slip__watermark-stamp ${isCopy ? 'slip__watermark-stamp--copy' : ''}">${esc(watermark)}</div>
-      </div>
+      <div class="slip__watermark"><img src="${esc(LOGO_URL)}" onerror="this.style.display='none'"><div class="slip__watermark-stamp ${isCopy ? 'slip__watermark-stamp--copy' : ''}">${esc(watermark)}</div></div>
       <div class="slip__head">
         <div class="slip__logo"><img src="${esc(LOGO_URL)}" onerror="this.style.display='none'"></div>
-        <div class="slip__brand">
-          <div class="slip__sacco-name">WALDAA LIQII FI QUSANNAA GARASUU DHUKII</div>
-          <div class="slip__sacco-sub">${esc(APP.saccoName)}</div>
-        </div>
+        <div class="slip__brand"><div class="slip__sacco-name">WALDAA LIQII FI QUSANNAA GARASUU DHUKII</div><div class="slip__sacco-sub">${esc(APP.saccoName)}</div></div>
         <div class="slip__logo"><img src="${esc(LOGO_URL)}" onerror="this.style.display='none'"></div>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;
-                  padding:8px 0;border-top:1px solid #999;border-bottom:1px solid #999;margin:6px 0 14px">
-        <div>
-          <div><strong>Serial No :</strong> <span style="font-family:ui-monospace,monospace;font-weight:800">${esc(slipNo)}</span></div>
-          <div><strong>Date :</strong> ${esc(fmtDate(tx.date || tx.createdAt))}</div>
-        </div>
-        <div style="text-align:right">
-          <div><strong>Fiscal Year :</strong> ${esc(tx.fiscalYear || tx.year || '—')}</div>
-          <div><span class="slip__doc-stamp ${isCopy ? 'slip__doc-stamp--copy' : 'slip__doc-stamp--original'}">${esc(watermark)}</span></div>
-        </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid #999;border-bottom:1px solid #999;margin:6px 0 14px">
+        <div><div><strong>Serial No :</strong> <span style="font-family:ui-monospace,monospace;font-weight:800">${esc(slipNo)}</span></div><div><strong>Date :</strong> ${esc(fmtDate(tx.date || tx.createdAt))}</div></div>
+        <div style="text-align:right"><div><strong>Fiscal Year :</strong> ${esc(tx.fiscalYear || tx.year || '—')}</div><div><span class="slip__doc-stamp ${isCopy ? 'slip__doc-stamp--copy' : 'slip__doc-stamp--original'}">${esc(watermark)}</span></div></div>
       </div>
       <div class="slip__title">${esc(t('voucher'))}</div>
       <div class="slip__subtitle">${esc(t('voucherSub'))} — ${esc(tx.fiscalYear || tx.year || '')}</div>
-
       <div class="slip__cert-frame">
         <div class="slip__body">
           <p>This voucher certifies the annual dividend distribution to the member named below for the stated fiscal year, in accordance with the Cooperative's profit-sharing policy.</p>
-
           <div class="slip__payout-hero">
             <div class="hero-label">${esc(t('netAmount'))}</div>
             <div class="hero-value">${esc(money(net))}</div>
             <div class="hero-sub">${esc(t('amountInWords'))}: ${esc(amountInWords(net, APP.currency))}</div>
           </div>
-
           <table class="slip__table" style="margin:16px 0 8px">
             <thead><tr><th style="width:50%">Calculation Breakdown</th><th style="width:50%">Value</th></tr></thead>
             <tbody>
@@ -3317,55 +2658,23 @@ function buildVoucherHtml(tx, watermark) {
               <tr><td>${esc(t('ratePerShare'))}</td><td class="mono">${esc(money(rate))}</td></tr>
               <tr><td>${esc(t('grossAmount'))}</td><td class="mono">${esc(money(gross))}</td></tr>
               <tr><td>${esc(t('taxAmount'))} (${taxPct}%)</td><td class="mono">${esc(money(tax))}</td></tr>
-              <tr style="background:#f0fdf4"><td><strong>${esc(t('netAmount'))}</strong></td>
-                <td class="mono" style="font-weight:800;color:#065f46">${esc(money(net))}</td></tr>
+              <tr style="background:#f0fdf4"><td><strong>${esc(t('netAmount'))}</strong></td><td class="mono" style="font-weight:800;color:#065f46">${esc(money(net))}</td></tr>
             </tbody>
           </table>
-
-          <p style="text-align:center;margin:14px 0">
-            <strong>${esc(t('memberSignature'))}:</strong>
-            <span class="field-line" style="font-size:12pt">${esc(cName)}</span>
-          </p>
-          <p style="text-align:center;margin:8px 0">
-            <strong>Member ID:</strong> <span class="field-line">${esc(c?.customerId || '—')}</span>
-          </p>
+          <p style="text-align:center;margin:14px 0"><strong>${esc(t('memberSignature'))}:</strong> <span class="field-line" style="font-size:12pt">${esc(cName)}</span></p>
+          <p style="text-align:center;margin:8px 0"><strong>Member ID:</strong> <span class="field-line">${esc(c?.customerId || '—')}</span></p>
         </div>
       </div>
-
-      <table class="slip__table" style="margin-top:20px">
-        <thead><tr><th style="width:35%">Prepared by</th><th style="width:30%">Signature</th><th style="width:35%">Date</th></tr></thead>
-        <tbody><tr>
-          <td><span class="user-name">${esc(recordedBy)}</span></td>
-          <td><span class="sig-line"></span></td>
-          <td><span class="sig-line"></span></td>
-        </tr></tbody>
-      </table>
-
-      <table class="slip__table" style="margin-top:12px">
-        <thead><tr><th style="width:35%">Approved by</th><th style="width:30%">Signature</th><th style="width:35%">Date</th></tr></thead>
-        <tbody><tr>
-          <td><span class="user-name">${esc(paidBy)}</span></td>
-          <td><span class="sig-line"></span></td>
-          <td><span class="sig-line"></span></td>
-        </tr></tbody>
-      </table>
-
+      <table class="slip__table" style="margin-top:20px"><thead><tr><th style="width:35%">Prepared by</th><th style="width:30%">Signature</th><th style="width:35%">Date</th></tr></thead><tbody><tr><td><span class="user-name">${esc(recordedBy)}</span></td><td><span class="sig-line"></span></td><td><span class="sig-line"></span></td></tr></tbody></table>
+      <table class="slip__table" style="margin-top:12px"><thead><tr><th style="width:35%">Approved by</th><th style="width:30%">Signature</th><th style="width:35%">Date</th></tr></thead><tbody><tr><td><span class="user-name">${esc(paidBy)}</span></td><td><span class="sig-line"></span></td><td><span class="sig-line"></span></td></tr></tbody></table>
       <p style="text-align:center;margin-top:14px"><strong>${esc(t('officialStamp'))}: __________________________</strong></p>
-
       <div class="slip__footer">
         <div class="slip__slogan">“If We Work Together, We Grow Together!”</div>
-        <div class="slip__footer-meta">
-          <strong>${esc(APP.saccoName)}</strong> · Printed on ${esc(fmtDateTime(new Date()))}
-          ${APP.profile?.fullName ? ' · Printed by ' + esc(APP.profile.fullName) : ''}
-          ${printCount > 0 ? ' · Print #' + printCount : ''}
-        </div>
+        <div class="slip__footer-meta"><strong>${esc(APP.saccoName)}</strong> · Printed on ${esc(fmtDateTime(new Date()))}${APP.profile?.fullName ? ' · Printed by ' + esc(APP.profile.fullName) : ''}${printCount > 0 ? ' · Print #' + printCount : ''}</div>
       </div>
     </div>`;
 }
 
-/* ============================================================
- * LANGUAGE
- * ============================================================ */
 function setLang(lang) {
   if (!SUPPORTED_LANGS.includes(lang)) lang = FALLBACK_LANG;
   LANG = lang;
@@ -3376,66 +2685,25 @@ function setLang(lang) {
   renderMain();
 }
 
-/* ============================================================
- * LOADERS
- * ============================================================ */
 async function loadCustomers() {
   APP.bootIssues = APP.bootIssues.filter(x => !x.startsWith('Customers'));
   const role = APP.profile?.role || 'unknown';
   const conds = [];
-
-  if (role === 'admin' && APP.profile?.districtId) {
-    conds.push(where('districtId', '==', APP.profile.districtId));
-  } else if (['manager','cashier','teller','accountant'].includes(role) && APP.profile?.branchId) {
-    conds.push(where('branchId', '==', APP.profile.branchId));
-  }
-
+  if (role === 'admin' && APP.profile?.districtId) conds.push(where('districtId', '==', APP.profile.districtId));
+  else if (['manager','cashier','teller','accountant'].includes(role) && APP.profile?.branchId) conds.push(where('branchId', '==', APP.profile.branchId));
   try {
-    const q1 = conds.length
-      ? query(collection(db, 'customers'), ...conds, limit(3000))
-      : query(collection(db, 'customers'), limit(3000));
+    const q1 = conds.length ? query(collection(db, 'customers'), ...conds, limit(3000)) : query(collection(db, 'customers'), limit(3000));
     const s1 = await getDocs(q1);
-    if (s1.size > 0) {
-      APP.customers = s1.docs.map(d => ({ id: d.id, ...d.data() }));
-      console.log('[sacco] customers loaded (scoped):', APP.customers.length, 'role:', role);
-      return;
-    }
-    APP.bootIssues.push(`Customers query with role filter returned 0. Trying unscoped…`);
-  } catch (e) {
-    console.warn('[loadCustomers] scoped failed:', e.code || e.message);
-    APP.bootIssues.push(`Customers query (scoped) failed: <code>${esc(e.code || e.message)}</code>. Trying unscoped…`);
-  }
-
+    if (s1.size > 0) { APP.customers = s1.docs.map(d => ({ id: d.id, ...d.data() })); return; }
+  } catch (e) { console.warn('[loadCustomers] scoped failed:', e.code || e.message); }
   try {
     const s2 = await getDocs(query(collection(db, 'customers'), limit(3000)));
     APP.customers = s2.docs.map(d => ({ id: d.id, ...d.data() }));
-    if (APP.customers.length === 0) {
-      APP.bootIssues.push(`Customers collection returned 0 records.`);
-    }
-  } catch (e) {
-    APP.customers = [];
-    APP.bootIssues.push(`Customers query (unscoped) failed: <code>${esc(e.code || e.message)}</code>.`);
-  }
+  } catch (e) { APP.customers = []; }
 }
-
-async function loadDistricts() {
-  try {
-    const s = await getDocs(query(collection(db, 'districts'), limit(500)));
-    APP.districts = s.docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch (e) { console.warn('[loadDistricts] failed:', e.message); }
-}
-async function loadBranches() {
-  try {
-    const s = await getDocs(query(collection(db, 'branches'), limit(2000)));
-    APP.branches = s.docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch (e) { console.warn('[loadBranches] failed:', e.message); }
-}
-async function loadLoansCollection() {
-  try {
-    const s = await getDocs(query(collection(db, 'loans'), limit(2000)));
-    APP.loans = s.docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch (e) { console.warn('[loadLoansCollection] failed:', e.code || e.message); }
-}
+async function loadDistricts() { try { const s = await getDocs(query(collection(db, 'districts'), limit(500))); APP.districts = s.docs.map(d => ({ id: d.id, ...d.data() })); } catch (e) {} }
+async function loadBranches() { try { const s = await getDocs(query(collection(db, 'branches'), limit(2000))); APP.branches = s.docs.map(d => ({ id: d.id, ...d.data() })); } catch (e) {} }
+async function loadLoansCollection() { try { const s = await getDocs(query(collection(db, 'loans'), limit(2000))); APP.loans = s.docs.map(d => ({ id: d.id, ...d.data() })); } catch (e) {} }
 async function loadSettings() {
   try {
     const snap = await getDoc(doc(db, 'settings', 'system'));
@@ -3445,13 +2713,9 @@ async function loadSettings() {
       if (d.saccoName) APP.saccoName = d.saccoName;
       if (d.shortName) APP.shortName = d.shortName;
       APP.settings = mergeDashboard(d.dashboard || d);
-      if (d.dividends && typeof d.dividends === 'object') {
-        APP.settings = { ...APP.settings, ...d.dividends };
-      }
-    } else {
-      APP.settings = mergeDashboard(null);
-    }
-  } catch (e) { console.warn('settings', e.message); APP.settings = mergeDashboard(null); }
+      if (d.dividends && typeof d.dividends === 'object') APP.settings = { ...APP.settings, ...d.dividends };
+    } else APP.settings = mergeDashboard(null);
+  } catch (e) { APP.settings = mergeDashboard(null); }
 }
 async function loadAvailableYears() {
   const currentYear = new Date().getFullYear();
@@ -3463,49 +2727,27 @@ async function loadAvailableYears() {
       getDocs(collection(db, 'shares'))
     ]);
     bS.forEach(d => { const y = d.data().year; if (y) set.add(Number(y)); });
-    tS.forEach(d => {
-      const dd = toDate(d.data().date || d.data().timestamp || d.data().createdAt);
-      if (dd) set.add(dd.getFullYear());
-      if (d.data().year) set.add(Number(d.data().year));
-    });
-    cS.forEach(d => {
-      const dd = toDate(d.data().date || d.data().timestamp || d.data().createdAt);
-      if (dd) set.add(dd.getFullYear());
-    });
-  } catch (e) { console.warn('year load', e); }
+    tS.forEach(d => { const dd = toDate(d.data().date || d.data().timestamp || d.data().createdAt); if (dd) set.add(dd.getFullYear()); if (d.data().year) set.add(Number(d.data().year)); });
+    cS.forEach(d => { const dd = toDate(d.data().date || d.data().timestamp || d.data().createdAt); if (dd) set.add(dd.getFullYear()); });
+  } catch (e) {}
   for (let i = -3; i <= 3; i++) set.add(currentYear + i);
   APP.years = Array.from(set).filter(y => y >= 2020 && isFinite(y)).sort((a,b) => b - a);
   if (!APP.years.includes(APP.selectedYear)) APP.selectedYear = APP.years[0] || currentYear;
 }
 
-/* ============================================================
- * BOOT
- * ============================================================ */
 (async function boot() {
   let saved = null;
   try { saved = localStorage.getItem(LANG_KEY); } catch(e){}
   const b = (navigator.language || 'en').slice(0,2);
-  LANG = SUPPORTED_LANGS.includes(saved) ? saved
-       : (SUPPORTED_LANGS.includes(b) ? b : 'en');
+  LANG = SUPPORTED_LANGS.includes(saved) ? saved : (SUPPORTED_LANGS.includes(b) ? b : 'en');
   document.documentElement.lang = LANG;
   document.body.classList.toggle('lang-am', LANG === 'am');
 
   const sess = readSession();
-  if (!isSessionRecordValid(sess)) {
-    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
-    window.location.replace(LOGIN_URL);
-    return;
-  }
+  if (!isSessionRecordValid(sess)) { try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){} window.location.replace(LOGIN_URL); return; }
 
-  const user = await new Promise(resolve => {
-    const unsub = onAuthStateChanged(auth, u => { unsub(); resolve(u); });
-  });
-  if (!user || user.uid !== sess.uid) {
-    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
-    clearSession();
-    window.location.replace(LOGIN_URL);
-    return;
-  }
+  const user = await new Promise(resolve => { const unsub = onAuthStateChanged(auth, u => { unsub(); resolve(u); }); });
+  if (!user || user.uid !== sess.uid) { try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){} clearSession(); window.location.replace(LOGIN_URL); return; }
   APP.user = user;
 
   try {
@@ -3521,26 +2763,12 @@ async function loadAvailableYears() {
     return;
   }
 
-  console.log('[sacco] booting with role:', APP.profile.role,
-              '| districtId:', APP.profile.districtId,
-              '| branchId:', APP.profile.branchId);
-
-  await Promise.all([
-    loadSettings(),
-    loadCustomers(),
-    loadDistricts(),
-    loadBranches(),
-    loadLoansCollection()
-  ]);
+  await Promise.all([loadSettings(), loadCustomers(), loadDistricts(), loadBranches(), loadLoansCollection()]);
   await loadAvailableYears();
-
   renderShell();
   renderMain();
-
   setTimeout(() => document.getElementById('loader')?.classList.add('hide'), 150);
 })();
-
-console.log('[sacco] dividends page ready — with member/SACCO split');
 </script>
 
 </body>
