@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Geresu Dhuki SACCO</title>
+<title>Dividends — Geresu Dhuki SACCO</title>
 <link rel="icon" type="image/png" href="../images/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -615,9 +615,6 @@ import {
   writeBatch, runTransaction
 } from "firebase/firestore";
 
-/* ============================================================
- * FIREBASE
- * ============================================================ */
 const firebaseConfig = {
   apiKey: "AIzaSyBeQv8YLNfFFaTEZ6pxXaAy_K8n3u8V5X4",
   authDomain: "geresu-dhuki-sacco-75329.firebaseapp.com",
@@ -1164,27 +1161,7 @@ async function getYearOverview(year) {
 }
 
 /* ============================================================
- * ⚡ DISTRIBUTE — EXACT split, no drift, no losses
- * ------------------------------------------------------------
- * Given:
- *   totalProfit  = profit.netProfit
- *   memberPct    = user's chosen percent (0..100)
- *   saccoPct     = 100 - memberPct
- *
- * Compute:
- *   memberPortion = round2(totalProfit × memberPct / 100)  ← EXACT target
- *   saccoPortion  = totalProfit − memberPortion             ← exact complement
- *
- * Distribute memberPortion across shareholders:
- *   - Sort by shares descending
- *   - Give every row except the LARGEST its rounded proportional amount
- *   - Give the LARGEST row (memberPortion − sum of others)
- *   → Sum of member row grosses = memberPortion EXACTLY
- *
- * Result:
- *   sum(member.grossAmount) === memberPortion   ✓
- *   memberPortion + saccoPortion === totalProfit ✓
- *   No money is lost, no dust is dropped, no double-counting.
+ * DISTRIBUTE — EXACT split (member + SACCO = totalProfit, always)
  * ============================================================ */
 async function distributeBatch({ year, profit, ledger, previewRows, autoApprove, taxRate, memberPercent, user }) {
   if (!previewRows || !previewRows.length) throw new Error('No eligible customers.');
@@ -1194,20 +1171,13 @@ async function distributeBatch({ year, profit, ledger, previewRows, autoApprove,
   const memberPct = Math.min(100, Math.max(0, num(memberPercent)));
   const saccoPct  = round2(100 - memberPct);
   const totalProfit = round2(profit.netProfit);
-
-  // ── Hard targets. Both sum to totalProfit exactly.
   const memberPortion = round2(totalProfit * memberPct / 100);
   const saccoPortion  = round2(totalProfit - memberPortion);
 
   const cfg = mergeDashboard(APP.settings);
   const totalShares = ledger.totals.closing;
-
-  // ── Sort by shares descending so the largest row can absorb rounding residuals
   const sortedPreview = previewRows.slice().sort((a,b) => num(b.shares) - num(a.shares));
 
-  // ── Allocate memberPortion across rows with EXACT arithmetic
-  //    Every row except index 0 (largest) gets round2(memberPortion × shareFraction)
-  //    Index 0 gets whatever is left → guarantees sum === memberPortion
   let runningSum = 0;
   const allocated = new Array(sortedPreview.length);
   for (let i = 1; i < sortedPreview.length; i++) {
@@ -1219,7 +1189,6 @@ async function distributeBatch({ year, profit, ledger, previewRows, autoApprove,
     const net = round2(gross - tax);
     allocated[i] = { ...r, grossAmount: gross, taxAmount: tax, netAmount: net };
   }
-  // Largest row gets the exact remainder
   if (sortedPreview.length > 0) {
     const r = sortedPreview[0];
     const gross = round2(memberPortion - runningSum);
@@ -1228,7 +1197,6 @@ async function distributeBatch({ year, profit, ledger, previewRows, autoApprove,
     allocated[0] = { ...r, grossAmount: gross, taxAmount: tax, netAmount: net };
   }
 
-  // Sanity check — should ALWAYS hold
   const actualMemberSum = round2(allocated.reduce((s,r) => s + num(r.grossAmount), 0));
   const verified = Math.abs(actualMemberSum - memberPortion) < 0.01;
 
@@ -1252,32 +1220,15 @@ async function distributeBatch({ year, profit, ledger, previewRows, autoApprove,
     }
     tx.set(yearIndexRef, { year, batchId, createdAt: serverTimestamp(), createdBy: uid });
     tx.set(batchRef, {
-      year,
-      fiscalLabel: String(year),
-      mode: 'bulk',
+      year, fiscalLabel: String(year), mode: 'bulk',
       status: autoApprove ? 'paid' : 'pending',
       profitFormula: { ...profit },
       settingsSnapshot: { ...cfg, taxRate },
-      // ── Split fields (exact) ──
-      totalProfit,
-      memberPortion,
-      saccoPortion,
-      memberPercent: memberPct,
-      saccoPercent: saccoPct,
-      verified,
-      // ── Normal fields ──
+      totalProfit, memberPortion, saccoPortion, memberPercent: memberPct, saccoPercent: saccoPct, verified,
       totalSharesClosing: totalShares,
       dividendPerShare: totalShares > 0 ? round4(memberPortion / totalShares) : 0,
-      totals: {
-        count: allocated.length,
-        gross: totalGross,       // === memberPortion
-        tax: totalTax,
-        net: totalNet,           // memberPortion − tax
-        member: memberPortion,
-        sacco: saccoPortion
-      },
-      refNo,
-      printCount: 0,
+      totals: { count: allocated.length, gross: totalGross, tax: totalTax, net: totalNet, member: memberPortion, sacco: saccoPortion },
+      refNo, printCount: 0,
       createdBy: uid, createdByName: uname, createdAt: serverTimestamp(),
       ...(autoApprove ? { paidBy: uid, paidByName: uname, paidAt: serverTimestamp() } : {})
     });
@@ -1298,19 +1249,16 @@ async function distributeBatch({ year, profit, ledger, previewRows, autoApprove,
 
   try { await updateDoc(batchRef, { childIds }); } catch(e) { console.warn('childIds attach failed', e); }
 
-  // SACCO capital transaction (yearly track) — only if > 0
+  /* SACCO capital allocation — always store batchId so cleanup can find it */
   if (saccoPortion > 0) {
     try {
       await addDoc(collection(db, 'transactions'), {
-        type: 'sacco_capital',
-        batchId, year, fiscalYear: String(year),
-        amount: saccoPortion,
-        percent: saccoPct,
+        type: 'sacco_capital', batchId, year, fiscalYear: String(year),
+        amount: saccoPortion, percent: saccoPct,
         source: 'dividend_allocation',
         notes: `SACCO retained capital from ${year} dividend distribution (${saccoPct}% of ${totalProfit})`,
         status: autoApprove ? 'approved' : 'pending',
-        date: new Date(),
-        createdAt: serverTimestamp(),
+        date: new Date(), createdAt: serverTimestamp(),
         createdBy: uid, createdByName: uname,
         ...(autoApprove ? { approvedAt: serverTimestamp(), approvedBy: uid, approvedByName: uname } : {})
       });
@@ -1329,19 +1277,13 @@ function childPayload({ row, batchId, year, autoApprove, uid, uname, refNo, taxR
     sharesHeld: round4(row.shares),
     ratePerShare: row.shares > 0 ? round4(num(row.grossAmount) / num(row.shares)) : 0,
     sharePercent: round4(row.sharePercent),
-    grossAmount: round2(row.grossAmount),
-    taxRate: num(taxRate),
-    taxAmount: round2(row.taxAmount),
-    netAmount: round2(row.netAmount),
-    sharesIssued: 0,
-    overridden: false, overrideReason: '', originalAmount: null,
+    grossAmount: round2(row.grossAmount), taxRate: num(taxRate),
+    taxAmount: round2(row.taxAmount), netAmount: round2(row.netAmount),
+    sharesIssued: 0, overridden: false, overrideReason: '', originalAmount: null,
     memberPercentSnapshot: num(memberPct),
-    status,
-    serialNumber: makeSerial(),
-    refNo,
+    status, serialNumber: makeSerial(), refNo,
     printCount: 0, printStatus: 'not_printed',
-    date: new Date(),
-    createdAt: serverTimestamp(),
+    date: new Date(), createdAt: serverTimestamp(),
     createdBy: uid, createdByName: uname
   };
   if (autoApprove) {
@@ -1365,15 +1307,35 @@ function makeSerial() {
   return `DV-${yr}-${rnd}-${suf}`;
 }
 
+/* ============================================================
+ * ⚡ FIXED: cleanup also deletes associated SACCO capital records
+ * ============================================================ */
 async function refreshBatchAfterMutation(batchId, year) {
   if (!batchId) return;
   const snap = await getDocs(query(collection(db,'transactions'), where('batchId','==',batchId), where('type','==','dividend')));
   const batchRef = doc(db, 'dividendBatches', batchId);
+
   if (snap.empty) {
-    try { await deleteDoc(batchRef); } catch (e) {}
-    if (year) { try { await deleteDoc(doc(db, 'yearIndex', String(year))); } catch (e) {} }
+    try { await deleteDoc(batchRef); } catch (e) { console.warn('[batch] delete failed', e); }
+    if (year) { try { await deleteDoc(doc(db, 'yearIndex', String(year))); } catch (e) { console.warn('[yearIndex] delete failed', e); } }
+
+    /* ⚡ Delete any orphaned SACCO capital allocation belonging to this batch */
+    try {
+      const scSnap = await getDocs(query(
+        collection(db, 'transactions'),
+        where('batchId', '==', batchId),
+        where('type', '==', 'sacco_capital')
+      ));
+      if (!scSnap.empty) {
+        const wb = writeBatch(db);
+        scSnap.forEach(d => wb.delete(d.ref));
+        await wb.commit();
+        console.log(`[batch] cleaned ${scSnap.size} sacco_capital record(s) for batch ${batchId}`);
+      }
+    } catch (e) { console.warn('[sacco_capital cleanup] failed', e); }
     return;
   }
+
   let g = 0, t2 = 0, n = 0, c = 0;
   let allPaid = true, allResolved = true;
   snap.forEach(d => {
@@ -1627,13 +1589,8 @@ async function renderMain() {
   }
   host.innerHTML = `
     <div class="page-head">
-      <div>
-        <h1 class="page-head__title">${esc(t('pageTitle'))}</h1>
-        <p class="page-head__sub">${esc(t('pageSub'))}</p>
-      </div>
-      <div class="page-head__actions">
-        ${canCreate() ? `<button class="btn btn--gold btn--sm" id="newManualBtn"><i class="fas fa-plus"></i> ${esc(t('newManual'))}</button>` : ''}
-      </div>
+      <div><h1 class="page-head__title">${esc(t('pageTitle'))}</h1><p class="page-head__sub">${esc(t('pageSub'))}</p></div>
+      <div class="page-head__actions">${canCreate() ? `<button class="btn btn--gold btn--sm" id="newManualBtn"><i class="fas fa-plus"></i> ${esc(t('newManual'))}</button>` : ''}</div>
     </div>
     <div class="year-bar">
       <label><i class="fas fa-calendar"></i> ${esc(t('year'))}</label>
@@ -1678,14 +1635,10 @@ function renderOverview(ov) {
   }
   const profit = ov.profit;
   const batch = ov.batch;
-
-  // ⚡ KPI values
   const memberPortionShown = batch ? num(batch.memberPortion ?? batch.totals?.member ?? 0) : 0;
   const saccoPortionShown  = batch ? num(batch.saccoPortion  ?? batch.totals?.sacco  ?? 0) : ov.saccoCapital;
   const totalAllocated     = round2(memberPortionShown + saccoPortionShown);
-  // ⚡ FIX: remaining profit = totalProfit − (member + sacco), NOT just member
   const remainingProfit    = Math.max(0, round2(profit.netProfit - totalAllocated));
-
   const customersPaid = batch?.totals?.count || 0;
   const avg = customersPaid ? memberPortionShown / customersPaid : 0;
   const dps = ov.ledger.totals.closing > 0 ? num(batch?.dividendPerShare) || (memberPortionShown / ov.ledger.totals.closing) : 0;
@@ -1760,8 +1713,6 @@ function renderBatchCard(batch) {
   const statusClass = status === 'closed' ? 'tag--gray' : status === 'paid' ? 'tag--green' : 'tag--gold';
   const statusText  = status === 'closed' ? t('batchClosed') : status === 'paid' ? t('batchPaid') : t('statusPending');
   const p = batch.profitFormula || {};
-
-  // ⚡ Exact split fields
   const totalProfit    = num(batch.totalProfit ?? p.netProfit ?? 0);
   const memberPortion  = num(batch.memberPortion ?? batch.totals?.member ?? 0);
   const saccoPortion   = num(batch.saccoPortion  ?? batch.totals?.sacco  ?? 0);
@@ -1769,17 +1720,14 @@ function renderBatchCard(batch) {
   const saccoPct       = num(batch.saccoPercent  ?? (100 - memberPct));
   const sumCheck       = round2(memberPortion + saccoPortion);
   const verified       = Math.abs(sumCheck - totalProfit) < 0.01;
-
-  const taxAmount = num(batch.totals?.tax || 0);
-  const netToMembers = num(batch.totals?.net ?? memberPortion);
+  const taxAmount      = num(batch.totals?.tax || 0);
+  const netToMembers   = num(batch.totals?.net ?? memberPortion);
 
   return `
     <div class="card">
       <div class="card__head">
         <div>
-          <div class="card__title"><i class="fas fa-layer-group"></i> ${esc(t('batchTitle'))}
-            <span class="tag ${statusClass}" style="margin-left:8px">${esc(statusText)}</span>
-          </div>
+          <div class="card__title"><i class="fas fa-layer-group"></i> ${esc(t('batchTitle'))}<span class="tag ${statusClass}" style="margin-left:8px">${esc(statusText)}</span></div>
           <div class="card__sub">${esc(t('batchRef'))}: <strong class="mono">${esc(batch.refNo || '—')}</strong></div>
         </div>
         <div class="card__actions">
@@ -1789,31 +1737,19 @@ function renderBatchCard(batch) {
       </div>
       <div class="card__body">
         <div class="review" style="max-width:720px">
-          <div class="review__row"><span class="review__k">${esc(t('splitTotal'))}</span>
-            <span class="review__v mono" style="font-weight:800">${esc(money(totalProfit))}</span></div>
-          <div class="review__row" style="background:#f0fdf4"><span class="review__k" style="color:#067647">${esc(t('splitMembers'))} (${memberPct.toFixed(2)}%)</span>
-            <span class="review__v mono" style="color:#067647;font-weight:800">${esc(money(memberPortion))}</span></div>
-          ${taxAmount > 0 ? `<div class="review__row"><span class="review__k">↳ ${esc(t('taxApplied'))}</span>
-            <span class="review__v mono" style="color:#b8860b">− ${esc(money(taxAmount))}</span></div>
-          <div class="review__row"><span class="review__k">↳ ${esc(t('netAfterTax'))}</span>
-            <span class="review__v mono" style="color:#067647">${esc(money(netToMembers))}</span></div>` : ''}
-          <div class="review__row" style="background:#faf7ff"><span class="review__k" style="color:#5b21b6">${esc(t('splitSacco'))} (${saccoPct.toFixed(2)}%)</span>
-            <span class="review__v mono" style="color:#5b21b6;font-weight:800">${esc(money(saccoPortion))}</span></div>
+          <div class="review__row"><span class="review__k">${esc(t('splitTotal'))}</span><span class="review__v mono" style="font-weight:800">${esc(money(totalProfit))}</span></div>
+          <div class="review__row" style="background:#f0fdf4"><span class="review__k" style="color:#067647">${esc(t('splitMembers'))} (${memberPct.toFixed(2)}%)</span><span class="review__v mono" style="color:#067647;font-weight:800">${esc(money(memberPortion))}</span></div>
+          ${taxAmount > 0 ? `<div class="review__row"><span class="review__k">↳ ${esc(t('taxApplied'))}</span><span class="review__v mono" style="color:#b8860b">− ${esc(money(taxAmount))}</span></div>
+          <div class="review__row"><span class="review__k">↳ ${esc(t('netAfterTax'))}</span><span class="review__v mono" style="color:#067647">${esc(money(netToMembers))}</span></div>` : ''}
+          <div class="review__row" style="background:#faf7ff"><span class="review__k" style="color:#5b21b6">${esc(t('splitSacco'))} (${saccoPct.toFixed(2)}%)</span><span class="review__v mono" style="color:#5b21b6;font-weight:800">${esc(money(saccoPortion))}</span></div>
           <div class="review__row" style="border-top:2px solid var(--border)">
             <span class="review__k" style="font-weight:800">Sum Check</span>
-            <span class="review__v mono" style="font-weight:800;color:${verified ? '#067647' : '#b42318'}">
-              ${esc(money(memberPortion))} + ${esc(money(saccoPortion))} = ${esc(money(sumCheck))}
-              ${verified ? ' ✓' : ' ⚠ mismatch'}
-            </span>
+            <span class="review__v mono" style="font-weight:800;color:${verified ? '#067647' : '#b42318'}">${esc(money(memberPortion))} + ${esc(money(saccoPortion))} = ${esc(money(sumCheck))}${verified ? ' ✓' : ' ⚠ mismatch'}</span>
           </div>
-          <div class="review__row"><span class="review__k">${esc(t('totalShares'))}</span>
-            <span class="review__v mono">${num(batch.totalSharesClosing).toLocaleString()}</span></div>
-          <div class="review__row"><span class="review__k">${esc(t('perShare'))} (members)</span>
-            <span class="review__v mono">${esc(money(batch.dividendPerShare))}</span></div>
-          <div class="review__row"><span class="review__k">${esc(t('records'))}</span>
-            <span class="review__v">${num(batch.totals?.count)}</span></div>
-          <div class="review__row"><span class="review__k">${esc(t('batchCreated'))}</span>
-            <span class="review__v">${esc(fmtDateTime(batch.createdAt))} · ${esc(batch.createdByName || '—')}</span></div>
+          <div class="review__row"><span class="review__k">${esc(t('totalShares'))}</span><span class="review__v mono">${num(batch.totalSharesClosing).toLocaleString()}</span></div>
+          <div class="review__row"><span class="review__k">${esc(t('perShare'))} (members)</span><span class="review__v mono">${esc(money(batch.dividendPerShare))}</span></div>
+          <div class="review__row"><span class="review__k">${esc(t('records'))}</span><span class="review__v">${num(batch.totals?.count)}</span></div>
+          <div class="review__row"><span class="review__k">${esc(t('batchCreated'))}</span><span class="review__v">${esc(fmtDateTime(batch.createdAt))} · ${esc(batch.createdByName || '—')}</span></div>
           ${batch.paidAt ? `<div class="review__row"><span class="review__k">${esc(t('batchPaid'))}</span><span class="review__v">${esc(fmtDateTime(batch.paidAt))} · ${esc(batch.paidByName || '—')}</span></div>` : ''}
           ${batch.closedAt ? `<div class="review__row"><span class="review__k">${esc(t('batchClosed'))}</span><span class="review__v">${esc(fmtDateTime(batch.closedAt))} · ${esc(batch.closedByName || '—')}</span></div>` : ''}
         </div>
@@ -1858,17 +1794,11 @@ function renderPreviewCard(ov) {
   return `
     <div class="card">
       <div class="card__head">
-        <div>
-          <div class="card__title"><i class="fas fa-eye"></i> ${esc(t('previewTitle'))}</div>
-          <div class="card__sub">${esc(t('previewSub'))} — shown at ${memberPctPreview.toFixed(0)}% to members</div>
-        </div>
-        <div class="card__actions">
-          ${canCreate() ? `<button class="btn btn--success btn--sm" id="distributeBtn"><i class="fas fa-gift"></i> ${esc(t('distributeBtn'))}</button>` : ''}
-        </div>
+        <div><div class="card__title"><i class="fas fa-eye"></i> ${esc(t('previewTitle'))}</div><div class="card__sub">${esc(t('previewSub'))} — shown at ${memberPctPreview.toFixed(0)}% to members</div></div>
+        <div class="card__actions">${canCreate() ? `<button class="btn btn--success btn--sm" id="distributeBtn"><i class="fas fa-gift"></i> ${esc(t('distributeBtn'))}</button>` : ''}</div>
       </div>
       <div class="card__body" style="padding-top:14px">
         <div class="info-banner info-banner--success"><i class="fas fa-info-circle"></i><div>${esc(t('previewNote'))}</div></div>
-
         <div class="split-grid">
           <div class="split-box split-box--members is-active">
             <div class="split-box__label">${esc(t('splitMembers'))} (${memberPctPreview.toFixed(1)}%)</div>
@@ -1881,22 +1811,13 @@ function renderPreviewCard(ov) {
             <div class="split-box__amt">${esc(t('saccoAmount'))}</div>
           </div>
         </div>
-        <div class="verify-line ${verified ? '' : 'is-bad'}">
-          ${verified ? '✓ ' : '⚠ '}${esc(money(memberPortionPreview))} + ${esc(money(saccoPortionPreview))} = ${esc(money(sumPreview))}
-          ${verified ? '' : ' — mismatch vs ' + esc(money(ov.profit.netProfit))}
-        </div>
-
+        <div class="verify-line ${verified ? '' : 'is-bad'}">${verified ? '✓ ' : '⚠ '}${esc(money(memberPortionPreview))} + ${esc(money(saccoPortionPreview))} = ${esc(money(sumPreview))}${verified ? '' : ' — mismatch vs ' + esc(money(ov.profit.netProfit))}</div>
         <div class="tbl-wrap" style="max-height:440px;overflow-y:auto;margin-top:14px">
           <table class="tbl">
             <thead><tr>
-              <th class="center">${esc(t('colHash'))}</th>
-              <th>${esc(t('colCustomer'))}</th>
-              <th class="num">Opening</th>
-              <th class="num">Bought</th>
-              <th class="num">Sold</th>
-              <th class="num">${esc(t('colShares'))}</th>
-              <th class="num">${esc(t('colPercent'))}</th>
-              <th class="num">${esc(t('colNet'))}</th>
+              <th class="center">${esc(t('colHash'))}</th><th>${esc(t('colCustomer'))}</th>
+              <th class="num">Opening</th><th class="num">Bought</th><th class="num">Sold</th>
+              <th class="num">${esc(t('colShares'))}</th><th class="num">${esc(t('colPercent'))}</th><th class="num">${esc(t('colNet'))}</th>
             </tr></thead>
             <tbody>${html}</tbody>
           </table>
@@ -1908,9 +1829,7 @@ function renderPreviewCard(ov) {
 function renderChildrenCard() {
   return `
     <div class="card" id="childrenCard">
-      <div class="card__head">
-        <div><div class="card__title"><i class="fas fa-list"></i> ${esc(t('childrenTitle'))}</div><div class="card__sub">${esc(t('childrenSub'))}</div></div>
-      </div>
+      <div class="card__head"><div><div class="card__title"><i class="fas fa-list"></i> ${esc(t('childrenTitle'))}</div><div class="card__sub">${esc(t('childrenSub'))}</div></div></div>
       <div style="padding:12px 22px;border-bottom:1px solid var(--border-soft);background:var(--bg-soft)">
         <input type="search" id="childSearch" placeholder="${esc(t('searchPlaceholder'))}" style="width:100%;max-width:380px;height:42px;padding:0 14px;border:1px solid var(--border);border-radius:11px;font-size:13.5px">
       </div>
@@ -2086,11 +2005,9 @@ function openModal({ size = '', head, body, foot }) {
   return root;
 }
 
-/* ⚡ Distribution modal with explicit split preview + verification */
 function openDistributionModal(ov) {
   if (!canCreate()) { toast(t('noPermission'), 'error'); return; }
   if (!ov?.canDistribute) { toast(t('noPermission'), 'warning'); return; }
-
   const totalProfit = round2(num(ov.profit.netProfit));
   const defaultMemberPct = num(ov.memberPercentDefault) || 70;
 
@@ -2104,7 +2021,6 @@ function openDistributionModal(ov) {
         <div class="review__row"><span class="review__k">${esc(t('totalShares'))}</span><span class="review__v mono">${num(ov.ledger.totals.closing).toLocaleString()}</span></div>
         <div class="review__row"><span class="review__k">${esc(t('customersPaid'))}</span><span class="review__v">${ov.preview.length}</span></div>
       </div>
-
       <div class="field-row" style="margin-bottom:14px">
         <div class="field" style="margin-bottom:0">
           <label class="field__required">${esc(t('memberSharePct'))}</label>
@@ -2115,10 +2031,8 @@ function openDistributionModal(ov) {
           <input type="number" id="optSaccoPct" readonly class="amount-input" style="background:#f8fafc">
         </div>
       </div>
-
       <div class="split-grid" id="splitPreview"></div>
       <div class="verify-line" id="verifyLine"></div>
-
       <label style="display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:700;cursor:pointer;margin-top:14px">
         <input type="checkbox" id="optAutoApprove" checked style="width:18px;height:18px">
         ${esc(t('autoApprove'))}
@@ -2174,11 +2088,8 @@ function openDistributionModal(ov) {
         year: ov.year, profit: ov.profit, ledger: ov.ledger,
         previewRows: ov.preview, autoApprove, taxRate, memberPercent, user: APP.user
       });
-      if (!result.verified) {
-        toast('Distribution saved but sum check failed. Please audit.', 'warning');
-      } else {
-        toast(t('createdOk'), 'success');
-      }
+      if (!result.verified) toast('Distribution saved but sum check failed. Please audit.', 'warning');
+      else toast(t('createdOk'), 'success');
       closeModal();
       await loadAndRenderOverview();
     } catch (err) {
@@ -2765,6 +2676,26 @@ async function loadAvailableYears() {
 
   await Promise.all([loadSettings(), loadCustomers(), loadDistricts(), loadBranches(), loadLoansCollection()]);
   await loadAvailableYears();
+
+  /* ⚡ One-shot cleanup of orphaned sacco_capital transactions */
+  try {
+    const [scSnap, batchSnap] = await Promise.all([
+      getDocs(query(collection(db, 'transactions'), where('type','==','sacco_capital'))),
+      getDocs(collection(db, 'dividendBatches'))
+    ]);
+    const batchIds = new Set(batchSnap.docs.map(d => d.id));
+    const orphans = scSnap.docs.filter(d => {
+      const x = d.data();
+      return !x.batchId || !batchIds.has(x.batchId);
+    });
+    if (orphans.length) {
+      const wb = writeBatch(db);
+      orphans.forEach(d => wb.delete(d.ref));
+      await wb.commit();
+      console.log(`[boot] cleaned ${orphans.length} orphaned sacco_capital record(s)`);
+    }
+  } catch (e) { console.warn('[boot] sacco_capital cleanup failed', e); }
+
   renderShell();
   renderMain();
   setTimeout(() => document.getElementById('loader')?.classList.add('hide'), 150);
