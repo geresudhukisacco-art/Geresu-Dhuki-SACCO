@@ -171,8 +171,6 @@ body.sidebar-collapsed .sidebar__logout span{display:none;}
 .year-status--open{background:var(--green-soft);color:var(--success);}
 .year-status--closed{background:#fef3f2;color:#b42318;}
 .year-bar__spacer{flex:1;}
-.section-title{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:26px 0 12px;display:flex;align-items:center;gap:10px;}
-.section-title::after{content:"";flex:1;height:1px;background:var(--border);}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:22px;}
 .stat{position:relative;background:#fff;border:1px solid var(--border);
   border-radius:var(--r-lg);padding:18px;box-shadow:var(--sh-sm);overflow:hidden;transition:.2s;}
@@ -761,7 +759,14 @@ const I18N = {
     noMemberDiv:'No member dividend records yet',
     noMemberDivText:'Distribute dividends from above to populate this history table.',
     noSaccoCap:'No SACCO capital allocations',
-    noSaccoCapText:'SACCO capital appears here when dividends are distributed with a non-zero SACCO share.'
+    noSaccoCapText:'SACCO capital appears here when dividends are distributed with a non-zero SACCO share.',
+    closeWindow:'Close Window',
+    closeWindowOpen:'Open now (Dec 30 or Dec 31)',
+    closeWindowUpcoming:'The closing window opens on {date}.',
+    closeWindowExpired:'The closing window closed on {date}.',
+    closeWindowNotYet:'Cannot close Year {year} today',
+    closeWindowBody:'Year {year} can only be closed on <strong>December 30 or 31, {year}</strong> — the last day(s) of that year.',
+    closeWindowToday:'Today is {today}.'
   }
 };
 I18N.am = { ...I18N.en };
@@ -860,6 +865,30 @@ function amountInWords(amount, currency) {
   let s = numberToWords(birr) + ' ' + (currency || 'ETB');
   if (cents > 0) s += ' and ' + numberToWords(cents) + ' Cents';
   return s + ' Only';
+}
+
+/* ⚡ Year-close window helpers */
+function isInYearCloseWindow(year) {
+  const now = new Date();
+  const y = Number(year);
+  if (!isFinite(y)) return false;
+  if (now.getFullYear() !== y) return false;
+  if (now.getMonth() !== 11) return false;
+  const d = now.getDate();
+  return d === 30 || d === 31;
+}
+function getYearCloseWindowInfo(year) {
+  const y = Number(year);
+  if (!isFinite(y)) return { state: 'invalid', label: '—', message: 'Invalid year.' };
+  const now = new Date();
+  const nowTime = now.getTime();
+  const start = new Date(y, 11, 30, 0, 0, 0, 0).getTime();
+  const end   = new Date(y, 11, 31, 23, 59, 59, 999).getTime();
+  const startLabel = new Date(y, 11, 30).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const endLabel   = new Date(y, 11, 31).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  if (nowTime < start) return { state: 'upcoming', label: `${startLabel} – ${endLabel}`, message: `Opens ${startLabel}` };
+  if (nowTime > end)   return { state: 'expired',  label: `${startLabel} – ${endLabel}`, message: `Closed ${endLabel}` };
+  return { state: 'open', label: `${startLabel} – ${endLabel}`, message: 'Open now' };
 }
 
 function mergeDashboard(src) {
@@ -1173,7 +1202,6 @@ async function getYearOverview(year) {
   };
 }
 
-/* ⚡ Load all historical dividends and SACCO capitals across all years */
 async function loadAllYearsHistory() {
   try {
     const [divSnap, scSnap] = await Promise.all([
@@ -1459,7 +1487,13 @@ async function deleteChild(childId, user) {
   await deleteDoc(ref);
   if (tx.batchId) await refreshBatchAfterMutation(tx.batchId, tx.year || tx.fiscalYear);
 }
+
+/* ⚡ closeYear — enforces Dec 30/31 window */
 async function closeYear(year, user) {
+  if (!isInYearCloseWindow(year)) {
+    const info = getYearCloseWindowInfo(year);
+    throw new Error(`Year ${year} can only be closed on December 30 or 31, ${year}. ${info.message}`);
+  }
   const q = query(collection(db,'dividendBatches'), where('year','==',year), where('status','in',['pending','paid']));
   const snap = await getDocs(q);
   if (snap.empty) throw new Error(`No batch found for ${year}.`);
@@ -1726,8 +1760,6 @@ function renderOverview(ov) {
   else if (ov.ledger.totals.closing <= 0) bodyHtml += `<div class="info-banner info-banner--warning"><i class="fas fa-exclamation-triangle"></i><div><strong>${esc(t('noShares'))}.</strong> ${esc(t('noSharesText'))}</div></div>`;
 
   bodyHtml += renderChildrenCard();
-
-  /* ⚡ NEW: All-years history tables */
   bodyHtml += renderHistorySections();
 
   area.innerHTML = kpisHtml + bodyHtml;
@@ -1753,6 +1785,12 @@ function renderBatchCard(batch) {
   const taxAmount      = num(batch.totals?.tax || 0);
   const netToMembers   = num(batch.totals?.net ?? memberPortion);
 
+  const batchYear = num(batch.year || batch.fiscalYear || APP.selectedYear);
+  const isClosed = status === 'closed' || !!batch.closedAt;
+  const winInfo = getYearCloseWindowInfo(batchYear);
+  const canClose = canCloseYear() && !isClosed;
+  const windowOpen = winInfo.state === 'open';
+
   return `
     <div class="card">
       <div class="card__head">
@@ -1761,11 +1799,23 @@ function renderBatchCard(batch) {
           <div class="card__sub">${esc(t('batchRef'))}: <strong class="mono">${esc(batch.refNo || '—')}</strong></div>
         </div>
         <div class="card__actions">
-          ${canCloseYear() && !batch.closedAt && batch.status !== 'closed' ? `<button class="btn btn--sm" id="closeYearBtn"><i class="fas fa-lock"></i> ${esc(t('closeYear'))}</button>` : ''}
+          ${canClose ? `<button class="btn btn--sm" id="closeYearBtn" title="${windowOpen ? 'Close this year' : esc(winInfo.message)}"><i class="fas fa-lock"></i> ${esc(t('closeYear'))}</button>` : ''}
           ${canPrint() ? `<button class="btn btn--sm" id="batchPrintBtn"><i class="fas fa-print"></i> ${esc(t('batchPrintYearly'))}</button>` : ''}
         </div>
       </div>
       <div class="card__body">
+        ${canClose ? `
+          <div class="info-banner ${windowOpen ? 'info-banner--success' : 'info-banner--warning'}" style="margin-bottom:16px;">
+            <i class="fas fa-calendar-${windowOpen ? 'check' : 'lock'}"></i>
+            <div>
+              <strong>${esc(t('closeWindow'))}:</strong>
+              ${windowOpen
+                ? `Open now — close before Dec 31, ${batchYear}.`
+                : `${esc(winInfo.message)}. Year ${batchYear} can only be closed on <strong>December 30 or 31, ${batchYear}</strong>.`
+              }
+            </div>
+          </div>
+        ` : ''}
         <div class="review" style="max-width:720px">
           <div class="review__row"><span class="review__k">${esc(t('splitTotal'))}</span><span class="review__v mono" style="font-weight:800">${esc(money(totalProfit))}</span></div>
           <div class="review__row" style="background:#f0fdf4"><span class="review__k" style="color:#067647">${esc(t('splitMembers'))} (${memberPct.toFixed(2)}%)</span><span class="review__v mono" style="color:#067647;font-weight:800">${esc(money(memberPortion))}</span></div>
@@ -1867,7 +1917,6 @@ function renderChildrenCard() {
     </div>`;
 }
 
-/* ⚡ NEW: All-years history — two cards */
 function renderHistorySections() {
   return `
     <section class="card" id="distributionHistoryCard" style="margin-bottom:22px;">
@@ -1930,7 +1979,6 @@ function renderHistorySections() {
   `;
 }
 
-/* ⚡ Populate Distribution History table (grouped by batch, all years) */
 function renderDistributionHistoryBody() {
   const host = document.getElementById('histDivBody');
   const summaryEl = document.getElementById('histDivSummary');
@@ -2007,7 +2055,6 @@ function renderDistributionHistoryBody() {
   }).join('');
 }
 
-/* ⚡ Populate SACCO Capital table (all years) */
 function renderSaccoCapitalHistoryBody() {
   const host = document.getElementById('histScBody');
   const summaryEl = document.getElementById('histScSummary');
@@ -2326,17 +2373,47 @@ function openDistributionModal(ov) {
   });
 }
 
+/* ⚡ openCloseYearModal — enforces Dec 30/31 window */
 function openCloseYearModal(ov) {
   if (!canCloseYear()) { toast(t('noPermission'), 'error'); return; }
+  const targetYear = Number(ov.year || APP.selectedYear);
+  if (!isInYearCloseWindow(targetYear)) {
+    const info = getYearCloseWindowInfo(targetYear);
+    const today = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+    const bodyMsg = info.state === 'upcoming'
+      ? `Year <strong>${targetYear}</strong> can only be closed on <strong>December 30 or 31, ${targetYear}</strong>.<br><br>Today is <strong>${today}</strong>. The closing window opens on <strong>${new Date(targetYear, 11, 30).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })}</strong>.`
+      : info.state === 'expired'
+      ? `Year <strong>${targetYear}</strong> could only be closed on <strong>December 30 or 31, ${targetYear}</strong>.<br><br>That window closed on <strong>${new Date(targetYear, 11, 31).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })}</strong>. It is now too late to close this year.`
+      : `Year <strong>${targetYear}</strong> cannot be closed today.`;
+    const root = openModal({
+      size: 'sm',
+      head: `<div class="modal__title"><i class="fas fa-calendar-lock" style="color:#b8860b;"></i> ${esc(t('closeWindowNotYet', { year: targetYear }))}</div>`,
+      body: `<div class="info-banner info-banner--warning" style="margin-bottom:0;">
+        <i class="fas fa-clock"></i>
+        <div>${bodyMsg}</div>
+      </div>`,
+      foot: `<button class="btn" data-close>${esc(t('close'))}</button>`
+    });
+    return;
+  }
+
   const root = openModal({
     size: 'sm',
     head: `<div class="modal__title">${esc(t('closeYear'))}</div>`,
-    body: `<p style="font-size:14px;color:var(--text-soft)">${esc(t('closeYearText'))}</p>`,
+    body: `<p style="font-size:14px;color:var(--text-soft);margin-bottom:14px;">${esc(t('closeYearText'))}</p>
+      <div class="info-banner info-banner--success" style="margin-bottom:0;">
+        <i class="fas fa-calendar-check"></i>
+        <div>Closing window is <strong>open</strong>. Closing Year <strong>${targetYear}</strong>.</div>
+      </div>`,
     foot: `<button class="btn" data-close>${esc(t('cancel'))}</button><button class="btn btn--danger" id="confirmClose"><i class="fas fa-lock"></i> ${esc(t('closeYear'))}</button>`
   });
   root.querySelector('#confirmClose').addEventListener('click', async () => {
-    try { await closeYear(ov.year, APP.user); toast(t('closedOk'), 'success'); closeModal(); await loadAndRenderOverview(); }
-    catch (e) { toast(t('errorSave') + e.message, 'error'); }
+    try {
+      await closeYear(targetYear, APP.user);
+      toast(t('closedOk'), 'success');
+      closeModal();
+      await loadAndRenderOverview();
+    } catch (e) { toast(t('errorSave') + e.message, 'error'); }
   });
 }
 
@@ -2902,9 +2979,8 @@ async function loadAvailableYears() {
 
   await Promise.all([loadSettings(), loadCustomers(), loadDistricts(), loadBranches(), loadLoansCollection()]);
   await loadAvailableYears();
-  await loadAllYearsHistory();  // ⚡ prime history tables
+  await loadAllYearsHistory();
 
-  /* One-shot cleanup of orphaned sacco_capital transactions */
   try {
     const [scSnap, batchSnap] = await Promise.all([
       getDocs(query(collection(db, 'transactions'), where('type','==','sacco_capital'))),
