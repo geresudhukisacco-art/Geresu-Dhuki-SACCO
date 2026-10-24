@@ -268,7 +268,6 @@ html.theme-dark .tbl tbody tr:hover td{background:#111a2c;}
 .tag--pink{background:#fdeef5;color:#be185d;}
 .tag--indigo{background:#e8eaf6;color:#283593;}
 .tag--purple{background:#f3e8ff;color:#6b21a8;}
-/* action specific badges */
 .tag--login{background:#e8eaf6;color:#1a237e;}
 .tag--logout{background:#f3f4f6;color:#374151;}
 .tag--created{background:#d1fae5;color:#065f46;}
@@ -419,7 +418,7 @@ body.sb-open .overlay-mobile{display:block;}
 import { initializeApp } from "firebase/app";
 import { getAuth, signOut, onAuthStateChanged } from "firebase/auth";
 import {
-  getFirestore, doc, getDoc, addDoc, deleteDoc, collection, query, orderBy, limit, getDocs, serverTimestamp
+  getFirestore, doc, getDoc, deleteDoc, collection, query, orderBy, limit, getDocs
 } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -440,7 +439,7 @@ const LOGO_URL  = "../images/logo.png";
 const PROFILE_CACHE_KEY = 'sacco.profile';
 
 /* ============================================================
-   SESSION — fixed (prefers settings/system)
+   SESSION — fixed
 ============================================================ */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
@@ -578,7 +577,8 @@ const I18N = {
     backToDashboard:'Back to Dashboard',
     unknown:'Unknown',
     colIndex:'#',
-    permissionsDenied:'Permission denied. Check your Firestore rules.'
+    permissionsDenied:'Permission denied. Check your Firestore rules.',
+    manualLogout:'Manual', timeoutLogout:'Timeout'
   },
   am: {
     brandSub:'የሳኮ አስተዳደር',
@@ -622,7 +622,8 @@ const I18N = {
     backToDashboard:'ወደ ዳሽቦርድ ተመለስ',
     unknown:'ያልታወቀ',
     colIndex:'#',
-    permissionsDenied:'ፈቃድ ተከልክሏል። የ Firestore ደንቦችን ያረጋግጡ።'
+    permissionsDenied:'ፈቃድ ተከልክሏል። የ Firestore ደንቦችን ያረጋግጡ።',
+    manualLogout:'በእጅ', timeoutLogout:'በራስ-ሰር'
   },
   om: {
     brandSub:'Bulchiinsa SACCO',
@@ -666,7 +667,8 @@ const I18N = {
     backToDashboard:'Gara Daashboordii Deebi\'i',
     unknown:'Hin beekamu',
     colIndex:'#',
-    permissionsDenied:'Hayyamni dhorkame. Seera Firestore ilaali.'
+    permissionsDenied:'Hayyamni dhorkame. Seera Firestore ilaali.',
+    manualLogout:'Harkaan', timeoutLogout:'Ofumaan'
   }
 };
 const SUPPORTED = ['en','am','om'];
@@ -681,13 +683,12 @@ const t = (k, v) => {
 
 const esc = (s) => (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const initials = (n) => (n || '?').trim().split(/\s+/).slice(0,2).map(s => s[0]).join('').toUpperCase();
-const num = (v) => { const n = Number(v); return isFinite(n) ? n : 0; };
 const toDate = (v) => { if (!v) return null; if (v.toDate) return v.toDate(); if (typeof v === 'string') return new Date(v); return v; };
 const fmtDate = (v) => { if (!v) return '—'; const d = toDate(v); if (!d || isNaN(d)) return '—'; return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); };
 const fmtTime = (v) => { if (!v) return '—'; const d = toDate(v); if (!d || isNaN(d)) return '—'; return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); };
 const fmtDateTime = (v) => { if (!v) return '—'; const d = toDate(v); if (!d || isNaN(d)) return '—'; return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }); };
 function fmtDuration(ms) {
-  if (!ms || ms < 0) return '—';
+  if (ms == null || ms < 0) return '—';
   const s = Math.floor(ms / 1000);
   const d = Math.floor(s / 86400);
   const h = Math.floor((s % 86400) / 3600);
@@ -699,12 +700,6 @@ function fmtDuration(ms) {
   if (m) parts.push(m + 'm');
   if (sec || !parts.length) parts.push(sec + 's');
   return parts.join(' ');
-}
-function getDeviceType() {
-  const ua = navigator.userAgent;
-  if (/Mobi|Android|iPhone|iPod/i.test(ua)) return 'Mobile';
-  if (/Tablet|iPad/i.test(ua)) return 'Tablet';
-  return 'Desktop';
 }
 function toast(msg, type = 'success') {
   const wrap = document.getElementById('toast-container');
@@ -730,9 +725,56 @@ const APP = {
   entries: [],
   filtered: [],
   userCache: new Map(),
+  sessionDurations: new Map(),   // ⚡ id -> ms for logout entries
   page: 1, pageSize: 15,
   filters: { search: '', action: 'all', collection: 'all', user: 'all' }
 };
+
+/* ════════════════════════════════════════════════════════════
+   Logout sub-kind: manual vs timeout (both still action='logout')
+════════════════════════════════════════════════════════════ */
+function logoutKind(entry) {
+  if (!entry || entry.action !== 'logout') return '';
+  const d = String(entry.details || '').toLowerCase();
+  if (d.includes('timeout') || d.includes('auto logout')) return 'timeout';
+  return 'manual';
+}
+
+/* ════════════════════════════════════════════════════════════
+   Session duration — for every logout entry, find the most
+   recent prior login for the same user and compute the delta.
+   Falls back through userId → userEmail → userDisplayName → userName.
+════════════════════════════════════════════════════════════ */
+function computeSessionDurations() {
+  APP.sessionDurations = new Map();
+  const loginsByUser = new Map();
+
+  APP.entries.forEach(e => {
+    if (e.action !== 'login') return;
+    const key = e.userId || e.userEmail || e.userDisplayName || e.userName;
+    if (!key) return;
+    if (!loginsByUser.has(key)) loginsByUser.set(key, []);
+    loginsByUser.get(key).push(e);
+  });
+  loginsByUser.forEach(arr =>
+    arr.sort((a, b) => (toDate(a.timestamp)?.getTime() || 0) - (toDate(b.timestamp)?.getTime() || 0))
+  );
+
+  APP.entries.forEach(e => {
+    if (e.action !== 'logout') return;
+    const key = e.userId || e.userEmail || e.userDisplayName || e.userName;
+    if (!key) return;
+    const logoutTime = toDate(e.timestamp)?.getTime() || 0;
+    if (!logoutTime) return;
+    const logins = loginsByUser.get(key) || [];
+    let bestLoginTime = 0;
+    for (const login of logins) {
+      const lt = toDate(login.timestamp)?.getTime() || 0;
+      if (lt && lt <= logoutTime && lt > bestLoginTime) bestLoginTime = lt;
+    }
+    if (bestLoginTime) APP.sessionDurations.set(e.id, logoutTime - bestLoginTime);
+  });
+}
 
 /* ── Nav definition ────────────────────────────────────── */
 function navDef() {
@@ -1000,6 +1042,11 @@ function paginate() {
   renderTable(items);
   updatePagination();
 }
+
+/* ════════════════════════════════════════════════════════════
+   Table rendering — logout rows show session duration inline
+   and a "Manual" / "Timeout" sub-badge
+════════════════════════════════════════════════════════════ */
 function renderTable(items) {
   const tbody = document.getElementById('auditBody');
   if (!tbody) return;
@@ -1015,6 +1062,7 @@ function renderTable(items) {
   };
   const actionLabel = (a) => t(a) || (a ? a.charAt(0).toUpperCase() + a.slice(1).replace(/_/g, ' ') : '—');
   const superAdmin = isSuper();
+
   tbody.innerHTML = items.map((e, i) => {
     const dt = toDate(e.timestamp);
     const dateRow = dt
@@ -1027,20 +1075,38 @@ function renderTable(items) {
     const roleRaw = e.userRole || (cached && cached.role) || '';
     const roleTxt = roleLabel(roleRaw);
     const hasChanges = e.changes && Object.keys(e.changes).length > 0;
+
+    // ⚡ logout sub-kind + inline session duration
+    const kind = logoutKind(e);
+    const durMs = APP.sessionDurations.get(e.id);
+    const detailsBase = esc((e.details || '').slice(0, 60) || '—');
+    const detailsCell = (e.action === 'logout' && durMs)
+      ? `${detailsBase}<div style="font-size:11px;color:#0e7490;font-weight:700;margin-top:2px;"><i class="fas fa-clock" style="font-size:10px;"></i> ${esc(fmtDuration(durMs))}</div>`
+      : detailsBase;
+
+    const actionBase = `<span class="tag ${actionCls[e.action] || 'tag--gray'}">${esc(actionLabel(e.action))}</span>`;
+    let actionCell = actionBase;
+    if (kind === 'timeout') {
+      actionCell = `${actionBase}<div style="font-size:9.5px;font-weight:800;color:#b8860b;text-transform:uppercase;letter-spacing:.04em;margin-top:3px;display:inline-flex;align-items:center;gap:4px;"><i class="fas fa-clock" style="font-size:8px;"></i> ${esc(t('timeoutLogout'))}</div>`;
+    } else if (kind === 'manual') {
+      actionCell = `${actionBase}<div style="font-size:9.5px;font-weight:800;color:#0b5cab;text-transform:uppercase;letter-spacing:.04em;margin-top:3px;display:inline-flex;align-items:center;gap:4px;"><i class="fas fa-hand-pointer" style="font-size:8px;"></i> ${esc(t('manualLogout'))}</div>`;
+    }
+
     const actionsCell = `
       <div class="row-actions">
         ${hasChanges ? `<button data-view="${esc(e.id)}"><i class="fas fa-eye"></i> ${esc(t('detailsBtn'))}</button>` : ''}
         ${superAdmin ? `<button class="danger" data-delete="${esc(e.id)}"><i class="fas fa-trash"></i> ${esc(t('deleteBtn'))}</button>` : ''}
       </div>`;
+
     return `
       <tr>
         <td>${(APP.page - 1) * APP.pageSize + i + 1}</td>
         <td style="font-size:12px;color:var(--text-soft);">${dateRow}</td>
         <td><div class="cust-cell"><div class="cust-avatar">${avatar}</div><div style="min-width:0;"><div class="name" style="font-size:13px;">${esc(uName)}</div>${roleTxt ? `<div class="muted" style="font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;font-weight:700;">${esc(roleTxt)}</div>` : ''}</div></div></td>
-        <td><span class="tag ${actionCls[e.action] || 'tag--gray'}">${esc(actionLabel(e.action))}</span></td>
+        <td>${actionCell}</td>
         <td><span class="tag tag--gray">${esc(e.collection || '—')}</span></td>
         <td class="mono">${esc((e.documentId || '—').slice(0, 12))}</td>
-        <td style="font-size:12px;color:var(--muted);">${esc((e.details || '').slice(0, 60) || '—')}</td>
+        <td style="font-size:12px;color:var(--muted);">${detailsCell}</td>
         <td style="text-align:right;">${actionsCell}</td>
       </tr>`;
   }).join('');
@@ -1119,18 +1185,14 @@ function showDetails(entryId) {
   const avatar = photoURL ? `<img src="${esc(photoURL)}" alt="" onerror="this.style.display='none'">` : esc(initials(uName));
   const roleTxt = roleLabel(e.userRole || (cached && cached.role) || '');
   const meta = [roleTxt, e.userEmail].filter(Boolean).join(' · ');
-  const dt = toDate(e.timestamp);
+
+  // ⚡ always show duration row for logout entries
   let durationHtml = '';
-  if (e.action === 'logout' && e.userId && dt) {
-    const login = APP.entries
-      .filter(x => x.action === 'login' && x.userId === e.userId)
-      .filter(x => { const tt = toDate(x.timestamp); return tt && tt.getTime() <= dt.getTime(); })
-      .sort((a, b) => (toDate(b.timestamp)?.getTime() || 0) - (toDate(a.timestamp)?.getTime() || 0))[0];
-    if (login) {
-      const lt = toDate(login.timestamp);
-      if (lt) durationHtml = `<div class="review__row"><span class="review__k">${esc(t('sessionDuration'))}</span><span class="review__v not-mono">${esc(fmtDuration(dt.getTime() - lt.getTime()))}</span></div>`;
-    }
+  if (e.action === 'logout') {
+    const durMs = APP.sessionDurations.get(e.id);
+    durationHtml = `<div class="review__row"><span class="review__k">${esc(t('sessionDuration'))}</span><span class="review__v not-mono">${durMs ? esc(fmtDuration(durMs)) : '—'}</span></div>`;
   }
+
   let changesHtml = `<p style="color:var(--muted);font-size:13px;">${esc(t('noChanges'))}</p>`;
   const changes = e.changes || {};
   if (Object.keys(changes).length) {
@@ -1149,6 +1211,16 @@ function showDetails(entryId) {
     });
     changesHtml = `<table class="changes-table"><thead><tr><th>${esc(t('field'))}</th><th>${esc(t('oldValue'))}</th><th>${esc(t('newValue'))}</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
+
+  // ⚡ action cell with manual/timeout sub-badge
+  const kind = logoutKind(e);
+  let actionInlineBadge = '';
+  if (kind === 'timeout') {
+    actionInlineBadge = ` <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:999px;background:#fdf5e0;color:#b8860b;margin-left:6px;display:inline-flex;align-items:center;gap:4px;"><i class="fas fa-clock" style="font-size:8px;"></i> ${esc(t('timeoutLogout'))}</span>`;
+  } else if (kind === 'manual') {
+    actionInlineBadge = ` <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:999px;background:#eaf3fc;color:#0b5cab;margin-left:6px;display:inline-flex;align-items:center;gap:4px;"><i class="fas fa-hand-pointer" style="font-size:8px;"></i> ${esc(t('manualLogout'))}</span>`;
+  }
+
   const root = document.createElement('div');
   root.className = 'modal-backdrop';
   root.id = 'modal-backdrop';
@@ -1171,7 +1243,7 @@ function showDetails(entryId) {
           <div class="review__row"><span class="review__k">${esc(t('time'))}</span><span class="review__v not-mono">${esc(fmtTime(e.timestamp))}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('device'))}</span><span class="review__v not-mono">${esc(e.device || '—')}</span></div>
           ${durationHtml}
-          <div class="review__row"><span class="review__k">${esc(t('action'))}</span><span class="review__v not-mono">${esc(t(e.action) || e.action || '—')}</span></div>
+          <div class="review__row"><span class="review__k">${esc(t('action'))}</span><span class="review__v not-mono">${esc(t(e.action) || e.action || '—')}${actionInlineBadge}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('collection'))}</span><span class="review__v">${esc(e.collection || '—')}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('documentId'))}</span><span class="review__v">${esc(e.documentId || '—')}</span></div>
         </div>
@@ -1305,6 +1377,7 @@ async function loadAuditEntries() {
     const snap = await getDocs(q);
     APP.entries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (APP.userCache.size === 0) await loadUsersPhotoCache();
+    computeSessionDurations();
     populateUserFilter();
     applyFilters();
   } catch (err) {
@@ -1439,7 +1512,7 @@ function setLang(lang) {
   await loadAuditEntries();
 })();
 
-console.log('[sacco] audit page ready — modern design, session fix, full translations');
+console.log('[sacco] audit page ready — session duration inline, manual/timeout sub-badges');
 </script>
 
 </body>
