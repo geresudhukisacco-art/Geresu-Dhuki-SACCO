@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Geresu Dhuki SACCO</title>
+<title>Customers — Geresu Dhuki SACCO</title>
 <link rel="icon" type="image/png" href="../images/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -543,9 +543,7 @@ const LOGIN_URL = "../index.html";
 const LOGO_URL  = "../images/logo.png";
 const PROFILE_CACHE_KEY = 'sacco.profile';
 
-/* ============================================================
-   SESSION — fixed (matches dashboard)
-============================================================ */
+/* SESSION — fixed */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
 let SESSION_MINUTES = null;
@@ -636,6 +634,69 @@ async function loadSessionTimeout() {
   } catch (e) {}
 }
 
+/* ════════════════════════════════════════════════════════════
+   REGION → ZONES + CITIES
+   - Zones: cascading dropdown (filtered by region)
+   - Cities: suggestions in a datalist (free typing allowed)
+════════════════════════════════════════════════════════════ */
+const REGION_DATA = {
+  'Addis Ababa': {
+    zones: ['Addis Ketema','Akaki Kaliti','Arada','Bole','Gulele',
+            'Kirkos','Kolfe Keranio','Lideta','Nifas Silk-Lafto','Yeka','Lemi Kura'],
+    cities: ['Addis Ababa']
+  },
+  'Oromia': {
+    zones: ['East Oromia','West Oromia','South Oromia','Central Oromia',
+            'South East Oromia','South West Oromia'],
+    cities: ['Adama','Jimma','Bishoftu','Nekemte','Shashamane','Shager','Asella','Maya']
+  },
+  'Amhara': {
+    zones: ['North Gondar','South Gondar','North Wollo','South Wollo','North Shewa',
+            'East Gojjam','West Gojjam','Wag Himra','Awi','Oromia Zone','Bahir Dar City'],
+    cities: ['Bahir Dar','Gondar','Dessie','Debre Birhan','Debre Markos','Woldia','Debre Tabor','Kombolcha']
+  },
+  'Tigray': {
+    zones: ['North West Tigray','Central Tigray','Eastern Tigray','Southern Tigray',
+            'Western Tigray','Mekelle City'],
+    cities: ['Mekelle','Adigrat','Axum','Shire','Adwa','Humera','Alamata','Dansha']
+  },
+  'Sidama': {
+    zones: ['Hawassa City','Aleta Wondo','Arbegona','Aroresa','Bensa','Boricha','Bursa',
+            'Chere','Chire','Dale','Dara','Gorche','Hula','Loka Abaya','Malga','Shebedino','Wondogenet'],
+    cities: ['Hawassa','Yirga Alem','Aleta Wondo','Wondogenet','Daye','Bona']
+  },
+  'South Ethiopia': {
+    zones: ['Gamo','Gofa','Wolayita','South Omo','Keffa','Sheka','Bench Sheko',
+            'Konta','Dawro','Kembata Tembaro','Hadiya','Halaba','Silte','Gurage','Yem'],
+    cities: ['Wolaita Sodo','Arba Minch','Jinka','Bonga','Mizan Teferi','Hosaena','Butajira','Durame']
+  },
+  'Central Ethiopia': {
+    zones: ['Gurage','Halaba','Kembata Tembaro','Silte','Yem','Hadiya'],
+    cities: ['Hosaena','Butajira','Durame','Wolkite','Halaba Kulito']
+  },
+  'South West Ethiopia': {
+    zones: ['Bench Sheko','Keffa','Sheka','West Omo','Dawro','Konta'],
+    cities: ['Bonga','Mizan Teferi','Tepi','Tercha']
+  },
+  'Afar': {
+    zones: ['Zone 1','Zone 2','Zone 3','Zone 4','Zone 5'],
+    cities: ['Semera','Asayita','Dubti','Gewane','Awash']
+  },
+  'Benishangul-Gumuz': {
+    zones: ['Asosa','Kamashi','Metekel','Kemashi'],
+    cities: ['Asosa','Gilgel Beles','Bambasi','Kamashi']
+  },
+  'Gambela': {
+    zones: ['Anuak','Nuer','Mezhenger','Agnewak'],
+    cities: ['Gambela','Meti','Pugnido','Itang']
+  },
+  'Harari': { zones: ['Harari'], cities: ['Harar'] },
+  'Dire Dawa': { zones: ['Dire Dawa'], cities: ['Dire Dawa'] }
+};
+const REGION_LIST = Object.keys(REGION_DATA);
+const zonesOf  = (region) => (REGION_DATA[region]?.zones)  || [];
+const citiesOf = (region) => (REGION_DATA[region]?.cities) || [];
+
 const DEFAULT_SACCO_NAME = 'Geresu Dhuki SACCO';
 const APP = {
   user: null, profile: null,
@@ -651,13 +712,10 @@ const APP = {
 };
 let LANG = 'en';
 
-/* ============================================================
-   FULL TRANSLATIONS
-============================================================ */
+/* I18N — full EN / AM / OM */
 const I18N = {
   en: {
-    brandSub:'SACCO Management',
-    navOverview:'Overview', navNetwork:'Network', navOperations:'Operations',
+    brandSub:'SACCO Management', navOverview:'Overview', navNetwork:'Network', navOperations:'Operations',
     navFinance:'Finance', navAdmin:'Administration',
     dashboard:'Dashboard', districts:'Districts', branches:'Branches', customers:'Customers',
     savings:'Savings', deposits:'Deposits', loans:'Loans', repayments:'Repayments', withdrawals:'Withdrawals',
@@ -680,8 +738,7 @@ const I18N = {
     noCustomers:'No customers yet', noCustomersText:'Click "Add Customer" to register the first one.',
     noMatch:'No matching customers', noMatchText:'Try adjusting your search or filters.',
     editCustomer:'Edit Customer', newCustomer:'New Customer',
-    editCustomerSub:"Update this customer's details.",
-    newCustomerSub:'Register a new SACCO member account.',
+    editCustomerSub:"Update this customer's details.", newCustomerSub:'Register a new SACCO member account.',
     firstNameEn:'First Name (English)', middleNameEn:'Middle Name (English)', lastNameEn:'Last Name (English)',
     firstNameAm:'First Name (Amharic)', middleNameAm:'Middle Name (Amharic)', lastNameAm:'Last Name (Amharic)',
     fullNameEn:'Full Name (English)', fullNameAm:'Full Name (Amharic)',
@@ -700,27 +757,30 @@ const I18N = {
     chooseDistrictFirst:'Choose a district first',
     noDistricts:'No districts available', noBranches:'No branches in this district',
     districtRequired:'Please choose a district.', branchRequired:'Please choose a branch.',
-    region:'Region', regionPlaceholder:'e.g. Oromia',
-    city:'City', cityPlaceholder:'e.g. Dukem',
-    address:'Address', addressPlaceholder:'e.g. Dukem, Oromia',
-    specificPlace:'Specific Place', specificPlacePlaceholder:'Optional landmark',
+    region:'Region', zone:'Zone / Sub-city', city:'City / Town',
+    specificPlace:'Specific Place', address:'Full Address',
+    regionPlaceholder:'e.g. Oromia', cityPlaceholder:'Type city or town name',
+    cityHint:'Type the city or town name manually (e.g. Dukem, Adama, Hawassa).',
+    specificPlacePlaceholder:'Optional landmark (e.g. near St. George Church)',
+    chooseRegion:'— Choose a region —', chooseZone:'— Choose a zone —',
+    chooseRegionFirst:'Choose a region first',
+    regionRequired:'Please choose a region.',
+    zoneRequired:'Please choose a zone / sub-city.',
+    cityRequired:'Please type the city or town name (min 2 characters).',
     photo:'Profile Photo',
-    stepPersonal:'Personal', stepIdentity:'Identity', stepAccount:'Account', stepReview:'Review',
+    stepPersonal:'Personal', stepIdentity:'Identity', stepAddress:'Address',
+    stepAccount:'Account', stepReview:'Review',
     stepPersonalTitle:'Personal details', stepIdentityTitle:'Identity & contact',
-    stepAccountTitle:'Account & location', stepReviewTitle:'Review and save',
+    stepAddressTitle:'Home address', stepAccountTitle:'Account & branch', stepReviewTitle:'Review and save',
     cancel:'Cancel', save:'Save', create:'Create Customer', update:'Save Changes',
     next:'Next →', back:'← Back',
-    deleteTitle:'Delete Customer',
-    deleteText:'This will permanently remove this customer from Firestore.',
-    confirm:'Confirm', rowDelete:'Delete', rowEdit:'Edit', reset:'Reset',
-    rowView:'View',
+    deleteTitle:'Delete Customer', deleteText:'This will permanently remove this customer from Firestore.',
+    confirm:'Confirm', rowDelete:'Delete', rowEdit:'Edit', reset:'Reset', rowView:'View',
     showing:'Showing', of:'of', customersWord:'customers',
-    savedOk:'Customer updated successfully!', createdOk:'Customer created successfully!',
-    deletedOk:'Customer deleted.',
+    savedOk:'Customer updated successfully!', createdOk:'Customer created successfully!', deletedOk:'Customer deleted.',
     errorSave:'Could not save: ', errorDelete:'Could not delete: ',
     requiredFields:'Please fill in all required fields.',
-    duplicateId:'A customer with this ID already exists.',
-    duplicateNid:'This National ID is already registered.',
+    duplicateId:'A customer with this ID already exists.', duplicateNid:'This National ID is already registered.',
     loading:'Loading…',
     logoutTitle:'Logout Confirmation', logoutText:'Are you sure you want to log out?',
     accessDenied:'You do not have permission to view this page.',
@@ -728,25 +788,19 @@ const I18N = {
     backToDashboard:'Back to Dashboard',
     noPermission:'Permission denied. Check your Firestore rules.',
     unknown:'Unknown', scopeAll:'All customers',
-    personalInfo:'Personal Information',
-    accountLocation:'Account & Location',
-    noTx:'No transactions recorded yet',
-    close:'Close',
-    txCount:'Transactions',
-    depositsLabel:'Deposits',
-    withdrawalsLabel:'Withdrawals',
-    penaltiesFromSavings:'Penalties from Savings',
+    personalInfo:'Personal Information', addressInfo:'Home Address', accountLocation:'Account & Branch',
+    noTx:'No transactions recorded yet', close:'Close', txCount:'Transactions',
+    depositsLabel:'Deposits', withdrawalsLabel:'Withdrawals', penaltiesFromSavings:'Penalties from Savings',
     allTx:'All Transactions',
     activateHintNoDepositTitle:'Account inactive — no savings deposits yet.',
     activateHintNoDepositBody:'Make a savings deposit from the Savings page to activate this customer. Status becomes Active automatically.',
     activateHintStaleTitle:'Account inactive — no savings deposit for 6+ months.',
     activateHintStaleBody:'This customer has not deposited any savings for more than 6 months. Make a savings deposit from the Savings page to reactivate them. Status becomes Active automatically.',
-    depositToActivate:'Deposit to activate',
-    depositToReactivate:'Deposit to reactivate',
+    depositToActivate:'Deposit to activate', depositToReactivate:'Deposit to reactivate',
     inactiveNoDepositHint:'No savings deposits yet. Status will become Active after the first deposit.',
-    savingTx:'Savings',
-    noPermissionsToEdit:'You do not have permission to edit this customer.',
-    lastDepositLabel:'Last deposit'
+    savingTx:'Savings', noPermissionsToEdit:'You do not have permission to edit this customer.',
+    lastDepositLabel:'Last deposit',
+    printStatement:'Print Statement', printRange:'Statement range'
   },
   am: {
     brandSub:'የሳኮ አስተዳደር',
@@ -773,8 +827,7 @@ const I18N = {
     noCustomers:'እስካሁን ደንበኞች የሉም', noCustomersText:'"ደንበኛ ጨምር" ን ተጭነው የመጀመሪያውን ይመዝግቡ።',
     noMatch:'ተመሳሳይ ደንበኞች አልተገኙም', noMatchText:'ፍለጋዎን ወይም ማጣሪያዎን ያስተካክሉ።',
     editCustomer:'ደንበኛ አስተካክል', newCustomer:'አዲስ ደንበኛ',
-    editCustomerSub:'የዚህን ደንበኛ ዝርዝሮች ያዘምኑ።',
-    newCustomerSub:'አዲስ የሳኮ አባል ሒሳብ ይመዝግቡ።',
+    editCustomerSub:'የዚህን ደንበኛ ዝርዝሮች ያዘምኑ።', newCustomerSub:'አዲስ የሳኮ አባል ሒሳብ ይመዝግቡ።',
     firstNameEn:'የመጀመሪያ ስም (እንግሊዝኛ)', middleNameEn:'የአባት ስም (እንግሊዝኛ)', lastNameEn:'የአያት ስም (እንግሊዝኛ)',
     firstNameAm:'የመጀመሪያ ስም (አማርኛ)', middleNameAm:'የአባት ስም (አማርኛ)', lastNameAm:'የአያት ስም (አማርኛ)',
     fullNameEn:'ሙሉ ስም (እንግሊዝኛ)', fullNameAm:'ሙሉ ስም (አማርኛ)',
@@ -793,27 +846,30 @@ const I18N = {
     chooseDistrictFirst:'መጀመሪያ ወረዳ ይምረጡ',
     noDistricts:'ወረዳዎች የሉም', noBranches:'በዚህ ወረዳ ውስጥ ቅርንጫፎች የሉም',
     districtRequired:'እባክዎ ወረዳ ይምረጡ።', branchRequired:'እባክዎ ቅርንጫፍ ይምረጡ።',
-    region:'ክልል', regionPlaceholder:'ለምሳሌ ኦሮሚያ',
-    city:'ከተማ', cityPlaceholder:'ለምሳሌ ዱከም',
-    address:'አድራሻ', addressPlaceholder:'ለምሳሌ ዱከም፣ ኦሮሚያ',
-    specificPlace:'ልዩ ቦታ', specificPlacePlaceholder:'አማራጭ ምልክት',
+    region:'ክልል', zone:'ዞን / ክፍለ ከተማ', city:'ከተማ',
+    specificPlace:'ልዩ ቦታ', address:'ሙሉ አድራሻ',
+    regionPlaceholder:'ለምሳሌ ኦሮሚያ', cityPlaceholder:'የከተማ ስም ይተይቡ',
+    cityHint:'የከተማ ወይም የመንደር ስም በእጅ ይተይቡ (ለምሳሌ ዱከም፣ አዳማ)።',
+    specificPlacePlaceholder:'አማራጭ ምልክት (ለምሳሌ በቅዱስ ጊዮርጊስ ቤተክርስቲያን አጠገብ)',
+    chooseRegion:'— ክልል ይምረጡ —', chooseZone:'— ዞን ይምረጡ —',
+    chooseRegionFirst:'መጀመሪያ ክልል ይምረጡ',
+    regionRequired:'እባክዎ ክልል ይምረጡ።',
+    zoneRequired:'እባክዎ ዞን / ክፍለ ከተማ ይምረጡ።',
+    cityRequired:'እባክዎ የከተማ ስም ይተይቡ (ቢያንስ 2 ፊደሎች)።',
     photo:'የመገለጫ ፎቶ',
-    stepPersonal:'የግል', stepIdentity:'መታወቂያ', stepAccount:'ሒሳብ', stepReview:'ግምገማ',
+    stepPersonal:'የግል', stepIdentity:'መታወቂያ', stepAddress:'አድራሻ',
+    stepAccount:'ሒሳብ', stepReview:'ግምገማ',
     stepPersonalTitle:'የግል ዝርዝሮች', stepIdentityTitle:'መታወቂያ እና ግንኙነት',
-    stepAccountTitle:'ሒሳብ እና አካባቢ', stepReviewTitle:'ገምግም እና አስቀምጥ',
+    stepAddressTitle:'የቤት አድራሻ', stepAccountTitle:'ሒሳብ እና ቅርንጫፍ', stepReviewTitle:'ገምግም እና አስቀምጥ',
     cancel:'ሰርዝ', save:'አስቀምጥ', create:'ደንበኛ ፍጠር', update:'ለውጦችን አስቀምጥ',
     next:'ቀጣይ →', back:'← ተመለስ',
-    deleteTitle:'ደንበኛ ሰርዝ',
-    deleteText:'ይህ ደንበኛ ከ Firestore ውስጥ እስከመጨረሻው ይወገዳል።',
-    confirm:'አረጋግጥ', rowDelete:'ሰርዝ', rowEdit:'አስተካክል', reset:'እንደገና',
-    rowView:'ተመልከት',
+    deleteTitle:'ደንበኛ ሰርዝ', deleteText:'ይህ ደንበኛ ከ Firestore ውስጥ እስከመጨረሻው ይወገዳል።',
+    confirm:'አረጋግጥ', rowDelete:'ሰርዝ', rowEdit:'አስተካክል', reset:'እንደገና', rowView:'ተመልከት',
     showing:'እያሳየ ነው', of:'ከ', customersWord:'ደንበኞች',
-    savedOk:'ደንበኛ በተሳካ ሁኔታ ተዘምኗል!', createdOk:'ደንበኛ በተሳካ ሁኔታ ተፈጥሯል!',
-    deletedOk:'ደንበኛ ተሰርዟል።',
+    savedOk:'ደንበኛ በተሳካ ሁኔታ ተዘምኗል!', createdOk:'ደንበኛ በተሳካ ሁኔታ ተፈጥሯል!', deletedOk:'ደንበኛ ተሰርዟል።',
     errorSave:'ማስቀመጥ አልተቻለም: ', errorDelete:'መሰረዝ አልተቻለም: ',
     requiredFields:'እባክዎ ሁሉንም አስፈላጊ መስኮች ይሙሉ።',
-    duplicateId:'በዚህ መለያ ደንበኛ አስቀድሞ አለ።',
-    duplicateNid:'ይህ ብሔራዊ መታወቂያ አስቀድሞ ተመዝግቧል።',
+    duplicateId:'በዚህ መለያ ደንበኛ አስቀድሞ አለ።', duplicateNid:'ይህ ብሔራዊ መታወቂያ አስቀድሞ ተመዝግቧል።',
     loading:'በመጫን ላይ…',
     logoutTitle:'የውጣ ማረጋገጫ', logoutText:'እርግጠኛ ነዎት መውጣት ይፈልጋሉ?',
     accessDenied:'ይህን ገጽ ለማየት ፈቃድ የለዎትም።',
@@ -821,25 +877,19 @@ const I18N = {
     backToDashboard:'ወደ ዳሽቦርድ ተመለስ',
     noPermission:'ፈቃድ ተከልክሏል። የ Firestore ደንቦችን ያረጋግጡ።',
     unknown:'ያልታወቀ', scopeAll:'ሁሉም ደንበኞች',
-    personalInfo:'የግል መረጃ',
-    accountLocation:'ሒሳብ እና አካባቢ',
-    noTx:'እስካሁን ግብይቶች አልተመዘገቡም',
-    close:'ዝጋ',
-    txCount:'ግብይቶች',
-    depositsLabel:'ተቀማጮች',
-    withdrawalsLabel:'መውጫዎች',
-    penaltiesFromSavings:'ከቁጠባ የተከፈሉ ቅጣቶች',
+    personalInfo:'የግል መረጃ', addressInfo:'የቤት አድራሻ', accountLocation:'ሒሳብ እና ቅርንጫፍ',
+    noTx:'እስካሁን ግብይቶች አልተመዘገቡም', close:'ዝጋ', txCount:'ግብይቶች',
+    depositsLabel:'ተቀማጮች', withdrawalsLabel:'መውጫዎች', penaltiesFromSavings:'ከቁጠባ የተከፈሉ ቅጣቶች',
     allTx:'ሁሉም ግብይቶች',
     activateHintNoDepositTitle:'ሒሳብ እንቅስቃሴ-የለሽ — እስካሁን የቁጠባ ተቀማጭ የለም።',
-    activateHintNoDepositBody:'ይህን ደንበኛ ለማንቀሳቀስ ከቁጠባ ገጽ ላይ የቁጠባ ተቀማጭ ያድርጉ። ሁኔታው ወዲያውኑ ንቁ ይሆናል።',
+    activateHintNoDepositBody:'ይህን ደንበኛ ለማንቀሳቀስ ከቁጠባ ገጽ ላይ የቁጠባ ተቀማጭ ያድርጉ።',
     activateHintStaleTitle:'ሒሳብ እንቅስቃሴ-የለሽ — ከ6+ ወራት በላይ የቁጠባ ተቀማጭ የለም።',
-    activateHintStaleBody:'ይህ ደንበኛ ከ6 ወራት በላይ የቁጠባ ተቀማጭ አላደረገም። እንደገና ለማንቀሳቀስ ከቁጠባ ገጽ ላይ የቁጠባ ተቀማጭ ያድርጉ። ሁኔታው ወዲያውኑ ንቁ ይሆናል።',
-    depositToActivate:'ለማንቀሳቀስ ተቀማጭ ያድርጉ',
-    depositToReactivate:'እንደገና ለማንቀሳቀስ ተቀማጭ ያድርጉ',
+    activateHintStaleBody:'ይህ ደንበኛ ከ6 ወራት በላይ የቁጠባ ተቀማጭ አላደረገም። እንደገና ለማንቀሳቀስ ተቀማጭ ያድርጉ።',
+    depositToActivate:'ለማንቀሳቀስ ተቀማጭ ያድርጉ', depositToReactivate:'እንደገና ለማንቀሳቀስ ተቀማጭ ያድርጉ',
     inactiveNoDepositHint:'እስካሁን የቁጠባ ተቀማጭ የለም። ከመጀመሪያው ተቀማጭ በኋላ ንቁ ይሆናል።',
-    savingTx:'ቁጠባ',
-    noPermissionsToEdit:'ይህን ደንበኛ ለማስተካከል ፈቃድ የለዎትም።',
-    lastDepositLabel:'የመጨረሻ ተቀማጭ'
+    savingTx:'ቁጠባ', noPermissionsToEdit:'ይህን ደንበኛ ለማስተካከል ፈቃድ የለዎትም።',
+    lastDepositLabel:'የመጨረሻ ተቀማጭ',
+    printStatement:'መግለጫ አትም', printRange:'የመግለጫ ክልል'
   },
   om: {
     brandSub:'Bulchiinsa SACCO',
@@ -866,8 +916,7 @@ const I18N = {
     noCustomers:'Amma ammaatti maamiltoonni hin jiran', noCustomersText:'"Maamila Dabali" tuqiitii kan jalqabaa galmeessi.',
     noMatch:'Maamiltoonni wal siman hin argamne', noMatchText:'Barbaacha yookaan filtarii kee sirreessi.',
     editCustomer:'Maamila Gulaali', newCustomer:'Maamila Haaraa',
-    editCustomerSub:'Ibsa maamila kanaa haaromsi.',
-    newCustomerSub:'Herrega miseensa SACCO haaraa galmeessi.',
+    editCustomerSub:'Ibsa maamila kanaa haaromsi.', newCustomerSub:'Herrega miseensa SACCO haaraa galmeessi.',
     firstNameEn:'Maqaa Jalqabaa (Ingiliffa)', middleNameEn:'Maqaa Abbaa (Ingiliffa)', lastNameEn:'Maqaa Akaakayyuu (Ingiliffa)',
     firstNameAm:'Maqaa Jalqabaa (Amaariffa)', middleNameAm:'Maqaa Abbaa (Amaariffa)', lastNameAm:'Maqaa Akaakayyuu (Amaariffa)',
     fullNameEn:'Maqaa Guutuu (Ingiliffa)', fullNameAm:'Maqaa Guutuu (Amaariffa)',
@@ -886,27 +935,30 @@ const I18N = {
     chooseDistrictFirst:'Dura aanaa filadhu',
     noDistricts:'Aanaan hin jiran', noBranches:'Aanaa kana keessatti dameen hin jiru',
     districtRequired:'Maaloo aanaa filadhu.', branchRequired:'Maaloo damee filadhu.',
-    region:'Naannoo', regionPlaceholder:'fkn Oromiyaa',
-    city:'Magaalaa', cityPlaceholder:'fkn Duukam',
-    address:'Teessoo', addressPlaceholder:'fkn Duukam, Oromiyaa',
-    specificPlace:'Bakka Addaa', specificPlacePlaceholder:'Mallattoo filannoo',
+    region:'Naannoo', zone:'Godina / Kutaa magaalaa', city:'Magaalaa',
+    specificPlace:'Bakka Addaa', address:'Teessoo Guutuu',
+    regionPlaceholder:'fkn Oromiyaa', cityPlaceholder:'Maqaa magaalaa barreessi',
+    cityHint:'Maqaa magaalaa yookaan ganda harkaan barreessi (fkn Duukam, Adaamaa).',
+    specificPlacePlaceholder:'Mallattoo filannoo (fkn mana kiristaanaa biratti)',
+    chooseRegion:'— Naannoo filadhu —', chooseZone:'— Godina filadhu —',
+    chooseRegionFirst:'Dura naannoo filadhu',
+    regionRequired:'Maaloo naannoo filadhu.',
+    zoneRequired:'Maaloo godina / kutaa magaalaa filadhu.',
+    cityRequired:'Maaloo maqaa magaalaa barreessi (qubee 2 ol).',
     photo:'Suuraa Profaayilii',
-    stepPersonal:'Dhuunfaa', stepIdentity:'Eenyummaa', stepAccount:'Herrega', stepReview:'Ilaalcha',
+    stepPersonal:'Dhuunfaa', stepIdentity:'Eenyummaa', stepAddress:'Teessoo',
+    stepAccount:'Herrega', stepReview:'Ilaalcha',
     stepPersonalTitle:'Ibsa dhuunfaa', stepIdentityTitle:'Eenyummaa fi quunnamtii',
-    stepAccountTitle:'Herrega fi iddoo', stepReviewTitle:'Ilaaliitii olkaa’i',
+    stepAddressTitle:'Teessoo mana', stepAccountTitle:'Herrega fi damee', stepReviewTitle:'Ilaaliitii olkaa’i',
     cancel:'Haqi', save:'Olkaa’i', create:'Maamila Uumi', update:'Jijjiirama Olkaa’i',
     next:'Itti aanu →', back:'← Deebi’i',
-    deleteTitle:'Maamila Haqi',
-    deleteText:'Kun maamila kana Firestore irraa guutummaatti ni haqa.',
-    confirm:'Mirkaneessi', rowDelete:'Haqi', rowEdit:'Gulaali', reset:'Irra deebi’i',
-    rowView:'Ilaali',
+    deleteTitle:'Maamila Haqi', deleteText:'Kun maamila kana Firestore irraa guutummaatti ni haqa.',
+    confirm:'Mirkaneessi', rowDelete:'Haqi', rowEdit:'Gulaali', reset:'Irra deebi’i', rowView:'Ilaali',
     showing:'Mul’isaa jira', of:'keessaa', customersWord:'maamiltoota',
-    savedOk:'Maamilli milkaayinaan haaromfame!', createdOk:'Maamilli milkaayinaan uumame!',
-    deletedOk:'Maamilli haqame.',
+    savedOk:'Maamilli milkaayinaan haaromfame!', createdOk:'Maamilli milkaayinaan uumame!', deletedOk:'Maamilli haqame.',
     errorSave:'Olkaa’uun hin danda’amne: ', errorDelete:'Haqchuun hin danda’amne: ',
     requiredFields:'Maaloo dirree barbaachisoo hunda guuti.',
-    duplicateId:'Maamilli ID kanaan duraan jira.',
-    duplicateNid:'Eenyummaan biyyaalessaa kun duraan galmaa’eera.',
+    duplicateId:'Maamilli ID kanaan duraan jira.', duplicateNid:'Eenyummaan biyyaalessaa kun duraan galmaa’eera.',
     loading:'Fe’aa jira…',
     logoutTitle:'Mirkaneessa Ba’uu', logoutText:'Dhuguma ba’uu barbaadda?',
     accessDenied:'Fuula kana ilaaluuf hayyama hin qabdu.',
@@ -914,25 +966,19 @@ const I18N = {
     backToDashboard:'Gara Daashboordii Deebi’i',
     noPermission:'Hayyamni dhorkame. Seera Firestore ilaali.',
     unknown:'Hin beekamu', scopeAll:'Maamiltoota hunda',
-    personalInfo:'Odeeffannoo Dhuunfaa',
-    accountLocation:'Herrega fi Iddoo',
-    noTx:'Amma ammaatti galmeen hin jiru',
-    close:'Cufi',
-    txCount:'Galmeewwan',
-    depositsLabel:'Kaasaa',
-    withdrawalsLabel:'Baasii',
-    penaltiesFromSavings:'Adaba Qusannaa irraa',
+    personalInfo:'Odeeffannoo Dhuunfaa', addressInfo:'Teessoo Manaa', accountLocation:'Herrega fi Damee',
+    noTx:'Amma ammaatti galmeen hin jiru', close:'Cufi', txCount:'Galmeewwan',
+    depositsLabel:'Kaasaa', withdrawalsLabel:'Baasii', penaltiesFromSavings:'Adaba Qusannaa irraa',
     allTx:'Galmeewwan Hunda',
     activateHintNoDepositTitle:'Herregni sochii hin qabu — kaasaan qusannaa hin jiru.',
-    activateHintNoDepositBody:'Maamila kana sochoosuuf fuula Qusannaa irraa kaasaa qusannaa galmeessi. Haalli isaa ofumaan sochii qabu ta’a.',
-    activateHintStaleTitle:'Herregni sochii hin qabu — ji\'a 6+ kaasaa qusannaa hin galmeessine.',
-    activateHintStaleBody:'Maamilli kun ji\'a 6 ol kaasaa qusannaa hin galmeessine. Deebi\'ii sochoosuuf fuula Qusannaa irraa kaasaa qusannaa galmeessi. Haalli isaa ofumaan sochii qabu ta\'a.',
-    depositToActivate:'Sochoosuuf kaasaa galmeessi',
-    depositToReactivate:'Deebi’ii sochoosuuf kaasaa galmeessi',
+    activateHintNoDepositBody:'Maamila kana sochoosuuf fuula Qusannaa irraa kaasaa qusannaa galmeessi.',
+    activateHintStaleTitle:"Herregni sochii hin qabu — ji'a 6+ kaasaa qusannaa hin galmeessine.",
+    activateHintStaleBody:"Maamilli kun ji'a 6 ol kaasaa qusannaa hin galmeessine. Deebi'ii sochoosuuf kaasaa galmeessi.",
+    depositToActivate:'Sochoosuuf kaasaa galmeessi', depositToReactivate:'Deebi’ii sochoosuuf kaasaa galmeessi',
     inactiveNoDepositHint:'Kaasaan qusannaa hin jiru. Kaasaa jalqabaa booda sochii qabu ta’a.',
-    savingTx:'Qusannaa',
-    noPermissionsToEdit:'Maamila kana gulaaluuf hayyama hin qabdu.',
-    lastDepositLabel:'Kaasaa dhumaa'
+    savingTx:'Qusannaa', noPermissionsToEdit:'Maamila kana gulaaluuf hayyama hin qabdu.',
+    lastDepositLabel:'Kaasaa dhumaa',
+    printStatement:'Ibsa Maxxansi', printRange:'Daangaa ibsaa'
   }
 };
 const SUPPORTED = ['en','am','om'];
@@ -1025,12 +1071,7 @@ function isPenaltyPaidFromSavings(p) {
   return !!m && sources.includes(m);
 }
 
-/* ============================================================
-   ⚡ ACTIVITY — inactive after 6 months without deposit
-   - No deposits ever → inactive ("Deposit to activate")
-   - Last deposit ≥ 6 months ago → inactive ("Deposit to reactivate")
-   - Otherwise active
-============================================================ */
+/* ACTIVITY — inactive after 6 months without deposit */
 const INACTIVITY_MONTHS = 6;
 const SAVINGS_DEPOSIT_TYPES = ['savings','deposit'];
 
@@ -1058,9 +1099,7 @@ function customerLastDepositDate(customer) {
   });
   return latest;
 }
-function customerHasAnyDeposit(customer) {
-  return customerLastDepositDate(customer) !== null;
-}
+function customerHasAnyDeposit(customer) { return customerLastDepositDate(customer) !== null; }
 function customerHasRecentDeposit(customer, months = INACTIVITY_MONTHS) {
   const last = customerLastDepositDate(customer);
   if (!last) return false;
@@ -1082,7 +1121,7 @@ function effectiveInactiveReason(customer) {
   return '';
 }
 
-/* ⚡ ALL TRANSACTIONS — every type collected for a customer */
+/* ALL TRANSACTIONS DISPLAY MAP */
 const ALL_TX_TYPES_DISPLAY = {
   savings:{label:'Savings',color:'green',icon:'fa-piggy-bank'},
   saving:{label:'Savings',color:'green',icon:'fa-piggy-bank'},
@@ -1173,6 +1212,153 @@ function customerPenaltiesFromSavings(customer) {
   return round2(total);
 }
 
+/* PRINT STATEMENT — helpers */
+function customerSavingsAsOf(customer, cutoff) {
+  if (!customer || !cutoff) return 0;
+  let total = 0;
+  APP.transactions.forEach(tx => {
+    if (!txBelongsToCustomer(tx, customer)) return;
+    if (!isTxCounted(tx)) return;
+    const d = toDate(tx.createdAt || tx.date || tx.approvedAt);
+    if (!d || d > cutoff) return;
+    const type = String(tx.type || '').toLowerCase();
+    const amt  = num(tx.amount);
+    if (type === 'savings' || type === 'deposit') total += amt;
+    else if (type === 'withdrawal' || type === 'individual_withdrawal' || type === 'leaving_withdrawal') total -= amt;
+    else if (type === 'penalty') {
+      if (!isPenaltyPaid(tx)) return;
+      if (!isPenaltyPaidFromSavings(tx)) return;
+      total -= amt;
+    }
+  });
+  return Math.max(0, total);
+}
+function customerTxBetween(customer, from, to) {
+  if (!customer || !from || !to) return [];
+  return customerAllTransactions(customer).filter(tx => {
+    if (!isTxCounted(tx)) return false;
+    const d = toDate(tx.createdAt || tx.date || tx.approvedAt);
+    return d && d >= from && d <= to;
+  }).sort((a, b) => {
+    const da = toDate(a.createdAt || a.date || a.approvedAt)?.getTime() || 0;
+    const db2 = toDate(b.createdAt || b.date || b.approvedAt)?.getTime() || 0;
+    return da - db2;
+  });
+}
+function printStatement(customer, from, to) {
+  if (!customer || !from || !to) return;
+  const txs = customerTxBetween(customer, from, to);
+  const dayBefore = new Date(from.getTime() - 1);
+  let running = customerSavingsAsOf(customer, dayBefore);
+  const openingBalance = running;
+  const rows = txs.map(tx => {
+    const type = String(tx.type || '').toLowerCase();
+    const amt  = num(tx.amount);
+    let delta = 0;
+    if (type === 'savings' || type === 'deposit') delta = amt;
+    else if (type === 'withdrawal' || type === 'individual_withdrawal' || type === 'leaving_withdrawal') delta = -amt;
+    else if (type === 'penalty') {
+      if (!isPenaltyPaid(tx) || !isPenaltyPaidFromSavings(tx)) delta = 0;
+      else delta = -amt;
+    } else {
+      delta = 0;
+    }
+    running += delta;
+    return { ...tx, _delta: delta, _balance: running, _date: toDate(tx.createdAt || tx.date || tx.approvedAt) };
+  });
+  const closingBalance = running;
+  const fmt  = (v) => (APP.currency || 'ETB') + ' ' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtD = (d) => d ? d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+  const sacco = esc(APP.saccoName || 'SACCO');
+  const win = window.open('', '_blank');
+  if (!win) { toast('Please allow pop-ups to print the statement', 'warning'); return; }
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Statement — ${esc(displayName(customer))}</title>
+    <style>
+      *{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif;}
+      body{margin:20px;color:#111;font-size:12px;}
+      h1{font-size:20px;margin:0 0 4px;}
+      .hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #0b5cab;padding-bottom:10px;margin-bottom:14px;}
+      .hdr__r{text-align:right;font-size:11px;color:#555;}
+      .meta{display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;margin-bottom:14px;font-size:12px;}
+      .meta b{display:inline-block;min-width:110px;color:#333;}
+      table{width:100%;border-collapse:collapse;margin-top:8px;}
+      th,td{border:1px solid #ccc;padding:6px 8px;font-size:11.5px;text-align:left;}
+      th{background:#eef3fa;font-weight:700;}
+      td.num{text-align:right;font-family:monospace;}
+      tr:nth-child(even) td{background:#fbfcfe;}
+      .totals{margin-top:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+      .totals div{border:1px solid #ccc;padding:8px 12px;border-radius:6px;}
+      .totals .lbl{font-size:10px;text-transform:uppercase;color:#666;font-weight:700;}
+      .totals .val{font-size:14px;font-weight:800;margin-top:2px;}
+      .foot{margin-top:24px;font-size:10px;color:#777;text-align:center;border-top:1px solid #ddd;padding-top:8px;}
+      @media print{ body{margin:10mm;} .noprint{display:none !important;} }
+      .noprint{margin-top:14px;text-align:right;}
+      .noprint button{padding:8px 16px;font-size:13px;border:1px solid #0b5cab;background:#0b5cab;color:#fff;border-radius:6px;cursor:pointer;margin-left:6px;}
+      .noprint button.ghost{background:#fff;color:#0b5cab;}
+    </style></head><body>
+    <div class="hdr">
+      <div><h1>${sacco}</h1><div style="font-size:11px;color:#555;">Savings Account Statement</div></div>
+      <div class="hdr__r">
+        <div><b>From:</b> ${fmtD(from)}</div>
+        <div><b>To:</b> ${fmtD(to)}</div>
+        <div><b>Printed:</b> ${fmtD(new Date())}</div>
+      </div>
+    </div>
+    <div class="meta">
+      <div><b>Customer:</b> ${esc(displayName(customer))}</div>
+      <div><b>Customer ID:</b> ${esc(customer.customerId || '—')}</div>
+      <div><b>Account No.:</b> ${esc(customer.accountNumber || '—')}</div>
+      <div><b>Phone:</b> ${esc(formatPhone(customer.phone) || '—')}</div>
+      <div><b>Region:</b> ${esc(customer.region || '—')}</div>
+      <div><b>Zone / Sub-city:</b> ${esc(customer.zone || '—')}</div>
+      <div><b>City:</b> ${esc(customer.city || '—')}</div>
+      <div><b>Address:</b> ${esc(customer.address || '—')}</div>
+    </div>
+    <table>
+      <thead><tr>
+        <th style="width:22px;">#</th>
+        <th style="width:90px;">Date</th>
+        <th>Type</th>
+        <th>Reference</th>
+        <th class="num" style="width:120px;">Amount</th>
+        <th class="num" style="width:130px;">Balance</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td colspan="5" style="text-align:right;font-weight:700;">Opening Balance (${fmtD(from)})</td>
+          <td class="num" style="font-weight:700;">${fmt(openingBalance)}</td>
+        </tr>
+        ${rows.length ? rows.map((r, i) => {
+          const meta = ALL_TX_TYPES_DISPLAY[String(r.type||'').toLowerCase()] || { label: r.type || '—' };
+          return `<tr>
+            <td>${i + 1}</td>
+            <td>${fmtD(r._date)}</td>
+            <td>${esc(meta.label)}</td>
+            <td>${esc(r.refNo || r.reference || r.id || '—')}</td>
+            <td class="num">${r._delta === 0 ? '—' : ((r._delta > 0 ? '+' : '') + fmt(r._delta))}</td>
+            <td class="num" style="font-weight:700;">${fmt(r._balance)}</td>
+          </tr>`;
+        }).join('') : `<tr><td colspan="6" style="text-align:center;color:#888;padding:16px;">No transactions in this period</td></tr>`}
+        <tr>
+          <td colspan="5" style="text-align:right;font-weight:700;">Closing Balance (${fmtD(to)})</td>
+          <td class="num" style="font-weight:700;background:#eef3fa;">${fmt(closingBalance)}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="totals">
+      <div><div class="lbl">Opening Balance</div><div class="val">${fmt(openingBalance)}</div></div>
+      <div><div class="lbl">Closing Balance</div><div class="val">${fmt(closingBalance)}</div></div>
+      <div><div class="lbl">Net Movement</div><div class="val">${(closingBalance - openingBalance >= 0 ? '+' : '') + fmt(closingBalance - openingBalance)}</div></div>
+    </div>
+    <div class="foot">This is a computer-generated statement. ${esc(APP.saccoName || '')} · Printed ${new Date().toLocaleString()}</div>
+    <div class="noprint">
+      <button onclick="window.print()">🖨️ Print</button>
+      <button class="ghost" onclick="window.close()">Close</button>
+    </div>
+    </body></html>`);
+  win.document.close();
+}
+
 function districtById(id) { return APP.districts.find(d => d.id === id) || null; }
 function branchById(id) { return APP.branches.find(b => b.id === id) || null; }
 function branchesOfDistrict(districtId) { return APP.branches.filter(b => b.districtId === districtId); }
@@ -1180,12 +1366,6 @@ function extractCode(doc, width) { if (!doc) return ''; const raw = String(doc.c
 
 const ACCT_BASE = 1000000000000;
 const ACCT_MAX  = 1009999999999;
-function buildCustomerId(districtCode, branchCode, seq) {
-  const dd = String(districtCode || '00').padStart(2, '0').slice(-2);
-  const bb = String(branchCode  || '000').padStart(3, '0').slice(-3);
-  const ss = String(seq || 1).padStart(6, '0').slice(-6);
-  return 'CI' + dd + bb + ss;
-}
 async function findFreeIds(districtCode, branchCode, exclude = new Set()) {
   const dd = String(districtCode || '00').padStart(2, '0').slice(-2);
   const bb = String(branchCode  || '000').padStart(3, '0').slice(-3);
@@ -1424,7 +1604,7 @@ function renderMain() {
 function filteredCustomers() {
   let list = scopeCustomers();
   const s = APP.filters.search.trim().toLowerCase();
-  if (s) list = list.filter(c => { const name = displayName(c).toLowerCase(); return name.includes(s) || (c.customerId || '').toLowerCase().includes(s) || (c.accountNumber || '').toLowerCase().includes(s) || (c.phone || '').toLowerCase().includes(s) || (c.nid || '').toLowerCase().includes(s) || (c.city || '').toLowerCase().includes(s) || (c.region || '').toLowerCase().includes(s) || (c.districtName || '').toLowerCase().includes(s) || (c.branchName || '').toLowerCase().includes(s); });
+  if (s) list = list.filter(c => { const name = displayName(c).toLowerCase(); return name.includes(s) || (c.customerId || '').toLowerCase().includes(s) || (c.accountNumber || '').toLowerCase().includes(s) || (c.phone || '').toLowerCase().includes(s) || (c.nid || '').toLowerCase().includes(s) || (c.city || '').toLowerCase().includes(s) || (c.region || '').toLowerCase().includes(s) || (c.zone || '').toLowerCase().includes(s) || (c.districtName || '').toLowerCase().includes(s) || (c.branchName || '').toLowerCase().includes(s); });
   if (APP.filters.districtId) list = list.filter(c => c.districtId === APP.filters.districtId);
   if (APP.filters.branchId)   list = list.filter(c => c.branchId === APP.filters.branchId);
   if (APP.filters.status)     list = list.filter(c => effectiveStatus(c) === APP.filters.status);
@@ -1436,34 +1616,7 @@ function renderContent() {
   const list = filteredCustomers();
   if (!list.length) {
     const isFiltered = APP.filters.search || APP.filters.districtId || APP.filters.branchId || APP.filters.status;
-    const role = APP.profile?.role || '?';
-    const scopeMsg = role === 'super_admin' || role === 'auditor'
-      ? 'Full system access.'
-      : (role === 'admin'
-          ? 'Scoped to district "' + (APP.profile?.districtId || '—') + '".'
-          : (['manager','cashier','teller','accountant'].includes(role)
-              ? 'Scoped to branch "' + (APP.profile?.branchId || '—') + '".'
-              : 'Role: ' + role + '.'));
-    host.innerHTML = `
-      <div class="empty">
-        <i class="fas ${isFiltered ? 'fa-search' : 'fa-users'}"></i>
-        <div class="empty__title">${isFiltered ? esc(t('noMatch')) : esc(t('noCustomers'))}</div>
-        <div class="empty__text">
-          ${isFiltered ? esc(t('noMatchText')) : esc(t('noCustomersText'))}
-        </div>
-        ${!isFiltered ? `
-          <div style="margin-top:16px;padding:12px 16px;max-width:560px;margin-left:auto;margin-right:auto;
-                      background:#fdf5e0;border:1px solid #f0dcb0;border-radius:12px;
-                      font-size:12px;line-height:1.6;color:#7a5210;text-align:left">
-            <strong style="display:block;margin-bottom:6px">Diagnostics</strong>
-            Role: <code>${esc(role)}</code><br>
-            ${esc(scopeMsg)}<br>
-            Customers in memory: <strong>${APP.customers.length}</strong><br>
-            Preload status: <strong>${esc(APP.diag.preload || 'n/a')}</strong><br>
-            ${APP.diag.customersError ? 'Error: <code>' + esc(APP.diag.customersError) + '</code><br>' : ''}
-            Open DevTools → Console and check <code>[listen] customers</code> and <code>[boot] customers</code>.
-          </div>` : ''}
-      </div>`;
+    host.innerHTML = `<div class="empty"><i class="fas ${isFiltered ? 'fa-search' : 'fa-users'}"></i><div class="empty__title">${isFiltered ? esc(t('noMatch')) : esc(t('noCustomers'))}</div><div class="empty__text">${isFiltered ? esc(t('noMatchText')) : esc(t('noCustomersText'))}</div></div>`;
     return;
   }
   if (APP.view === 'table') renderTableView(host, list); else renderGridView(host, list);
@@ -1603,6 +1756,8 @@ function openViewModal(customer) {
   let bannerTitle = '', bannerBody = '';
   if (!active && reason === 'no-deposit') { bannerTitle = t('activateHintNoDepositTitle'); bannerBody = t('activateHintNoDepositBody'); }
   else if (!active && reason === 'stale')  { bannerTitle = t('activateHintStaleTitle');    bannerBody = t('activateHintStaleBody'); }
+  const defaultFrom = new Date(Date.now() - 30*24*60*60*1000).toISOString().slice(0,10);
+  const defaultTo   = new Date().toISOString().slice(0,10);
   const root = document.createElement('div');
   root.className = 'modal-backdrop';
   root.id = 'modal-backdrop';
@@ -1639,15 +1794,20 @@ function openViewModal(customer) {
           <div class="review__row"><span class="review__k">${esc(t('nid'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(formatNid(c.nid) || '—')}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('phone'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(formatPhone(c.phone) || '—')}</span></div>
         </div>
+        <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border-soft)"><i class="fas fa-home" style="color:var(--primary);margin-right:6px"></i>${esc(t('addressInfo'))}</div>
+        <div class="review" style="margin-bottom:20px">
+          <div class="review__row"><span class="review__k">${esc(t('region'))}</span><span class="review__v">${esc(c.region || '—')}</span></div>
+          <div class="review__row"><span class="review__k">${esc(t('zone'))}</span><span class="review__v">${esc(c.zone || '—')}</span></div>
+          <div class="review__row"><span class="review__k">${esc(t('city'))}</span><span class="review__v">${esc(c.city || '—')}</span></div>
+          <div class="review__row"><span class="review__k">${esc(t('specificPlace'))}</span><span class="review__v">${esc(c.specificPlace || '—')}</span></div>
+          <div class="review__row"><span class="review__k">${esc(t('address'))}</span><span class="review__v">${esc(c.address || '—')}</span></div>
+        </div>
         <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border-soft)"><i class="fas fa-id-card" style="color:var(--primary);margin-right:6px"></i>${esc(t('accountLocation'))}</div>
         <div class="review" style="margin-bottom:20px">
           <div class="review__row"><span class="review__k">${esc(t('customerId'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(c.customerId || '—')}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('accountNumber'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(c.accountNumber || '—')}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('districtLabel'))}</span><span class="review__v">${esc(district)}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('branchLabel'))}</span><span class="review__v">${esc(branch)}</span></div>
-          <div class="review__row"><span class="review__k">${esc(t('region'))}</span><span class="review__v">${esc(c.region || '—')}</span></div>
-          <div class="review__row"><span class="review__k">${esc(t('city'))}</span><span class="review__v">${esc(c.city || '—')}</span></div>
-          <div class="review__row"><span class="review__k">${esc(t('address'))}</span><span class="review__v">${esc(c.address || '—')}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('dateJoined'))}</span><span class="review__v">${esc(fmtDate(c.dateJoined || c.createdAt))}</span></div>
           ${lastDep ? `<div class="review__row"><span class="review__k">${esc(t('lastDepositLabel'))}</span><span class="review__v">${esc(fmtDate(lastDep))}</span></div>` : ''}
         </div>
@@ -1663,9 +1823,15 @@ function openViewModal(customer) {
           return `<tr><td>${esc(fmtDate(tx.createdAt || tx.date || tx.approvedAt))}</td><td><span class="tag tag--${meta.color}" style="font-size:10px"><i class="fas ${meta.icon}" style="font-size:9px"></i> ${esc(meta.label)}</span></td><td class="num">${money(tx.amount || tx.totalAmount || tx.value)}</td><td><span class="tag ${statusCls}" style="font-size:10px">${esc(tx.status || '—')}</span></td></tr>`;
         }).join('')}</tbody></table></div>` : `<div style="padding:28px;text-align:center;color:var(--muted);font-size:13px;background:#f8fafc;border-radius:12px"><i class="fas fa-inbox" style="font-size:28px;color:#cbd5e1;display:block;margin-bottom:8px"></i>${esc(t('noTx'))}</div>`}
       </div>
-      <div class="modal__foot">
+      <div class="modal__foot" style="flex-wrap:wrap;gap:10px;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-right:auto;">
+          <label style="font-size:11.5px;font-weight:700;color:var(--muted);">${esc(t('printRange'))}:</label>
+          <input type="date" id="print-from" value="${defaultFrom}" style="height:34px;padding:0 10px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;background:#fff;">
+          <span style="color:var(--muted);font-size:12px;">→</span>
+          <input type="date" id="print-to" value="${defaultTo}" style="height:34px;padding:0 10px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;background:#fff;">
+          <button class="btn btn--sm" id="print-statement-btn" style="height:34px;"><i class="fas fa-print"></i> ${esc(t('printStatement'))}</button>
+        </div>
         <button class="btn" data-close>${esc(t('close'))}</button>
-        <div class="spacer"></div>
         ${canEditCustomer(c) ? `<button class="btn btn--primary" id="view-edit-btn"><i class="fas fa-pen"></i> ${esc(t('rowEdit'))}</button>` : ''}
       </div>
     </div>`;
@@ -1675,6 +1841,16 @@ function openViewModal(customer) {
   root.addEventListener('click', (e) => { if (e.target === root) closeModal(); });
   root.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeModal));
   document.getElementById('view-edit-btn')?.addEventListener('click', () => { closeModal(); setTimeout(() => openCustomerWizard(c), 100); });
+  document.getElementById('print-statement-btn')?.addEventListener('click', () => {
+    const f = document.getElementById('print-from')?.value;
+    const toVal = document.getElementById('print-to')?.value;
+    if (!f || !toVal) { toast('Please choose both From and To dates', 'warning'); return; }
+    const from = new Date(f);
+    const to = new Date(toVal);
+    if (from > to) { toast('"From" date must be before "To" date', 'warning'); return; }
+    to.setHours(23, 59, 59, 999);
+    printStatement(c, from, to);
+  });
 }
 
 let escHandler = null;
@@ -1775,7 +1951,10 @@ function openCustomerWizard(customer) {
     districtId: c.districtId || '', branchId: c.branchId || '',
     _idPreview: '', _acctPreview: '',
     dateJoined: c.dateJoined || new Date().toISOString().slice(0,10),
-    region: c.region || '', city: c.city || '', address: c.address || '', specificPlace: c.specificPlace || '',
+    region: c.region || '',
+    zone: c.zone || '',
+    city: c.city || '',
+    specificPlace: c.specificPlace || '',
     status: c.status || 'active'
   };
   if (isEdit) { initial._idPreview = c.customerId || ''; initial._acctPreview = c.accountNumber || ''; }
@@ -1799,6 +1978,7 @@ function openCustomerWizard(customer) {
     size: 'lg',
     initial,
     steps: [
+      /* STEP 1: PERSONAL */
       {
         label: t('stepPersonal'), title: t('stepPersonalTitle'),
         render: (d) => `
@@ -1828,6 +2008,7 @@ function openCustomerWizard(customer) {
         },
         after: (root, data) => { wirePhotoField(root, data); }
       },
+      /* STEP 2: IDENTITY */
       {
         label: t('stepIdentity'), title: t('stepIdentityTitle'),
         render: (d) => `
@@ -1850,6 +2031,78 @@ function openCustomerWizard(customer) {
           phoneIn?.addEventListener('input', () => { let v = phoneIn.value.replace(/\D/g, ''); if (v.startsWith('251') && v.length > PHONE_LENGTH) v = v.slice(3); if (v.startsWith('0')) v = v.slice(1); v = v.slice(0, PHONE_LENGTH); if (phoneIn.value !== v) phoneIn.value = v; data.phone = v; });
         }
       },
+      /* STEP 3: ADDRESS (NEW) */
+      {
+        label: t('stepAddress'), title: t('stepAddressTitle'),
+        render: (d) => {
+          const regionOpts  = REGION_LIST.slice();
+          const zoneOpts    = zonesOf(d.region || '');
+          const cityOpts    = citiesOf(d.region || '');
+          const extraRegion = d.region && !regionOpts.includes(d.region) ? d.region : null;
+          const extraZone   = d.zone && !zoneOpts.includes(d.zone) ? d.zone : null;
+          return `
+            <div class="field-row">
+              <div class="field">
+                <label class="field__required">${esc(t('region'))}</label>
+                <select id="wiz-region" data-field="region">
+                  <option value="">${esc(t('chooseRegion'))}</option>
+                  ${extraRegion ? `<option value="${esc(extraRegion)}" selected>${esc(extraRegion)}</option>` : ''}
+                  ${regionOpts.map(r => `<option value="${esc(r)}" ${d.region === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}
+                </select>
+              </div>
+              <div class="field">
+                <label class="field__required">${esc(t('zone'))}</label>
+                <select id="wiz-zone" data-field="zone" ${d.region ? '' : 'disabled'}>
+                  <option value="">${d.region ? esc(t('chooseZone')) : esc(t('chooseRegionFirst'))}</option>
+                  ${extraZone ? `<option value="${esc(extraZone)}" selected>${esc(extraZone)}</option>` : ''}
+                  ${zoneOpts.map(z => `<option value="${esc(z)}" ${d.zone === z ? 'selected' : ''}>${esc(z)}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label class="field__required">${esc(t('city'))}</label>
+              <input id="wiz-city" data-field="city" list="wiz-city-list"
+                     value="${esc(d.city || '')}"
+                     placeholder="${esc(t('cityPlaceholder'))}"
+                     autocomplete="off">
+              <datalist id="wiz-city-list">
+                ${cityOpts.map(c => `<option value="${esc(c)}"></option>`).join('')}
+              </datalist>
+              <span class="field__hint">${esc(t('cityHint'))}</span>
+            </div>
+            <div class="field">
+              <label>${esc(t('specificPlace'))}</label>
+              <input data-field="specificPlace" value="${esc(d.specificPlace || '')}" placeholder="${esc(t('specificPlacePlaceholder'))}">
+            </div>
+            <div class="alert alert--info" style="margin-top:4px">
+              <i class="fas fa-info-circle"></i>
+              <div>
+                <strong>${esc(t('zone'))}:</strong>
+                ${d.region ? esc(d.region) + (d.zone ? ' → ' + esc(d.zone) : '') : esc(t('chooseRegionFirst'))}
+              </div>
+            </div>
+          `;
+        },
+        validate: (d) => {
+          if (!d.region) return t('regionRequired');
+          if (!d.zone)   return t('zoneRequired');
+          if (!d.city || String(d.city).trim().length < 2) return t('cityRequired');
+          return null;
+        },
+        after: (root, data, refresh) => {
+          const regionSel = root.querySelector('#wiz-region');
+          const zoneSel   = root.querySelector('#wiz-zone');
+          regionSel?.addEventListener('change', () => {
+            data.region = regionSel.value;
+            data.zone   = '';
+            refresh();
+          });
+          zoneSel?.addEventListener('change', () => { data.zone = zoneSel.value; });
+          const cityIn = root.querySelector('#wiz-city');
+          cityIn?.addEventListener('input', () => { data.city = cityIn.value; });
+        }
+      },
+      /* STEP 4: ACCOUNT */
       {
         label: t('stepAccount'), title: t('stepAccountTitle'),
         render: (d) => {
@@ -1868,12 +2121,6 @@ function openCustomerWizard(customer) {
               <div class="field"><label>${esc(t('dateJoined'))}</label><input data-field="dateJoined" type="date" value="${esc(d.dateJoined || '')}"></div>
               <div class="field"><label>${esc(t('colStatus'))}</label><select data-field="status"><option value="active" ${d.status === 'active' ? 'selected' : ''}>${esc(t('statusActive'))}</option><option value="inactive" ${d.status === 'inactive' ? 'selected' : ''}>${esc(t('statusInactive'))}</option></select></div>
             </div>
-            <div class="field-row">
-              <div class="field"><label>${esc(t('region'))}</label><input data-field="region" value="${esc(d.region || '')}" placeholder="${esc(t('regionPlaceholder'))}"></div>
-              <div class="field"><label>${esc(t('city'))}</label><input data-field="city" value="${esc(d.city || '')}" placeholder="${esc(t('cityPlaceholder'))}"></div>
-            </div>
-            <div class="field"><label>${esc(t('address'))}</label><input data-field="address" value="${esc(d.address || '')}" placeholder="${esc(t('addressPlaceholder'))}"></div>
-            <div class="field"><label>${esc(t('specificPlace'))}</label><input data-field="specificPlace" value="${esc(d.specificPlace || '')}" placeholder="${esc(t('specificPlacePlaceholder'))}"></div>
           `;
         },
         validate: (d) => { if (!d.districtId) return t('districtRequired'); if (!d.branchId) return t('branchRequired'); return null; },
@@ -1885,12 +2132,14 @@ function openCustomerWizard(customer) {
           if (!isEdit && data.districtId && data.branchId && !data._idPreview) refreshIdPreview(data).then(() => refresh());
         }
       },
+      /* STEP 5: REVIEW */
       {
         label: t('stepReview'), title: t('stepReviewTitle'),
         render: (d) => {
           const nameEn = [d.firstNameEn, d.middleNameEn, d.lastNameEn].filter(Boolean).join(' ');
           const nameAm = [d.firstNameAm, d.middleNameAm, d.lastNameAm].filter(Boolean).join(' ');
           const dDoc = districtById(d.districtId), bDoc = branchById(d.branchId);
+          const composedAddress = [ (d.specificPlace||'').trim(), (d.city||'').trim(), (d.zone||'').trim(), (d.region||'').trim() ].filter(Boolean).join(', ');
           return `
             <div style="display:flex;align-items:center;gap:20px;margin-bottom:20px;padding:16px;background:linear-gradient(135deg,#f8fbff,#fff);border:1px solid var(--border);border-radius:14px">
               <div style="width:70px;height:70px;border-radius:50%;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,var(--primary),var(--secondary));display:grid;place-items:center;color:#fff;font-weight:800;font-size:24px">${d._photo ? `<img src="${esc(d._photo)}" alt="" style="width:100%;height:100%;object-fit:cover">` : esc(initials(nameEn))}</div>
@@ -1901,14 +2150,16 @@ function openCustomerWizard(customer) {
               <div class="review__row"><span class="review__k">${esc(t('nid'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(formatNid(d.nid) || '—')}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('phone'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(formatPhone(d.phone) || '—')}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('nationality'))}</span><span class="review__v">${esc(d.nationality || '—')}</span></div>
+              <div class="review__row"><span class="review__k">${esc(t('region'))}</span><span class="review__v">${esc(d.region || '—')}</span></div>
+              <div class="review__row"><span class="review__k">${esc(t('zone'))}</span><span class="review__v">${esc(d.zone || '—')}</span></div>
+              <div class="review__row"><span class="review__k">${esc(t('city'))}</span><span class="review__v">${esc(d.city || '—')}</span></div>
+              <div class="review__row"><span class="review__k">${esc(t('specificPlace'))}</span><span class="review__v">${esc(d.specificPlace || '—')}</span></div>
+              <div class="review__row"><span class="review__k">${esc(t('address'))}</span><span class="review__v">${esc(composedAddress || '—')}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('districtLabel'))}</span><span class="review__v">${esc(dDoc?.name || '—')}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('branchLabel'))}</span><span class="review__v">${esc(bDoc?.name || '—')}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('customerId'))}</span><span class="review__v" style="font-family:ui-monospace,monospace;color:#128a5c;font-weight:800">${esc(d._idPreview || '(auto)')}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('accountNumber'))}</span><span class="review__v" style="font-family:ui-monospace,monospace;color:#0e7490;font-weight:800">${esc(d._acctPreview || '(auto)')}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('dateJoined'))}</span><span class="review__v">${esc(d.dateJoined || '—')}</span></div>
-              <div class="review__row"><span class="review__k">${esc(t('region'))}</span><span class="review__v">${esc(d.region || '—')}</span></div>
-              <div class="review__row"><span class="review__k">${esc(t('city'))}</span><span class="review__v">${esc(d.city || '—')}</span></div>
-              <div class="review__row"><span class="review__k">${esc(t('address'))}</span><span class="review__v">${esc(d.address || '—')}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('colStatus'))}</span><span class="review__v">${d.status === 'active' ? esc(t('statusActive')) : esc(t('statusInactive'))}</span></div>
             </div>
           `;
@@ -1920,21 +2171,27 @@ function openCustomerWizard(customer) {
       if (nid.length !== NID_LENGTH) throw new Error(`National ID must be exactly ${NID_LENGTH} digits.`);
       if (!d.districtId) throw new Error(t('districtRequired'));
       if (!d.branchId)   throw new Error(t('branchRequired'));
+      if (!d.region) throw new Error(t('regionRequired'));
+      if (!d.zone)   throw new Error(t('zoneRequired'));
       const dDoc = districtById(d.districtId), bDoc = branchById(d.branchId);
       if (!dDoc || !bDoc) throw new Error('District or branch no longer exists.');
       const dd = extractCode(dDoc, 2), bb = extractCode(bDoc, 3);
       const nameEn = [d.firstNameEn, d.middleNameEn, d.lastNameEn].filter(Boolean).map(s => s.trim()).join(' ');
       const nameAm = [d.firstNameAm, d.middleNameAm, d.lastNameAm].filter(Boolean).map(s => s.trim()).join(' ');
+      const composedAddress = [ (d.specificPlace||'').trim(), (d.city||'').trim(), (d.zone||'').trim(), (d.region||'').trim() ].filter(Boolean).join(', ');
       const basePayload = {
-        address: (d.address || '').trim(), city: (d.city || '').trim(),
-        dateJoined: d.dateJoined || new Date().toISOString().slice(0,10),
         firstNameAm: (d.firstNameAm || '').trim(), firstNameEn: (d.firstNameEn || '').trim(),
         fullName: nameEn, fullNameAm: nameAm, gender: d.gender || '',
         lastNameAm: (d.lastNameAm || '').trim(), lastNameEn: (d.lastNameEn || '').trim(),
         middleNameAm: (d.middleNameAm || '').trim(), middleNameEn: (d.middleNameEn || '').trim(),
         nationality: (d.nationality || 'Ethiopia').trim(), nid,
         phone: normalizePhone(d.phone) || '', photoURL: d._photo || null,
-        region: (d.region || '').trim(), specificPlace: (d.specificPlace || '').trim(),
+        region: (d.region || '').trim(),
+        zone: (d.zone || '').trim(),
+        city: (d.city || '').trim(),
+        specificPlace: (d.specificPlace || '').trim(),
+        address: composedAddress,
+        dateJoined: d.dateJoined || new Date().toISOString().slice(0,10),
         status: d.status || 'active',
         districtId: d.districtId, districtName: dDoc.name || '',
         branchId: d.branchId, branchName: bDoc.name || '',
@@ -2103,7 +2360,7 @@ function attachListeners() {
 }
 function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} }); APP.unsubs = []; }
 
-/* ⚡ BOOT — instant render with cached profile, then auth + data in background */
+/* BOOT — instant render with cached profile */
 (async function boot() {
   let saved = null;
   try { saved = localStorage.getItem(LANG_KEY); } catch(e){}
@@ -2188,10 +2445,7 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
       cachedProfile.role !== APP.profile.role ||
       cachedProfile.photoURL !== APP.profile.photoURL
     ));
-  if (profileChanged) {
-    renderShell();
-    renderMain();
-  }
+  if (profileChanged) { renderShell(); renderMain(); }
   hideLoaderNow();
 
   await loadSessionTimeout();
@@ -2229,11 +2483,9 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
       const s2 = await getDocs(query(collection(db, 'customers'), limit(3000)));
       APP.customers = s2.docs.map(d => ({ id: d.id, ...d.data() }));
       APP.diag.preload = 'unscoped-after-error (' + APP.customers.length + ')';
-      console.log('[boot] customers preloaded (unscoped after error):', APP.customers.length);
     } catch (e2) {
       APP.diag.preload = 'failed';
       APP.diag.customersError = (e2.code || e2.message || 'unknown');
-      console.error('[boot] customer preload fallback also failed:', e2.code || e2.message);
       toast('Cannot load customers: ' + (e2.code || e2.message), 'error');
       APP.customers = [];
     }
@@ -2243,7 +2495,7 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
   attachListeners();
 })();
 
-console.log('[sacco] customers page ready — 6-month inactivity rule, instant render, session fix');
+console.log('[sacco] customers page ready — Address step, Oromia zones/cities, print statement');
 </script>
 
 </body>
