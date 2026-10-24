@@ -389,16 +389,11 @@ const PROFILE_CACHE_KEY = 'sacco.profile';
 let S = null;
 
 /* ============================================================
-   SESSION — ⚡ FIXED
-   - SESSION_MINUTES starts null so we can detect "not loaded yet"
-   - getSessionMs() prefers the DB value over the stale login record
-   - loadSessionTimeout() syncs the login record with the DB value
-   - startSessionWatcher() is called immediately after load, not
-     after data load
+   SESSION — FIXED
 ============================================================ */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
-let SESSION_MINUTES = null;                       // ⚡ FIX: was DEFAULT_SESSION_MINUTES
+let SESSION_MINUTES = null;
 let awayStartedAt = null, awayCheckInterval = null;
 
 function readSession() { try { const r = sessionStorage.getItem(SESSION_KEY); if (!r) return null; const s = JSON.parse(r); return (s && s.uid) ? s : null; } catch(e){return null;} }
@@ -406,10 +401,6 @@ function clearSession() { try { sessionStorage.removeItem(SESSION_KEY); } catch(
 function isSessionRecordValid(s) { return !!(s && s.uid); }
 
 function getSessionMs() {
-  // ⚡ FIX: The authoritative value comes from settings/system (SESSION_MINUTES).
-  // The value inside the login record may be stale (e.g. 30 min from when the
-  // user logged in before the admin changed the setting to 1 min), so we only
-  // use it as a fallback while SESSION_MINUTES is still null.
   const s = readSession();
   const m = (SESSION_MINUTES != null && SESSION_MINUTES > 0)
     ? SESSION_MINUTES
@@ -483,11 +474,6 @@ async function loadSessionTimeout() {
     if (SESSION_MINUTES == null) SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
   }
 
-  // ⚡ FIX: Sync the (possibly stale) login record with the authoritative value.
-  // Without this, every fresh page load re-reads a 30-min value from the
-  // login record before loadSessionTimeout() runs, which is fine because
-  // getSessionMs() prefers SESSION_MINUTES — but keeping them in sync makes
-  // debugging and cross-tab behaviour consistent.
   try {
     const s = readSession();
     if (s) {
@@ -497,7 +483,7 @@ async function loadSessionTimeout() {
   } catch (e) {}
 }
 
-/* I18N — full translations for en / am / om */
+/* I18N */
 const I18N = {
   en: {
     brandSub:'SACCO Management',
@@ -759,6 +745,7 @@ const IN_SHARE_TYPES = ['share_transfer_in','transfer_in'];
 const OUT_SHARE_TYPES = ['share_transfer_out','transfer_out'];
 const PAID_DIVIDEND_STATUSES = ['paid','completed','approved','done'];
 const SACCO_CAPITAL_STATUSES = ['approved','paid','completed','done'];
+const PENDING_STATUSES = ['pending','submitted','for_approval','awaiting_approval'];
 
 function isSavingsCounted(tx) { if (!tx) return false; const s = String(tx.status || '').toLowerCase(); if (ALWAYS_COUNTED_DEPOSIT_STATUSES.includes(s)) return true; if (tx.printed === true) return true; return false; }
 function isWithdrawalCounted(tx) { if (!tx) return false; const s = String(tx.status || '').toLowerCase(); return ['approved','completed','done','paid','printed'].includes(s) || tx.printed === true; }
@@ -1202,6 +1189,7 @@ function renderMain() {
         <div class="card__head">
           <div><div class="card__title">${esc(t('pendingApprovals'))}</div>
             <div class="card__sub">${esc(t('awaitingAction'))}</div></div>
+          <span class="tag tag--gold" id="pending-count">0</span>
         </div>
         <div class="card__body card__body--flush"><ul class="list" id="pending"><li class="list-empty"><span class="tbl-loading"></span></li></ul></div>
       </div>
@@ -2159,26 +2147,124 @@ function renderQuickActions() {
     </a>`).join('');
 }
 
+/* ────────────────────────────────────────────────────────────────
+   PENDING APPROVALS — aggregates pending items from ALL sources
+   ──────────────────────────────────────────────────────────────── */
+const PENDING_CATEGORY_URL = {
+  loans: 'loans.html',
+  savings: 'savings.html',
+  repayments: 'repayments.html',
+  withdrawals: 'withdrawals.html',
+  leaving: 'withdrawals.html',
+  shares: 'share.html',
+  dividends: 'dividends.html',
+  penalties: 'penalties.html',
+  serviceWithdrawals: 'withdrawals.html',
+  customers: 'customers.html'
+};
+
+function isPendingStatus(x) {
+  if (!x) return false;
+  return PENDING_STATUSES.includes(String(x.status || '').toLowerCase());
+}
+
+function getPendingItems() {
+  const items = [];
+  const seen = new Set();
+
+  const push = (list, category, labelKey, icon, color) => {
+    (list || []).forEach(x => {
+      if (!isPendingStatus(x)) return;
+      const id = x.id;
+      const key = category + ':' + (id || (x.customerId + '|' + (x.amount || 0) + '|' + (x.date || x.createdAt || '')));
+      if (seen.has(key)) return;
+      seen.add(key);
+      items.push({
+        category, labelKey, icon, color,
+        amount: num(x.amount || x.principal || 0),
+        name: customerNameOf(x),
+        at: x.createdAt || x.date || x.submittedAt || x.requestDate || x.approvedAt,
+        purpose: String(x.purpose || x.note || x.description || x.remarks || '').trim()
+      });
+    });
+  };
+
+  push(filterWorkareaTxns(APP.txn.loans),               'loans',              'loans',              'fa-wallet',              'blue');
+  push(filterWorkareaTxns(APP.txn.savings),             'savings',            'savings',            'fa-piggy-bank',          'green');
+  push(filterWorkareaTxns(APP.txn.repayments),          'repayments',         'repayments',         'fa-undo-alt',            'teal');
+  push(filterWorkareaTxns(APP.txn.withdrawals),         'withdrawals',        'withdrawals',        'fa-arrow-up',            'red');
+  push(filterWorkareaTxns(APP.txn.leaving),             'leaving',            'withdrawals',        'fa-sign-out-alt',        'red');
+  push(filterWorkareaTxns(APP.txn.shares),              'shares',             'shares',             'fa-chart-pie',           'violet');
+  push(filterWorkareaTxns(APP.txn.dividends),           'dividends',          'dividends',          'fa-gift',                'gold');
+  push(filterWorkareaTxns(APP.txn.penalties),           'penalties',          'penalties',          'fa-exclamation-triangle','orange');
+  push(filterWorkareaTxns(APP.txn.serviceWithdrawals),  'serviceWithdrawals', 'serviceWithdrawal',  'fa-arrow-up',            'orange');
+
+  // Pending customers (new registrations awaiting approval)
+  (applyWorkareaToAllCustomers() || []).forEach(c => {
+    if (!isPendingStatus(c)) return;
+    const id = c.id;
+    const key = 'customers:' + (id || c.customerId || c.fullName || '');
+    if (seen.has(key)) return;
+    seen.add(key);
+    items.push({
+      category: 'customers', labelKey: 'customers', icon: 'fa-user-plus', color: 'blue',
+      amount: 0,
+      name: c.fullName || c.name || [c.firstName, c.lastName].filter(Boolean).join(' ') || '—',
+      at: c.createdAt || c.submittedAt || c.registrationDate,
+      purpose: String(c.purpose || c.note || c.remarks || '').trim()
+    });
+  });
+
+  return items.sort((a, b) => (toDateSafe(b.at)?.getTime() || 0) - (toDateSafe(a.at)?.getTime() || 0));
+}
+
 function renderPending() {
   const host = document.getElementById('pending');
   if (!host) return;
-  const rows = filterWorkareaTxns(APP.txn.pendingLoans).slice(0, 5);
-  if (!rows.length) {
+
+  const all = getPendingItems();
+  const countBadge = document.getElementById('pending-count');
+  if (countBadge) {
+    countBadge.className = all.length ? 'tag tag--gold' : 'tag tag--gray';
+    countBadge.textContent = String(all.length);
+  }
+
+  if (!all.length) {
     host.innerHTML = `<li class="list-empty"><i class="fas fa-inbox"></i><div>${esc(t('nothingPending'))}</div></li>`;
     return;
   }
+
+  const MAX_ROWS = 12;
+  const rows = all.slice(0, MAX_ROWS);
+  const overflow = all.length - rows.length;
+
+  const avatarCls = {
+    blue:'list__avatar--blue', green:'list__avatar--green', teal:'list__avatar--teal',
+    red:'list__avatar--red', violet:'list__avatar--violet', gold:'list__avatar--gold',
+    orange:'list__avatar--gold', pink:'list__avatar--pink'
+  };
+
   host.innerHTML = rows.map(x => {
-    const name = customerNameOf(x);
+    const url = PENDING_CATEGORY_URL[x.category] || '#';
+    const metaParts = [];
+    if (x.amount > 0) metaParts.push(moneyFull(x.amount));
+    if (x.purpose) metaParts.push(x.purpose);
+    const meta = metaParts.length ? metaParts.join(' · ') : t(x.labelKey);
     return `
-      <li class="list__item">
-        <div class="list__avatar list__avatar--gold">${esc(initials(name))}</div>
-        <div class="list__main">
-          <div class="list__title">${esc(name)}</div>
-          <div class="list__meta">${esc(moneyFull(x.amount))} · ${esc(x.purpose || t('loans'))}</div>
-        </div>
-        <span class="tag tag--gold">${esc(t('pendingApprovals'))}</span>
+      <li class="list__item" style="cursor:pointer;">
+        <a href="${url}" style="display:flex;align-items:center;gap:14px;width:100%;color:inherit;text-decoration:none;margin:-13px -24px;padding:13px 24px;">
+          <div class="list__avatar ${avatarCls[x.color] || ''}"><i class="fas ${x.icon}"></i></div>
+          <div class="list__main">
+            <div class="list__title">${esc(x.name)} <span style="font-size:10.5px;color:var(--muted);font-weight:700;margin-left:4px;">· ${esc(t(x.labelKey))}</span></div>
+            <div class="list__meta">${esc(meta)}</div>
+          </div>
+          <span class="tag tag--gold">${esc(timeAgo(x.at) || t('pendingApprovals'))}</span>
+        </a>
       </li>`;
-  }).join('');
+  }).join('') + (overflow > 0 ? `
+      <li class="list__item" style="justify-content:center;color:var(--muted);font-size:12.5px;font-weight:700;">
+        +${overflow} more pending — open the relevant page to approve
+      </li>` : '');
 }
 
 function renderPenaltyBreakdown() {
@@ -2346,7 +2432,7 @@ async function loadAllData() {
   APP.dataLoading = false;
 }
 
-/* ⚡ BOOT — instant render with cached profile, then verify + load data in background */
+/* BOOT */
 (async function boot() {
   let saved = null;
   try { saved = localStorage.getItem(LANG_KEY); } catch(e){}
@@ -2363,7 +2449,6 @@ async function loadAllData() {
     return;
   }
 
-  /* ⚡ STEP 1: Try instant render with cached profile */
   const cachedProfile = readCachedProfile();
   let renderedWithProfile = false;
   if (cachedProfile && cachedProfile.uid) {
@@ -2388,7 +2473,6 @@ async function loadAllData() {
     hideLoaderNow();
     renderedWithProfile = true;
   } else if (hasMis) {
-    /* Show minimal shell while auth resolves */
     S = { uid: sessionStorage.getItem('uid'), role: sessionStorage.getItem('role') || 'viewer', email: sessionStorage.getItem('email') || '', name: sessionStorage.getItem('userName') || 'User', photoURL: null, districtId:'', districtName:'', branchId:'', branchName:'', customerId:'', customerCode:'', savingsBalance:0, shares:0 };
     initWorkarea();
     renderShell();
@@ -2396,7 +2480,6 @@ async function loadAllData() {
     hideLoaderNow();
   }
 
-  /* ⚡ STEP 2: Auth check + profile fetch */
   const user = await new Promise(resolve => {
     const unsub = onAuthStateChanged(auth, u => { unsub(); resolve(u); });
   });
@@ -2439,7 +2522,6 @@ async function loadAllData() {
     return;
   }
 
-  /* ⚡ STEP 3: Re-render shell only if profile changed (avoid flicker) */
   const profileChanged = !renderedWithProfile ||
     (cachedProfile && (cachedProfile.name !== S.name || cachedProfile.role !== S.role || cachedProfile.photoURL !== S.photoURL));
   if (profileChanged) {
@@ -2449,10 +2531,8 @@ async function loadAllData() {
   }
   hideLoaderNow();
 
-  /* ⚡ STEP 4: Load settings, then START SESSION WATCHER IMMEDIATELY,
-     THEN load data in background */
   await loadSessionTimeout();
-  startSessionWatcher();   // ⚡ FIX: start watchdog right after we know the timeout
+  startSessionWatcher();
 
   try {
     const cfg = await getDoc(doc(db, 'settings', 'system'));
@@ -2466,7 +2546,6 @@ async function loadAllData() {
     await loadAllData();
     initWorkarea();
     renderMain();
-    // startSessionWatcher();  ← removed (already started above)
   } catch (e) {
     console.error('[boot] data load failed:', e);
     const host = document.getElementById('mainContent');
