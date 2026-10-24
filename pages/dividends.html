@@ -171,6 +171,8 @@ body.sidebar-collapsed .sidebar__logout span{display:none;}
 .year-status--open{background:var(--green-soft);color:var(--success);}
 .year-status--closed{background:#fef3f2;color:#b42318;}
 .year-bar__spacer{flex:1;}
+.section-title{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:26px 0 12px;display:flex;align-items:center;gap:10px;}
+.section-title::after{content:"";flex:1;height:1px;background:var(--border);}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:22px;}
 .stat{position:relative;background:#fff;border:1px solid var(--border);
   border-radius:var(--r-lg);padding:18px;box-shadow:var(--sh-sm);overflow:hidden;transition:.2s;}
@@ -198,6 +200,7 @@ body.sidebar-collapsed .sidebar__logout span{display:none;}
 .card__sub{font-size:12.5px;color:var(--muted);margin-top:3px;font-weight:600;}
 .card__actions{display:flex;gap:8px;flex-wrap:wrap;}
 .card__body{padding:22px 24px;}
+.card__body--flush{padding:0;}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;
   height:46px;padding:0 20px;border-radius:13px;
   border:1px solid #d9dee7;background:#fff;
@@ -656,7 +659,8 @@ const APP = {
   settings: { ...DEFAULT_DASHBOARD },
   years: [], selectedYear: new Date().getFullYear(),
   overview: null, childrenPage: 1, childrenPageSize: 12,
-  unsubs: [], bootIssues: []
+  unsubs: [], bootIssues: [],
+  dividendHistory: [], saccoCapitalHistory: []
 };
 let LANG = 'en';
 
@@ -690,9 +694,6 @@ const I18N = {
     memberSharePct:'Members Share (%)', saccoSharePct:'SACCO Capital (%)',
     splitMembers:'To Members', splitSacco:'To SACCO Capital', splitTotal:'Total Profit',
     memberAmount:'Member Amount', saccoAmount:'SACCO Capital Amount',
-    verification:'Verification: Members + SACCO = Total Profit',
-    verificationOk:'✓ Members + SACCO = Total Profit (verified)',
-    verificationBad:'⚠ Members + SACCO ≠ Total Profit',
     taxApplied:'Tax applied', netAfterTax:'net after tax',
     batchTitle:'Distribution Batch', batchRef:'Batch Reference', batchCreated:'Created',
     batchPaid:'Marked Paid', batchClosed:'Closed', batchStatus:'Batch Status',
@@ -748,7 +749,19 @@ const I18N = {
     memberSignature:'Member Signature', officialStamp:'Official Stamp',
     diagTitle:'Setup diagnostics',
     readOnlyBanner:'Read-only mode: your role can view and print dividend reports, but cannot distribute, edit, or delete records.',
-    invalidSplit:'Member share must be between 0% and 100%.'
+    invalidSplit:'Member share must be between 0% and 100%.',
+    distributionHistory:'Distribution History',
+    distributionHistorySub:'All dividend batches across all years',
+    saccoCapitalHistory:'SACCO Capital Allocations',
+    saccoCapitalHistorySub:'Retained profit from all dividend distributions',
+    colYear:'Year', colBatchRef:'Batch Reference', colRecipients:'Recipients',
+    colMemberGross:'Member Gross', colMemberTax:'Tax Withheld', colMemberNet:'Net Payout',
+    colTotalProfit:'Total Profit', colSaccoPct:'SACCO %', colSaccoAmt:'SACCO Amount',
+    colPaidDate:'Paid Date',
+    noMemberDiv:'No member dividend records yet',
+    noMemberDivText:'Distribute dividends from above to populate this history table.',
+    noSaccoCap:'No SACCO capital allocations',
+    noSaccoCapText:'SACCO capital appears here when dividends are distributed with a non-zero SACCO share.'
   }
 };
 I18N.am = { ...I18N.en };
@@ -1160,9 +1173,22 @@ async function getYearOverview(year) {
   };
 }
 
-/* ============================================================
- * DISTRIBUTE — EXACT split (member + SACCO = totalProfit, always)
- * ============================================================ */
+/* ⚡ Load all historical dividends and SACCO capitals across all years */
+async function loadAllYearsHistory() {
+  try {
+    const [divSnap, scSnap] = await Promise.all([
+      getDocs(query(collection(db, 'transactions'), where('type','==','dividend'))),
+      getDocs(query(collection(db, 'transactions'), where('type','==','sacco_capital')))
+    ]);
+    APP.dividendHistory = divSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    APP.saccoCapitalHistory = scSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) {
+    console.warn('[loadAllYearsHistory] failed:', e.code || e.message);
+    APP.dividendHistory = [];
+    APP.saccoCapitalHistory = [];
+  }
+}
+
 async function distributeBatch({ year, profit, ledger, previewRows, autoApprove, taxRate, memberPercent, user }) {
   if (!previewRows || !previewRows.length) throw new Error('No eligible customers.');
   if (profit.netProfit <= 0) throw new Error('Net profit is zero.');
@@ -1249,7 +1275,6 @@ async function distributeBatch({ year, profit, ledger, previewRows, autoApprove,
 
   try { await updateDoc(batchRef, { childIds }); } catch(e) { console.warn('childIds attach failed', e); }
 
-  /* SACCO capital allocation — always store batchId so cleanup can find it */
   if (saccoPortion > 0) {
     try {
       await addDoc(collection(db, 'transactions'), {
@@ -1307,9 +1332,6 @@ function makeSerial() {
   return `DV-${yr}-${rnd}-${suf}`;
 }
 
-/* ============================================================
- * ⚡ FIXED: cleanup also deletes associated SACCO capital records
- * ============================================================ */
 async function refreshBatchAfterMutation(batchId, year) {
   if (!batchId) return;
   const snap = await getDocs(query(collection(db,'transactions'), where('batchId','==',batchId), where('type','==','dividend')));
@@ -1318,8 +1340,6 @@ async function refreshBatchAfterMutation(batchId, year) {
   if (snap.empty) {
     try { await deleteDoc(batchRef); } catch (e) { console.warn('[batch] delete failed', e); }
     if (year) { try { await deleteDoc(doc(db, 'yearIndex', String(year))); } catch (e) { console.warn('[yearIndex] delete failed', e); } }
-
-    /* ⚡ Delete any orphaned SACCO capital allocation belonging to this batch */
     try {
       const scSnap = await getDocs(query(
         collection(db, 'transactions'),
@@ -1611,7 +1631,10 @@ async function loadAndRenderOverview() {
   if (!area) return;
   area.innerHTML = `<div class="empty"><div class="spin" style="margin:0 auto;"></div></div>`;
   try {
-    const ov = await getYearOverview(APP.selectedYear);
+    const [ov] = await Promise.all([
+      getYearOverview(APP.selectedYear),
+      loadAllYearsHistory()
+    ]);
     APP.overview = ov;
     renderOverview(ov);
   } catch (e) {
@@ -1703,9 +1726,16 @@ function renderOverview(ov) {
   else if (ov.ledger.totals.closing <= 0) bodyHtml += `<div class="info-banner info-banner--warning"><i class="fas fa-exclamation-triangle"></i><div><strong>${esc(t('noShares'))}.</strong> ${esc(t('noSharesText'))}</div></div>`;
 
   bodyHtml += renderChildrenCard();
+
+  /* ⚡ NEW: All-years history tables */
+  bodyHtml += renderHistorySections();
+
   area.innerHTML = kpisHtml + bodyHtml;
+
   wireOverviewEvents(ov);
   renderChildrenTable(ov.batch);
+  renderDistributionHistoryBody();
+  renderSaccoCapitalHistoryBody();
 }
 
 function renderBatchCard(batch) {
@@ -1835,6 +1865,208 @@ function renderChildrenCard() {
       </div>
       <div id="childrenHost"><div class="empty"><div class="spin" style="margin:0 auto"></div></div></div>
     </div>`;
+}
+
+/* ⚡ NEW: All-years history — two cards */
+function renderHistorySections() {
+  return `
+    <section class="card" id="distributionHistoryCard" style="margin-bottom:22px;">
+      <div class="card__head">
+        <div>
+          <div class="card__title"><i class="fas fa-history" style="color:#067647;"></i> ${esc(t('distributionHistory'))}</div>
+          <div class="card__sub">${esc(t('distributionHistorySub'))}</div>
+        </div>
+        <span class="tag tag--gray" id="histDivSummary">—</span>
+      </div>
+      <div class="card__body card__body--flush">
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr>
+              <th>${esc(t('colYear'))}</th>
+              <th>${esc(t('colBatchRef'))}</th>
+              <th class="num">${esc(t('colRecipients'))}</th>
+              <th class="num">${esc(t('colMemberGross'))}</th>
+              <th class="num">${esc(t('colMemberTax'))}</th>
+              <th class="num">${esc(t('colMemberNet'))}</th>
+              <th class="num">${esc(t('colSaccoPct'))}</th>
+              <th>${esc(t('colPaidDate'))}</th>
+              <th>${esc(t('colStatus'))}</th>
+            </tr></thead>
+            <tbody id="histDivBody">
+              <tr><td colspan="9" style="padding:32px;text-align:center;color:var(--muted);font-size:13px;">${esc(t('loading'))}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="saccoCapitalHistoryCard" style="margin-bottom:22px;">
+      <div class="card__head">
+        <div>
+          <div class="card__title"><i class="fas fa-building-columns" style="color:#7c3aed;"></i> ${esc(t('saccoCapitalHistory'))}</div>
+          <div class="card__sub">${esc(t('saccoCapitalHistorySub'))}</div>
+        </div>
+        <span class="tag tag--gray" id="histScSummary">—</span>
+      </div>
+      <div class="card__body card__body--flush">
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr>
+              <th>${esc(t('colYear'))}</th>
+              <th>${esc(t('colBatchRef'))}</th>
+              <th class="num">${esc(t('colTotalProfit'))}</th>
+              <th class="num">${esc(t('colSaccoPct'))}</th>
+              <th class="num">${esc(t('colSaccoAmt'))}</th>
+              <th>${esc(t('colDate'))}</th>
+              <th>${esc(t('colStatus'))}</th>
+            </tr></thead>
+            <tbody id="histScBody">
+              <tr><td colspan="7" style="padding:32px;text-align:center;color:var(--muted);font-size:13px;">${esc(t('loading'))}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+/* ⚡ Populate Distribution History table (grouped by batch, all years) */
+function renderDistributionHistoryBody() {
+  const host = document.getElementById('histDivBody');
+  const summaryEl = document.getElementById('histDivSummary');
+  if (!host) return;
+
+  const dividends = (APP.dividendHistory || []).filter(tx => {
+    const s = String(tx.status || '').toLowerCase();
+    return ['paid','completed','approved','done'].includes(s);
+  });
+
+  const grouped = new Map();
+  dividends.forEach(tx => {
+    const key = tx.batchId || `single_${tx.id}`;
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        batchId: key,
+        refNo: tx.refNo || '—',
+        year: Number(tx.year || tx.fiscalYear || 0),
+        gross: 0, tax: 0, net: 0, count: 0,
+        saccoPct: 0,
+        date: tx.paidAt || tx.createdAt || tx.date
+      });
+    }
+    const g = grouped.get(key);
+    const gross = num(tx.grossAmount != null ? tx.grossAmount : (tx.netAmount != null ? tx.netAmount : tx.amount));
+    const tax   = num(tx.taxAmount || 0);
+    const net   = num(tx.netAmount != null ? tx.netAmount : gross);
+    g.gross += gross; g.tax += tax; g.net += net; g.count += 1;
+    if (!g.saccoPct) {
+      const sc = (APP.saccoCapitalHistory || []).find(s => s.batchId === key);
+      if (sc) g.saccoPct = num(sc.percent);
+    }
+    const d = toDate(tx.paidAt || tx.createdAt || tx.date);
+    const gd = toDate(g.date);
+    if (d && (!gd || d < gd)) g.date = d;
+  });
+
+  const list = Array.from(grouped.values()).sort((a, b) => {
+    if (a.year !== b.year) return b.year - a.year;
+    return (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0);
+  });
+
+  if (!list.length) {
+    host.innerHTML = `<tr><td colspan="9" style="padding:40px 20px;text-align:center;color:var(--muted);">
+      <i class="fas fa-gift" style="display:block;font-size:36px;color:#cbd5e1;margin-bottom:12px;"></i>
+      <div style="font-weight:800;color:var(--text);font-size:14px;margin-bottom:4px;">${esc(t('noMemberDiv'))}</div>
+      <div style="font-size:12.5px;">${esc(t('noMemberDivText'))}</div>
+    </td></tr>`;
+    if (summaryEl) { summaryEl.className = 'tag tag--gray'; summaryEl.textContent = '0 batches'; }
+    return;
+  }
+
+  const totalNet = list.reduce((s, x) => s + x.net, 0);
+  if (summaryEl) {
+    summaryEl.className = 'tag tag--green';
+    summaryEl.style.background = '#ecfdf3';
+    summaryEl.style.color = '#067647';
+    summaryEl.textContent = `${list.length} batch${list.length === 1 ? '' : 'es'} · ${money(totalNet)} net`;
+  }
+
+  host.innerHTML = list.map(g => {
+    const dateStr = toDate(g.date) ? toDate(g.date).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }) : '—';
+    return `<tr>
+      <td><span class="tag tag--blue" style="font-size:11px;">${esc(String(g.year || '—'))}</span></td>
+      <td><span class="mono" style="font-size:11.5px;font-weight:700;color:var(--text-soft);">${esc(String(g.refNo).slice(0, 36))}</span></td>
+      <td class="num">${g.count}</td>
+      <td class="num">${esc(money(g.gross))}</td>
+      <td class="num">${g.tax > 0 ? esc(money(g.tax)) : '—'}</td>
+      <td class="num" style="color:#067647;font-weight:800;">${esc(money(g.net))}</td>
+      <td class="num">${g.saccoPct.toFixed(2)}%</td>
+      <td>${esc(dateStr)}</td>
+      <td><span class="tag tag--green">Paid</span></td>
+    </tr>`;
+  }).join('');
+}
+
+/* ⚡ Populate SACCO Capital table (all years) */
+function renderSaccoCapitalHistoryBody() {
+  const host = document.getElementById('histScBody');
+  const summaryEl = document.getElementById('histScSummary');
+  if (!host) return;
+
+  const list = (APP.saccoCapitalHistory || [])
+    .filter(tx => {
+      const s = String(tx.status || 'approved').toLowerCase();
+      return ['approved','paid','completed','done'].includes(s);
+    })
+    .sort((a, b) => {
+      const ya = Number(a.year || a.fiscalYear || 0);
+      const yb = Number(b.year || b.fiscalYear || 0);
+      if (ya !== yb) return yb - ya;
+      const da = toDate(a.date || a.createdAt)?.getTime() || 0;
+      const db = toDate(b.date || b.createdAt)?.getTime() || 0;
+      return db - da;
+    });
+
+  if (!list.length) {
+    host.innerHTML = `<tr><td colspan="7" style="padding:40px 20px;text-align:center;color:var(--muted);">
+      <i class="fas fa-building-columns" style="display:block;font-size:36px;color:#cbd5e1;margin-bottom:12px;"></i>
+      <div style="font-weight:800;color:var(--text);font-size:14px;margin-bottom:4px;">${esc(t('noSaccoCap'))}</div>
+      <div style="font-size:12.5px;">${esc(t('noSaccoCapText'))}</div>
+    </td></tr>`;
+    if (summaryEl) { summaryEl.className = 'tag tag--gray'; summaryEl.textContent = '0 records'; }
+    return;
+  }
+
+  const totalAmt = list.reduce((s, x) => s + num(x.amount), 0);
+  if (summaryEl) {
+    summaryEl.className = 'tag tag--violet';
+    summaryEl.style.background = '#f0eaff';
+    summaryEl.style.color = '#5b21b6';
+    summaryEl.textContent = `${list.length} record${list.length === 1 ? '' : 's'} · ${money(totalAmt)}`;
+  }
+
+  host.innerHTML = list.map(tx => {
+    const year = tx.year || tx.fiscalYear || '—';
+    const ref = tx.batchId || tx.refNo || '—';
+    const pct = num(tx.percent);
+    const amt = num(tx.amount);
+    const totalProfit = pct > 0 ? round2(amt / (pct / 100)) : amt;
+    const st = String(tx.status || 'approved').toLowerCase();
+    const ok = ['approved','paid','completed','done'].includes(st);
+    const stCls = ok ? 'tag--green' : st === 'pending' ? 'tag--gold' : 'tag--red';
+    const stLabel = st.charAt(0).toUpperCase() + st.slice(1);
+    const date = toDate(tx.date || tx.createdAt);
+    const dateStr = date ? date.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }) : '—';
+    return `<tr>
+      <td><span class="tag tag--blue" style="font-size:11px;">${esc(String(year))}</span></td>
+      <td><span class="mono" style="font-size:11.5px;font-weight:700;color:var(--text-soft);">${esc(String(ref).slice(0, 36))}</span></td>
+      <td class="num">${esc(money(totalProfit))}</td>
+      <td class="num">${pct.toFixed(2)}%</td>
+      <td class="num" style="color:#7c3aed;font-weight:800;">${esc(money(amt))}</td>
+      <td>${esc(dateStr)}</td>
+      <td><span class="tag ${stCls}">${esc(stLabel)}</span></td>
+    </tr>`;
+  }).join('');
 }
 
 let _childCache = { rows: [], filtered: [] };
@@ -2022,14 +2254,8 @@ function openDistributionModal(ov) {
         <div class="review__row"><span class="review__k">${esc(t('customersPaid'))}</span><span class="review__v">${ov.preview.length}</span></div>
       </div>
       <div class="field-row" style="margin-bottom:14px">
-        <div class="field" style="margin-bottom:0">
-          <label class="field__required">${esc(t('memberSharePct'))}</label>
-          <input type="number" id="optMemberPct" min="0" max="100" step="0.1" value="${defaultMemberPct}" class="amount-input">
-        </div>
-        <div class="field" style="margin-bottom:0">
-          <label>${esc(t('saccoSharePct'))}</label>
-          <input type="number" id="optSaccoPct" readonly class="amount-input" style="background:#f8fafc">
-        </div>
+        <div class="field" style="margin-bottom:0"><label class="field__required">${esc(t('memberSharePct'))}</label><input type="number" id="optMemberPct" min="0" max="100" step="0.1" value="${defaultMemberPct}" class="amount-input"></div>
+        <div class="field" style="margin-bottom:0"><label>${esc(t('saccoSharePct'))}</label><input type="number" id="optSaccoPct" readonly class="amount-input" style="background:#f8fafc"></div>
       </div>
       <div class="split-grid" id="splitPreview"></div>
       <div class="verify-line" id="verifyLine"></div>
@@ -2676,8 +2902,9 @@ async function loadAvailableYears() {
 
   await Promise.all([loadSettings(), loadCustomers(), loadDistricts(), loadBranches(), loadLoansCollection()]);
   await loadAvailableYears();
+  await loadAllYearsHistory();  // ⚡ prime history tables
 
-  /* ⚡ One-shot cleanup of orphaned sacco_capital transactions */
+  /* One-shot cleanup of orphaned sacco_capital transactions */
   try {
     const [scSnap, batchSnap] = await Promise.all([
       getDocs(query(collection(db, 'transactions'), where('type','==','sacco_capital'))),
