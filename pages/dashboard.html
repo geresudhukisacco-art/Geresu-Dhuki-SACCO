@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Dashboard — Geresu Dhuki SACCO</title>
+<title>Geresu Dhuki SACCO</title>
 <link rel="icon" type="image/png" href="../images/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -55,10 +55,13 @@ a{color:inherit;text-decoration:none;}
 h1,h2,h3,h4{line-height:1.25;letter-spacing:-.02em;font-weight:800;}
 :focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
 .hidden{display:none !important;}
-#loader{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:9999;transition:opacity .3s;}
-#loader.hide{opacity:0;pointer-events:none;}
+#loader{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:9999;}
+#loader.hide{display:none;}
 .spin{width:44px;height:44px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
+@keyframes shimmer{0%{background-position:-200% 0;}100%{background-position:200% 0;}}
+.stat__value.is-loading{background:linear-gradient(90deg,var(--border-soft) 0%,var(--border) 50%,var(--border-soft) 100%);background-size:200% 100%;animation:shimmer 1.4s infinite;color:transparent;border-radius:6px;min-height:26px;display:inline-block;min-width:80px;}
+.tbl-loading{display:inline-block;width:60%;height:12px;background:linear-gradient(90deg,var(--border-soft) 0%,var(--border) 50%,var(--border-soft) 100%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:4px;}
 .app{display:grid;grid-template-columns:var(--sidebar-w) 1fr;grid-template-rows:var(--topbar-h) 1fr;
   grid-template-areas:"sidebar topbar" "sidebar main";min-height:100vh;
   transition:grid-template-columns .25s cubic-bezier(.4,0,.2,1);}
@@ -382,8 +385,10 @@ const db    = getFirestore(fbApp);
 const LOGIN_URL = "../index.html";
 const LOGO_URL  = "../images/logo.png";
 const DEFAULT_SACCO_NAME = 'GERESU DHUKI SACCO';
+const PROFILE_CACHE_KEY = 'sacco.profile';
 let S = null;
 
+/* SESSION */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
 let SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
@@ -392,11 +397,32 @@ function readSession() { try { const r = sessionStorage.getItem(SESSION_KEY); if
 function clearSession() { try { sessionStorage.removeItem(SESSION_KEY); } catch(e){} }
 function isSessionRecordValid(s) { return !!(s && s.uid); }
 function getSessionMs() { const s = readSession(); const m = (s && s.minutes) || SESSION_MINUTES; return Math.max(1, m) * 60000; }
+function readCachedProfile() {
+  try {
+    const raw = sessionStorage.getItem(PROFILE_CACHE_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    if (!p || !p.uid) return null;
+    return p;
+  } catch (e) { return null; }
+}
+function writeCachedProfile() {
+  if (!S) return;
+  try { sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(S)); } catch(e){}
+}
+function clearCachedProfile() {
+  try { sessionStorage.removeItem(PROFILE_CACHE_KEY); } catch(e){}
+}
+function hideLoaderNow() {
+  const el = document.getElementById('loader');
+  if (el) el.classList.add('hide');
+}
 function forceLogout(reason) {
   if (awayCheckInterval) { clearInterval(awayCheckInterval); awayCheckInterval = null; }
   awayStartedAt = null;
   try { sessionStorage.clear(); sessionStorage.setItem('__redirectReason', reason || 'expired'); } catch(e){}
   clearSession();
+  clearCachedProfile();
   try { signOut(auth); } catch(e){}
   window.location.replace(LOGIN_URL);
 }
@@ -430,6 +456,7 @@ async function loadSessionTimeout() {
   } catch(e){}
 }
 
+/* I18N — full translations for en / am / om */
 const I18N = {
   en: {
     brandSub:'SACCO Management',
@@ -491,10 +518,130 @@ const I18N = {
     colMemberNet:'Net Payout', colPaidDate:'Paid Date',
     noMemberDiv:'No member dividend records yet',
     noMemberDivText:'Distribute dividends from the Dividends page to populate this table.'
+  },
+  am: {
+    brandSub:'የሳኮ አስተዳደር',
+    navSecOverview:'አጠቃላይ እይታ', navSecNetwork:'ኔትወርክ', navSecOperations:'ክንውኖች',
+    navSecFinance:'ፋይናንስ', navSecAdmin:'አስተዳደር',
+    dashboard:'ዳሽቦርድ', districts:'ወረዳዎች', branches:'ቅርንጫፎች', customers:'ደንበኞች',
+    savings:'ቁጠባ', deposits:'ተቀማጭ', loans:'ብድር', repayments:'ክፍያዎች',
+    withdrawals:'መውጫዎች', dividends:'ክፍፍል', shares:'አክሲዮን', reports:'ሪፖርቶች',
+    penalties:'ቅጣቶች', audit:'የምዝግብ ታሪክ', users:'ተጠቃሚዎች', settings:'ቅንብሮች',
+    role_super_admin:'ዋና አስተዳዳሪ', role_admin:'የወረዳ አስተዳዳሪ', role_manager:'ሥራ አስኪያጅ',
+    role_cashier:'ገንዘብ ተቀባይ', role_member:'አባል', role_auditor:'ኦዲተር',
+    logout:'ውጣ', welcomeBack:'እንኳን ደህና መጡ',
+    workingArea:'የሥራ አካባቢ', workingAreaSub:'በወረዳ እና በቅርንጫፍ ውሂብ ያጣሩ',
+    allDistricts:'ሁሉም ወረዳዎች', allBranches:'ሁሉም ቅርንጫፎች',
+    selectYear:'ዓመት ይምረጡ', status:'ሁኔታ', open:'ክፍት', closed:'ተዘግቷል',
+    networkOverview:'የኔትወርክ አጠቃላይ እይታ', financeThisYear:'ፋይናንስ', financeAllYears:'ሁሉም ዓመታት',
+    savingsLoansChart:'ቁጠባ vs ብድር', loansRepaymentsChart:'ብድር vs ክፍያዎች',
+    monthly:'ወርሃዊ ድምሮች (ብር)', recentActivity:'ማሳወቂያዎች / የቅርብ ጊዜ እንቅስቃሴ',
+    latestUpdates:'የቅርብ ጊዜ ግብይቶች', quickActions:'ፈጣን እርምጃዎች',
+    pendingApprovals:'በመጠበቅ ላይ ያሉ ማጽደቆች', awaitingAction:'እርምጃዎን በመጠበቅ',
+    totalDistricts:'ወረዳዎች', totalBranches:'ቅርንጫፎች', totalCustomers:'ጠቅላላ ደንበኞች',
+    totalShares:'ጠቅላላ አክሲዮን', grossSavingsYear:'ጠቅላላ ቁጠባ',
+    withdrawalsYear:'መውጫዎች', repaymentsYear:'ክፍያዎች', loansIssuedYear:'የተሰጡ ብድሮች',
+    penaltiesPaid:'የተከፈሉ ቅጣቶች', netProfitYear:'የተጣራ ትርፍ', netSaving:'የተጣራ ቁጠባ',
+    outstandingLoans:'ቀሪ ብድሮች', currentBalance:'ጠቅላላ ቀሪ ሒሳብ',
+    totalBalanceAllYears:'ጠቅላላ ቀሪ ሒሳብ (ሁሉም ዓመታት)', netProfitAllYears:'የተጣራ ትርፍ (ሁሉም ዓመታት)',
+    dividendsPaid:'የአባላት ክፍፍል', netShareValue:'የተጣራ አክሲዮን ዋጋ',
+    saccoCapitalYear:'የሳኮ ካፒታል', saccoCapitalAllYears:'የሳኮ ካፒታል (ሁሉም ዓመታት)',
+    taxWithheldYear:'የተቀናሽ ታክስ', taxWithheldAllYears:'የተቀናሽ ታክስ (ሁሉም ዓመታት)',
+    fromSavings:'ከቁጠባ', external:'ከውጭ', totalPenaltiesPaid:'ጠቅላላ የተከፈሉ ቅጣቶች',
+    principalPaid:'የተከፈለ ዋና ገንዘብ', interestPaid:'የተከፈለ ወለድ',
+    customerLeaving:'የሚወጡ', inScope:'በክልል ውስጥ', sharesYear:'የአክሲዮን ዋጋ',
+    shareAmount:'የአክሲዮን መጠን', netAmountETB:'የተጣራ ዋጋ (ብር)', sharesCountWord:'አክሲዮኖች',
+    noDataYet:'እስካሁን ውሂብ የለም', noData:'ውሂብ የለም', noActivity:'በዚህ ክልል ውስጥ ግብይቶች የሉም',
+    nothingPending:'በመጠበቅ ላይ ምንም የለም', loading:'በመጫን ላይ…',
+    records:'መዝገቦች', usersWord:'ተጠቃሚዎች',
+    fullSystem:'ሙሉ ስርዓት — ሁሉም ወረዳዎች', districtAdmin:'የወረዳ አስተዳዳሪ',
+    branchManager:'የቅርንጫፍ ሥራ አስኪያጅ', cashierRole:'ገንዘብ ተቀባይ', tellerRole:'ገንዘብ ተቀባይ',
+    accountantRole:'ሒሳብ ባለሙያ', auditorRole:'ኦዲተር — ተነባቢ ብቻ',
+    allDistrictsLabel:'ሁሉም ወረዳዎች', selfAccount:'የእኔ ሒሳብ',
+    savingsDeposit:'የቁጠባ ተቀማጭ', withdrawalTxt:'መውጫ', repaymentTxt:'ክፍያ',
+    loanIssued:'የተሰጠ ብድር', dividendTxt:'ክፍፍል', shareBuy:'የአክሲዮን ግዢ',
+    shareSell:'የአክሲዮን ሽያጭ', shareBuyCash:'የአክሲዮን ግዢ (ጥሬ ገንዘብ)',
+    shareBuySavings:'የአክሲዮን ግዢ (ቁጠባ)', penaltyTxt:'ቅጣት',
+    serviceWithdrawal:'የአገልግሎት መውጫ', newCustomer:'ተቀላቅሏል',
+    saccoCapitalTxt:'የሳኮ ካፒታል', retainedProfitTxt:'የተያዘ ትርፍ',
+    justNow:'አሁን', minAgo:'ከ{n} ደቂቃ በፊት', hourAgo:'ከ{n} ሰዓት በፊት', dayAgo:'ከ{n} ቀን በፊት',
+    viewAll:'ሁሉንም ተመልከት →', noDistrictsInScope:'በክልል ውስጥ ወረዳዎች የሉም',
+    saccoIncome:'የሳኮ ገቢ', saccoIncomeTag:'ሳኮ',
+    saccoCapitalAllocTitle:'የሳኮ ካፒታል ድልድሎች',
+    saccoCapitalAllocSub:'ከክፍፍል ስርጭቶች የተያዘ ትርፍ (ሁሉም ዓመታት)',
+    colYear:'ዓመት', colBatchRef:'የባች ማጣቀሻ', colTotalProfit:'ጠቅላላ ትርፍ',
+    colSaccoPct:'የሳኮ %', colSaccoAmt:'የሳኮ መጠን', colDate:'ቀን', colStatus:'ሁኔታ',
+    noSaccoCap:'ምንም የሳኮ ካፒታል ድልድሎች የሉም',
+    noSaccoCapText:'ክፍፍሎች ከዜሮ ያልሆነ የሳኮ ድርሻ ጋር ሲሰራጩ የሳኮ ካፒታል እዚህ ይታያል።',
+    memberDivTitle:'የአባላት ክፍፍል ስርጭቶች',
+    memberDivSub:'ከትርፍ ስርጭቶች የተሰበሰቡ የአባላት ክፍያዎች (ሁሉም ዓመታት)',
+    colRecipients:'ተቀባዮች', colMemberGross:'የአባል ጠቅላላ', colMemberTax:'የተቀናሽ ታክስ',
+    colMemberNet:'የተጣራ ክፍያ', colPaidDate:'የተከፈለበት ቀን',
+    noMemberDiv:'እስካሁን ምንም የአባል ክፍፍል መዝገቦች የሉም',
+    noMemberDivText:'ይህን የታሪክ ሰንጠረዥ ለመሙላት ከክፍፍሎች ገጽ ክፍፍሎችን ያሰራጩ።'
+  },
+  om: {
+    brandSub:'Bulchiinsa SACCO',
+    navSecOverview:'Aguuggama', navSecNetwork:'Networkii', navSecOperations:'Hojimaata',
+    navSecFinance:'Faayinaansii', navSecAdmin:'Bulchiinsa',
+    dashboard:'Daashboordii', districts:'Aanaalee', branches:'Dameewwan', customers:'Maamiltoota',
+    savings:'Qusannaa', deposits:'Kaasaa', loans:'Liqii', repayments:'Kaffaltuu',
+    withdrawals:'Baasii', dividends:'Qooda', shares:'Hirmaata', reports:'Gabaasa',
+    penalties:'Adaba', audit:'Seenaa Galmee', users:'Fayyadamtoota', settings:"Qindaa'ina",
+    role_super_admin:"Bulchaa Ol'aanaa", role_admin:'Bulchaa Aanaa', role_manager:'Bulchaa',
+    role_cashier:'Kashierii', role_member:'Miseensa', role_auditor:'Ooditera',
+    logout:"Ba'i", welcomeBack:'Baga nagaan deebite',
+    workingArea:'Bakka Hojii', workingAreaSub:'Aanaan fi damee daataa filter godhi',
+    allDistricts:'Aanaalee hunda', allBranches:'Dameewwan hunda',
+    selectYear:'Waggaa Filadhu', status:'Haala', open:'Banaa', closed:'Cufaa',
+    networkOverview:'Aguuggama Networkii', financeThisYear:'Faayinaansii', financeAllYears:'Waggoota Hunda',
+    savingsLoansChart:'Qusannaa vs Liqii', loansRepaymentsChart:'Liqii vs Kaffaltuu',
+    monthly:"Waliigala ji'aan (ETB)", recentActivity:'Beeksisa / Sochii Dhiyoo',
+    latestUpdates:'Galmee dhiyoo', quickActions:'Gocha Saffisaa',
+    pendingApprovals:'Mirkaneessuu Eegaa', awaitingAction:'Gocha kee eegaa',
+    totalDistricts:'Aanaalee', totalBranches:'Dameewwan', totalCustomers:'Maamiltoota Waliigalaa',
+    totalShares:'Hirmaata Waliigalaa', grossSavingsYear:'Qusannaa Waliigalaa',
+    withdrawalsYear:'Baasii', repaymentsYear:'Kaffaltuu', loansIssuedYear:'Liqii Kennaman',
+    penaltiesPaid:'Adaba Kaffalame', netProfitYear:"Bu'aa Qulqulluu", netSaving:'Qusannaa Qulqulluu',
+    outstandingLoans:'Liqii Haftee', currentBalance:'Haftee Waliigalaa',
+    totalBalanceAllYears:'Haftee Waliigalaa (Waggoota Hunda)', netProfitAllYears:"Bu'aa Qulqulluu (Waggoota Hunda)",
+    dividendsPaid:'Qooda Miseensotaa', netShareValue:'Gatii Hirmaataa Qulqulluu',
+    saccoCapitalYear:'Kaappitaala SACCO', saccoCapitalAllYears:'Kaappitaala SACCO (Waggoota Hunda)',
+    taxWithheldYear:'Taaksii Qabame', taxWithheldAllYears:'Taaksii Qabame (Waggoota Hunda)',
+    fromSavings:'Qusannaadhaa', external:'Alaadhaa', totalPenaltiesPaid:'Adaba Kaffalaman Waliigalaa',
+    principalPaid:"Bu'uura Kaffalame", interestPaid:'Dhala Kaffalame',
+    customerLeaving:"Ba'aa", inScope:'Naannoo keessatti', sharesYear:'Gatii Hirmaataa',
+    shareAmount:'Hamma Hirmaataa', netAmountETB:'Gatii Qulqulluu (ETB)', sharesCountWord:'Hirmaata',
+    noDataYet:'Amma ammaatti daataan hin jiru', noData:'Daataan hin jiru', noActivity:'Naannoo kana keessatti galmeen hin jiru',
+    nothingPending:'Wanti eegaa hin jiru', loading:"Fe'aa jira…",
+    records:'galmee', usersWord:'fayyadamtoota',
+    fullSystem:'Sirna guutuu — aanaalee hunda', districtAdmin:'Bulchaa Aanaa',
+    branchManager:'Bulchaa Damee', cashierRole:'Kashierii', tellerRole:'Kashierii',
+    accountantRole:'Herregaa', auditorRole:'Ooditera — dubbisuu qofa',
+    allDistrictsLabel:'Aanaalee Hunda', selfAccount:'Herrega koo',
+    savingsDeposit:'kaasaa qusannaa', withdrawalTxt:'baasii', repaymentTxt:'kaffaltuu',
+    loanIssued:'liqii kenname', dividendTxt:'qooda', shareBuy:'bittaa hirmaataa',
+    shareSell:'gurgurtaa hirmaataa', shareBuyCash:'bittaa hirmaataa (maallaqa harkaa)',
+    shareBuySavings:'bittaa hirmaataa (qusannaa)', penaltyTxt:'adaba',
+    serviceWithdrawal:'baasii tajaajilaa', newCustomer:'makame',
+    saccoCapitalTxt:'Kaappitaala SACCO', retainedProfitTxt:"Bu'aa qabame",
+    justNow:'amma', minAgo:'daqiiqaa {n} dura', hourAgo:"sa'aatii {n} dura", dayAgo:'guyyaa {n} dura',
+    viewAll:'Hunda ilaali →', noDistrictsInScope:'Aanaan naannoo keessatti hin jiru',
+    saccoIncome:'Galii SACCO', saccoIncomeTag:'SACCO',
+    saccoCapitalAllocTitle:'Ramaddii Kaappitaala SACCO',
+    saccoCapitalAllocSub:"Bu'aa qabame qooda qoodama irraa (waggoota hunda)",
+    colYear:'Waggaa', colBatchRef:'Wabii Baachii', colTotalProfit:"Bu'aa Waliigalaa",
+    colSaccoPct:'SACCO %', colSaccoAmt:'Hamma SACCO', colDate:'Guyyaa', colStatus:'Haala',
+    noSaccoCap:'Ramaddiin Kaappitaala SACCO hin jiru',
+    noSaccoCapText:'Yeroo qoodi qoodame qooda SACCO zeeroo hin taane waliin raawwatamu, Kaappitaalli SACCO asitti mul\'ata.',
+    memberDivTitle:'Raabsa Qooda Miseensotaa',
+    memberDivSub:"Kaffaltii miseensotaa qooda bu'aa irraa walitti qabame (waggoota hunda)",
+    colRecipients:'Fudhattoota', colMemberGross:"Waliigala Miseensaa", colMemberTax:'Taaksii Qabame',
+    colMemberNet:'Kaffaltii Qulqulluu', colPaidDate:'Guyyaa Kaffalame',
+    noMemberDiv:'Amma ammaatti galmeen qooda miseensotaa hin jiru',
+    noMemberDivText:'Gabatee seenaa kana guutuuf qooda fuula Qooda irraa raabsaa.'
   }
 };
-I18N.am = { ...I18N.en };
-I18N.om = { ...I18N.en };
 const SUPPORTED = ['en','am','om'];
 const LANG_KEY = 'sacco.lang';
 let LANG = 'en';
@@ -641,6 +788,7 @@ const APP = {
   currentYear: new Date().getFullYear(),
   availableYears: (() => { const y = new Date().getFullYear(); return [y+2, y+1, y, y-1, y-2]; })(),
   dataLoaded: false,
+  dataLoading: false,
   workarea: { districtId: '', branchId: '' },
   districts: [], branches: [], customers: [], shareRecords: [],
   txn: { savings: [], loans: [], repayments: [], profitIncome: [], profitWithdrawal: [], withdrawals: [], leaving: [], penalties: [], serviceWithdrawals: [], dividends: [], saccoCapital: [], shares: [], recent: [], pendingLoans: [], allTxns: [] }
@@ -778,7 +926,7 @@ const canSeeNav = (item, role) => item.roles.includes('*') || item.roles.include
 
 function renderShell() {
   const navHtml = NAV.map(g => {
-    const items = g.items.filter(it => canSeeNav(it, S.role));
+    const items = g.items.filter(it => canSeeNav(it, S?.role || 'viewer'));
     if (!items.length) return '';
     return `<div class="sidebar__section">${esc(t(g.section))}</div>` +
       items.map(it => `<a class="nav-item${it.key==='dashboard'?' is-active':''}" href="${it.href}" data-tooltip="${esc(t(it.label))}">
@@ -850,6 +998,7 @@ function doLogout() {
   if (awayCheckInterval) { clearInterval(awayCheckInterval); awayCheckInterval = null; }
   awayStartedAt = null;
   try { sessionStorage.clear(); } catch(e){}
+  clearCachedProfile();
   signOut(auth).catch(()=>{}).finally(() => window.location.replace(LOGIN_URL));
 }
 function setLang(lang) {
@@ -864,11 +1013,12 @@ function setLang(lang) {
 
 function renderMain() {
   const host = document.getElementById('mainContent'); if (!host) return;
+  const sName = S?.name || 'User';
   host.innerHTML = `
     <div class="page-head">
       <div>
         <h1 class="page-head__title" id="page-title">${esc(t('dashboard'))}</h1>
-        <p class="page-head__sub" id="greeting">${esc(t('welcomeBack'))}${S.name ? ', ' + esc(S.name.split(' ')[0]) : ''}</p>
+        <p class="page-head__sub" id="greeting">${esc(t('welcomeBack'))}${sName ? ', ' + esc(sName.split(' ')[0]) : ''}</p>
         <div id="scope-badge"></div>
       </div>
       <div class="page-head__actions">${renderHeadActions()}</div>
@@ -892,7 +1042,6 @@ function renderMain() {
     <div class="section-title" id="title-all">${esc(t('financeAllYears'))}</div>
     <section class="stats" id="stats-all"></section>
 
-    <!-- ⚡ Member Dividend Distributions table -->
     <section class="card" id="memberDivCard" style="margin-bottom:22px;">
       <div class="card__head">
         <div>
@@ -904,28 +1053,25 @@ function renderMain() {
       <div class="card__body card__body--flush">
         <div class="tbl-wrap">
           <table class="tbl">
-            <thead>
-              <tr>
-                <th>${esc(t('colYear'))}</th>
-                <th>${esc(t('colBatchRef'))}</th>
-                <th class="num">${esc(t('colRecipients'))}</th>
-                <th class="num">${esc(t('colMemberGross'))}</th>
-                <th class="num">${esc(t('colMemberTax'))}</th>
-                <th class="num">${esc(t('colMemberNet'))}</th>
-                <th class="num">${esc(t('colSaccoPct'))}</th>
-                <th>${esc(t('colPaidDate'))}</th>
-                <th>${esc(t('colStatus'))}</th>
-              </tr>
-            </thead>
+            <thead><tr>
+              <th>${esc(t('colYear'))}</th>
+              <th>${esc(t('colBatchRef'))}</th>
+              <th class="num">${esc(t('colRecipients'))}</th>
+              <th class="num">${esc(t('colMemberGross'))}</th>
+              <th class="num">${esc(t('colMemberTax'))}</th>
+              <th class="num">${esc(t('colMemberNet'))}</th>
+              <th class="num">${esc(t('colSaccoPct'))}</th>
+              <th>${esc(t('colPaidDate'))}</th>
+              <th>${esc(t('colStatus'))}</th>
+            </tr></thead>
             <tbody id="memberDivBody">
-              <tr><td colspan="9" style="padding:32px;text-align:center;color:var(--muted);font-size:13px;">${esc(t('loading'))}</td></tr>
+              <tr><td colspan="9" style="padding:32px;text-align:center;color:var(--muted);font-size:13px;"><span class="tbl-loading"></span></td></tr>
             </tbody>
           </table>
         </div>
       </div>
     </section>
 
-    <!-- SACCO Capital Allocations table -->
     <section class="card" id="saccoCapitalCard" style="margin-bottom:22px;">
       <div class="card__head">
         <div>
@@ -937,19 +1083,17 @@ function renderMain() {
       <div class="card__body card__body--flush">
         <div class="tbl-wrap">
           <table class="tbl">
-            <thead>
-              <tr>
-                <th>${esc(t('colYear'))}</th>
-                <th>${esc(t('colBatchRef'))}</th>
-                <th class="num">${esc(t('colTotalProfit'))}</th>
-                <th class="num">${esc(t('colSaccoPct'))}</th>
-                <th class="num">${esc(t('colSaccoAmt'))}</th>
-                <th>${esc(t('colDate'))}</th>
-                <th>${esc(t('colStatus'))}</th>
-              </tr>
-            </thead>
+            <thead><tr>
+              <th>${esc(t('colYear'))}</th>
+              <th>${esc(t('colBatchRef'))}</th>
+              <th class="num">${esc(t('colTotalProfit'))}</th>
+              <th class="num">${esc(t('colSaccoPct'))}</th>
+              <th class="num">${esc(t('colSaccoAmt'))}</th>
+              <th>${esc(t('colDate'))}</th>
+              <th>${esc(t('colStatus'))}</th>
+            </tr></thead>
             <tbody id="saccoCapitalBody">
-              <tr><td colspan="7" style="padding:32px;text-align:center;color:var(--muted);font-size:13px;">${esc(t('loading'))}</td></tr>
+              <tr><td colspan="7" style="padding:32px;text-align:center;color:var(--muted);font-size:13px;"><span class="tbl-loading"></span></td></tr>
             </tbody>
           </table>
         </div>
@@ -1004,7 +1148,7 @@ function renderMain() {
           <span class="tag tag--gray" id="activity-count">0</span>
         </div>
         <div class="card__body card__body--flush">
-          <ul class="list" id="activity"><li class="list-empty">${esc(t('loading'))}</li></ul>
+          <ul class="list" id="activity"><li class="list-empty"><span class="tbl-loading"></span></li></ul>
         </div>
       </div>
       <div class="card">
@@ -1018,14 +1162,14 @@ function renderMain() {
           <div><div class="card__title">${esc(t('pendingApprovals'))}</div>
             <div class="card__sub">${esc(t('awaitingAction'))}</div></div>
         </div>
-        <div class="card__body card__body--flush"><ul class="list" id="pending"><li class="list-empty">${esc(t('loading'))}</li></ul></div>
+        <div class="card__body card__body--flush"><ul class="list" id="pending"><li class="list-empty"><span class="tbl-loading"></span></li></ul></div>
       </div>
       <div class="card">
         <div class="card__head">
           <div><div class="card__title">${esc(t('totalPenaltiesPaid'))}</div>
             <div class="card__sub">${esc(t('fromSavings'))} vs ${esc(t('external'))}</div></div>
         </div>
-        <div class="card__body"><div id="penalty-breakdown"></div></div>
+        <div class="card__body"><div id="penalty-breakdown"><span class="tbl-loading"></span></div></div>
       </div>
     </section>
   `;
@@ -1061,7 +1205,7 @@ function renderScopeBadge() {
   else if (isDistrict()) el.innerHTML = `<span class="scope-badge scope-badge--district"><i class="fas fa-map-marked-alt"></i> ${esc(t('districtAdmin'))} · ${esc(S.districtName || '—')}</span>`;
   else if (isBranchRole()) el.innerHTML = `<span class="scope-badge scope-badge--branch"><i class="fas fa-code-branch"></i> ${esc(roleLabel(S.role))} · ${esc(S.branchName || '—')}</span>`;
   else if (isMember()) el.innerHTML = `<span class="scope-badge scope-badge--self"><i class="fas fa-user"></i> ${esc(S.customerCode || t('selfAccount'))}</span>`;
-  else el.innerHTML = `<span class="scope-badge scope-badge--self"><i class="fas fa-user"></i> ${esc(roleLabel(S.role))}</span>`;
+  else el.innerHTML = `<span class="scope-badge scope-badge--self"><i class="fas fa-user"></i> ${esc(roleLabel(S?.role || 'viewer'))}</span>`;
 }
 function renderHeadActions() {
   const a = [];
@@ -1190,23 +1334,26 @@ function fillDistrictChips() {
 
 function statCard(id, labelKey, cls, icon, opts = {}) {
   const { hint, chips = false, chipMax = 3, split } = opts;
+  const loading = !APP.dataLoaded;
+  const valueClass = loading ? 'stat__value is-loading' : 'stat__value';
+  const loadingText = loading ? '···' : '…';
   return `<div class="stat stat--${cls}">
     <div class="stat__head">
       <div class="stat__label">${esc(t(labelKey))}</div>
       <div class="stat__icon"><i class="fas ${icon}"></i></div>
     </div>
-    <div class="stat__value" id="${id}">…</div>
+    <div class="${valueClass}" id="${id}">${loadingText}</div>
     ${hint ? `<div class="stat__hint">${hint}</div>` : ''}
     ${split ? `
       <div class="stat__split">
-        <div class="stat__split-item"><div class="stat__split-label">${esc(split[0].label)}</div><div class="stat__split-value ${split[0].cls || ''}" id="${split[0].id}">…</div></div>
-        <div class="stat__split-item"><div class="stat__split-label">${esc(split[1].label)}</div><div class="stat__split-value ${split[1].cls || ''}" id="${split[1].id}">…</div></div>
+        <div class="stat__split-item"><div class="stat__split-label">${esc(split[0].label)}</div><div class="${loading ? 'stat__split-value is-loading' : 'stat__split-value ' + (split[0].cls || '')}" id="${split[0].id}">${loadingText}</div></div>
+        <div class="stat__split-item"><div class="stat__split-label">${esc(split[1].label)}</div><div class="${loading ? 'stat__split-value is-loading' : 'stat__split-value ' + (split[1].cls || '')}" id="${split[1].id}">${loadingText}</div></div>
       </div>
     ` : ''}
     ${chips ? `<div class="district-chips" data-fill="1" data-max="${chipMax}"></div>` : ''}
   </div>`;
 }
-function setStat(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
+function setStat(id, v) { const el = document.getElementById(id); if (el) { el.classList.remove('is-loading'); el.textContent = v; } }
 function setHint(id, h) {
   const el = document.getElementById(id); if (!el) return;
   const s = el.closest('.stat'); if (!s) return;
@@ -1270,53 +1417,45 @@ function renderStatsShells() {
   }
 }
 
-/* ⚡ NEW: Member Dividend Distributions table (grouped by batch) */
 function renderMemberDividendTable() {
   const host = document.getElementById('memberDivBody');
   const summaryEl = document.getElementById('memberDivSummary');
   if (!host) return;
 
-  // Group dividend records by batchId
-  const grouped = new Map();
-  filterWorkareaTxns(APP.txn.dividends)
-    .filter(tx => isDividendPaid(tx))
-    .forEach(tx => {
-      const key = tx.batchId || `single_${tx.id}`;
-      if (!grouped.has(key)) {
-        grouped.set(key, {
-          batchId: key,
-          refNo: tx.refNo || '—',
-          year: Number(tx.year || tx.fiscalYear || 0),
-          gross: 0, tax: 0, net: 0,
-          count: 0,
-          saccoPct: 0,
-          memberPct: num(tx.memberPercentSnapshot) || 100,
-          date: tx.paidAt || tx.createdAt || tx.date
-        });
-      }
-      const g = grouped.get(key);
-      const gross = num(tx.grossAmount != null ? tx.grossAmount : (tx.netAmount != null ? tx.netAmount : tx.amount));
-      const tax   = num(tx.taxAmount || 0);
-      const net   = num(tx.netAmount != null ? tx.netAmount : gross);
-      g.gross += gross;
-      g.tax   += tax;
-      g.net   += net;
-      g.count += 1;
-      // Derive SACCO % from the first matching sacco_capital for this batch
-      if (!g.saccoPct) {
-        const sc = APP.txn.saccoCapital.find(s => s.batchId === key && isSaccoCapitalCounted(s));
-        if (sc) g.saccoPct = num(sc.percent);
-      }
-      const d = toDateSafe(tx.paidAt || tx.createdAt || tx.date);
-      const gd = toDateSafe(g.date);
-      if (d && (!gd || d < gd)) g.date = d;
-    });
+  const dividends = (APP.txn.dividends || []).filter(tx => {
+    const s = String(tx.status || '').toLowerCase();
+    return ['paid','completed','approved','done'].includes(s);
+  });
 
-  const list = Array.from(grouped.values())
-    .sort((a, b) => {
-      if (a.year !== b.year) return b.year - a.year;
-      return (toDateSafe(b.date)?.getTime() || 0) - (toDateSafe(a.date)?.getTime() || 0);
-    });
+  const grouped = new Map();
+  dividends.forEach(tx => {
+    const key = tx.batchId || `single_${tx.id}`;
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        batchId: key, refNo: tx.refNo || '—',
+        year: Number(tx.year || tx.fiscalYear || 0),
+        gross: 0, tax: 0, net: 0, count: 0,
+        saccoPct: 0, date: tx.paidAt || tx.createdAt || tx.date
+      });
+    }
+    const g = grouped.get(key);
+    const gross = num(tx.grossAmount != null ? tx.grossAmount : (tx.netAmount != null ? tx.netAmount : tx.amount));
+    const tax   = num(tx.taxAmount || 0);
+    const net   = num(tx.netAmount != null ? tx.netAmount : gross);
+    g.gross += gross; g.tax += tax; g.net += net; g.count += 1;
+    if (!g.saccoPct) {
+      const sc = (APP.txn.saccoCapital || []).find(s => s.batchId === key);
+      if (sc) g.saccoPct = num(sc.percent);
+    }
+    const d = toDateSafe(tx.paidAt || tx.createdAt || tx.date);
+    const gd = toDateSafe(g.date);
+    if (d && (!gd || d < gd)) g.date = d;
+  });
+
+  const list = Array.from(grouped.values()).sort((a, b) => {
+    if (a.year !== b.year) return b.year - a.year;
+    return (toDateSafe(b.date)?.getTime() || 0) - (toDateSafe(a.date)?.getTime() || 0);
+  });
 
   if (!list.length) {
     host.innerHTML = `<tr><td colspan="9" style="padding:40px 20px;text-align:center;color:var(--muted);">
@@ -1340,9 +1479,9 @@ function renderMemberDividendTable() {
       <td><span class="tag tag--blue" style="font-size:11px;">${esc(String(g.year || '—'))}</span></td>
       <td><span class="mono" style="font-size:11.5px;font-weight:700;color:var(--text-soft);">${esc(String(g.refNo).slice(0, 36))}</span></td>
       <td class="num">${g.count}</td>
-      <td class="num">${esc(moneyFull(g.gross))}</td>
-      <td class="num">${g.tax > 0 ? esc(moneyFull(g.tax)) : '—'}</td>
-      <td class="num" style="color:#067647;font-weight:800;">${esc(moneyFull(g.net))}</td>
+      <td class="num">${esc(money(g.gross))}</td>
+      <td class="num">${g.tax > 0 ? esc(money(g.tax)) : '—'}</td>
+      <td class="num" style="color:#067647;font-weight:800;">${esc(money(g.net))}</td>
       <td class="num">${g.saccoPct.toFixed(2)}%</td>
       <td>${esc(dateStr)}</td>
       <td><span class="tag tag--green">Paid</span></td>
@@ -1350,13 +1489,12 @@ function renderMemberDividendTable() {
   }).join('');
 }
 
-/* ⚡ SACCO Capital Allocations table */
 function renderSaccoCapitalTable() {
   const host = document.getElementById('saccoCapitalBody');
   const summaryEl = document.getElementById('saccoCapSummary');
   if (!host) return;
 
-  const list = filterWorkareaTxns(APP.txn.saccoCapital)
+  const list = (APP.txn.saccoCapital || [])
     .filter(tx => isSaccoCapitalCounted(tx))
     .sort((a, b) => {
       const ya = Number(a.year || a.fiscalYear || 0);
@@ -1398,9 +1536,9 @@ function renderSaccoCapitalTable() {
     return `<tr>
       <td><span class="tag tag--blue" style="font-size:11px;">${esc(String(year))}</span></td>
       <td><span class="mono" style="font-size:11.5px;font-weight:700;color:var(--text-soft);">${esc(String(ref).slice(0, 36))}</span></td>
-      <td class="num">${esc(moneyFull(totalProfit))}</td>
+      <td class="num">${esc(money(totalProfit))}</td>
       <td class="num">${pct.toFixed(2)}%</td>
-      <td class="num" style="color:#7c3aed;font-weight:800;">${esc(moneyFull(amt))}</td>
+      <td class="num" style="color:#7c3aed;font-weight:800;">${esc(money(amt))}</td>
       <td>${esc(dateStr)}</td>
       <td><span class="tag ${stCls}">${esc(stLabel)}</span></td>
     </tr>`;
@@ -1516,10 +1654,8 @@ function computeYearNumbers() {
   const totalPenalties = penaltiesY.reduce((s,p) => s + num(p.amount), 0);
   const penFromSav = penaltiesY.filter(isPenaltyPaidFromSavings).reduce((s,p) => s + num(p.amount), 0);
   const penExternal = totalPenalties - penFromSav;
-
   const repaymentsY = filterWorkareaTxns(APP.txn.repayments).filter(r => isInYear(r.date||r.createdAt, y) && isRepaymentCounted(r));
   const totalRepayments = repaymentsY.reduce((s,x) => s + num(x.amount), 0);
-
   let paidPrincipal = 0, paidInterest = 0;
   repaymentsY.forEach(r => {
     const amt = num(r.amount);
@@ -1534,49 +1670,36 @@ function computeYearNumbers() {
   });
   paidPrincipal = round2(paidPrincipal);
   paidInterest  = round2(paidInterest);
-
   const loansY = filterWorkareaTxns(APP.txn.loans).filter(l => isInYear(l.date||l.createdAt, y));
   const totalLoansIssued = loansY.reduce((s,l) => s + num(l.amount), 0);
-
-  const divY = filterWorkareaTxns(APP.txn.dividends)
-    .filter(d => isDividendPaid(d) && dividendMatchesYear(d, y));
+  const divY = filterWorkareaTxns(APP.txn.dividends).filter(d => isDividendPaid(d) && dividendMatchesYear(d, y));
   let memberDivGross = 0, memberDivNet = 0, memberDivTax = 0;
   divY.forEach(x => {
     const g = num(x.grossAmount != null ? x.grossAmount : (x.netAmount != null ? x.netAmount : x.amount));
     const t = num(x.taxAmount || 0);
     const n = num(x.netAmount != null ? x.netAmount : g);
-    memberDivGross += g;
-    memberDivTax   += t;
-    memberDivNet   += n;
+    memberDivGross += g; memberDivTax += t; memberDivNet += n;
   });
   memberDivGross = round2(memberDivGross);
   memberDivNet   = round2(memberDivNet);
   memberDivTax   = round2(memberDivTax);
-
-  const scY = filterWorkareaTxns(APP.txn.saccoCapital)
-    .filter(s => isSaccoCapitalCounted(s) && saccoCapitalMatchesYear(s, y));
+  const scY = filterWorkareaTxns(APP.txn.saccoCapital).filter(s => isSaccoCapitalCounted(s) && saccoCapitalMatchesYear(s, y));
   const totalSaccoCapital = round2(scY.reduce((s,x) => s + num(x.amount), 0));
-
   const svcY = filterWorkareaTxns(APP.txn.serviceWithdrawals).filter(s => isInYear(s.date||s.createdAt, y)).filter(isServiceWithdrawalCounted);
   const totalSvc = svcY.reduce((s,x) => s + num(x.amount), 0);
-
   const SHR = computeSharesYearNumbers(y);
   const netShareValueY = SHR.netShareValue;
   const shareBuyAmount = SHR.shareBuyAmount;
   const shareCount = SHR.shareCount;
-
   const incomeY = filterWorkareaTxns(APP.txn.profitIncome).filter(p => isInYear(p.date||p.createdAt, y));
   const regFee = incomeY.filter(isSavingsCounted).filter(p => isRegistrationFeeIncome(p.incomeType)).reduce((s,p) => s + num(p.amount), 0);
   const otherIncome = incomeY.filter(isSavingsCounted).filter(p => !isRegistrationFeeIncome(p.incomeType)).reduce((s,p) => s + num(p.amount), 0);
-
   const grossProfitY = round2(regFee + otherIncome + paidInterest + totalPenalties);
   const totalDistributedY = round2(memberDivGross + totalSaccoCapital);
   const netProfitY = Math.max(0, round2(grossProfitY - totalDistributedY));
-
   const netSavingY = round2(grossSavings - totalWithdrawals - penFromSav - totalLeaving);
   const netSavingWithDivY = round2(netSavingY + memberDivNet);
   const currentBalance = round2(netSavingWithDivY + netProfitY + netShareValueY + totalSaccoCapital - totalSvc);
-
   const loansAll = filterWorkareaTxns(APP.txn.loans);
   const totalLoansEver = loansAll.reduce((s,l) => s + num(l.amount), 0);
   let totalPrincipalRepaid = 0;
@@ -1590,7 +1713,6 @@ function computeYearNumbers() {
   const loansOutstanding = Math.max(0, round2(totalLoansEver - totalPrincipalRepaid));
   const wc = applyWorkareaToAllCustomers();
   const totalCustomerShares = wc.reduce((s,c) => s + num(c.shares), 0) || shareCount;
-
   return {
     grossSavings, totalWithdrawals, totalLeaving, totalRepayments, totalLoansIssued,
     totalDividends: memberDivGross, memberDivGross, memberDivNet, memberDivTax,
@@ -1608,14 +1730,11 @@ function computeAllYearNumbers() {
   const totalWithdrawals = withdrawalsAll.reduce((s,x) => s + num(x.amount), 0);
   const leavingAll = filterWorkareaTxns(APP.txn.leaving).filter(isWithdrawalCounted);
   const totalLeaving = leavingAll.reduce((s,x) => s + num(x.amount), 0);
-
   const SHR = computeSharesAllYears();
   const netShareValueAll = SHR.netShareValue;
   const shareBuyAll = SHR.shareBuyAmount;
-
   const penFromSavAll = filterWorkareaTxns(APP.txn.penalties).filter(isPenaltyPaid).filter(isPenaltyPaidFromSavings).reduce((s,p) => s + num(p.amount), 0);
   const netSavingAll = round2(totalSavings - totalWithdrawals - totalLeaving - penFromSavAll);
-
   let interestAll = 0;
   filterWorkareaTxns(APP.txn.repayments).filter(isRepaymentCounted).forEach(r => {
     if (typeof r.interestPortion === 'number') { interestAll += num(r.interestPortion); return; }
@@ -1624,13 +1743,11 @@ function computeAllYearNumbers() {
     interestAll += splitRepayment(num(r.amount), loan).interest;
   });
   interestAll = round2(interestAll);
-
   const incomeAll = filterWorkareaTxns(APP.txn.profitIncome).filter(isSavingsCounted);
   const regFeeAll = incomeAll.filter(p => isRegistrationFeeIncome(p.incomeType)).reduce((s,p) => s + num(p.amount), 0);
   const otherIncomeAll = incomeAll.filter(p => !isRegistrationFeeIncome(p.incomeType)).reduce((s,p) => s + num(p.amount), 0);
   const penaltiesAll = filterWorkareaTxns(APP.txn.penalties).filter(isPenaltyPaid).reduce((s,p) => s + num(p.amount), 0);
   const svcAll = filterWorkareaTxns(APP.txn.serviceWithdrawals).filter(isServiceWithdrawalCounted).reduce((s,x) => s + num(x.amount), 0);
-
   const divAll = filterWorkareaTxns(APP.txn.dividends).filter(isDividendPaid);
   let memberDivGrossAll = 0, memberDivNetAll = 0;
   divAll.forEach(x => {
@@ -1641,18 +1758,12 @@ function computeAllYearNumbers() {
   });
   memberDivGrossAll = round2(memberDivGrossAll);
   memberDivNetAll   = round2(memberDivNetAll);
-
-  const saccoCapitalAll = round2(
-    filterWorkareaTxns(APP.txn.saccoCapital).filter(isSaccoCapitalCounted)
-      .reduce((s,x) => s + num(x.amount), 0)
-  );
-
+  const saccoCapitalAll = round2(filterWorkareaTxns(APP.txn.saccoCapital).filter(isSaccoCapitalCounted).reduce((s,x) => s + num(x.amount), 0));
   const grossProfitAll = round2(regFeeAll + otherIncomeAll + interestAll + penaltiesAll);
   const totalDistributedAll = round2(memberDivGrossAll + saccoCapitalAll);
   const netProfitAll = Math.max(0, round2(grossProfitAll - totalDistributedAll));
   const netSavingWithDivAll = round2(netSavingAll + memberDivNetAll);
   const totalBalanceAll = round2(netSavingWithDivAll + netProfitAll + netShareValueAll + saccoCapitalAll - svcAll);
-
   return {
     netSavingAll, netSavingWithDivAll, netProfitAll, netShareValueAll, totalBalanceAll,
     shareBuyAll, shareCountAll: SHR.shareCount, svcAll,
@@ -1708,8 +1819,7 @@ function renderStatsValues() {
       `Gross ${esc(money(Y.grossSavings))} + Div(net) ${esc(money(Y.memberDivNet))} − W ${esc(money(Y.totalWithdrawals))} − Pen ${esc(money(Y.penFromSav))} − Leave ${esc(money(Y.totalLeaving))}` +
       `</span>`);
 
-    const scY = filterWorkareaTxns(APP.txn.saccoCapital)
-      .filter(s => isSaccoCapitalCounted(s) && saccoCapitalMatchesYear(s, APP.currentYear));
+    const scY = filterWorkareaTxns(APP.txn.saccoCapital).filter(s => isSaccoCapitalCounted(s) && saccoCapitalMatchesYear(s, APP.currentYear));
     const scRefs = [...new Set(scY.map(s => s.batchId || s.fiscalYear || '?'))].slice(0, 3);
     setHint('s-saccoCapY',
       scRefs.length
@@ -2104,14 +2214,20 @@ function wireMainEvents() {
 }
 
 async function loadAllData() {
-  const [districts, branches] = await Promise.all([
+  APP.dataLoading = true;
+  const [districts, branches, customers, txns, loansRaw, shareRecords] = await Promise.all([
     fetchAllNoScope('districts'),
-    fetchAllNoScope('branches')
+    fetchAllNoScope('branches'),
+    fetchAllNoScope('customers'),
+    scopedFetchAll('transactions', [limit(3000)]),
+    scopedFetchAll('loans'),
+    fetchAllNoScope('shares')
   ]);
   APP.districts = districts;
   APP.branches = branches;
-  const customers = await fetchAllNoScope('customers');
   APP.customers = customers;
+  APP.shareRecords = shareRecords;
+
   CUSTOMER_MAP.clear();
   customers.forEach(c => {
     const name = c.fullName || c.name || [c.firstName, c.lastName].filter(Boolean).join(' ') || c.customerName || null;
@@ -2123,10 +2239,8 @@ async function loadAllData() {
     if (c.customerCode)CUSTOMER_MAP.set(c.customerCode, rec);
   });
 
-  const txns = await scopedFetchAll('transactions', [limit(3000)]);
   APP.txn.allTxns = txns;
 
-  const loansRaw = await scopedFetchAll('loans');
   const normalizedLoans = loansRaw.map(l => {
     const principal = num(l.principal) || num(l.amount);
     const duration  = num(l.duration)  || num(l.repaymentPeriod);
@@ -2136,9 +2250,6 @@ async function loadAllData() {
       date: l.disbursementDate || l.date || l.createdAt,
       createdAt: l.createdAt || l.disbursementDate || l.date };
   });
-
-  const shareRecords = await fetchAllNoScope('shares');
-  APP.shareRecords = shareRecords;
 
   const byType = (names) => txns.filter(t => names.includes(String(t.type || '').toLowerCase()));
 
@@ -2191,8 +2302,10 @@ async function loadAllData() {
   else APP.currentYear = cy;
 
   APP.dataLoaded = true;
+  APP.dataLoading = false;
 }
 
+/* ⚡ BOOT — instant render with cached profile, then verify + load data in background */
 (async function boot() {
   let saved = null;
   try { saved = localStorage.getItem(LANG_KEY); } catch(e){}
@@ -2208,15 +2321,59 @@ async function loadAllData() {
     window.location.replace(LOGIN_URL);
     return;
   }
+
+  /* ⚡ STEP 1: Try instant render with cached profile */
+  const cachedProfile = readCachedProfile();
+  let renderedWithProfile = false;
+  if (cachedProfile && cachedProfile.uid) {
+    S = {
+      uid: cachedProfile.uid,
+      role: cachedProfile.role || 'viewer',
+      email: cachedProfile.email || '',
+      name: cachedProfile.name || 'User',
+      photoURL: cachedProfile.photoURL || null,
+      districtId: cachedProfile.districtId || '',
+      districtName: cachedProfile.districtName || '',
+      branchId: cachedProfile.branchId || '',
+      branchName: cachedProfile.branchName || '',
+      customerId: cachedProfile.customerId || '',
+      customerCode: cachedProfile.customerCode || '',
+      savingsBalance: num(cachedProfile.savingsBalance),
+      shares: num(cachedProfile.shares)
+    };
+    initWorkarea();
+    renderShell();
+    renderMain();
+    hideLoaderNow();
+    renderedWithProfile = true;
+  } else if (hasMis) {
+    /* Show minimal shell while auth resolves */
+    S = { uid: sessionStorage.getItem('uid'), role: sessionStorage.getItem('role') || 'viewer', email: sessionStorage.getItem('email') || '', name: sessionStorage.getItem('userName') || 'User', photoURL: null, districtId:'', districtName:'', branchId:'', branchName:'', customerId:'', customerCode:'', savingsBalance:0, shares:0 };
+    initWorkarea();
+    renderShell();
+    renderMain();
+    hideLoaderNow();
+  }
+
+  /* ⚡ STEP 2: Auth check + profile fetch */
   const user = await new Promise(resolve => {
     const unsub = onAuthStateChanged(auth, u => { unsub(); resolve(u); });
   });
+
   if (!user) {
     try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
-    clearSession();
+    clearSession(); clearCachedProfile();
     window.location.replace(LOGIN_URL);
     return;
   }
+  if (sess && user.uid !== sess.uid) {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    clearSession(); clearCachedProfile();
+    window.location.replace(LOGIN_URL);
+    return;
+  }
+  APP.user = user;
+
   try {
     const snap = await getDoc(doc(db, 'users', user.uid));
     if (!snap.exists()) throw new Error('no-user-doc');
@@ -2232,13 +2389,26 @@ async function loadAllData() {
       customerCode: d.customerCode || d.memberCode || '',
       savingsBalance: num(d.savingsBalance), shares: num(d.shares)
     };
+    writeCachedProfile();
   } catch (e) {
     try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e2){}
-    clearSession();
+    clearSession(); clearCachedProfile();
     try { await signOut(auth); } catch(e2){}
     window.location.replace(LOGIN_URL);
     return;
   }
+
+  /* ⚡ STEP 3: Re-render shell only if profile changed (avoid flicker) */
+  const profileChanged = !renderedWithProfile ||
+    (cachedProfile && (cachedProfile.name !== S.name || cachedProfile.role !== S.role || cachedProfile.photoURL !== S.photoURL));
+  if (profileChanged) {
+    initWorkarea();
+    renderShell();
+    renderMain();
+  }
+  hideLoaderNow();
+
+  /* ⚡ STEP 4: Load settings + data in background */
   await loadSessionTimeout();
   try {
     const cfg = await getDoc(doc(db, 'settings', 'system'));
@@ -2247,24 +2417,23 @@ async function loadAllData() {
       if (dd.saccoName && String(dd.saccoName).trim()) APP.saccoName = String(dd.saccoName).trim();
     }
   } catch(e){}
-  initWorkarea();
-  renderShell();
-  renderMain();
-  setTimeout(() => document.getElementById('loader')?.classList.add('hide'), 150);
+
   try {
     await loadAllData();
     initWorkarea();
     renderMain();
     startSessionWatcher();
   } catch (e) {
-    console.error('[boot] load failed:', e);
+    console.error('[boot] data load failed:', e);
     const host = document.getElementById('mainContent');
-    if (host) host.innerHTML = `
-      <div class="empty" style="background:#fff;border:1px solid var(--border);border-radius:20px;padding:80px 24px;">
-        <i class="fas fa-exclamation-triangle" style="color:#b8860b"></i>
-        <div class="empty__title">Failed to load data</div>
-        <div class="empty__text">${esc(e.message || 'Unknown error')}</div>
-      </div>`;
+    if (host && !host.querySelector('.page-head')) {
+      host.innerHTML = `
+        <div class="empty" style="background:#fff;border:1px solid var(--border);border-radius:20px;padding:80px 24px;">
+          <i class="fas fa-exclamation-triangle" style="color:#b8860b"></i>
+          <div class="empty__title">Failed to load data</div>
+          <div class="empty__text">${esc(e.message || 'Unknown error')}</div>
+        </div>`;
+    }
   }
 })();
 </script>
