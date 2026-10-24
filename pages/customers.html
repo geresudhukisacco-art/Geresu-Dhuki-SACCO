@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Customers — Geresu Dhuki SACCO</title>
+<title>Geresu Dhuki SACCO</title>
 <link rel="icon" type="image/png" href="../images/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -183,6 +183,7 @@ html.theme-dark .stat{background:#0f172a;border-color:#1e293b;}
 .stat--green {--c1:linear-gradient(90deg,#19a974,#34c78e);--ic:#e7f7f0;--ifc:#128a5c;}
 .stat--gold  {--c1:linear-gradient(90deg,#d4a017,#e8b84b);--ic:#fdf5e0;--ifc:#b8860b;}
 .stat--violet{--c1:linear-gradient(90deg,#7c3aed,#a78bfa);--ic:#f0eaff;--ifc:#6d28d9;}
+.stat--red   {--c1:linear-gradient(90deg,#dc2626,#e74c5c);--ic:#fef3f2;--ifc:#b42318;}
 .stat__head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;gap:10px;}
 .stat__label{font-size:12.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;line-height:1.35;}
 .stat__icon{width:44px;height:44px;border-radius:13px;background:var(--ic);color:var(--ifc);
@@ -341,7 +342,7 @@ html.theme-dark .pagination__controls button{background:#0f172a;border-color:#1e
 .modal{background:#fff;border-radius:var(--r-lg);box-shadow:0 30px 60px rgba(20,40,70,.12);
   width:100%;max-width:620px;max-height:92vh;display:flex;flex-direction:column;margin:auto;}
 html.theme-dark .modal{background:#0f172a;}
-.modal--lg{max-width:820px;}
+.modal--lg{max-width:920px;}
 .modal__head{padding:24px 28px;border-bottom:1px solid var(--border-soft);
   display:flex;align-items:flex-start;justify-content:space-between;gap:16px;}
 html.theme-dark .modal__head{border-bottom-color:#1e293b;}
@@ -455,6 +456,10 @@ html.theme-dark .review__row{border-bottom-color:#1a2433;}
 .tag--red{background:#fef3f2;color:#b42318;}
 .tag--violet{background:#f0eaff;color:#5b21b6;}
 .tag--gray{background:var(--border-soft);color:var(--text-soft);}
+.tag--blue{background:#eaf3fc;color:#0b5cab;}
+.tag--teal{background:#e0f5f7;color:#0e7490;}
+.tag--orange{background:#fff1e6;color:#bf360c;}
+.tag--pink{background:#fdeef5;color:#be185d;}
 .toasts{position:fixed;top:24px;right:24px;z-index:300;
   display:flex;flex-direction:column;gap:10px;pointer-events:none;max-width:calc(100vw - 48px);}
 .toast{background:var(--text);color:#fff;padding:13px 18px;border-radius:12px;
@@ -536,23 +541,52 @@ const db    = getFirestore(fbApp);
 
 const LOGIN_URL = "../index.html";
 const LOGO_URL  = "../images/logo.png";
+const PROFILE_CACHE_KEY = 'sacco.profile';
 
-/* SESSION — ⚡ DEFAULT_SESSION_MINUTES now matches settings.html (5 min) */
+/* ============================================================
+   SESSION — fixed (matches dashboard)
+============================================================ */
 const SESSION_KEY = "sacco.session";
-const DEFAULT_SESSION_MINUTES = 5;
-let SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
+const DEFAULT_SESSION_MINUTES = 30;
+let SESSION_MINUTES = null;
 let awayStartedAt = null;
 let awayCheckInterval = null;
+
 function readSession() { try { const raw = sessionStorage.getItem(SESSION_KEY); if (!raw) return null; const s = JSON.parse(raw); return (s && s.uid) ? s : null; } catch (e) { return null; } }
 function clearSession() { try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {} }
 function isSessionRecordValid(s) { return !!(s && s.uid); }
-function getSessionMs() { const s = readSession(); const mins = (s && s.minutes) || SESSION_MINUTES || DEFAULT_SESSION_MINUTES; return Math.max(1, mins) * 60 * 1000; }
+function getSessionMs() {
+  const s = readSession();
+  const mins = (SESSION_MINUTES != null && SESSION_MINUTES > 0)
+    ? SESSION_MINUTES
+    : ((s && s.minutes) || DEFAULT_SESSION_MINUTES);
+  return Math.max(1, mins) * 60 * 1000;
+}
+function readCachedProfile() { try { const raw = sessionStorage.getItem(PROFILE_CACHE_KEY); if (!raw) return null; const p = JSON.parse(raw); return (p && p.uid) ? p : null; } catch (e) { return null; } }
+function writeCachedProfile() {
+  if (!APP.profile) return;
+  try {
+    const payload = {
+      uid: APP.profile.id || APP.user?.uid || '',
+      role: APP.profile.role || 'viewer',
+      email: APP.profile.email || '',
+      name: APP.profile.fullName || APP.profile.name || 'User',
+      photoURL: APP.profile.photoURL || null,
+      districtId: APP.profile.districtId || '',
+      districtName: APP.profile.districtName || '',
+      branchId: APP.profile.branchId || '',
+      branchName: APP.profile.branchName || ''
+    };
+    if (payload.uid) sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(payload));
+  } catch (e) {}
+}
+function clearCachedProfile() { try { sessionStorage.removeItem(PROFILE_CACHE_KEY); } catch (e) {} }
+function hideLoaderNow() { const el = document.getElementById('loader'); if (el) el.classList.add('hide'); }
 function forceLogout(reason) {
   if (awayCheckInterval) { clearInterval(awayCheckInterval); awayCheckInterval = null; }
   awayStartedAt = null;
-  try { sessionStorage.clear(); } catch (e) {}
-  try { sessionStorage.setItem('__redirectReason', reason || 'expired'); } catch (e) {}
-  clearSession();
+  try { sessionStorage.clear(); sessionStorage.setItem('__redirectReason', reason || 'expired'); } catch (e) {}
+  clearSession(); clearCachedProfile();
   try { signOut(auth); } catch (e) {}
   window.location.replace(LOGIN_URL);
 }
@@ -590,8 +624,16 @@ async function loadSessionTimeout() {
       if (!isFinite(mins) || mins < 1) mins = DEFAULT_SESSION_MINUTES;
       if (mins > 1440) mins = 1440;
       SESSION_MINUTES = Math.round(mins);
+    } else {
+      SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
     }
-  } catch (e) { console.warn(e.message); }
+  } catch (e) {
+    if (SESSION_MINUTES == null) SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
+  }
+  try {
+    const s = readSession();
+    if (s) { s.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); }
+  } catch (e) {}
 }
 
 const DEFAULT_SACCO_NAME = 'Geresu Dhuki SACCO';
@@ -609,9 +651,13 @@ const APP = {
 };
 let LANG = 'en';
 
+/* ============================================================
+   FULL TRANSLATIONS
+============================================================ */
 const I18N = {
   en: {
-    brandSub:'SACCO Management', navOverview:'Overview', navNetwork:'Network', navOperations:'Operations',
+    brandSub:'SACCO Management',
+    navOverview:'Overview', navNetwork:'Network', navOperations:'Operations',
     navFinance:'Finance', navAdmin:'Administration',
     dashboard:'Dashboard', districts:'Districts', branches:'Branches', customers:'Customers',
     savings:'Savings', deposits:'Deposits', loans:'Loans', repayments:'Repayments', withdrawals:'Withdrawals',
@@ -682,22 +728,213 @@ const I18N = {
     backToDashboard:'Back to Dashboard',
     noPermission:'Permission denied. Check your Firestore rules.',
     unknown:'Unknown', scopeAll:'All customers',
-    viewTitle:'Customer Profile',
     personalInfo:'Personal Information',
     accountLocation:'Account & Location',
-    savingsTx:'Savings Transactions',
-    shareTx:'Share Transactions',
     noTx:'No transactions recorded yet',
-    noShareTx:'No share transactions recorded yet',
     close:'Close',
     txCount:'Transactions',
     depositsLabel:'Deposits',
     withdrawalsLabel:'Withdrawals',
-    penaltiesFromSavings:'Penalties from Savings'
+    penaltiesFromSavings:'Penalties from Savings',
+    allTx:'All Transactions',
+    activateHintNoDepositTitle:'Account inactive — no savings deposits yet.',
+    activateHintNoDepositBody:'Make a savings deposit from the Savings page to activate this customer. Status becomes Active automatically.',
+    activateHintStaleTitle:'Account inactive — no savings deposit for 6+ months.',
+    activateHintStaleBody:'This customer has not deposited any savings for more than 6 months. Make a savings deposit from the Savings page to reactivate them. Status becomes Active automatically.',
+    depositToActivate:'Deposit to activate',
+    depositToReactivate:'Deposit to reactivate',
+    inactiveNoDepositHint:'No savings deposits yet. Status will become Active after the first deposit.',
+    savingTx:'Savings',
+    noPermissionsToEdit:'You do not have permission to edit this customer.',
+    lastDepositLabel:'Last deposit'
+  },
+  am: {
+    brandSub:'የሳኮ አስተዳደር',
+    navOverview:'አጠቃላይ እይታ', navNetwork:'ኔትወርክ', navOperations:'ክንውኖች',
+    navFinance:'ፋይናንስ', navAdmin:'አስተዳደር',
+    dashboard:'ዳሽቦርድ', districts:'ወረዳዎች', branches:'ቅርንጫፎች', customers:'ደንበኞች',
+    savings:'ቁጠባ', deposits:'ተቀማጭ', loans:'ብድር', repayments:'ክፍያዎች', withdrawals:'መውጫዎች',
+    dividends:'ክፍፍል', shares:'አክሲዮን', reports:'ሪፖርቶች', penalties:'ቅጣቶች', audit:'የምዝግብ ታሪክ',
+    users:'ተጠቃሚዎች', settings:'ቅንብሮች',
+    role_super_admin:'ዋና አስተዳዳሪ', role_admin:'የወረዳ አስተዳዳሪ', role_manager:'ሥራ አስኪያጅ',
+    role_cashier:'ገንዘብ ተቀባይ', role_member:'አባል', role_auditor:'ኦዲተር', logout:'ውጣ',
+    pageTitle:'ደንበኞች', pageSub:'የሳኮ አባል ሒሳቦችን ያስተዳድሩ',
+    breadcrumbHome:'ዳሽቦርድ', breadcrumbCustomers:'ደንበኞች', addCustomer:'ደንበኛ ጨምር',
+    statTotal:'ጠቅላላ ደንበኞች', statActive:'ንቁ', statInactive:'እንቅስቃሴ-የለሽ',
+    statTotalSavings:'ጠቅላላ ቁጠባ', statTotalShares:'ጠቅላላ አክሲዮን',
+    searchPlaceholder:'በስም፣ በደንበኛ መለያ፣ በስልክ ወይም በብሔራዊ መታወቂያ ይፈልጉ…',
+    filterAllDistricts:'ሁሉም ወረዳዎች', filterAllBranches:'ሁሉም ቅርንጫፎች', filterAllStatus:'ሁሉም ሁኔታዎች',
+    statusActive:'ንቁ', statusInactive:'እንቅስቃሴ-የለሽ',
+    viewGrid:'ፍርግርግ', viewTable:'ሰንጠረዥ', tableTitle:'ሁሉም ደንበኞች', tableSub:'የሳኮ አባል ሒሳቦች',
+    colCustomerId:'የደንበኛ መለያ', colName:'ደንበኛ', colDistrict:'ወረዳ', colBranch:'ቅርንጫፍ',
+    colPhone:'ስልክ', colSavings:'ቁጠባ', colShares:'አክሲዮን', colStatus:'ሁኔታ',
+    colJoined:'የተቀላቀለበት', colActions:'እርምጃዎች',
+    gridSavings:'ቁጠባ', gridShares:'አክሲዮን',
+    noCustomers:'እስካሁን ደንበኞች የሉም', noCustomersText:'"ደንበኛ ጨምር" ን ተጭነው የመጀመሪያውን ይመዝግቡ።',
+    noMatch:'ተመሳሳይ ደንበኞች አልተገኙም', noMatchText:'ፍለጋዎን ወይም ማጣሪያዎን ያስተካክሉ።',
+    editCustomer:'ደንበኛ አስተካክል', newCustomer:'አዲስ ደንበኛ',
+    editCustomerSub:'የዚህን ደንበኛ ዝርዝሮች ያዘምኑ።',
+    newCustomerSub:'አዲስ የሳኮ አባል ሒሳብ ይመዝግቡ።',
+    firstNameEn:'የመጀመሪያ ስም (እንግሊዝኛ)', middleNameEn:'የአባት ስም (እንግሊዝኛ)', lastNameEn:'የአያት ስም (እንግሊዝኛ)',
+    firstNameAm:'የመጀመሪያ ስም (አማርኛ)', middleNameAm:'የአባት ስም (አማርኛ)', lastNameAm:'የአያት ስም (አማርኛ)',
+    fullNameEn:'ሙሉ ስም (እንግሊዝኛ)', fullNameAm:'ሙሉ ስም (አማርኛ)',
+    namePlaceholderEn:'ለምሳሌ Teshoma', namePlaceholderAm:'ለምሳሌ ተሾመ',
+    gender:'ጾታ', genderMale:'ወንድ', genderFemale:'ሴት', genderOther:'ሌላ',
+    nid:'ብሔራዊ መታወቂያ', nidPlaceholder:'16-አሃዝ ብሔራዊ መታወቂያ',
+    phone:'ስልክ', phonePlaceholder:'912 345 678',
+    nationality:'ዜግነት', nationalityPlaceholder:'ለምሳሌ ኢትዮጵያ',
+    customerId:'የደንበኛ መለያ', accountNumber:'የሒሳብ ቁጥር',
+    customerIdHint:'ቅርጸት: CI + ወረዳ(2) + ቅርንጫፍ(3) + ቅደም ተከተል(6)',
+    accountNumberHint:'ተከታታይ 13-አሃዝ ቁጥር (ዓለም አቀፍ)',
+    idPreview:'የደንበኛ መለያ ቅድመ እይታ', acctPreview:'የሒሳብ ቁጥር ቅድመ እይታ',
+    dateJoined:'የተቀላቀለበት ቀን',
+    districtLabel:'ወረዳ', branchLabel:'ቅርንጫፍ',
+    chooseDistrict:'— ወረዳ ይምረጡ —', chooseBranch:'— ቅርንጫፍ ይምረጡ —',
+    chooseDistrictFirst:'መጀመሪያ ወረዳ ይምረጡ',
+    noDistricts:'ወረዳዎች የሉም', noBranches:'በዚህ ወረዳ ውስጥ ቅርንጫፎች የሉም',
+    districtRequired:'እባክዎ ወረዳ ይምረጡ።', branchRequired:'እባክዎ ቅርንጫፍ ይምረጡ።',
+    region:'ክልል', regionPlaceholder:'ለምሳሌ ኦሮሚያ',
+    city:'ከተማ', cityPlaceholder:'ለምሳሌ ዱከም',
+    address:'አድራሻ', addressPlaceholder:'ለምሳሌ ዱከም፣ ኦሮሚያ',
+    specificPlace:'ልዩ ቦታ', specificPlacePlaceholder:'አማራጭ ምልክት',
+    photo:'የመገለጫ ፎቶ',
+    stepPersonal:'የግል', stepIdentity:'መታወቂያ', stepAccount:'ሒሳብ', stepReview:'ግምገማ',
+    stepPersonalTitle:'የግል ዝርዝሮች', stepIdentityTitle:'መታወቂያ እና ግንኙነት',
+    stepAccountTitle:'ሒሳብ እና አካባቢ', stepReviewTitle:'ገምግም እና አስቀምጥ',
+    cancel:'ሰርዝ', save:'አስቀምጥ', create:'ደንበኛ ፍጠር', update:'ለውጦችን አስቀምጥ',
+    next:'ቀጣይ →', back:'← ተመለስ',
+    deleteTitle:'ደንበኛ ሰርዝ',
+    deleteText:'ይህ ደንበኛ ከ Firestore ውስጥ እስከመጨረሻው ይወገዳል።',
+    confirm:'አረጋግጥ', rowDelete:'ሰርዝ', rowEdit:'አስተካክል', reset:'እንደገና',
+    rowView:'ተመልከት',
+    showing:'እያሳየ ነው', of:'ከ', customersWord:'ደንበኞች',
+    savedOk:'ደንበኛ በተሳካ ሁኔታ ተዘምኗል!', createdOk:'ደንበኛ በተሳካ ሁኔታ ተፈጥሯል!',
+    deletedOk:'ደንበኛ ተሰርዟል።',
+    errorSave:'ማስቀመጥ አልተቻለም: ', errorDelete:'መሰረዝ አልተቻለም: ',
+    requiredFields:'እባክዎ ሁሉንም አስፈላጊ መስኮች ይሙሉ።',
+    duplicateId:'በዚህ መለያ ደንበኛ አስቀድሞ አለ።',
+    duplicateNid:'ይህ ብሔራዊ መታወቂያ አስቀድሞ ተመዝግቧል።',
+    loading:'በመጫን ላይ…',
+    logoutTitle:'የውጣ ማረጋገጫ', logoutText:'እርግጠኛ ነዎት መውጣት ይፈልጋሉ?',
+    accessDenied:'ይህን ገጽ ለማየት ፈቃድ የለዎትም።',
+    accessDeniedText:'ደንበኞችን ማስተዳደር የሚችሉት የሰራተኛ መለያዎች ብቻ ናቸው።',
+    backToDashboard:'ወደ ዳሽቦርድ ተመለስ',
+    noPermission:'ፈቃድ ተከልክሏል። የ Firestore ደንቦችን ያረጋግጡ።',
+    unknown:'ያልታወቀ', scopeAll:'ሁሉም ደንበኞች',
+    personalInfo:'የግል መረጃ',
+    accountLocation:'ሒሳብ እና አካባቢ',
+    noTx:'እስካሁን ግብይቶች አልተመዘገቡም',
+    close:'ዝጋ',
+    txCount:'ግብይቶች',
+    depositsLabel:'ተቀማጮች',
+    withdrawalsLabel:'መውጫዎች',
+    penaltiesFromSavings:'ከቁጠባ የተከፈሉ ቅጣቶች',
+    allTx:'ሁሉም ግብይቶች',
+    activateHintNoDepositTitle:'ሒሳብ እንቅስቃሴ-የለሽ — እስካሁን የቁጠባ ተቀማጭ የለም።',
+    activateHintNoDepositBody:'ይህን ደንበኛ ለማንቀሳቀስ ከቁጠባ ገጽ ላይ የቁጠባ ተቀማጭ ያድርጉ። ሁኔታው ወዲያውኑ ንቁ ይሆናል።',
+    activateHintStaleTitle:'ሒሳብ እንቅስቃሴ-የለሽ — ከ6+ ወራት በላይ የቁጠባ ተቀማጭ የለም።',
+    activateHintStaleBody:'ይህ ደንበኛ ከ6 ወራት በላይ የቁጠባ ተቀማጭ አላደረገም። እንደገና ለማንቀሳቀስ ከቁጠባ ገጽ ላይ የቁጠባ ተቀማጭ ያድርጉ። ሁኔታው ወዲያውኑ ንቁ ይሆናል።',
+    depositToActivate:'ለማንቀሳቀስ ተቀማጭ ያድርጉ',
+    depositToReactivate:'እንደገና ለማንቀሳቀስ ተቀማጭ ያድርጉ',
+    inactiveNoDepositHint:'እስካሁን የቁጠባ ተቀማጭ የለም። ከመጀመሪያው ተቀማጭ በኋላ ንቁ ይሆናል።',
+    savingTx:'ቁጠባ',
+    noPermissionsToEdit:'ይህን ደንበኛ ለማስተካከል ፈቃድ የለዎትም።',
+    lastDepositLabel:'የመጨረሻ ተቀማጭ'
+  },
+  om: {
+    brandSub:'Bulchiinsa SACCO',
+    navOverview:'Aguuggama', navNetwork:'Networkii', navOperations:'Hojimaata',
+    navFinance:'Faayinaansii', navAdmin:'Bulchiinsa',
+    dashboard:'Daashboordii', districts:'Aanaalee', branches:'Dameewwan', customers:'Maamiltoota',
+    savings:'Qusannaa', deposits:'Kaasaa', loans:'Liqii', repayments:'Kaffaltuu', withdrawals:'Baasii',
+    dividends:'Qooda', shares:'Hirmaata', reports:'Gabaasa', penalties:'Adaba', audit:'Seenaa Galmee',
+    users:'Fayyadamtoota', settings:"Qindaa'ina",
+    role_super_admin:"Bulchaa Ol'aanaa", role_admin:'Bulchaa Aanaa', role_manager:'Bulchaa',
+    role_cashier:'Kashierii', role_member:'Miseensa', role_auditor:'Ooditera', logout:"Ba'i",
+    pageTitle:'Maamiltoota', pageSub:'Herrega miseensotaa SACCO bulchi',
+    breadcrumbHome:'Daashboordii', breadcrumbCustomers:'Maamiltoota', addCustomer:'Maamila Dabali',
+    statTotal:'Maamiltoota Waliigalaa', statActive:'Sochii qabu', statInactive:'Sochii hin qabne',
+    statTotalSavings:'Qusannaa Waliigalaa', statTotalShares:'Hirmaata Waliigalaa',
+    searchPlaceholder:'Maqaa, ID maamilaa, bilbila yookaan NID tiin barbaadi…',
+    filterAllDistricts:'Aanaalee hunda', filterAllBranches:'Dameewwan hunda', filterAllStatus:'Haala hunda',
+    statusActive:'Sochii qabu', statusInactive:'Sochii hin qabne',
+    viewGrid:'Gabatee', viewTable:'Tarree', tableTitle:'Maamiltoota Hunda', tableSub:'Herrega miseensotaa SACCO',
+    colCustomerId:'ID Maamilaa', colName:'Maamila', colDistrict:'Aanaa', colBranch:'Damee',
+    colPhone:'Bilbila', colSavings:'Qusannaa', colShares:'Hirmaata', colStatus:'Haala',
+    colJoined:'Makame', colActions:'Gochaalee',
+    gridSavings:'Qusannaa', gridShares:'Hirmaata',
+    noCustomers:'Amma ammaatti maamiltoonni hin jiran', noCustomersText:'"Maamila Dabali" tuqiitii kan jalqabaa galmeessi.',
+    noMatch:'Maamiltoonni wal siman hin argamne', noMatchText:'Barbaacha yookaan filtarii kee sirreessi.',
+    editCustomer:'Maamila Gulaali', newCustomer:'Maamila Haaraa',
+    editCustomerSub:'Ibsa maamila kanaa haaromsi.',
+    newCustomerSub:'Herrega miseensa SACCO haaraa galmeessi.',
+    firstNameEn:'Maqaa Jalqabaa (Ingiliffa)', middleNameEn:'Maqaa Abbaa (Ingiliffa)', lastNameEn:'Maqaa Akaakayyuu (Ingiliffa)',
+    firstNameAm:'Maqaa Jalqabaa (Amaariffa)', middleNameAm:'Maqaa Abbaa (Amaariffa)', lastNameAm:'Maqaa Akaakayyuu (Amaariffa)',
+    fullNameEn:'Maqaa Guutuu (Ingiliffa)', fullNameAm:'Maqaa Guutuu (Amaariffa)',
+    namePlaceholderEn:'fkn Teshoma', namePlaceholderAm:'fkn ተሾመ',
+    gender:'Saala', genderMale:'Dhiira', genderFemale:'Dubartii', genderOther:'Kan biraa',
+    nid:'Eenyummaa Biyyaalessaa', nidPlaceholder:'Eenyummaa biyyaalessaa lakkoofsa 16',
+    phone:'Bilbila', phonePlaceholder:'912 345 678',
+    nationality:'Biyyummaa', nationalityPlaceholder:'fkn Itoophiyaa',
+    customerId:'ID Maamilaa', accountNumber:'Lakkoofsa Herregaa',
+    customerIdHint:'Bocquu: CI + aanaa(2) + damee(3) + tartiiba(6)',
+    accountNumberHint:'Lakkoofsa 13 tartiibaan (addunyaa)',
+    idPreview:'Dur-ilaalcha ID Maamilaa', acctPreview:'Dur-ilaalcha Lakkoofsa Herregaa',
+    dateJoined:'Guyyaa Makame',
+    districtLabel:'Aanaa', branchLabel:'Damee',
+    chooseDistrict:'— Aanaa filadhu —', chooseBranch:'— Damee filadhu —',
+    chooseDistrictFirst:'Dura aanaa filadhu',
+    noDistricts:'Aanaan hin jiran', noBranches:'Aanaa kana keessatti dameen hin jiru',
+    districtRequired:'Maaloo aanaa filadhu.', branchRequired:'Maaloo damee filadhu.',
+    region:'Naannoo', regionPlaceholder:'fkn Oromiyaa',
+    city:'Magaalaa', cityPlaceholder:'fkn Duukam',
+    address:'Teessoo', addressPlaceholder:'fkn Duukam, Oromiyaa',
+    specificPlace:'Bakka Addaa', specificPlacePlaceholder:'Mallattoo filannoo',
+    photo:'Suuraa Profaayilii',
+    stepPersonal:'Dhuunfaa', stepIdentity:'Eenyummaa', stepAccount:'Herrega', stepReview:'Ilaalcha',
+    stepPersonalTitle:'Ibsa dhuunfaa', stepIdentityTitle:'Eenyummaa fi quunnamtii',
+    stepAccountTitle:'Herrega fi iddoo', stepReviewTitle:'Ilaaliitii olkaa’i',
+    cancel:'Haqi', save:'Olkaa’i', create:'Maamila Uumi', update:'Jijjiirama Olkaa’i',
+    next:'Itti aanu →', back:'← Deebi’i',
+    deleteTitle:'Maamila Haqi',
+    deleteText:'Kun maamila kana Firestore irraa guutummaatti ni haqa.',
+    confirm:'Mirkaneessi', rowDelete:'Haqi', rowEdit:'Gulaali', reset:'Irra deebi’i',
+    rowView:'Ilaali',
+    showing:'Mul’isaa jira', of:'keessaa', customersWord:'maamiltoota',
+    savedOk:'Maamilli milkaayinaan haaromfame!', createdOk:'Maamilli milkaayinaan uumame!',
+    deletedOk:'Maamilli haqame.',
+    errorSave:'Olkaa’uun hin danda’amne: ', errorDelete:'Haqchuun hin danda’amne: ',
+    requiredFields:'Maaloo dirree barbaachisoo hunda guuti.',
+    duplicateId:'Maamilli ID kanaan duraan jira.',
+    duplicateNid:'Eenyummaan biyyaalessaa kun duraan galmaa’eera.',
+    loading:'Fe’aa jira…',
+    logoutTitle:'Mirkaneessa Ba’uu', logoutText:'Dhuguma ba’uu barbaadda?',
+    accessDenied:'Fuula kana ilaaluuf hayyama hin qabdu.',
+    accessDeniedText:'Maamiltoota bulchuu kan danda’an herregni hojjettootaa qofa.',
+    backToDashboard:'Gara Daashboordii Deebi’i',
+    noPermission:'Hayyamni dhorkame. Seera Firestore ilaali.',
+    unknown:'Hin beekamu', scopeAll:'Maamiltoota hunda',
+    personalInfo:'Odeeffannoo Dhuunfaa',
+    accountLocation:'Herrega fi Iddoo',
+    noTx:'Amma ammaatti galmeen hin jiru',
+    close:'Cufi',
+    txCount:'Galmeewwan',
+    depositsLabel:'Kaasaa',
+    withdrawalsLabel:'Baasii',
+    penaltiesFromSavings:'Adaba Qusannaa irraa',
+    allTx:'Galmeewwan Hunda',
+    activateHintNoDepositTitle:'Herregni sochii hin qabu — kaasaan qusannaa hin jiru.',
+    activateHintNoDepositBody:'Maamila kana sochoosuuf fuula Qusannaa irraa kaasaa qusannaa galmeessi. Haalli isaa ofumaan sochii qabu ta’a.',
+    activateHintStaleTitle:'Herregni sochii hin qabu — ji\'a 6+ kaasaa qusannaa hin galmeessine.',
+    activateHintStaleBody:'Maamilli kun ji\'a 6 ol kaasaa qusannaa hin galmeessine. Deebi\'ii sochoosuuf fuula Qusannaa irraa kaasaa qusannaa galmeessi. Haalli isaa ofumaan sochii qabu ta\'a.',
+    depositToActivate:'Sochoosuuf kaasaa galmeessi',
+    depositToReactivate:'Deebi’ii sochoosuuf kaasaa galmeessi',
+    inactiveNoDepositHint:'Kaasaan qusannaa hin jiru. Kaasaa jalqabaa booda sochii qabu ta’a.',
+    savingTx:'Qusannaa',
+    noPermissionsToEdit:'Maamila kana gulaaluuf hayyama hin qabdu.',
+    lastDepositLabel:'Kaasaa dhumaa'
   }
 };
-I18N.am = { ...I18N.en };
-I18N.om = { ...I18N.en };
 const SUPPORTED = ['en','am','om'];
 const FALLBACK = 'en';
 const LANG_KEY = 'sacco.lang';
@@ -786,6 +1023,110 @@ function isPenaltyPaidFromSavings(p) {
   const m = String(raw).toLowerCase().trim();
   const sources = (APP.penaltySettings && APP.penaltySettings.penaltyPaymentSources) || [];
   return !!m && sources.includes(m);
+}
+
+/* ============================================================
+   ⚡ ACTIVITY — inactive after 6 months without deposit
+   - No deposits ever → inactive ("Deposit to activate")
+   - Last deposit ≥ 6 months ago → inactive ("Deposit to reactivate")
+   - Otherwise active
+============================================================ */
+const INACTIVITY_MONTHS = 6;
+const SAVINGS_DEPOSIT_TYPES = ['savings','deposit'];
+
+function monthsAgo(date, months) {
+  const d = new Date(date.getTime());
+  const day = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() - months);
+  const dim = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, dim));
+  return d;
+}
+
+function customerLastDepositDate(customer) {
+  if (!customer) return null;
+  let latest = null;
+  APP.transactions.forEach(tx => {
+    if (!txBelongsToCustomer(tx, customer)) return;
+    if (!isTxCounted(tx)) return;
+    const type = String(tx.type || '').toLowerCase();
+    if (!SAVINGS_DEPOSIT_TYPES.includes(type)) return;
+    const d = toDate(tx.createdAt || tx.date || tx.approvedAt);
+    if (!d || isNaN(d)) return;
+    if (!latest || d.getTime() > latest.getTime()) latest = d;
+  });
+  return latest;
+}
+function customerHasAnyDeposit(customer) {
+  return customerLastDepositDate(customer) !== null;
+}
+function customerHasRecentDeposit(customer, months = INACTIVITY_MONTHS) {
+  const last = customerLastDepositDate(customer);
+  if (!last) return false;
+  return last >= monthsAgo(new Date(), months);
+}
+function effectiveStatus(customer) {
+  if (!customer) return 'inactive';
+  const stored = String(customer.status || 'active').toLowerCase();
+  if (stored === 'inactive' || stored === 'suspended' || stored === 'blocked') return 'inactive';
+  return customerHasRecentDeposit(customer) ? 'active' : 'inactive';
+}
+function effectiveInactiveReason(customer) {
+  if (!customer) return '';
+  const stored = String(customer.status || 'active').toLowerCase();
+  if (stored === 'inactive' || stored === 'suspended' || stored === 'blocked') return 'admin';
+  const last = customerLastDepositDate(customer);
+  if (!last) return 'no-deposit';
+  if (!customerHasRecentDeposit(customer)) return 'stale';
+  return '';
+}
+
+/* ⚡ ALL TRANSACTIONS — every type collected for a customer */
+const ALL_TX_TYPES_DISPLAY = {
+  savings:{label:'Savings',color:'green',icon:'fa-piggy-bank'},
+  saving:{label:'Savings',color:'green',icon:'fa-piggy-bank'},
+  deposit:{label:'Deposit',color:'green',icon:'fa-piggy-bank'},
+  withdrawal:{label:'Withdrawal',color:'red',icon:'fa-arrow-up'},
+  individual_withdrawal:{label:'Withdrawal',color:'red',icon:'fa-arrow-up'},
+  leaving_withdrawal:{label:'Leaving',color:'red',icon:'fa-sign-out-alt'},
+  loan:{label:'Loan',color:'blue',icon:'fa-wallet'},
+  repayment:{label:'Repayment',color:'teal',icon:'fa-undo-alt'},
+  loan_repayment:{label:'Repayment',color:'teal',icon:'fa-undo-alt'},
+  penalty:{label:'Penalty',color:'orange',icon:'fa-exclamation-triangle'},
+  service_withdrawal:{label:'Service fee',color:'orange',icon:'fa-arrow-up'},
+  dividend:{label:'Dividend',color:'gold',icon:'fa-gift'},
+  profit_income:{label:'Profit',color:'teal',icon:'fa-vault'},
+  profit_withdrawal:{label:'Profit wd',color:'orange',icon:'fa-arrow-up'},
+  sacco_capital:{label:'SACCO capital',color:'violet',icon:'fa-building-columns'},
+  share_buy:{label:'Share buy',color:'violet',icon:'fa-chart-pie'},
+  buy:{label:'Share buy',color:'violet',icon:'fa-chart-pie'},
+  purchase:{label:'Share buy',color:'violet',icon:'fa-chart-pie'},
+  share_purchase:{label:'Share buy',color:'violet',icon:'fa-chart-pie'},
+  share_sell:{label:'Share sell',color:'pink',icon:'fa-chart-pie'},
+  sell:{label:'Share sell',color:'pink',icon:'fa-chart-pie'},
+  share_sale:{label:'Share sell',color:'pink',icon:'fa-chart-pie'},
+  share_transfer_in:{label:'Share in',color:'violet',icon:'fa-chart-pie'},
+  transfer_in:{label:'Share in',color:'violet',icon:'fa-chart-pie'},
+  share_transfer_out:{label:'Share out',color:'pink',icon:'fa-chart-pie'},
+  transfer_out:{label:'Share out',color:'pink',icon:'fa-chart-pie'}
+};
+function customerAllTransactions(customer) {
+  if (!customer) return [];
+  const out = [];
+  APP.transactions.forEach(tx => { if (txBelongsToCustomer(tx, customer)) out.push(tx); });
+  (APP.shareRecords || []).forEach(sh => { if (txBelongsToCustomer(sh, customer)) out.push(sh); });
+  const seen = new Set();
+  return out.filter(tx => {
+    if (!tx) return false;
+    const id = tx.id || tx.docId;
+    if (id) { if (seen.has(id)) return false; seen.add(id); }
+    return true;
+  }).sort((a, b) => {
+    const da = toDate(b.createdAt || b.date || b.approvedAt)?.getTime() || 0;
+    const db2 = toDate(a.createdAt || a.date || a.approvedAt)?.getTime() || 0;
+    return da - db2;
+  });
 }
 
 function customerSavings(customer) {
@@ -900,19 +1241,12 @@ async function findFreeIds(districtCode, branchCode, exclude = new Set()) {
   return {
     customerId:    'CI' + dd + bb + String(freeSeq).padStart(6, '0'),
     accountNumber: String(Math.min(ACCT_BASE + freeAcct, ACCT_MAX)),
-    seq:      freeSeq,
-    acct:     freeAcct,
-    currentSeq,
-    currentAcct,
-    idKey
+    seq:      freeSeq, acct: freeAcct,
+    currentSeq, currentAcct, idKey
   };
 }
 async function createCustomerAtomic(districtCode, branchCode, basePayload, attempt = 0, exclude = new Set()) {
-  if (attempt > 5) {
-    const err = new Error('Could not allocate a unique ID after multiple attempts. Please try again.');
-    err.code = 'allocate-failed';
-    throw err;
-  }
+  if (attempt > 5) { const err = new Error('Could not allocate a unique ID after multiple attempts. Please try again.'); err.code = 'allocate-failed'; throw err; }
   const candidates = await findFreeIds(districtCode, branchCode, exclude);
   const idCounterRef   = doc(db, 'counters', 'customerIds');
   const acctCounterRef = doc(db, 'counters', 'accountNumbers');
@@ -920,11 +1254,7 @@ async function createCustomerAtomic(districtCode, branchCode, basePayload, attem
     return await runTransaction(db, async (tx) => {
       const custRef = doc(db, 'customers', candidates.customerId);
       const existing = await tx.get(custRef);
-      if (existing.exists()) {
-        const err = new Error('COLLISION');
-        err.code = 'duplicate-id';
-        throw err;
-      }
+      if (existing.exists()) { const err = new Error('COLLISION'); err.code = 'duplicate-id'; throw err; }
       const idSnap   = await tx.get(idCounterRef);
       const acctSnap = await tx.get(acctCounterRef);
       const idData   = idSnap.exists()   ? idSnap.data()   : {};
@@ -932,19 +1262,12 @@ async function createCustomerAtomic(districtCode, branchCode, basePayload, attem
       const currentSeq  = Number(idData[candidates.idKey] || 0);
       const currentAcct = Number(acctData.value || 0);
       tx.set(custRef, { ...basePayload, customerId: candidates.customerId, accountNumber: candidates.accountNumber });
-      if (candidates.seq > currentSeq) {
-        tx.set(idCounterRef, { [candidates.idKey]: candidates.seq }, { merge: true });
-      }
-      if (candidates.acct > currentAcct) {
-        tx.set(acctCounterRef, { value: candidates.acct, updatedAt: serverTimestamp() }, { merge: true });
-      }
+      if (candidates.seq > currentSeq)   tx.set(idCounterRef,   { [candidates.idKey]: candidates.seq }, { merge: true });
+      if (candidates.acct > currentAcct) tx.set(acctCounterRef, { value: candidates.acct, updatedAt: serverTimestamp() }, { merge: true });
       return { customerId: candidates.customerId, accountNumber: candidates.accountNumber };
     });
   } catch (err) {
-    if (err.code === 'duplicate-id') {
-      exclude.add(candidates.customerId);
-      return createCustomerAtomic(districtCode, branchCode, basePayload, attempt + 1, exclude);
-    }
+    if (err.code === 'duplicate-id') { exclude.add(candidates.customerId); return createCustomerAtomic(districtCode, branchCode, basePayload, attempt + 1, exclude); }
     throw err;
   }
 }
@@ -1055,7 +1378,7 @@ function renderMain() {
     return;
   }
   const all = scopeCustomers();
-  const active = all.filter(c => (c.status || 'active') === 'active').length;
+  const active = all.filter(c => effectiveStatus(c) === 'active').length;
   const totalSavings = all.reduce((s, c) => s + customerSavings(c), 0);
   const totalShares = all.reduce((s, c) => s + customerShares(c), 0);
   const districtOptions = APP.districts.slice().sort((a,b) => (a.name||'').localeCompare(b.name||''));
@@ -1104,7 +1427,7 @@ function filteredCustomers() {
   if (s) list = list.filter(c => { const name = displayName(c).toLowerCase(); return name.includes(s) || (c.customerId || '').toLowerCase().includes(s) || (c.accountNumber || '').toLowerCase().includes(s) || (c.phone || '').toLowerCase().includes(s) || (c.nid || '').toLowerCase().includes(s) || (c.city || '').toLowerCase().includes(s) || (c.region || '').toLowerCase().includes(s) || (c.districtName || '').toLowerCase().includes(s) || (c.branchName || '').toLowerCase().includes(s); });
   if (APP.filters.districtId) list = list.filter(c => c.districtId === APP.filters.districtId);
   if (APP.filters.branchId)   list = list.filter(c => c.branchId === APP.filters.branchId);
-  if (APP.filters.status)     list = list.filter(c => (c.status || 'active') === APP.filters.status);
+  if (APP.filters.status)     list = list.filter(c => effectiveStatus(c) === APP.filters.status);
   return list.slice().sort((a, b) => { const da = toDate(b.createdAt)?.getTime() || 0; const db2 = toDate(a.createdAt)?.getTime() || 0; return db2 - da; });
 }
 function renderContent() {
@@ -1155,7 +1478,8 @@ function renderGridView(host, list) {
   host.querySelectorAll('[data-page]').forEach(btn => { btn.addEventListener('click', () => { const p = Number(btn.dataset.page); if (p >= 1 && p <= pages) { APP.page = p; renderContent(); } }); });
 }
 function renderCustomerCard(c) {
-  const active = (c.status || 'active') === 'active';
+  const active = effectiveStatus(c) === 'active';
+  const reason = effectiveInactiveReason(c);
   const savings = customerSavings(c);
   const shares = customerShares(c);
   const avatar = c.photoURL ? `<img src="${esc(c.photoURL)}" alt="">` : esc(initials(displayName(c)));
@@ -1164,6 +1488,10 @@ function renderCustomerCard(c) {
   const branch   = c.branchName || branchById(c.branchId)?.name || '';
   const location = [branch, district].filter(Boolean).join(' · ');
   const editable = canEditCustomer(c);
+  const pillText = reason === 'no-deposit' ? t('depositToActivate')
+                 : reason === 'stale'      ? t('depositToReactivate')
+                 : '';
+  const lastDep = customerLastDepositDate(c);
   return `
     <div class="customer-card ${active ? '' : 'customer-card--inactive'}">
       <span class="status-badge status-badge--${active ? 'active' : 'inactive'}">${esc(active ? t('statusActive') : t('statusInactive'))}</span>
@@ -1174,6 +1502,10 @@ function renderCustomerCard(c) {
           <div class="customer-card__name">${esc(name)}</div>
           <div class="customer-card__contact"><i class="fas fa-phone" style="font-size:10px;margin-right:4px;color:var(--muted);"></i>${esc(formatPhone(c.phone) || '—')}${c.accountNumber ? ` · <span style="font-family:ui-monospace,monospace;font-weight:800;">#${esc(c.accountNumber)}</span>` : ''}</div>
           ${location ? `<div class="customer-card__location"><i class="fas fa-code-branch"></i> ${esc(location)}</div>` : ''}
+          ${!active && pillText ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">
+            <span class="tag tag--gold" style="font-size:10px"><i class="fas fa-info-circle"></i> ${esc(pillText)}</span>
+            ${lastDep ? `<span class="tag tag--gray" style="font-size:10px"><i class="fas fa-clock"></i> ${esc(t('lastDepositLabel'))}: ${esc(fmtDate(lastDep))}</span>` : ''}
+          </div>` : ''}
         </div>
       </div>
       <div class="customer-card__actions">
@@ -1199,7 +1531,7 @@ function renderTableView(host, list) {
         </tr></thead>
         <tbody>
           ${pageList.map(c => {
-            const active = (c.status || 'active') === 'active';
+            const active = effectiveStatus(c) === 'active';
             const avatar = c.photoURL ? `<img src="${esc(c.photoURL)}" alt="">` : esc(initials(displayName(c)));
             const district = c.districtName || districtById(c.districtId)?.name || '—';
             const branch   = c.branchName || branchById(c.branchId)?.name || '—';
@@ -1253,25 +1585,24 @@ function handleRowAction(action, id) {
 function openViewModal(customer) {
   closeModal();
   const c = customer;
-  const active = (c.status || 'active') === 'active';
+  const active = effectiveStatus(c) === 'active';
+  const reason = effectiveInactiveReason(c);
   const district = c.districtName || districtById(c.districtId)?.name || '—';
   const branch   = c.branchName || branchById(c.branchId)?.name || '—';
-  const txs = APP.transactions.filter(tx => txBelongsToCustomer(tx, c)).filter(tx => {
-    const ty = String(tx.type || '').toLowerCase();
-    return ty === 'savings' || ty === 'deposit'
-        || ty === 'withdrawal' || ty === 'individual_withdrawal'
-        || ty === 'leaving_withdrawal';
-  }).sort((a, b) => { const da = toDate(b.createdAt || b.date)?.getTime() || 0; const db2 = toDate(a.createdAt || a.date)?.getTime() || 0; return da - db2; });
-  const shs = allShareDocs().filter(sh => txBelongsToCustomer(sh, c)).sort((a, b) => { const da = toDate(b.createdAt || b.date)?.getTime() || 0; const db2 = toDate(a.createdAt || a.date)?.getTime() || 0; return da - db2; });
+  const allTx = customerAllTransactions(c);
   const savings = customerSavings(c), shares = customerShares(c);
   const penFromSav = customerPenaltiesFromSavings(c);
+  const lastDep = customerLastDepositDate(c);
   let totalDeposit = 0, totalWithdraw = 0;
-  txs.forEach(tx => {
+  allTx.forEach(tx => {
     if (!isTxCounted(tx)) return;
     const type = String(tx.type || '').toLowerCase();
     if (type === 'savings' || type === 'deposit') totalDeposit += num(tx.amount);
     else if (type === 'withdrawal' || type === 'individual_withdrawal' || type === 'leaving_withdrawal') totalWithdraw += num(tx.amount);
   });
+  let bannerTitle = '', bannerBody = '';
+  if (!active && reason === 'no-deposit') { bannerTitle = t('activateHintNoDepositTitle'); bannerBody = t('activateHintNoDepositBody'); }
+  else if (!active && reason === 'stale')  { bannerTitle = t('activateHintStaleTitle');    bannerBody = t('activateHintStaleBody'); }
   const root = document.createElement('div');
   root.className = 'modal-backdrop';
   root.id = 'modal-backdrop';
@@ -1292,11 +1623,12 @@ function openViewModal(customer) {
         <button class="modal__close" data-close aria-label="Close"><i class="fas fa-times"></i></button>
       </div>
       <div class="modal__body">
+        ${bannerTitle ? `<div class="alert alert--warning"><i class="fas fa-info-circle"></i><div><strong>${esc(bannerTitle)}</strong><div style="margin-top:4px">${esc(bannerBody)}</div>${lastDep ? `<div style="margin-top:6px;font-size:11.5px;opacity:.8">${esc(t('lastDepositLabel'))}: <strong>${esc(fmtDate(lastDep))}</strong></div>` : ''}</div></div>` : ''}
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px">
           <div style="padding:14px;background:linear-gradient(135deg,#e7f7f0,#fff);border:1px solid #b8e6cf;border-radius:12px"><div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#128a5c">${esc(t('statTotalSavings'))}</div><div style="font-size:20px;font-weight:800;color:#065f46;margin-top:4px">${esc(moneyShort(savings))}</div></div>
           <div style="padding:14px;background:linear-gradient(135deg,#f0eaff,#fff);border:1px solid #ddd2fb;border-radius:12px"><div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#5b21b6">${esc(t('statTotalShares'))}</div><div style="font-size:20px;font-weight:800;color:#5b21b6;margin-top:4px">${fmtNum(shares)}</div></div>
           <div style="padding:14px;background:linear-gradient(135deg,#fff1e6,#fff);border:1px solid #f0dcb0;border-radius:12px"><div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#bf360c">${esc(t('penaltiesFromSavings'))}</div><div style="font-size:20px;font-weight:800;color:#bf360c;margin-top:4px">${esc(moneyShort(penFromSav))}</div></div>
-          <div style="padding:14px;background:linear-gradient(135deg,#eaf3fc,#fff);border:1px solid #bdd7f2;border-radius:12px"><div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#0b5cab">${esc(t('txCount'))}</div><div style="font-size:20px;font-weight:800;color:#0b5cab;margin-top:4px">${txs.length}</div></div>
+          <div style="padding:14px;background:linear-gradient(135deg,#eaf3fc,#fff);border:1px solid #bdd7f2;border-radius:12px"><div style="font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#0b5cab">${esc(t('txCount'))}</div><div style="font-size:20px;font-weight:800;color:#0b5cab;margin-top:4px">${allTx.length}</div></div>
         </div>
         <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border-soft)"><i class="fas fa-user" style="color:var(--primary);margin-right:6px"></i>${esc(t('personalInfo'))}</div>
         <div class="review" style="margin-bottom:20px">
@@ -1317,14 +1649,19 @@ function openViewModal(customer) {
           <div class="review__row"><span class="review__k">${esc(t('city'))}</span><span class="review__v">${esc(c.city || '—')}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('address'))}</span><span class="review__v">${esc(c.address || '—')}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('dateJoined'))}</span><span class="review__v">${esc(fmtDate(c.dateJoined || c.createdAt))}</span></div>
+          ${lastDep ? `<div class="review__row"><span class="review__k">${esc(t('lastDepositLabel'))}</span><span class="review__v">${esc(fmtDate(lastDep))}</span></div>` : ''}
         </div>
         <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border-soft);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
-          <span><i class="fas fa-piggy-bank" style="color:var(--primary);margin-right:6px"></i>${esc(t('savingsTx'))} (${txs.length})</span>
+          <span><i class="fas fa-list" style="color:var(--primary);margin-right:6px"></i>${esc(t('allTx'))} (${allTx.length})</span>
           <span style="font-size:11px;font-weight:700;color:var(--success);display:inline-flex;gap:12px;flex-wrap:wrap"><span>${esc(t('depositsLabel'))}: ${money(totalDeposit)}</span><span style="color:#b42318">${esc(t('withdrawalsLabel'))}: ${money(totalWithdraw)}</span></span>
         </div>
-        ${txs.length ? `<div class="tbl-wrap" style="border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px"><table class="tbl" style="min-width:500px"><thead><tr><th>Date</th><th>Type</th><th class="num">Amount</th><th class="num">Balance</th><th>Status</th></tr></thead><tbody>${txs.slice(0,20).map(tx => { const status = String(tx.status || '').toLowerCase(); const statusCls = ['approved','completed','paid','printed','done'].includes(status) ? 'tag--green' : status === 'pending' ? 'tag--gold' : status === 'rejected' ? 'tag--red' : 'tag--gray'; const type = String(tx.type || '').toLowerCase(); const typeCls = type === 'savings' || type === 'deposit' ? 'tag--green' : 'tag--red'; return `<tr><td>${esc(fmtDate(tx.createdAt || tx.date))}</td><td><span class="tag ${typeCls}" style="font-size:10px">${esc(tx.type || '—')}</span></td><td class="num">${money(tx.amount)}</td><td class="num">${tx.balanceAfter != null ? money(tx.balanceAfter) : '—'}</td><td><span class="tag ${statusCls}" style="font-size:10px">${esc(tx.status || '—')}</span></td></tr>`; }).join('')}</tbody></table></div>` : `<div style="padding:28px;text-align:center;color:var(--muted);font-size:13px;background:#f8fafc;border-radius:12px;margin-bottom:20px"><i class="fas fa-inbox" style="font-size:28px;color:#cbd5e1;display:block;margin-bottom:8px"></i>${esc(t('noTx'))}</div>`}
-        <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border-soft)"><i class="fas fa-chart-pie" style="color:var(--violet);margin-right:6px"></i>${esc(t('shareTx'))} (${shs.length})</div>
-        ${shs.length ? `<div class="tbl-wrap" style="border:1px solid var(--border);border-radius:12px;overflow:hidden"><table class="tbl" style="min-width:500px"><thead><tr><th>Date</th><th>Type</th><th class="num">Shares</th><th class="num">Amount</th><th>Status</th></tr></thead><tbody>${shs.slice(0,20).map(sh => { const status = String(sh.status || '').toLowerCase(); const statusCls = ['approved','completed','done','printed','paid'].includes(status) ? 'tag--green' : status === 'pending' ? 'tag--gold' : status === 'rejected' ? 'tag--red' : 'tag--gray'; const type = String(sh.type || '').toLowerCase(); const isSell = SELL_SHARE_TYPES.includes(type) || OUT_SHARE_TYPES.includes(type); const typeCls = isSell ? 'tag--red' : 'tag--violet'; return `<tr><td>${esc(fmtDate(sh.createdAt || sh.date || sh.approvedAt))}</td><td><span class="tag ${typeCls}" style="font-size:10px">${esc(sh.type || '—')}</span></td><td class="num">${fmtNum(getShareCount(sh))}</td><td class="num">${money(sh.amount || sh.totalAmount || sh.value)}</td><td><span class="tag ${statusCls}" style="font-size:10px">${esc(sh.status || '—')}</span></td></tr>`; }).join('')}</tbody></table></div>` : `<div style="padding:28px;text-align:center;color:var(--muted);font-size:13px;background:#f8fafc;border-radius:12px"><i class="fas fa-inbox" style="font-size:28px;color:#cbd5e1;display:block;margin-bottom:8px"></i>${esc(t('noShareTx'))}</div>`}
+        ${allTx.length ? `<div class="tbl-wrap" style="border:1px solid var(--border);border-radius:12px;overflow:hidden"><table class="tbl" style="min-width:640px"><thead><tr><th>Date</th><th>Type</th><th class="num">Amount</th><th>Status</th></tr></thead><tbody>${allTx.slice(0,50).map(tx => {
+          const ty = String(tx.type || '').toLowerCase();
+          const status = String(tx.status || '').toLowerCase();
+          const statusCls = ['approved','completed','paid','printed','done'].includes(status) ? 'tag--green' : status === 'pending' ? 'tag--gold' : status === 'rejected' ? 'tag--red' : 'tag--gray';
+          const meta = ALL_TX_TYPES_DISPLAY[ty] || { label: tx.type || '—', color: 'gray', icon: 'fa-file-text' };
+          return `<tr><td>${esc(fmtDate(tx.createdAt || tx.date || tx.approvedAt))}</td><td><span class="tag tag--${meta.color}" style="font-size:10px"><i class="fas ${meta.icon}" style="font-size:9px"></i> ${esc(meta.label)}</span></td><td class="num">${money(tx.amount || tx.totalAmount || tx.value)}</td><td><span class="tag ${statusCls}" style="font-size:10px">${esc(tx.status || '—')}</span></td></tr>`;
+        }).join('')}</tbody></table></div>` : `<div style="padding:28px;text-align:center;color:var(--muted);font-size:13px;background:#f8fafc;border-radius:12px"><i class="fas fa-inbox" style="font-size:28px;color:#cbd5e1;display:block;margin-bottom:8px"></i>${esc(t('noTx'))}</div>`}
       </div>
       <div class="modal__foot">
         <button class="btn" data-close>${esc(t('close'))}</button>
@@ -1766,6 +2103,7 @@ function attachListeners() {
 }
 function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} }); APP.unsubs = []; }
 
+/* ⚡ BOOT — instant render with cached profile, then auth + data in background */
 (async function boot() {
   let saved = null;
   try { saved = localStorage.getItem(LANG_KEY); } catch(e){}
@@ -1775,26 +2113,90 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
   document.body.classList.toggle('lang-am', LANG === 'am');
 
   const sess = readSession();
-  if (!isSessionRecordValid(sess)) { try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){} window.location.replace(LOGIN_URL); return; }
+  const hasMis = sessionStorage.getItem('loggedIn') === 'true' && sessionStorage.getItem('uid');
+  if (!isSessionRecordValid(sess) && !hasMis) {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    window.location.replace(LOGIN_URL);
+    return;
+  }
+
+  const cachedProfile = readCachedProfile();
+  let renderedWithProfile = false;
+  if (cachedProfile && cachedProfile.uid) {
+    APP.profile = {
+      id: cachedProfile.uid,
+      role: cachedProfile.role || 'viewer',
+      email: cachedProfile.email || '',
+      fullName: cachedProfile.name || 'User',
+      photoURL: cachedProfile.photoURL || null,
+      districtId: cachedProfile.districtId || '',
+      districtName: cachedProfile.districtName || '',
+      branchId: cachedProfile.branchId || '',
+      branchName: cachedProfile.branchName || ''
+    };
+    renderShell();
+    renderMain();
+    hideLoaderNow();
+    renderedWithProfile = true;
+  } else if (hasMis) {
+    APP.profile = {
+      id: sessionStorage.getItem('uid'),
+      role: sessionStorage.getItem('role') || 'viewer',
+      email: sessionStorage.getItem('email') || '',
+      fullName: sessionStorage.getItem('userName') || 'User',
+      photoURL: null,
+      districtId: '', districtName: '', branchId: '', branchName: ''
+    };
+    renderShell();
+    renderMain();
+    hideLoaderNow();
+  }
 
   const user = await new Promise((resolve) => { const unsub = onAuthStateChanged(auth, (u) => { unsub(); resolve(u); }); });
-  if (!user || user.uid !== sess.uid) { try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){} clearSession(); window.location.replace(LOGIN_URL); return; }
+  if (!user) {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    clearSession(); clearCachedProfile();
+    window.location.replace(LOGIN_URL);
+    return;
+  }
+  if (sess && user.uid !== sess.uid) {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    clearSession(); clearCachedProfile();
+    window.location.replace(LOGIN_URL);
+    return;
+  }
   APP.user = user;
 
   try {
     const snap = await getDoc(doc(db, 'users', user.uid));
     if (!snap.exists()) throw new Error('no-user-doc');
-    APP.profile = { id: snap.id, ...snap.data(), email: user.email || '' };
-    if (APP.profile.status === 'inactive') throw new Error('inactive');
+    const d = snap.data();
+    if (d.status === 'inactive') throw new Error('inactive');
+    APP.profile = { id: snap.id, ...d, email: user.email || '' };
+    writeCachedProfile();
   } catch (e) {
-    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
-    clearSession();
-    try { await signOut(auth); } catch(e){}
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e2){}
+    clearSession(); clearCachedProfile();
+    try { await signOut(auth); } catch(e2){}
     window.location.replace(LOGIN_URL);
     return;
   }
 
+  const profileChanged = !renderedWithProfile ||
+    (cachedProfile && (
+      (cachedProfile.name !== (APP.profile.fullName || APP.profile.name)) ||
+      cachedProfile.role !== APP.profile.role ||
+      cachedProfile.photoURL !== APP.profile.photoURL
+    ));
+  if (profileChanged) {
+    renderShell();
+    renderMain();
+  }
+  hideLoaderNow();
+
   await loadSessionTimeout();
+  startSessionWatcher();
+
   try {
     const cfg = await getDoc(doc(db, 'settings', 'system'));
     if (cfg.exists()) {
@@ -1820,6 +2222,7 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
       APP.diag.preload = 'unscoped (' + APP.customers.length + ')';
       console.log('[boot] customers preloaded (unscoped):', APP.customers.length);
     }
+    renderMain();
   } catch (e) {
     console.error('[boot] customer preload failed:', e.code || e.message);
     try {
@@ -1834,18 +2237,13 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
       toast('Cannot load customers: ' + (e2.code || e2.message), 'error');
       APP.customers = [];
     }
+    renderMain();
   }
 
-  renderShell();
-  renderMain();
-
-  setTimeout(() => document.getElementById('loader')?.classList.add('hide'), 150);
-
   attachListeners();
-  startSessionWatcher();
 })();
 
-console.log('[sacco] customers page ready — atomic ID with gap-filling');
+console.log('[sacco] customers page ready — 6-month inactivity rule, instant render, session fix');
 </script>
 
 </body>
