@@ -388,15 +388,35 @@ const DEFAULT_SACCO_NAME = 'GERESU DHUKI SACCO';
 const PROFILE_CACHE_KEY = 'sacco.profile';
 let S = null;
 
-/* SESSION */
+/* ============================================================
+   SESSION — ⚡ FIXED
+   - SESSION_MINUTES starts null so we can detect "not loaded yet"
+   - getSessionMs() prefers the DB value over the stale login record
+   - loadSessionTimeout() syncs the login record with the DB value
+   - startSessionWatcher() is called immediately after load, not
+     after data load
+============================================================ */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
-let SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
+let SESSION_MINUTES = null;                       // ⚡ FIX: was DEFAULT_SESSION_MINUTES
 let awayStartedAt = null, awayCheckInterval = null;
+
 function readSession() { try { const r = sessionStorage.getItem(SESSION_KEY); if (!r) return null; const s = JSON.parse(r); return (s && s.uid) ? s : null; } catch(e){return null;} }
 function clearSession() { try { sessionStorage.removeItem(SESSION_KEY); } catch(e){} }
 function isSessionRecordValid(s) { return !!(s && s.uid); }
-function getSessionMs() { const s = readSession(); const m = (s && s.minutes) || SESSION_MINUTES; return Math.max(1, m) * 60000; }
+
+function getSessionMs() {
+  // ⚡ FIX: The authoritative value comes from settings/system (SESSION_MINUTES).
+  // The value inside the login record may be stale (e.g. 30 min from when the
+  // user logged in before the admin changed the setting to 1 min), so we only
+  // use it as a fallback while SESSION_MINUTES is still null.
+  const s = readSession();
+  const m = (SESSION_MINUTES != null && SESSION_MINUTES > 0)
+    ? SESSION_MINUTES
+    : ((s && s.minutes) || DEFAULT_SESSION_MINUTES);
+  return Math.max(1, m) * 60000;
+}
+
 function readCachedProfile() {
   try {
     const raw = sessionStorage.getItem(PROFILE_CACHE_KEY);
@@ -444,16 +464,37 @@ function startSessionWatcher() {
   window.addEventListener('blur', evaluateActivity);
   evaluateActivity();
 }
+
 async function loadSessionTimeout() {
-  try { const snap = await getDoc(doc(db, 'settings', 'system'));
-    if (snap.exists()) { const d = snap.data();
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'system'));
+    if (snap.exists()) {
+      const d = snap.data();
       let m = DEFAULT_SESSION_MINUTES;
-      if (d.sessionTimeout != null) m = Number(d.sessionTimeout);
+      if (d.sessionTimeout != null)              m = Number(d.sessionTimeout);
+      else if (d.sessionTimeoutMinutes != null)  m = Number(d.sessionTimeoutMinutes);
       if (!isFinite(m) || m < 1) m = DEFAULT_SESSION_MINUTES;
       if (m > 1440) m = 1440;
       SESSION_MINUTES = Math.round(m);
+    } else {
+      SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
     }
-  } catch(e){}
+  } catch (e) {
+    if (SESSION_MINUTES == null) SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
+  }
+
+  // ⚡ FIX: Sync the (possibly stale) login record with the authoritative value.
+  // Without this, every fresh page load re-reads a 30-min value from the
+  // login record before loadSessionTimeout() runs, which is fine because
+  // getSessionMs() prefers SESSION_MINUTES — but keeping them in sync makes
+  // debugging and cross-tab behaviour consistent.
+  try {
+    const s = readSession();
+    if (s) {
+      s.minutes = SESSION_MINUTES;
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(s));
+    }
+  } catch (e) {}
 }
 
 /* I18N — full translations for en / am / om */
@@ -2408,8 +2449,11 @@ async function loadAllData() {
   }
   hideLoaderNow();
 
-  /* ⚡ STEP 4: Load settings + data in background */
+  /* ⚡ STEP 4: Load settings, then START SESSION WATCHER IMMEDIATELY,
+     THEN load data in background */
   await loadSessionTimeout();
+  startSessionWatcher();   // ⚡ FIX: start watchdog right after we know the timeout
+
   try {
     const cfg = await getDoc(doc(db, 'settings', 'system'));
     if (cfg.exists()) {
@@ -2422,7 +2466,7 @@ async function loadAllData() {
     await loadAllData();
     initWorkarea();
     renderMain();
-    startSessionWatcher();
+    // startSessionWatcher();  ← removed (already started above)
   } catch (e) {
     console.error('[boot] data load failed:', e);
     const host = document.getElementById('mainContent');
