@@ -659,9 +659,6 @@ const BANKS = [
 ];
 const bankLabel = (code) => BANKS.find(b => b.code === code)?.name || code || '';
 
-/* ============================================================
-   SESSION
-============================================================ */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
 let SESSION_MINUTES = null;
@@ -744,9 +741,6 @@ async function loadSessionTimeout() {
   try { const s = readSession(); if (s) { s.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); } } catch(e){}
 }
 
-/* ============================================================
-   TRANSLATIONS — EN / AM / OM
-============================================================ */
 const I18N = {
   en: {
     brandSub:'SACCO Management', logout:'Sign out', loading:'Loading…',
@@ -947,7 +941,8 @@ const I18N = {
     receiptApprovedOn:'Approved on',
     cannotDeleteApproved:'Approved repayments cannot be deleted directly. Reject it first.',
     cannotEditApprovedAmount:'Cannot change the amount of an approved repayment.',
-    paymentReceipt:'Payment Receipt'
+    paymentReceipt:'Payment Receipt',
+    recordedBy:'Recorded By', approvedBy:'Approved By'
   }
 };
 
@@ -1151,7 +1146,8 @@ I18N.am = {
   receiptApprovedOn:'የጸደቀበት',
   cannotDeleteApproved:'የጸደቁ ክፍያዎች በቀጥታ ሊሰረዙ አይችሉም። መጀመሪያ ውድቅ ያድርጉት።',
   cannotEditApprovedAmount:'የጸደቀ ክፍያ መጠን መቀየር አይቻልም።',
-  paymentReceipt:'የክፍያ ደረሰኝ'
+  paymentReceipt:'የክፍያ ደረሰኝ',
+  recordedBy:'የመዘገበው', approvedBy:'ያጸደቀው'
 };
 
 I18N.om = {
@@ -1354,7 +1350,8 @@ I18N.om = {
   receiptApprovedOn:"Yeroo mirkanaa'e",
   cannotDeleteApproved:"Kaffaltiiwwan mirkanaa'an kallattiin hin haqamanu. Dura didi.",
   cannotEditApprovedAmount:"Baay'ina kaffaltii mirkanaa'e jijjiiruu hin danda'amu.",
-  paymentReceipt:'Nagahee Kaffaltii'
+  paymentReceipt:'Nagahee Kaffaltii',
+  recordedBy:'Kan Galmeesse', approvedBy:'Kan Mirkaneesse'
 };
 
 const SUPPORTED = ['en','am','om'];
@@ -1367,9 +1364,6 @@ const t = (k, v) => {
   return s;
 };
 
-/* ============================================================
-   HELPERS
-============================================================ */
 const esc = (s) => (s == null ? '' : String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const initials = (n) => (n || '?').trim().split(/\s+/).slice(0,2).map(s => s[0]).join('').toUpperCase();
 const num = (v) => { const n = Number(v); return isFinite(n) ? n : 0; };
@@ -1455,9 +1449,6 @@ function buildResidence(c) {
   return t('agrResidence');
 }
 
-/* ============================================================
-   APP STATE
-============================================================ */
 const APP = {
   user: null, profile: null,
   saccoName: DEFAULT_SACCO_NAME, currency:'ETB',
@@ -1556,9 +1547,6 @@ function initWorkarea() {
   else if (isBranchRole()) APP.workarea = { districtId: APP.profile.districtId || '', branchId: APP.profile.branchId || '' };
 }
 
-/* ============================================================
-   LOAN MATH
-============================================================ */
 function calcLoan(principal, ratePct, months, interestType = 'simple') {
   const p = num(principal), r = num(ratePct), m = Math.max(0, Math.floor(num(months)));
   const type = String(interestType || 'simple').toLowerCase();
@@ -1822,9 +1810,6 @@ async function generatePaymentHistory(loanId) {
   } catch(e) { console.error(e); return `<p style="color:var(--muted)">${esc(t('historyLoadError'))}</p>`; }
 }
 
-/* ============================================================
-   NAV — repayments removed
-============================================================ */
 const NAV = [
   { section:'navOverview', items:[{ key:'dashboard', icon:'fa-th-large', href:'dashboard.html', roles:['*'] }]},
   { section:'navNetwork', items:[
@@ -2935,7 +2920,7 @@ function printRepaymentReceipt(tx, loan) {
   if (!tx || !loan) return;
   if (!canPrint()) { toast(t('noPermission'), 'error'); return; }
   const txSt = String(tx.status||'pending').toLowerCase();
-  const watermarkText = txSt === 'approved' ? t('original') : (txSt === 'rejected' ? t('rejectedWatermark') || 'REJECTED' : t('pendingLc') || 'PENDING');
+  const watermarkText = txSt === 'approved' ? t('original') : (txSt === 'rejected' ? 'REJECTED' : 'PENDING');
   closeSlipOverlay();
   const host = document.getElementById('slip-print-host');
   host.innerHTML = buildRepaymentReceiptHtml(tx, loan, watermarkText);
@@ -3006,7 +2991,7 @@ function openEditRepaymentModal(tx, loan) {
         date: new Date(dt),
         paymentMethod: root.querySelector('[data-field="method"]').value,
         ttNumber: (root.querySelector('[data-field="ttNumber"]').value||'').trim(),
-        bankName: root.querySelector('[data-field="bankName"]').value||'').trim(),
+        bankName: (root.querySelector('[data-field="bankName"]').value||'').trim(),
         note: (root.querySelector('[data-field="note"]').value||'').trim(),
         updatedAt: serverTimestamp()
       };
@@ -3479,9 +3464,6 @@ function scheduleRefresh() {
   _refreshTimer = setTimeout(() => { _refreshTimer = null; if (APP.profile) renderMain(); }, 250);
 }
 
-/* ============================================================
-   BOOT
-============================================================ */
 (async function boot() {
   let saved = null;
   try { saved = localStorage.getItem(LANG_KEY); } catch(e){}
@@ -3599,7 +3581,7 @@ function scheduleRefresh() {
       allowPartialRepayment = d.allowPartialRepayment !== undefined ? !!d.allowPartialRepayment : true;
       enableDuplicateCheck = d.enableDuplicateCheck !== undefined ? !!d.enableDuplicateCheck : true;
       const rawMaxLoans = d.maxLoansPerCustomer ?? d.maxLoansToBorrow;
-      if (rawMaxLoans !== undefined && rawMaxLoans !== null && rawLoans !== '') {
+      if (rawMaxLoans !== undefined && rawMaxLoans !== null && rawMaxLoans !== '') {
         const n = Number(rawMaxLoans);
         if (!isNaN(n) && n >= 1) maxLoansPerCustomer = Math.floor(n);
       }
