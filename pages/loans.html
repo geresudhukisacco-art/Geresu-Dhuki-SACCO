@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Geresu Dhuki SACCO</title>
+<title>Geresu Dhuki SACCO — Loans</title>
 <script>
 window.addEventListener('error', function(e) {
   console.error('[window error]', e.error || e.message);
@@ -821,7 +821,7 @@ const I18N = {
     reviewTotal:'Total Payable', reviewMonthly:'Monthly',
     reviewDisbursement:'Disbursement', reviewMaturity:'Maturity',
     reviewGuarantees:'Guarantees', reviewStatus:'Status',
-    reviewRecordedBy:'Recorded by', reviewApprovedBy:'Approved by', notApprovedYet:'— not approved yet —',
+    reviewRecordedBy:'Recorded By', reviewApprovedBy:'Approved By', notApprovedYet:'— not approved yet —',
     cancel:'Cancel', save:'Save', create:'Create Loan', update:'Save Changes',
     next:'Next →', back:'← Back', close:'Close',
     deleteTitle:'Delete Loan', deleteText:'This will permanently remove this loan from Firestore.',
@@ -2815,7 +2815,6 @@ function openViewModal(l) {
   document.getElementById('view-print-btn')?.addEventListener('click', () => { closeModal(); setTimeout(() => printSlip(l), 120); });
   document.getElementById('view-repay-btn')?.addEventListener('click', () => { closeModal(); setTimeout(() => openRepaymentModal(l), 120); });
 
-  /* Repayment action handlers */
   root.querySelectorAll('[data-approve-rep]').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (!confirm(t('approveRepTitle') + '\n\n' + t('approveRepMsg'))) return;
@@ -2857,9 +2856,6 @@ function openViewModal(l) {
   });
 }
 
-/* ============================================================
-   REPAYMENT RECEIPT — A5 print with watermark
-============================================================ */
 function buildRepaymentReceiptHtml(tx, loan, watermarkText) {
   const c = customerById(loan.customerId || loan.customerDocId);
   const cName = customerName(c);
@@ -3010,7 +3006,7 @@ function openEditRepaymentModal(tx, loan) {
         date: new Date(dt),
         paymentMethod: root.querySelector('[data-field="method"]').value,
         ttNumber: (root.querySelector('[data-field="ttNumber"]').value||'').trim(),
-        bankName: (root.querySelector('[data-field="bankName"]').value||'').trim(),
+        bankName: root.querySelector('[data-field="bankName"]').value||'').trim(),
         note: (root.querySelector('[data-field="note"]').value||'').trim(),
         updatedAt: serverTimestamp()
       };
@@ -3603,7 +3599,7 @@ function scheduleRefresh() {
       allowPartialRepayment = d.allowPartialRepayment !== undefined ? !!d.allowPartialRepayment : true;
       enableDuplicateCheck = d.enableDuplicateCheck !== undefined ? !!d.enableDuplicateCheck : true;
       const rawMaxLoans = d.maxLoansPerCustomer ?? d.maxLoansToBorrow;
-      if (rawMaxLoans !== undefined && rawMaxLoans !== null && rawMaxLoans !== '') {
+      if (rawMaxLoans !== undefined && rawMaxLoans !== null && rawLoans !== '') {
         const n = Number(rawMaxLoans);
         if (!isNaN(n) && n >= 1) maxLoansPerCustomer = Math.floor(n);
       }
