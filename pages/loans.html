@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Geresu Dhuki SACCO</title>
+<title>Geresu Dhuki SACCO — Loans</title>
 <script>
 window.addEventListener('error', function(e) {
   console.error('[window error]', e.error || e.message);
@@ -480,6 +480,7 @@ body.sb-open .overlay-mobile{display:block;}
   body > *:not(#slip-print-host){display:none !important;}
   #slip-print-host{display:block !important;width:210mm !important;padding:0 !important;margin:0 !important;overflow:visible !important;}
   #slip-print-host .slip{width:210mm !important;min-height:297mm !important;padding:14mm 16mm 12mm 16mm !important;margin:0 !important;border:none !important;box-shadow:none !important;overflow:hidden !important;box-sizing:border-box !important;height:auto !important;max-height:none !important;font-size:12pt !important;line-height:1.35 !important;}
+  #slip-print-host .slip--a5{width:210mm !important;height:148mm !important;min-height:148mm !important;max-height:148mm !important;padding:6mm 8mm !important;overflow:hidden !important;}
   #slip-print-host .slip__watermark{display:flex !important;}
   #slip-print-host .slip__watermark img{opacity:.07 !important;display:block !important;}
   #slip-print-host .slip__watermark-text{opacity:.06 !important;}
@@ -513,6 +514,23 @@ body.sb-open .overlay-mobile{display:block;}
 .slip__table td{padding:6px 6px;border-bottom:1px solid #999;vertical-align:middle;line-height:1.3;}
 .slip__footer{margin-top:auto;padding-top:8px;border-top:2px solid #0b5cab;text-align:center;font-size:10pt;color:#4a5568;line-height:1.35;}
 .slip__footer strong{color:#0b5cab;font-weight:800;}
+/* A5 landscape slip — repayment receipts */
+.slip--a5{width:210mm;height:148mm;min-height:148mm;max-height:148mm;padding:6mm 8mm;}
+.slip--a5 .slip__head{padding-bottom:3px;margin-bottom:5px;gap:6px;}
+.slip--a5 .slip__logo{width:36px;height:36px;}
+.slip--a5 .slip__sacco-name{font-size:11pt;line-height:1.1;}
+.slip--a5 .slip__sacco-sub{font-size:8pt;}
+.slip--a5 .slip__title{font-size:12pt;margin:3px 0 1px;}
+.slip--a5 .slip__doc-row{font-size:9pt;padding:2px 0;margin-bottom:5px;gap:10px;line-height:1.25;}
+.slip--a5 .slip__body{font-size:10pt;line-height:1.3;}
+.slip--a5 .slip__body p{margin-bottom:3px;}
+.slip--a5 .slip__amount-line{font-size:12pt;margin:5px 0;}
+.slip--a5 .slip__table{font-size:9.5pt;margin:4px 0 3px;}
+.slip--a5 .slip__table th{padding:2px 4px;font-size:8.5pt;}
+.slip--a5 .slip__table td{padding:3px 4px;line-height:1.25;}
+.slip--a5 .slip__footer{font-size:8pt;padding-top:5px;}
+.slip--a5 .slip__watermark img{width:50%;max-width:90mm;}
+.slip--a5 .slip__watermark-text{font-size:55pt;letter-spacing:8px;}
 @media (max-width:900px){
   .app{grid-template-columns:1fr !important;grid-template-areas:"topbar" "main";}
   .sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w) !important;z-index:31;transform:translateX(-100%);transition:transform .28s;}
@@ -933,7 +951,7 @@ const I18N = {
     deleteRepaymentTitle:'Delete Repayment',
     deleteRepaymentText:'This will permanently remove the repayment and reverse the amount from the loan balance if it was approved.',
     editRepaymentOk:'Repayment updated.', deleteRepaymentOk:'Repayment deleted.',
-    receiptPreview:'Payment Receipt · A4',
+    receiptPreview:'Payment Receipt · A5',
     receiptTitleLabel:'PAYMENT RECEIPT',
     receiptBody:'This is to acknowledge that the sum of:',
     receiptAmountWords:'Amount in words',
@@ -1138,7 +1156,7 @@ I18N.am = {
   deleteRepaymentTitle:'ክፍያ ሰርዝ',
   deleteRepaymentText:'ይህ ክፍያን ከ Firestore እስከመጨረሻ ያስወግዳል። የጸደቀ ከሆነ መጠኑ ከብድሩ ቀሪ ይቀነሳል።',
   editRepaymentOk:'ክፍያው ተዘምኗል።', deleteRepaymentOk:'ክፍያው ተሰርዟል።',
-  receiptPreview:'የክፍያ ደረሰኝ · A4',
+  receiptPreview:'የክፍያ ደረሰኝ · A5',
   receiptTitleLabel:'የክፍያ ደረሰኝ',
   receiptBody:'ይህ የሚያረጋግጠው የሚከተለው መጠን መቀበሉን ነው፦',
   receiptAmountWords:'መጠን በቃላት',
@@ -1342,7 +1360,7 @@ I18N.om = {
   deleteRepaymentTitle:'Kaffaltii Haqi',
   deleteRepaymentText:"Kun kaffaltii kana Firestore irraa guutummaatti ni haqa. Yoo mirkanaa'e, baay'inni isaa hafe liqii irraa ni hir'ata.",
   editRepaymentOk:'Kaffaltiin haaromfame.', deleteRepaymentOk:'Kaffaltiin haqame.',
-  receiptPreview:'Nagahee Kaffaltii · A4',
+  receiptPreview:'Nagahee Kaffaltii · A5',
   receiptTitleLabel:'NAGAHEE KAFFALTII',
   receiptBody:'Kun baay\'ina armaan gadii fudhachuu mirkaneessa:',
   receiptAmountWords:"Baay'ina jechaadhaan",
@@ -2851,7 +2869,7 @@ function buildRepaymentReceiptHtml(tx, loan, watermarkText) {
   const methodLabel = { cash:t('methodCash'), bank:t('methodBank'), mobile:t('methodMobile') }[tx.paymentMethod] || tx.paymentMethod || '—';
   const statusLabel = String(tx.status||'pending').toLowerCase() === 'approved' ? t('repApproved') : String(tx.status||'').toLowerCase() === 'rejected' ? t('repRejected') : t('repPending');
   const fmt = (n) => num(n).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
-  return `<div class="slip">
+  return `<div class="slip slip--a5">
     <div class="slip__watermark" aria-hidden="true">
       <img src="${esc(LOGO_URL)}" alt="" onerror="this.style.display='none'">
       <div class="slip__watermark-text">${esc(watermarkText)}</div>
@@ -2916,9 +2934,20 @@ function buildRepaymentReceiptHtml(tx, loan, watermarkText) {
   </div>`;
 }
 
+function setPrintSize(sizeCSS) {
+  let el = document.getElementById('_print-size-style');
+  if (!el) {
+    el = document.createElement('style');
+    el.id = '_print-size-style';
+    document.head.appendChild(el);
+  }
+  el.textContent = '@media print { @page { size: ' + sizeCSS + '; margin: 0; } }';
+}
+
 function printRepaymentReceipt(tx, loan) {
   if (!tx || !loan) return;
   if (!canPrint()) { toast(t('noPermission'), 'error'); return; }
+  setPrintSize('210mm 148mm');
   const txSt = String(tx.status||'pending').toLowerCase();
   const watermarkText = txSt === 'approved' ? t('original') : (txSt === 'rejected' ? 'REJECTED' : 'PENDING');
   closeSlipOverlay();
@@ -3358,6 +3387,7 @@ function buildSlipHtml(l, watermarkText) {
 }
 async function printSlip(l) {
   if (!l || !canPrint()) { toast(t('noPermission'), 'error'); return; }
+  setPrintSize('210mm 297mm');
   const prevCount = num(l.printCount);
   const newCount = prevCount + 1;
   const watermarkText = newCount === 1 ? t('original') : t('copy');
