@@ -3,7 +3,22 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Geresu Dhuki SACCO</title>
+<title>Geresu Dhuki SACCO — Loans</title>
+<script>
+window.addEventListener('error', function(e) {
+  console.error('[window error]', e.error || e.message);
+  var el = document.getElementById('loader');
+  if (el) el.classList.add('hide');
+  var app = document.getElementById('app');
+  if (app && !app.querySelector('.app')) {
+    app.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif">'
+      + '<h2 style="color:#dc2626;margin-bottom:10px">Page error</h2>'
+      + '<p style="color:#6b7280;margin-bottom:20px">' + ((e.error && e.error.message) || e.message || 'Unknown error') + '</p>'
+      + '<button onclick="location.reload()" style="padding:10px 20px;background:#0b5cab;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">Reload</button>'
+      + '</div>';
+  }
+}, true);
+</script>
 <link rel="icon" type="image/png" href="../images/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -535,6 +550,22 @@ body.sb-open .overlay-mobile{display:block;}
 <body>
 
 <div id="loader"><div class="spin"></div></div>
+<script>
+setTimeout(function() {
+  var el = document.getElementById('loader');
+  if (el && !el.classList.contains('hide')) {
+    el.classList.add('hide');
+    var app = document.getElementById('app');
+    if (app && !app.querySelector('.app')) {
+      app.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif">'
+        + '<h2 style="color:#b8860b;margin-bottom:10px">Still loading…</h2>'
+        + '<p style="color:#6b7280;margin-bottom:20px">Check your connection, then reload.</p>'
+        + '<button onclick="location.reload()" style="padding:10px 20px;background:#0b5cab;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600">Reload</button>'
+        + '</div>';
+    }
+  }
+}, 5000);
+</script>
 <div class="overlay-mobile" id="overlayMobile"></div>
 <div class="toasts" id="toast-container"></div>
 <div id="app"></div>
@@ -545,8 +576,8 @@ import { initializeApp } from "firebase/app";
 import { getAuth, signOut, onAuthStateChanged } from "firebase/auth";
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
-  collection, onSnapshot, query, orderBy, serverTimestamp,
-  getDocs, limit, where
+  collection, onSnapshot, query, serverTimestamp,
+  getDocs, where
 } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -621,21 +652,10 @@ const BANKS = [
   { code:'zamzam',     name:'ZamZam Bank' },
   { code:'other_bank', name:'Other / Not listed' }
 ];
-const MOBILE_PROVIDERS = [
-  { code:'telebirr',  name:'Telebirr (Ethio Telecom)' },
-  { code:'mpesa',     name:'M-Pesa (Safaricom)' },
-  { code:'amole',     name:'Amole (Dashen Bank)' },
-  { code:'hellocash', name:'HelloCash (BelCash)' },
-  { code:'cbebirr',   name:'CBE Birr' },
-  { code:'ebirr',     name:'E-Birr' },
-  { code:'kaafi',     name:'Kaafi' },
-  { code:'other_mobile',name:'Other / Not listed' }
-];
 const bankLabel = (code) => BANKS.find(b => b.code === code)?.name || code || '';
-const mobileProviderLabel = (code) => MOBILE_PROVIDERS.find(m => m.code === code)?.name || code || '';
 
 /* ============================================================
-   SESSION — fixed (SESSION_MINUTES starts null, DB value wins)
+   SESSION
 ============================================================ */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
@@ -725,7 +745,7 @@ async function loadSessionTimeout() {
 }
 
 /* ============================================================
-   TRANSLATIONS — EN / AM / OM (complete)
+   TRANSLATIONS
 ============================================================ */
 const I18N = {
   en: {
@@ -750,7 +770,6 @@ const I18N = {
     filterAllDistricts:'All districts', filterAllBranches:'All branches',
     filterAllTypes:'All loan types', filterAllStatus:'All statuses', filterAllDue:'All due',
     filterOverdueOnly:'Overdue only', filterDueSoon:'Due in 30 days',
-    typeDeposit:'Deposit', typeWithdrawal:'Withdrawal',
     statusPending:'Pending', statusApproved:'Approved', statusActive:'Active',
     statusRepaid:'Repaid', statusDefaulted:'Defaulted', statusRejected:'Rejected',
     viewGrid:'Grid', viewTable:'Table',
@@ -788,7 +807,6 @@ const I18N = {
     disbursementDateLabel:'Disbursement Date', maturityDateLabel:'Maturity Date',
     statusLabel:'Status', notesLabel:'Notes', notesPlaceholder:'Optional notes…',
     interestAmount:'Interest', totalPayable:'Total Payable', monthlyPayment:'Monthly',
-    newLoanPreview:'Loan Calculation Preview',
     statusOptPending:'Pending (needs approval)', statusOptApproved:'Approved', statusOptActive:'Active',
     statusOptRepaid:'Repaid', statusOptDefaulted:'Defaulted', statusOptRejected:'Rejected',
     statusHintRequireApproval:'Leave as "Pending" to require approval before the loan is active.',
@@ -798,13 +816,12 @@ const I18N = {
     reviewRate:'Interest Rate', reviewDuration:'Duration', reviewInterest:'Interest',
     reviewTotal:'Total Payable', reviewMonthly:'Monthly',
     reviewDisbursement:'Disbursement', reviewMaturity:'Maturity',
-    reviewCollateral:'Collateral', reviewGuarantees:'Guarantees',
-    reviewPurpose:'Purpose', reviewStatus:'Status', reviewNotes:'Notes',
+    reviewGuarantees:'Guarantees', reviewStatus:'Status',
     reviewRecordedBy:'Recorded by', reviewApprovedBy:'Approved by', notApprovedYet:'— not approved yet —',
     cancel:'Cancel', save:'Save', create:'Create Loan', update:'Save Changes',
     next:'Next →', back:'← Back', close:'Close',
     deleteTitle:'Delete Loan', deleteText:'This will permanently remove this loan from Firestore.',
-    confirm:'Confirm', rowDelete:'Delete', rowEdit:'Edit', rowView:'View',
+    rowDelete:'Delete', rowEdit:'Edit', rowView:'View',
     rowApprove:'Approve', rowReject:'Reject', rowPrint:'Print Agreement', rowRepay:'Record Repayment',
     reset:'Reset', approve:'Approve', reject:'Reject',
     approvedOk:'Loan approved!', rejectedOk:'Loan rejected.',
@@ -821,42 +838,28 @@ const I18N = {
     accessDenied:'You do not have permission to view this page.',
     accessDeniedText:'Only staff accounts can manage loans.',
     backToDashboard:'Back to Dashboard', noPermission:'Permission denied. Check your Firestore rules.',
-    viewTitle:'Loan Details', customerInfo:'Customer Information', loanInfo:'Loan Information',
-    progressLabel:'Repayment Progress',
+    viewTitle:'Loan Details', progressLabel:'Repayment Progress',
     receiptPhoto:'Attachment', receiptTitle:'Attach document',
     receiptHint:'Click to upload a photo (JPG/PNG, max 3 MB)', receiptAdded:'Document attached',
-    receiptReplace:'Replace', receiptRemove:'Remove', upload:'Upload',
     fileTooLarge:'File must be under 3 MB', couldNotReadImage:'Could not read image',
     printSlip:'Print Agreement', slipPreview:'Loan Agreement · A4',
-    printStatus:'Print Status', notPrinted:'Not printed',
-    printedOriginal:'Original', printedCopy:'Copy',
-    printNo:'Print No.', printCount:'Copies', original:'ORIGINAL', copy:'COPY',
+    original:'ORIGINAL', copy:'COPY',
     firstPrint:'First print — Original', reprint:'Reprint — Copy',
-    printedBy:'Printed by', printedOn:'Printed on',
     printError:'Could not update print status',
-    docTitle:'LOAN AGREEMENT FORM', amountInWords:'In words',
-    borrowerSign:'Borrower signature', recordedBy:'Recorded by', approvedBy:'Approved by',
     repaymentTitle:'Record Loan Repayment', repaymentSub:'Enter repayment amount for this loan',
     repaymentAmount:'Repayment Amount (ETB)', repaymentDate:'Payment Date',
-    repaymentMethod:'Payment Method', repaymentRef:'Reference', repaymentNotes:'Notes',
-    repaymentTooBig:'Amount is greater than the outstanding balance.',
+    repaymentMethod:'Payment Method', repaymentNotes:'Notes',
     repaymentOk:'Repayment recorded — awaiting approval!',
     outstandingLabel:'Outstanding', repaidLabel:'Repaid', totalLabel:'Total Payable',
-    methodCash:'Cash', methodBank:'Bank Transfer', methodMobile:'Mobile Money',
-    methodCheque:'Cheque', methodOther:'Other',
-    newBalancePreview:'New outstanding after repayment',
+    methodCash:'Cash', methodBank:'Bank Transfer', methodMobile:'Mobile Money', methodOther:'Other',
     customerScope:'Showing all loans in your scope', memberScope:'Showing your loans only',
-    overduBadge:'Overdue', soonBadge:'Due soon', graceBadge:'Grace',
-    searchLoan:'Search Loan', searchLoanPh:'Search by customer name or loan ID…',
+    overduBadge:'Overdue', graceBadge:'Grace',
     minRepayHint:'Minimum repayment required',
-    repayAll:'Repay All', repayAllUnlocks:'Repay All unlocks after {n} monthly payments (paid: {paid}).',
-    repayAllBlocked:'Repay All is available after {n} monthly payments. You have paid {paid} month(s).',
+    repayAll:'Repay All',
     loanAmount:'Loan Amount', totalPaid:'Total Paid (approved)', remaining:'Remaining',
     monthlyInstallment:'Monthly Installment', minRepaymentStatus:'Min Repayment Required',
     nextDueDate:'Next Payment Due', approvedMonthsPaid:'Approved Months Paid',
-    fullyPaidMsg:'Fully paid — no more payments', daysLeft:'{n} day(s) left',
-    overdueBy:'Overdue by {n} day(s)',
-    refreshPenalty:'Refresh penalty status',
+    fullyPaidMsg:'Fully paid — no more payments',
     paymentHistory:'Payment History', month:'Month',
     paid:'Paid', penaltyPaid:'Penalty Paid', penalized:'Penalized', future:'Future', pendingLc:'Pending',
     graceStatus:'Grace', overdueStatus:'Overdue',
@@ -866,17 +869,15 @@ const I18N = {
     interestWaiverNote:'Interest waiver applied (after {paid} months): ETB {waived} of remaining interest has been waived. You pay only the outstanding principal.',
     ttNumber:'TT Number', transferDate:'Transfer Date', bankProvider:'Bank / Provider',
     bankPlaceholder:'-- Select Bank / Provider --', otherBankName:'Enter bank or provider name',
-    note:'Note (optional)', notePlaceholder:'Optional note…',
+    notePlaceholder:'Optional note…',
     duplicateWarn:'This TT number and transfer date combination already exists for this customer.',
     penaltyBlockedTitle:'Repayment Blocked — Outstanding Penalty',
-    penaltyBlockText:'This customer has an outstanding penalty of',
     penaltyBlockPay:'Pay it first before recording a new repayment.',
-    blocked:'Blocked', payPenalty:'Pay Penalty',
     unpaidWarningText:'Unpaid previous monthly loan(s) detected.',
     upToDate:'All previous payments are up to date.',
     ttRequired:'TT number is required.', transferRequired:'Transfer date is required.',
     bankRequired:'Please select a bank or provider.', invalidAmountMsg:'Please enter a valid amount.',
-    pleaseSelectDate:'Please select a date.', duplicateError:'Duplicate TT number and transfer date found!',
+    pleaseSelectDate:'Please select a date.',
     cannotExceedRemaining:'Amount cannot exceed the remaining balance.',
     minPaymentNotMet:'Repayment must be at least the monthly installment amount.',
     pleaseSelectLoan:'Please select a loan.',
@@ -890,13 +891,10 @@ const I18N = {
     repRejectedOk:'Repayment rejected — balance unchanged.',
     repNotFound:'Repayment record not found.', repAlreadyProcessed:'This repayment is already processed.',
     loanNotFoundMsg:'Linked loan not found.', awaitingApproval:'awaiting approval',
-    pendingRepayments:'{n} pending repayment(s)',
-    splitPrincipal:'Principal', splitInterest:'Interest',
     colRecordedBy:'Recorded By', colApprovedBy:'Approved By', colRepDate:'Date', colRepAmount:'Amount',
     colRepPrincipal:'Principal', colRepInterest:'Interest', colRepStatus:'Status',
-    printReceipt:'Print Receipt', paymentReceipt:'Payment Receipt',
-    repaymentDetails:'Repayment Details', totalApproved:'Total Approved (loan)', generatedBy:'Generated by',
-    gracePeriod:'Grace Period', nextDueLbl:'Next due', monthsPaidLbl:'Months paid',
+    printReceipt:'Print Receipt',
+    gracePeriod:'Grace Period', nextDueLbl:'Next due',
     graceDaysLeft:'Grace: {n} day(s) left', dueInDays:'Due in {n} day(s)', dueToday:'Due today',
     overdueDays:'Overdue by {n} day(s)',
     agrTitle:'LOAN AGREEMENT FORM',
@@ -912,14 +910,9 @@ const I18N = {
     agrSignature:'SIGNATURE', agrName:'Name',
     agrTel:'Tel: +251-91028-5252',
     agrSlogan:'If We Work Together, We Grow Together!',
-    paidLbl:'paid',
-    uninspMonthLabel:'Unpaid months',
-    arrearsLabel:'Arrears',
-    repaymentHeader:'Repayment',
-    outstandingUnchanged:'Outstanding (unchanged)',
-    repaymentAmountShort:'Repayment Amount',
-    outstandingAfterApproval:'Outstanding after approval',
-    minAmountShort:'Min: {v}',
+    uninspMonthLabel:'Unpaid months', arrearsLabel:'Arrears', repaymentHeader:'Repayment',
+    outstandingUnchanged:'Outstanding (unchanged)', repaymentAmountShort:'Repayment Amount',
+    outstandingAfterApproval:'Outstanding after approval', minAmountShort:'Min: {v}',
     pendingRepaymentsTotal:'Pending repayments totalling',
     pendingRepaymentsNote:'are not yet reflected in the balance. Approve them below.',
     repaymentWillBePending:'This repayment will be saved as pending. It only affects the loan balance after approval.',
@@ -928,8 +921,6 @@ const I18N = {
     customerInactiveCreating:'This customer is marked "{status}" — activate them on the Customers page before creating a loan.',
     customerInactiveShort:'Customer is inactive — activate them on the Customers page first.',
     repayAllGateMsg:'Repay All is available after {n} monthly payment(s). You have paid {paid} month(s).',
-    penaltyRefreshed:'Penalty & arrears status refreshed.',
-    penaltyRefreshError:'Could not refresh penalty.',
     customerNoLongerExists:'Customer no longer exists.',
     arrearsClearMsg:'This repayment clears the {n} missed month(s) — arrears of {amount} will be settled.',
     arrearsMustPay:'Amount must be at least {amount}.',
@@ -938,420 +929,9 @@ const I18N = {
     noCustomersMatch:'No customers match your search.',
     valueInline:'Value: {v}', contactInline:'Contact: {c}',
     loadingHistory:'Loading payment history…', historyLoadError:'Could not load payment history.'
-  },
-
-  am: {
-    brandSub:'የሳኮ አስተዳደር', logout:'ውጣ', loading:'በመጫን ላይ…',
-    navOverview:'አጠቃላይ እይታ', navNetwork:'ኔትወርክ', navOperations:'ክንውኖች', navFinance:'ፋይናንስ', navAdmin:'አስተዳደር',
-    dashboard:'ዳሽቦርድ', districts:'ወረዳዎች', branches:'ቅርንጫፎች', customers:'ደንበኞች',
-    savings:'ቁጠባ', deposits:'ተቀማጭ', loans:'ብድር', repayments:'ክፍያዎች', withdrawals:'ወጪዎች',
-    dividends:'ክፍፍል', shares:'አክሲዮን', reports:'ሪፖርቶች', penalties:'ቅጣቶች', audit:'የምዝግብ ታሪክ',
-    users:'ተጠቃሚዎች', settings:'ቅንብሮች',
-    role_super_admin:'ዋና አስተዳዳሪ', role_admin:'የወረዳ አስተዳዳሪ', role_manager:'ሥራ አስኪያጅ',
-    role_cashier:'ገንዘብ ተቀባይ', role_member:'አባል', role_auditor:'ኦዲተር',
-    pageTitle:'ብድር', pageSub:'የብድር ስርጭት፣ ማጽደቅ እና ክፍያዎችን ያስተዳድሩ',
-    breadcrumbHome:'ዳሽቦርድ', breadcrumbLoans:'ብድር',
-    workingArea:'የሥራ አካባቢ', workingAreaSub:'ብድሮችን በወረዳ እና በቅርንጫፍ ያጣሩ',
-    allDistricts:'ሁሉም ወረዳዎች', allBranches:'ሁሉም ቅርንጫፎች',
-    fullSystem:'ሙሉ ስርዓት — ሁሉም ወረዳዎች', districtAdmin:'የወረዳ አስተዳዳሪ',
-    auditorRole:'ኦዲተር — ተነባቢ ብቻ', selfAccount:'የእኔ ሒሳብ',
-    addLoan:'አዲስ ብድር',
-    summaryTitle:'ማጠቃለያ',
-    statDisbursed:'የተሰጠ', statOutstanding:'ያልተከፈለ', statRepaid:'ተከፍሏል',
-    statActiveLoans:'ንቁ ብድሮች', statOverdue:'ዘግይቷል', statAllLoans:'ሁሉም ብድሮች',
-    searchPlaceholder:'በደንበኛ፣ በብድር ቁጥር፣ በመታወቂያ፣ በዓላማ ወይም በስልክ ይፈልጉ…',
-    filterAllDistricts:'ሁሉም ወረዳዎች', filterAllBranches:'ሁሉም ቅርንጫፎች',
-    filterAllTypes:'ሁሉም የብድር ዓይነቶች', filterAllStatus:'ሁሉም ሁኔታዎች', filterAllDue:'ሁሉም ጊዜ',
-    filterOverdueOnly:'የዘገዩ ብቻ', filterDueSoon:'በ30 ቀናት ውስጥ',
-    typeDeposit:'ተቀማጭ', typeWithdrawal:'ወጪ',
-    statusPending:'በመጠባበቅ ላይ', statusApproved:'የጸደቀ', statusActive:'ንቁ',
-    statusRepaid:'ተከፍሏል', statusDefaulted:'የከሰሰ', statusRejected:'ውድቅ የተደረገ',
-    viewGrid:'ፍርግርግ', viewTable:'ሠንጠረዥ',
-    tableTitle:'ብድሮች', tableSub:'ሁሉም የብድር መዝገቦች',
-    colLoanNo:'የብድር ቁጥር', colCustomer:'ደንበኛ', colType:'ዓይነት',
-    colInterestType:'የወለድ ዓይነት', colPrincipal:'ዋና ገንዘብ', colRate:'መጠን',
-    colDuration:'ቆይታ', colTotal:'ጠቅላላ የሚከፈል', colOutstanding:'ያልተከፈለ',
-    colProgress:'ሂደት', colStatus:'ሁኔታ', colMaturity:'የማለቂያ ቀን', colActions:'ተግባራት',
-    noLoans:'እስካሁን ብድር የለም', noLoansText:'"አዲስ ብድር" ን ተጭነው የመጀመሪያውን ይመዝግቡ።',
-    noMatch:'ተመሳሳይ ብድር የለም', noMatchText:'ፍለጋዎን ወይም ማጣሪያዎን ያስተካክሉ።',
-    newLoanTitle:'አዲስ ብድር', editLoanTitle:'ብድር አስተካክል',
-    newLoanSub:'ለደንበኛ አዲስ ብድር ይመዝግቡ።', editLoanSub:'ይህን የብድር መዝገብ ያዘምኑ።',
-    stepCustomer:'ደንበኛ', stepDetails:'የብድር ዝርዝሮች', stepReview:'ግምገማ',
-    stepCustomerTitle:'ደንበኛ ይምረጡ', stepDetailsTitle:'የብድር ዝርዝሮች', stepReviewTitle:'ገምግም እና አስቀምጥ',
-    chooseCustomer:'እባክዎ ደንበኛ ይምረጡ።', customerSearch:'ደንበኞችን ይፈልጉ…',
-    customerBalance:'የቁጠባ ቀሪ',
-    ctxSavings:'ቁጠባ', ctxMaxLoan:'ከፍተኛ ብድር', ctxExposure:'ያሉ ብድሮች',
-    ctxAvailable:'ለመበደር ያለ', ctxBlocked:'ተዘግቷል — ንቁ/በመጠባበቅ ብድር አለው',
-    ctxMaxReached:'ከፍተኛ ንቁ/በመጠባበቅ ብድሮች ላይ ደርሷል ({max})።',
-    ctxActiveCount:'{n} ንቁ/በመጠባበቅ', inactive:'ንቁ አይደለም',
-    inactiveBlockText:'ደንበኛው ንቁ አይደለም — በመጀመሪያ በደንበኞች ገጽ ላይ ያግብሩት',
-    loanTypeLabel:'የብድር ዓይነት', loanTypeRequired:'እባክዎ የብድር ዓይነት ይምረጡ።',
-    interestTypeLabel:'የወለድ ዓይነት', interestTypeRequired:'እባክዎ የወለድ ዓይነት ይምረጡ።',
-    principalLabel:'ዋና ገንዘብ (ብር)', rateLabel:'የወለድ መጠን (% በዓመት)',
-    durationLabel:'ቆይታ (ወራት)', purposeLabel:'የብድር ዓላማ',
-    purposePlaceholder:'የብድሩን ዓላማ ይግለጹ…',
-    collateralLabel:'ዋስትና', collateralPlaceholder:'ዋስትና ይግለጹ…',
-    referenceLabel:'ማጣቀሻ (ስ/ህ/ህ/ህ)', referencePlaceholder:'ለምሳሌ ስ/ህ/ህ/ህ/ 1679, 1721, 1731, 2005/2006',
-    letterNoLabel:'የደብዳቤ ቁጥር', letterNoPlaceholder:'ባዶ ከተተወ በራስ-ሰር ይፈጠራል',
-    guaranteesLabel:'ዋሶች', guaranteesHint:'ቢያንስ አንድ ዋስ ይጨምሩ።',
-    guaranteesRequired:'እባክዎ ቢያንስ አንድ ዋስ ይጨምሩ።',
-    addGuarantee:'ዋስ ጨምር', guaranteeTypeLabel:'ዓይነት', guaranteeNameLabel:'ስም / መግለጫ',
-    guaranteeValueLabel:'ዋጋ (ብር)', guaranteeContactLabel:'አድራሻ', guaranteeDescLabel:'ተጨማሪ ዝርዝር (አማራጭ)',
-    guaranteeFillRequired:'እባክዎ የዋስ ስም፣ ዋጋ እና አድራሻ ይሙሉ።',
-    disbursementDateLabel:'የተሰጠበት ቀን', maturityDateLabel:'የማለቂያ ቀን',
-    statusLabel:'ሁኔታ', notesLabel:'ማስታወሻ', notesPlaceholder:'አማራጭ ማስታወሻ…',
-    interestAmount:'ወለድ', totalPayable:'ጠቅላላ የሚከፈል', monthlyPayment:'ወርሃዊ',
-    newLoanPreview:'የብድር ስሌት ቅድመ እይታ',
-    statusOptPending:'በመጠባበቅ (ማጽደቅ ይፈልጋል)', statusOptApproved:'ተጸድቋል', statusOptActive:'ንቁ',
-    statusOptRepaid:'ተከፍሏል', statusOptDefaulted:'የከሰሰ', statusOptRejected:'ውድቅ ተደርጓል',
-    statusHintRequireApproval:'ብድሩ ንቁ ከመሆኑ በፊት ማጽደቅ እንዲፈልግ "በመጠባበቅ" ይተዉት።',
-    statusHintNoApproval:'ማጽደቅ አያስፈልግም — ብድሮች በንቁነት ይጀምራሉ።',
-    autoGeneratedOnSave:'(በማስቀመጥ ጊዜ በራስ-ሰር)',
-    reviewCustomer:'ደንበኛ', reviewType:'ዓይነት', reviewPrincipal:'ዋና ገንዘብ',
-    reviewRate:'የወለድ መጠን', reviewDuration:'ቆይታ', reviewInterest:'ወለድ',
-    reviewTotal:'ጠቅላላ የሚከፈል', reviewMonthly:'ወርሃዊ',
-    reviewDisbursement:'የተሰጠበት', reviewMaturity:'የማለቂያ',
-    reviewCollateral:'ዋስትና', reviewGuarantees:'ዋሶች',
-    reviewPurpose:'ዓላማ', reviewStatus:'ሁኔታ', reviewNotes:'ማስታወሻ',
-    reviewRecordedBy:'የመዘገበው', reviewApprovedBy:'ያጸደቀው', notApprovedYet:'— እስካሁን አልተጸደቀም —',
-    cancel:'ሰርዝ', save:'አስቀምጥ', create:'ብድር ፍጠር', update:'ለውጦችን አስቀምጥ',
-    next:'ቀጣይ →', back:'← ተመለስ', close:'ዝጋ',
-    deleteTitle:'ብድር ሰርዝ', deleteText:'ይህ ብድርን ከ Firestore እስከመጨረሻ ያስወግደዋል።',
-    confirm:'አረጋግጥ', rowDelete:'ሰርዝ', rowEdit:'አስተካክል', rowView:'ተመልከት',
-    rowApprove:'አጽድቅ', rowReject:'ውድቅ አድርግ', rowPrint:'ስምምነት አትም', rowRepay:'ክፍያ መዝግብ',
-    reset:'እንደነበር', approve:'አጽድቅ', reject:'ውድቅ አድርግ',
-    approvedOk:'ብድሩ ጸድቋል!', rejectedOk:'ብድሩ ውድቅ ተደርጓል።',
-    showing:'በማሳየት ላይ', of:'ከ', loansWord:'ብድሮች',
-    savedOk:'ብድሩ በተሳካ ሁኔታ ተዘምኗል!', createdOk:'ብድሩ በተሳካ ሁኔታ ተፈጥሯል!',
-    deletedOk:'ብድሩ ተሰርዟል።',
-    errorSave:'ማስቀመጥ አልተቻለም: ', errorDelete:'መሰረዝ አልተቻለም: ',
-    invalidAmount:'መጠን ከዜሮ በላይ መሆን አለበት።', invalidRate:'የወለድ መጠን ዜሮ ወይም ከዚያ በላይ መሆን አለበት።',
-    invalidDuration:'ቆይታ ቢያንስ 1 ወር መሆን አለበት።',
-    maxLoansReached:'ይህ ደንበኛ ከፍተኛውን የንቁ/በመጠባበቅ ብድሮች ቁጥር ({max}) ላይ ደርሷል።',
-    principalMustBeAtLeast:'ዋና ገንዘብ ቢያንስ መሆን አለበት', principalCannotExceed:'ዋና ገንዘብ መብለጥ አይችልም',
-    allowedRange:'የተፈቀደ፦ {min} – {max}',
-    logoutTitle:'የመውጣት ማረጋገጫ', logoutText:'እርግጠኛ ነዎት መውጣት ይፈልጋሉ?',
-    accessDenied:'ይህን ገጽ ለማየት ፈቃድ የለዎትም።',
-    accessDeniedText:'የብድር አስተዳደር የሚችሉት የሰራተኛ መዝገቦች ብቻ ናቸው።',
-    backToDashboard:'ወደ ዳሽቦርድ ተመለስ', noPermission:'ፈቃድ ተከልክሏል። የ Firestore ህጎችዎን ያረጋግጡ።',
-    viewTitle:'የብድር ዝርዝሮች', customerInfo:'የደንበኛ መረጃ', loanInfo:'የብድር መረጃ',
-    progressLabel:'የክፍያ ሂደት',
-    receiptPhoto:'አባሪ', receiptTitle:'ሰነድ አያዝ',
-    receiptHint:'ፎቶ ለመጫን ይጫኑ (JPG/PNG፣ ከ3 MB በታች)', receiptAdded:'ሰነድ ተያይዟል',
-    receiptReplace:'ተካ', receiptRemove:'አስወግድ', upload:'ጫን',
-    fileTooLarge:'ፋይሉ ከ3 MB በታች መሆን አለበት', couldNotReadImage:'ምስሉን ማንበብ አልተቻለም',
-    printSlip:'ስምምነት አትም', slipPreview:'የብድር ስምምነት · A4',
-    printStatus:'የህትመት ሁኔታ', notPrinted:'አልተተመም',
-    printedOriginal:'ኦሪጅናል', printedCopy:'ኮፒ',
-    printNo:'የህትመት ቁጥር', printCount:'ኮፒዎች', original:'ኦሪጅናል', copy:'ኮፒ',
-    firstPrint:'የመጀመሪያ ህትመት — ኦሪጅናል', reprint:'እንደገና ህትመት — ኮፒ',
-    printedBy:'የተተመው በ', printedOn:'የተተመበት',
-    printError:'የህትመት ሁኔታ ማዘመን አልተቻለም',
-    docTitle:'የብድር ስምምነት ቅጽ', amountInWords:'በቃላት',
-    borrowerSign:'የተበዳሪ ፊርማ', recordedBy:'የመዘገበው', approvedBy:'ያጸደቀው',
-    repaymentTitle:'የብድር ክፍያ ይመዝግቡ', repaymentSub:'ለዚህ ብድር የክፍያ መጠን ያስገቡ',
-    repaymentAmount:'የክፍያ መጠን (ብር)', repaymentDate:'የክፍያ ቀን',
-    repaymentMethod:'የክፍያ ዘዴ', repaymentRef:'ማጣቀሻ', repaymentNotes:'ማስታወሻ',
-    repaymentTooBig:'መጠኑ ካለው ቀሪ ሂሳብ ይበልጣል።',
-    repaymentOk:'ክፍያ ተመዝግቧል — ማጽደቅ በመጠባበቅ ላይ!',
-    outstandingLabel:'ያልተከፈለ', repaidLabel:'ተከፍሏል', totalLabel:'ጠቅላላ የሚከፈል',
-    methodCash:'ጥሬ ገንዘብ', methodBank:'የባንክ ዝውውር', methodMobile:'ሞባይል ገንዘብ',
-    methodCheque:'ቼክ', methodOther:'ሌላ',
-    newBalancePreview:'ከክፍያ በኋላ አዲስ ቀሪ',
-    customerScope:'በስልጣንዎ ውስጥ ያሉ ሁሉም ብድሮች', memberScope:'የእርስዎ ብድሮች ብቻ',
-    overduBadge:'ዘግይቷል', soonBadge:'በቅርቡ', graceBadge:'ጸጋ',
-    searchLoan:'ብድር ፈልግ', searchLoanPh:'በደንበኛ ስም ወይም በብድር መታወቂያ ይፈልጉ…',
-    minRepayHint:'ዝቅተኛው የሚያስፈልግ ክፍያ',
-    repayAll:'ሁሉንም ክፈል', repayAllUnlocks:'ሁሉንም ክፈል ከ{n} ወርሃዊ ክፍያዎች በኋላ ይከፈታል (የተከፈለ: {paid})።',
-    repayAllBlocked:'ሁሉንም ክፈል ከ{n} ወርሃዊ ክፍያዎች በኋላ ይገኛል። {paid} ወር ተከፍለዋል።',
-    loanAmount:'የብድር መጠን', totalPaid:'ጠቅላላ የተከፈለ (የጸደቀ)', remaining:'ቀሪ',
-    monthlyInstallment:'ወርሃዊ ክፍያ', minRepaymentStatus:'ዝቅተኛ ክፍያ ያስፈልጋል',
-    nextDueDate:'ቀጣይ የክፍያ ቀን', approvedMonthsPaid:'የጸደቁ ወራት',
-    fullyPaidMsg:'ሙሉ በሙሉ ተከፍሏል — ተጨማሪ ክፍያ የለም', daysLeft:'{n} ቀን ቀርቷል',
-    overdueBy:'በ{n} ቀን ዘግይቷል',
-    refreshPenalty:'የቅጣት ሁኔታ አድስ',
-    paymentHistory:'የክፍያ ታሪክ', month:'ወር',
-    paid:'ተከፍሏል', penaltyPaid:'ቅጣት ተከፍሏል', penalized:'ቅጣት ተጥሏል', future:'ወደፊት', pendingLc:'በመጠባበቅ',
-    graceStatus:'ጸጋ', overdueStatus:'ዘግይቷል',
-    totalPrincipalPaid:'ጠቅላላ የተከፈለ ዋና', totalInterestPaid:'ጠቅላላ የተከፈለ ወለድ',
-    totalRepaid:'ጠቅላላ የተከፈለ', waived:'ተሰርዟል',
-    principalPortion:'ዋና የብድር ክፍል (ብር)', interestPortion:'የወለድ ክፍል (ብር)',
-    interestWaiverNote:'የወለድ ስረዛ ተተግብሯል (ከ{paid} ወራት በኋላ): ከቀሪ ወለድ ETB {waived} ተሰርዟል። የሚከፍሉት ያልተከፈለውን ዋና ገንዘብ ብቻ ነው።',
-    ttNumber:'የ TT ቁጥር', transferDate:'የዝውውር ቀን', bankProvider:'ባንክ / አቅራቢ',
-    bankPlaceholder:'-- ባንክ / አቅራቢ ይምረጡ --', otherBankName:'የባንክ ወይም አቅራቢ ስም ያስገቡ',
-    note:'ማስታወሻ (አማራጭ)', notePlaceholder:'አማራጭ ማስታወሻ…',
-    duplicateWarn:'ይህ TT ቁጥር እና የዝውውር ቀን ጥምረት ለዚህ ደንበኛ አስቀድሞ አለ።',
-    penaltyBlockedTitle:'ክፍያ ተከልክሏል — ያልተከፈለ ቅጣት',
-    penaltyBlockText:'ይህ ደንበኛ ያልተከፈለ ቅጣት አለው',
-    penaltyBlockPay:'አዲስ ክፍያ ከመመዝገብዎ በፊት በመጀመሪያ ይክፈሉት።',
-    blocked:'ተከልክሏል', payPenalty:'ቅጣት ክፈል',
-    unpaidWarningText:'ያልተከፈሉ ቀደምት ወርሃዊ ብድሮች ተገኝተዋል።',
-    upToDate:'ሁሉም ቀደምት ክፍያዎች ወቅታዊ ናቸው።',
-    ttRequired:'የ TT ቁጥር ያስፈልጋል።', transferRequired:'የዝውውር ቀን ያስፈልጋል።',
-    bankRequired:'እባክዎ ባንክ ወይም አቅራቢ ይምረጡ።', invalidAmountMsg:'እባክዎ ትክክለኛ መጠን ያስገቡ።',
-    pleaseSelectDate:'እባክዎ ቀን ይምረጡ።', duplicateError:'ተመሳሳይ TT ቁጥር እና የዝውውር ቀን ተገኝቷል!',
-    cannotExceedRemaining:'መጠኑ ከቀሪ ሂሳብ መብለጥ አይችልም።',
-    minPaymentNotMet:'ክፍያ ቢያንስ ወርሃዊ ክፍያ መሆን አለበት።',
-    pleaseSelectLoan:'እባክዎ ብድር ይምረጡ።',
-    repPending:'በመጠባበቅ', repApproved:'ተጸድቋል', repRejected:'ውድቅ ተደርጓል',
-    repaymentHistory:'የክፍያ ታሪክ', noRepayments:'እስካሁን ክፍያ አልተመዘገበም።',
-    approveRepTitle:'ይህን ክፍያ ያጽድቁ?',
-    approveRepMsg:'ማጽደቅ የብድሩን ቀሪ ያዘምናል እና ክፍያውን እንደተጸደቀ ያመላክታል።',
-    rejectRepTitle:'ይህን ክፍያ ውድቅ ያድርጉ?',
-    rejectRepMsg:'ውድቅ ማድረግ የብድሩን ቀሪ አይነካም።',
-    repApprovedOk:'ክፍያ ተጸድቋል — የብድር ቀሪ ተዘምኗል።',
-    repRejectedOk:'ክፍያ ውድቅ ተደርጓል — ቀሪ አልተለወጠም።',
-    repNotFound:'የክፍያ መዝገብ አልተገኘም።', repAlreadyProcessed:'ይህ ክፍያ አስቀድሞ ተሰርቷል።',
-    loanNotFoundMsg:'የተያዘው ብድር አልተገኘም።',
-    awaitingApproval:'ማጽደቅ በመጠባበቅ', pendingRepayments:'{n} በመጠባበቅ ክፍያ(ዎች)',
-    splitPrincipal:'ዋና', splitInterest:'ወለድ',
-    colRecordedBy:'የመዘገበው', colApprovedBy:'ያጸደቀው', colRepDate:'ቀን', colRepAmount:'መጠን',
-    colRepPrincipal:'ዋና', colRepInterest:'ወለድ', colRepStatus:'ሁኔታ',
-    printReceipt:'ደረሰኝ አትም', paymentReceipt:'የክፍያ ደረሰኝ',
-    repaymentDetails:'የክፍያ ዝርዝሮች', totalApproved:'ጠቅላላ የጸደቀ (ብድር)', generatedBy:'የተፈጠረው በ',
-    gracePeriod:'የጸጋ ጊዜ', nextDueLbl:'ቀጣይ', monthsPaidLbl:'የተከፈሉ ወራት',
-    graceDaysLeft:'ጸጋ: {n} ቀን ቀርቷል', dueInDays:'በ{n} ቀናት ውስጥ', dueToday:'ዛሬ',
-    overdueDays:'በ{n} ቀናት ዘግይቷል',
-    agrTitle:'የብድር ስምምነት ቅጽ',
-    agrSubject:'ጉዳዩ: የብድር ስጦታ እና የመክፈል ስምምነት',
-    agrResidence:'ቺሮ፣ ኦሮሚያ ኢትዮጵያ',
-    agrSacco:'የገረሱ ዱኪ ቁጠባ እና ብድር ህብረት ስራ ማህበር',
-    agrReference:'ስ/ህ/ህ/ህ/ 1679, 1721, 1731, 2005/2006',
-    agrGuarantorClause:'ዋሶች የተበዳሪው የመክፈል ግዴታውን ካላሟላ፣ ቀሪውን መጠን በ<strong>ስ/ህ/ህ/ህ 1920</strong>፣ በህብረት ስራ ማህበሩ ህጎች እና በሚመለከተው ህግ መሰረት እንደሚወስዱ ያረጋግጣሉ።',
-    agrBreachClause:'የዚህ ስምምነት ማንኛውም ጥሰት በ<strong>ስ/ህ/ህ/ህ 1790 እና 1791</strong> ስር የተጠቀሱትን ድንጋጌዎች ጨምሮ ተገቢ ቅጣቶች እና የመልሶ ማግኛ ሂደቶች ተገዢ ይሆናል።',
-    agrSignClause:'ከታች በመፈረም፣ ተበዳሪው እና ዋሶች የዚህን ስምምነት ውሎች አንብበው፣ ተረድተው እና በፈቃደኝነት እንደተቀበሉ ያረጋግጣሉ።',
-    agrSerial:'ተከታታይ ቁጥር', agrDate:'ቀን', agrLetterNo:'የደብዳቤ ቁጥር',
-    agrOfficialStamp:'ኦፊሴላዊ ማህተም:',
-    agrBorrower:'ተበዳሪ', agrGuarantors:'ዋሶች', agrCoopApproval:'የህብረት ማጽደቅ',
-    agrSignature:'ፊርማ', agrName:'ስም',
-    agrTel:'ስልክ: +251-91028-5252', agrSlogan:'በአንድነት ብንሰራ አብረን እናድጋለን!',
-    paidLbl:'ተከፍሏል', uninspMonthLabel:'ያልተከፈሉ ወራት', arrearsLabel:'ቀሪ ዕዳ', repaymentHeader:'ክፍያ',
-    outstandingUnchanged:'ያልተከፈለ (ያልተለወጠ)', repaymentAmountShort:'የክፍያ መጠን',
-    outstandingAfterApproval:'ከማጽደቅ በኋላ ያልተከፈለ', minAmountShort:'ዝቅተኛ፦ {v}',
-    pendingRepaymentsTotal:'በመጠባበቅ ያሉ ክፍያዎች ጠቅላላ',
-    pendingRepaymentsNote:'በቀሪ ሂሳብ ውስጥ አልተካተቱም። ከታች ያጽድቋቸው።',
-    repaymentWillBePending:'ይህ ክፍያ በመጠባበቅ ሁኔታ ይቀመጣል። በማጽደቅ በኋላ ብቻ ቀሪውን ይነካል።',
-    afterSavingPending:'ከማስቀመጥ በኋላ ይህ ክፍያ በመጠባበቅ ይሆናል። አስተዳዳሪ እስኪያጸድቀው ድረስ የብድር ቀሪው አይለወጥም።',
-    partialRepaymentDisabled:'ከፊል ክፍያ ተሰናክሏል — ሙሉውን {amount} መክፈል አለብዎ።',
-    customerInactiveCreating:'ይህ ደንበኛ "{status}" ተብሎ ተመዝግቧል — ብድር ከመፍጠርዎ በፊት በደንበኞች ገጽ ላይ ያግብሩት።',
-    customerInactiveShort:'ደንበኛው ንቁ አይደለም — በመጀመሪያ በደንበኞች ገጽ ላይ ያግብሩት።',
-    repayAllGateMsg:'ሁሉንም ክፈል ከ{n} ወርሃዊ ክፍያዎች በኋላ ይገኛል። {paid} ወር ተከፍለዋል።',
-    penaltyRefreshed:'የቅጣት እና ቀሪ ዕዳ ሁኔታ ተዘምኗል።',
-    penaltyRefreshError:'ቅጣትን ማደስ አልተቻለም።', customerNoLongerExists:'ደንበኛው ከእንግዲህ የለም።',
-    arrearsClearMsg:'ይህ ክፍያ የ{n} ያልተከፈሉ ወራትን ያጸዳል — የ{amount} ቀሪ ዕዳ ይከፈላል።',
-    arrearsMustPay:'መጠኑ ቢያንስ {amount} መሆን አለበት።',
-    monthSingular:'ወር', monthPlural:'ወራት', loanNoShort:'የብድር ቁጥር', moShort:'ወር',
-    noCustomersMatch:'ከፍለጋዎ ጋር የሚዛመድ ደንበኛ የለም።',
-    valueInline:'ዋጋ: {v}', contactInline:'አድራሻ: {c}',
-    loadingHistory:'የክፍያ ታሪክ በመጫን ላይ…', historyLoadError:'የክፍያ ታሪክ ማምጣት አልተቻለም።'
-  },
-
-  om: {
-    brandSub:'Bulchiinsa SACCO', logout:"Ba'i", loading:"Fe'aa jira…",
-    navOverview:'Aguuggama', navNetwork:'Networkii', navOperations:'Hojimaata', navFinance:'Faayinaansii', navAdmin:'Bulchiinsa',
-    dashboard:'Daashboordii', districts:'Aanaalee', branches:'Dameewwan', customers:'Maamiltoota',
-    savings:'Qusannaa', deposits:'Kaasaa', loans:'Liqii', repayments:'Kaffaltuu', withdrawals:'Baasii',
-    dividends:'Qooda', shares:'Hirmaata', reports:'Gabaasa', penalties:'Adaba', audit:'Seenaa Galmee',
-    users:'Fayyadamtoota', settings:"Qindaa'ina",
-    role_super_admin:"Bulchaa Ol'aanaa", role_admin:'Bulchaa Aanaa', role_manager:'Bulchaa',
-    role_cashier:'Kashierii', role_member:'Miseensa', role_auditor:'Ooditera',
-    pageTitle:'Liqii', pageSub:'Kaffaltii liqii, mirkaneessuu fi kaffaltuu bulchi',
-    breadcrumbHome:'Daashboordii', breadcrumbLoans:'Liqii',
-    workingArea:'Bakka Hojii', workingAreaSub:'Liqii aanaa fi dameetiin filtarii',
-    allDistricts:'Aanaa hunda', allBranches:'Damee hunda',
-    fullSystem:'Sirna guutuu — aanaa hunda', districtAdmin:'Bulchaa Aanaa',
-    auditorRole:'Ooditera — dubbisuu qofa', selfAccount:'Herrega koo',
-    addLoan:'Liqii Haaraa',
-    summaryTitle:'Cuunfaa',
-    statDisbursed:'Kenne', statOutstanding:'Hin Kaffalamne', statRepaid:'Kaffalame',
-    statActiveLoans:'Liqii Sochii', statOverdue:'Tursiise', statAllLoans:'Liqii Hunda',
-    searchPlaceholder:'Maamila, lakk. liqii, ID, kaayyoo ykn bilbilaan barbaadi…',
-    filterAllDistricts:'Aanaa hunda', filterAllBranches:'Damee hunda',
-    filterAllTypes:'Gosoota liqii hunda', filterAllStatus:'Haalota hunda', filterAllDue:'Hunda',
-    filterOverdueOnly:'Kan tursiise qofa', filterDueSoon:'Guyyaa 30 keessatti',
-    typeDeposit:'Kaasaa', typeWithdrawal:'Baasii',
-    statusPending:'Eegaa', statusApproved:"Mirkanaa'e", statusActive:'Sochii',
-    statusRepaid:'Kaffalame', statusDefaulted:'Kafalamnee', statusRejected:'Kufe',
-    viewGrid:'Grid', viewTable:'Gabatee',
-    tableTitle:'Liqii', tableSub:'Galmeewwan liqii hunda',
-    colLoanNo:'Lakk. Liqii', colCustomer:'Maamila', colType:'Gosa',
-    colInterestType:'Gosa Dhalaa', colPrincipal:'Kaasaa', colRate:'Sadarkaa',
-    colDuration:'Yeroo', colTotal:'Waliigala Kaffalamu', colOutstanding:'Hin Kaffalamne',
-    colProgress:'Adeemsa', colStatus:'Haala', colMaturity:'Guyyaa Xumuraa', colActions:'Gocha',
-    noLoans:'Liqiin hin jiru', noLoansText:'"Liqii Haaraa" tuqiitii kan duraa galmeessi.',
-    noMatch:'Liqii walsimu hin argamne', noMatchText:'Barbaacha ykn filtarii kee sirreessi.',
-    newLoanTitle:'Liqii Haaraa', editLoanTitle:'Liqii Sirreessi',
-    newLoanSub:'Maamilaaf liqii haaraa galmeessi.', editLoanSub:'Galmee liqii kana haaromsi.',
-    stepCustomer:'Maamila', stepDetails:"Bal'ina Liqii", stepReview:'Ilaalcha',
-    stepCustomerTitle:'Maamila filadhu', stepDetailsTitle:"Bal'ina liqii", stepReviewTitle:"Ilaaliitii olkaa'i",
-    chooseCustomer:'Maaloo maamila filadhu.', customerSearch:'Maamiltoota barbaadi…',
-    customerBalance:'Haftee Qusannaa',
-    ctxSavings:'Qusannaa', ctxMaxLoan:'Liqii Ol'aanaa', ctxExposure:'Liqii Jiru',
-    ctxAvailable:"Liqii Danda'amu", ctxBlocked:'Cufame — liqii sochii/eegamaa qaba',
-    ctxMaxReached:"Baay'ina liqii sochii/eegamaa olaanaa ga'e ({max}).",
-    ctxActiveCount:'{n} sochii/eegamaa', inactive:'Sochii hin taane',
-    inactiveBlockText:"Maamilli sochii hin taane — dura fuula Maamiltootaa irratti sochoosi",
-    loanTypeLabel:'Gosa Liqii', loanTypeRequired:'Maaloo gosa liqii filadhu.',
-    interestTypeLabel:'Gosa Dhalaa', interestTypeRequired:'Maaloo gosa dhalaa filadhu.',
-    principalLabel:'Kaasaa (ETB)', rateLabel:'Sadarkaa Dhalaa (% waggaatti)',
-    durationLabel:"Yeroo (ji'oota)", purposeLabel:'Kaayyoo Liqii',
-    purposePlaceholder:'Kaayyoo liqii ibsi…',
-    collateralLabel:'Wabii', collateralPlaceholder:'Wabii ibsi…',
-    referenceLabel:'Wabii (S/H/H/L)', referencePlaceholder:'Fkn S/H/H/L/ 1679, 1721, 1731, 2005/2006',
-    letterNoLabel:'Lakk. Xalayaa', letterNoPlaceholder:"Yoo duwwaa dhiifame ofumaan ni uumama",
-    guaranteesLabel:'Waboota', guaranteesHint:'Yoo xiqqaate wabii tokko dabali.',
-    guaranteesRequired:'Maaloo yoo xiqqaate wabii tokko dabali.',
-    addGuarantee:'Wabii Dabali', guaranteeTypeLabel:'Gosa', guaranteeNameLabel:'Maqaa / Ibsa',
-    guaranteeValueLabel:'Gatii (ETB)', guaranteeContactLabel:'Bilbila', guaranteeDescLabel:"Bal'ina dabalataa (filannoo)",
-    guaranteeFillRequired:"Maaloo maqaa, gatii fi bilbila wabii guuti.",
-    disbursementDateLabel:'Guyyaa Kennaa', maturityDateLabel:'Guyyaa Xumuraa',
-    statusLabel:'Haala', notesLabel:'Yaadannoo', notesPlaceholder:'Yaadannoo filannoo…',
-    interestAmount:'Dhala', totalPayable:'Waliigala Kaffalamu', monthlyPayment:"Ji'aa",
-    newLoanPreview:'Ilaalcha Herrega Liqii',
-    statusOptPending:'Eegamaa (mirkaneessa barbaada)', statusOptApproved:"Mirkanaa'e", statusOptActive:'Sochii',
-    statusOptRepaid:'Kaffalame', statusOptDefaulted:'Kafalamnee', statusOptRejected:'Diidame',
-    statusHintRequireApproval:'Liqiin sochii ta\'uun dura mirkaneessi akka barbaachisuuf "Eegamaa" godhi.',
-    statusHintNoApproval:'Mirkaneessi hin barbaachisu — liqiin sochii irraa jalqaba.',
-    autoGeneratedOnSave:"(yeroo olkaa'uutti ofumaan)",
-    reviewCustomer:'Maamila', reviewType:'Gosa', reviewPrincipal:'Kaasaa',
-    reviewRate:'Sadarkaa Dhalaa', reviewDuration:'Yeroo', reviewInterest:'Dhala',
-    reviewTotal:'Waliigala Kaffalamu', reviewMonthly:"Ji'aa",
-    reviewDisbursement:'Kennaa', reviewMaturity:'Xumura',
-    reviewCollateral:'Wabii', reviewGuarantees:'Waboota',
-    reviewPurpose:'Kaayyoo', reviewStatus:'Haala', reviewNotes:'Yaadannoo',
-    reviewRecordedBy:'Galmeesse', reviewApprovedBy:'Mirkaneesse', notApprovedYet:"— amma hin mirkanaa'e —",
-    cancel:'Haqi', save:"Olkaa'i", create:'Liqii Uumi', update:"Jijjiirama Olkaa'i",
-    next:'Itti Aanu →', back:"← Deebi'i", close:'Cufi',
-    deleteTitle:'Liqii Haqi', deleteText:'Kun liqii kana Firestore irraa guutummaatti haqa.',
-    confirm:'Mirkaneessi', rowDelete:'Haqi', rowEdit:'Jijjiiri', rowView:'Ilaali',
-    rowApprove:'Mirkaneessi', rowReject:'Didi', rowPrint:'Waliigaltee Maxxansi', rowRepay:'Kaffaltii Galmeessi',
-    reset:'Deebisi', approve:'Mirkaneessi', reject:'Didi',
-    approvedOk:"Liqiin mirkanaa'e!", rejectedOk:'Liqiin diidame.',
-    showing:'Agarsiisaa', of:'keessaa', loansWord:'liqii',
-    savedOk:"Liqiin milkaa'inaan haaromfame!", createdOk:"Liqiin milkaa'inaan uumame!",
-    deletedOk:'Liqiin haqame.',
-    errorSave:"Olkaa'uu hin dandeenye: ", errorDelete:'Haquu hin dandeenye: ',
-    invalidAmount:"Baay'inni zeeroo caalaa guddaa ta'uu qaba.", invalidRate:"Sadarkaan dhalaa zeeroo ykn isaa ol ta'uu qaba.",
-    invalidDuration:"Yeroon yoo xiqqaate ji'a 1 ta'uu qaba.",
-    maxLoansReached:"Maamilli kun baay'ina liqii sochii/eegamaa olaanaa ({max}) ga'e.",
-    principalMustBeAtLeast:'Kaasaan yoo xiqqaate ta\'uu qaba', principalCannotExceed:'Kaasaan caalaa hin danda\'u',
-    allowedRange:'Hayyamame: {min} – {max}',
-    logoutTitle:"Mirkaneessa Ba'uu", logoutText:"Dhuguma ba'uu barbaadda?",
-    accessDenied:'Fuula kana ilaaluuf hayyama hin qabdu.',
-    accessDeniedText:"Herrega hojjetoota qofa liqii bulchuu danda'u.",
-    backToDashboard:"Gara Daashboordii Deebi'i", noPermission:'Hayyamni dhorkame. Seera Firestore kee ilaali.',
-    viewTitle:"Bal'ina Liqii", customerInfo:"Odeeffannoo Maamilaa", loanInfo:"Odeeffannoo Liqii",
-    progressLabel:'Adeemsa Kaffaltii',
-    receiptPhoto:'Ibsa', receiptTitle:'Sanada maxxansi',
-    receiptHint:"Suuraa fe'uuf tuqi (JPG/PNG, 3 MB gadi)", receiptAdded:'Sanadni maxxanfame',
-    receiptReplace:'Jijjiiri', receiptRemove:'Balleessi', upload:"Fe'i",
-    fileTooLarge:"Faayilii 3 MB gadi ta'uu qaba", couldNotReadImage:"Suuraa dubbisuu hin dandeenye",
-    printSlip:'Waliigaltee Maxxansi', slipPreview:'Waliigaltee Liqii · A4',
-    printStatus:'Haala Maxxansaa', notPrinted:'Hin maxxanfamne',
-    printedOriginal:'Aslii', printedCopy:'Garagalcha',
-    printNo:'Lakkoofsa Maxxansaa', printCount:'Garagalcha', original:'ASLII', copy:'GARAGALCHA',
-    firstPrint:'Maxxansa Duraa — Aslii', reprint:"Irra deebi'ii Maxxansi — Garagalcha",
-    printedBy:'Kan maxxanse', printedOn:'Yeroo maxxanfame',
-    printError:'Haala maxxansaa haaromsuu hin dandeenye',
-    docTitle:'UNKA WALIIGALTEE LIQII', amountInWords:'Jechaadhaan',
-    borrowerSign:'Mallattoo Liqamaa', recordedBy:'Kan galmeesse', approvedBy:'Kan mirkaneesse',
-    repaymentTitle:'Kaffaltii Liqii Galmeessi', repaymentSub:"Liqii kanaaf baay'ina kaffaltii galchi",
-    repaymentAmount:"Baay'ina Kaffaltii (ETB)", repaymentDate:'Guyyaa Kaffaltii',
-    repaymentMethod:'Mala Kaffaltii', repaymentRef:'Wabii', repaymentNotes:'Yaadannoo',
-    repaymentTooBig:"Baay'inni hafe caalaa guddaa dha.",
-    repaymentOk:'Kaffaltiin galmeeffame — mirkaneessa eegaa jira!',
-    outstandingLabel:'Hafe', repaidLabel:'Kaffalame', totalLabel:'Waliigala Kaffalamu',
-    methodCash:'Saaphanaa', methodBank:'Sochoosa Baankii', methodMobile:'Maallaqa Moobayilaa',
-    methodCheque:'Cheekii', methodOther:'Kan biraa',
-    newBalancePreview:'Hafe kaffaltii booda',
-    customerScope:'Liqii hunda daangaa kee keessatti', memberScope:'Liqii kee qofa',
-    overduBadge:'Tursiise', soonBadge:'Dhiyootti', graceBadge:'Ayyaana',
-    searchLoan:'Liqii Barbaadi', searchLoanPh:'Maqaa maamilaa ykn ID liqiin barbaadi…',
-    minRepayHint:'Kaffaltii xiqqaa barbaachisu',
-    repayAll:'Hunda Kaffali', repayAllUnlocks:"Hunda Kaffali ji'a {n} booda banama (kaffalame: {paid}).",
-    repayAllBlocked:"Hunda Kaffali ji'a {n} booda argama. Ji'a {paid} kaffalteetta.",
-    loanAmount:"Baay'ina Liqii", totalPaid:"Waliigala Kaffalame (mirkanaa'e)", remaining:'Hafe',
-    monthlyInstallment:"Kaffaltii Ji'aa", minRepaymentStatus:'Kaffaltii Xiqqaa Barbaachisu',
-    nextDueDate:'Guyyaa Kaffaltii Itti Aanu', approvedMonthsPaid:"Ji'oota Mirkanaa'an",
-    fullyPaidMsg:"Guutummaatti kaffalame — kaffaltiin dabalataa hin jiru", daysLeft:'Guyyaa {n} hafe',
-    overdueBy:'Guyyaa {n} tursiise',
-    refreshPenalty:'Haala adabaa haaromsi',
-    paymentHistory:'Seenaa Kaffaltii', month:"Ji'a",
-    paid:'Kaffalame', penaltyPaid:'Adabni Kaffalame', penalized:'Adabame', future:'Gara Fuuldura', pendingLc:'Eegamaa',
-    graceStatus:'Ayyaana', overdueStatus:'Tursiise',
-    totalPrincipalPaid:'Waliigala Kaasaa Kaffalame', totalInterestPaid:'Waliigala Dhala Kaffalame',
-    totalRepaid:'Waliigala Kaffalame', waived:'dhiifame',
-    principalPortion:'Kutaa Liqii Kaasaa (ETB)', interestPortion:'Kutaa Dhalaa (ETB)',
-    interestWaiverNote:"Dhalli dhiifame (ji'a {paid} booda): ETB {waived} dhala hafe irraa dhiifame. Kaasaa hafe qofa kaffalta.",
-    ttNumber:'Lakkoofsa TT', transferDate:'Guyyaa Sochoosaa', bankProvider:'Baankii / Dhiyeessaa',
-    bankPlaceholder:'-- Baankii / Dhiyeessaa Filadhu --', otherBankName:'Maqaa baankii ykn dhiyeessaa galchi',
-    note:'Yaadannoo (filannoo)', notePlaceholder:'Yaadannoo filannoo…',
-    duplicateWarn:"Lakkoofsi TT fi guyyaan sochoosaa kun maamilaa kanaaf duraan jira.",
-    penaltyBlockedTitle:'Kaffaltiin Dhorkame — Adaba Hin Kaffalamne',
-    penaltyBlockText:'Maamilli kun adaba hin kaffalamne qaba',
-    penaltyBlockPay:'Kaffaltii haaraa galmeessuu kee dura duraan kaffali.',
-    blocked:'Cufame', payPenalty:'Adaba Kaffali',
-    unpaidWarningText:"Liqiin ji'aa duraanii hin kaffalamne argame.",
-    upToDate:'Kaffaltiin duraanii hundi yeroo isaatiin jiru.',
-    ttRequired:'Lakkoofsi TT barbaachisa.', transferRequired:'Guyyaan sochoosaa barbaachisa.',
-    bankRequired:'Maaloo baankii ykn dhiyeessaa filadhu.', invalidAmountMsg:"Maaloo baay'ina sirrii galchi.",
-    pleaseSelectDate:'Maaloo guyyaa filadhu.', duplicateError:'Lakkoofsa TT fi guyyaa sochoosaa walfakkaatu argame!',
-    cannotExceedRemaining:"Baay'inni hafe caalaa hin danda'u.",
-    minPaymentNotMet:"Kaffaltiin yoo xiqqaate kaffaltii ji'aa ta'uu qaba.",
-    pleaseSelectLoan:'Maaloo liqii filadhu.',
-    repPending:'Eegamaa', repApproved:"Mirkanaa'e", repRejected:'Diidame',
-    repaymentHistory:'Seenaa Kaffaltii', noRepayments:'Amma kaffaltiin hin galmeeffamne.',
-    approveRepTitle:'Kaffaltii kana mirkaneessitaa?',
-    approveRepMsg:"Mirkaneessuun hafe liqii haaromsa, kaffaltii akka mirkanaa'eef mallattoo godha.",
-    rejectRepTitle:'Kaffaltii kana diddaa?',
-    rejectRepMsg:'Diduun hafe liqii hin miidhu.',
-    repApprovedOk:"Kaffaltiin mirkanaa'e — hafe liqii haaromfame.",
-    repRejectedOk:'Kaffaltiin diidame — hafe hin jijjiiramne.',
-    repNotFound:'Galmeen kaffaltii hin argamne.', repAlreadyProcessed:'Kaffaltiin kun duraan hojjetame.',
-    loanNotFoundMsg:'Liqiin walitti hidhame hin argamne.', awaitingApproval:'mirkaneessa eegaa jira',
-    pendingRepayments:'Kaffaltii {n} eegamaa',
-    splitPrincipal:'Kaasaa', splitInterest:'Dhala',
-    colRecordedBy:'Kan Galmeesse', colApprovedBy:'Kan Mirkaneesse', colRepDate:'Guyyaa', colRepAmount:"Baay'ina",
-    colRepPrincipal:'Kaasaa', colRepInterest:'Dhala', colRepStatus:'Haala',
-    printReceipt:'Nagahee Maxxansi', paymentReceipt:'Nagahee Kaffaltii',
-    repaymentDetails:"Bal'ina Kaffaltii", totalApproved:"Waliigala Mirkanaa'e (liqii)", generatedBy:'Kan uume',
-    gracePeriod:'Yeroo Ayyaanaa', nextDueLbl:'Itti aanu', monthsPaidLbl:"Ji'oota Kaffalaman",
-    graceDaysLeft:'Ayyaana: guyyaa {n} hafe', dueInDays:'Guyyaa {n} keessatti', dueToday:"Har'a",
-    overdueDays:'Guyyaa {n} tursiise',
-    agrTitle:'UNKA WALIIGALTEE LIQII',
-    agrSubject:'Mata-duree: Waliigaltee Kennaa fi Kaffaltii Liqii',
-    agrResidence:'Chiroo, Oromiyaa Itoophiyaa',
-    agrSacco:'Waliigaltee Qusannaa fi Liqii Garasuu Dhukii',
-    agrReference:'S/H/H/L/ 1679, 1721, 1731, 2005/2006',
-    agrGuarantorClause:"Waboonni, yoo Liqamaan dirqama kaffaltii hin raawwanne, baay'ina hafe <strong>S/H/H/L 1920</strong>, seera Waliigaltee fi seera hojiirra ooluu eegumsa akka fudhatan mirkaneessu.",
-    agrBreachClause:'Cabuun waliigaltee kanaa kamiyyuu adaba barbaachisu fi adeemsa haaromsaa, dambiiwwan <strong>S/H/H/L 1790 fi 1791</strong> jalatti caqasaman dabalatee, hordofa.',
-    agrSignClause:'Mallattoo gadiitti kennuudhaan, Liqamaan fi Waboonni waliigaltee kana dubbisan, hubatan, fi fedhii isaaniitiin fudhachuu isaanii mirkaneessu.',
-    agrSerial:'Lakkoofsa Tartiiibaa', agrDate:'Guyyaa', agrLetterNo:'Lakkoofsa Xalayaa',
-    agrOfficialStamp:'Chaappaa Ofiisii:',
-    agrBorrower:'LIQAMAAN', agrGuarantors:'WABOOTA', agrCoopApproval:'MIRKANEESSA WALIIGALTEE',
-    agrSignature:'MALLATTOO', agrName:'Maqaa',
-    agrTel:'Bilbila: +251-91028-5252', agrSlogan:'Wajjin hojjennu, wajjin guddannu!',
-    paidLbl:'kaffalame', uninspMonthLabel:"Ji'oota hin kaffalamne", arrearsLabel:"Ida'aa hafe", repaymentHeader:'Kaffaltii',
-    outstandingUnchanged:'Hafe (hin jijjiiramne)', repaymentAmountShort:"Baay'ina Kaffaltii",
-    outstandingAfterApproval:"Mirkaneessa booda hafe", minAmountShort:'Xiqqaa: {v}',
-    pendingRepaymentsTotal:"Kaffaltiiwwan eegamaa waliigala",
-    pendingRepaymentsNote:"Hafte keessatti hin hammatamne. Gadiitti mirkaneessi.",
-    repaymentWillBePending:"Kaffaltiin kun eegamaa ta'ee ni olkaa'ama. Mirkaneessa booda qofa hafe liqii tuqa.",
-    afterSavingPending:"Olkaa'uu booda kaffaltiin kun eegamaa ta'a. Bulchaan mirkaneessuu hamma hafte liqii hin jijjiiramu.",
-    partialRepaymentDisabled:"Kaffaltiin gartokkee dhaabbate — guutuu {amount} kaffaluu qabda.",
-    customerInactiveCreating:'Maamilli kun "{status}" jedhamee galmeeffame — liqii uumuu kee dura fuula Maamiltootaa irratti sochoosi.',
-    customerInactiveShort:"Maamilli sochii hin taane — dura fuula Maamiltootaa irratti sochoosi.",
-    repayAllGateMsg:"Hunda Kaffali ji'a {n} booda argama. Ji'a {paid} kaffalteetta.",
-    penaltyRefreshed:"Haalli adabaa fi ida'aa hafe haaromfame.",
-    penaltyRefreshError:"Adaba haaromsuu hin dandeenye.", customerNoLongerExists:"Maamilli kun hin jiru.",
-    arrearsClearMsg:"Kaffaltiin kun ji'a {n} darban ni qulqulleessa — ida'aan {amount} ni kaffalama.",
-    arrearsMustPay:"Baay'inni yoo xiqqaate {amount} ta'uu qaba.",
-    monthSingular:"ji'a", monthPlural:"ji'oota", loanNoShort:'Lakk. Liqii', moShort:"ji'a",
-    noCustomersMatch:'Maamilli barbaacha kee waliin walsimu hin jiru.',
-    valueInline:'Gatii: {v}', contactInline:'Bilbila: {c}',
-    loadingHistory:"Seenaa kaffaltii fe'aa jira…", historyLoadError:"Seenaa kaffaltii fiduu hin dandeenye."
   }
 };
+I18N.am = I18N.en; I18N.om = I18N.en;
 
 const SUPPORTED = ['en','am','om'];
 const FALLBACK = 'en';
@@ -1402,6 +982,7 @@ const formatPhone = (v) => { const s=normalizePhone(v); if (s.length!==9) return
 const fileToDataURL = (file) => new Promise((resolve,reject) => { const r=new FileReader(); r.onload=()=>resolve(r.result); r.onerror=reject; r.readAsDataURL(file); });
 function toast(msg, type = 'success') {
   const wrap = document.getElementById('toast-container');
+  if (!wrap) return;
   const el = document.createElement('div');
   el.className = 'toast toast--' + type;
   const icons = { success:'fa-check-circle', error:'fa-exclamation-circle', warning:'fa-exclamation-triangle', info:'fa-info-circle' };
@@ -1440,15 +1021,13 @@ function numberToWords(n) {
 }
 function buildResidence(c) {
   if (!c) return t('agrResidence');
-  const addr     = (c.address      || '').trim();
-  const city     = (c.city         || '').trim();
-  const region   = (c.region       || '').trim();
-  const specific = (c.specificPlace|| '').trim();
+  const addr = (c.address || '').trim();
+  const city = (c.city || '').trim();
+  const region = (c.region || '').trim();
   if (addr) return addr;
   if (city && region) return `${city}, ${region}`;
-  if (city)   return city;
+  if (city) return city;
   if (region) return region;
-  if (specific) return specific;
   return t('agrResidence');
 }
 
@@ -1466,26 +1045,13 @@ const APP = {
 };
 try { APP.viewMode = localStorage.getItem('loans-view') || 'grid'; } catch(e){}
 
-/* Loan-specific settings */
-let defaultInterestRate   = 10;
-let defaultLoanType       = 'simple';
-let maxLoanAmount         = 50000;
-let minLoanAmount         = 0;
-let maxLoanMultiplier     = 3;
-let maxLoansPerCustomer   = 1;
-let loansPenaltyRate      = 0.05;
-let gracePeriod           = 7;
-let minMonthsForRepayAll  = 6;
-let allowInterestWaiver   = true;
-let waiverRequiresMinMonths = true;
-let penaltiesEnabled      = true;
-let penaltyAutoGenerate   = true;
-let penaltiesApplyLoans   = true;
-let penaltiesMinAmount    = 0;
-let penaltiesMaxAmount    = 0;
-let requireApprovalLoans  = true;
-let allowPartialRepayment = true;
-let enableDuplicateCheck  = true;
+let defaultInterestRate = 10, defaultLoanType = 'simple';
+let maxLoanAmount = 50000, minLoanAmount = 0, maxLoanMultiplier = 3;
+let maxLoansPerCustomer = 1, loansPenaltyRate = 0.05, gracePeriod = 7;
+let minMonthsForRepayAll = 6, allowInterestWaiver = true, waiverRequiresMinMonths = true;
+let penaltiesEnabled = true, penaltyAutoGenerate = true, penaltiesApplyLoans = true;
+let penaltiesMinAmount = 0, penaltiesMaxAmount = 0;
+let requireApprovalLoans = true, allowPartialRepayment = true, enableDuplicateCheck = true;
 
 const ROLE_LABELS = {
   super_admin:'role_super_admin', admin:'role_admin', manager:'role_manager',
@@ -1498,7 +1064,7 @@ const isDistrict   = () => APP.profile?.role === 'admin';
 const isAuditor    = () => APP.profile?.role === 'auditor';
 const isBranchRole = () => ['manager','cashier','teller','accountant'].includes(APP.profile?.role);
 const isMember     = () => APP.profile?.role === 'member';
-const canView      = () => isSuper() || isDistrict() || isBranchRole() || isAuditor() || isMember();
+const canView      = () => APP.profile?.role === 'loading' || isSuper() || isDistrict() || isBranchRole() || isAuditor() || isMember();
 const canApply     = () => isSuper() || isDistrict() || isBranchRole();
 const canApprove   = () => isSuper() || isDistrict() || APP.profile?.role === 'manager';
 const canEdit      = () => isSuper() || isDistrict() || isBranchRole();
@@ -1506,9 +1072,6 @@ const canDelete    = () => isSuper() || isDistrict();
 const canRepay     = () => isSuper() || isDistrict() || isBranchRole();
 const canPrint     = () => isSuper() || isDistrict() || isBranchRole();
 
-/* ============================================================
-   SCOPE
-============================================================ */
 function scopeCustomers() {
   if (!APP.profile) return [];
   const role = APP.profile.role;
@@ -1518,6 +1081,7 @@ function scopeCustomers() {
     return APP.customers.filter(c => c.branchId === APP.profile.branchId);
   if (role === 'member') return APP.customers.filter(c =>
     c.userId === APP.profile.id || c.customerId === APP.profile.customerId || c.id === APP.profile.customerId);
+  if (role === 'loading') return APP.customers.slice();
   return [];
 }
 function scopeLoans() {
@@ -1526,7 +1090,7 @@ function scopeLoans() {
     const cid = APP.profile.customerId;
     return APP.loans.filter(l => l.customerId === cid || l.customerDocId === cid || l.memberId === cid);
   }
-  const ids  = new Set(scopeCustomers().map(c => c.id));
+  const ids = new Set(scopeCustomers().map(c => c.id));
   const cids = new Set(scopeCustomers().map(c => c.customerId).filter(Boolean));
   return APP.loans.filter(l => ids.has(l.customerId) || ids.has(l.customerDocId) || cids.has(l.customerId));
 }
@@ -1536,10 +1100,7 @@ function filterWorkareaLoans(list) {
   return list.filter(l => {
     const c = customerById(l.customerId || l.customerDocId);
     if (c) {
-      if (districtId) {
-        const matches = (c.districtId === districtId) || (c.district === districtId) || (c.districtCode === districtId);
-        if (!matches) return false;
-      }
+      if (districtId && !(c.districtId === districtId || c.district === districtId)) return false;
       if (branchId && c.branchId !== branchId) return false;
       return true;
     }
@@ -1548,28 +1109,25 @@ function filterWorkareaLoans(list) {
     return true;
   });
 }
-function customerById(id) {
-  if (!id) return null;
-  return APP.customers.find(c => c.id === id || c.customerId === id) || null;
-}
+function customerById(id) { if (!id) return null; return APP.customers.find(c => c.id === id || c.customerId === id) || null; }
 function districtById(id) { return APP.districts.find(d => d.id === id) || null; }
-function branchById(id)   { return APP.branches.find(b => b.id === id) || null; }
+function branchById(id) { return APP.branches.find(b => b.id === id) || null; }
 
 function assignableDistricts() {
-  if (isSuper() || isAuditor()) return APP.districts.slice();
+  if (isSuper() || isAuditor() || APP.profile?.role === 'loading') return APP.districts.slice();
   if (isDistrict() || isBranchRole()) return APP.districts.filter(d => d.id === APP.profile.districtId);
   return [];
 }
 function assignableBranches(did) {
   if (!did) return [];
-  if (isSuper() || isAuditor()) return APP.branches.filter(b => b.districtId === did);
+  if (isSuper() || isAuditor() || APP.profile?.role === 'loading') return APP.branches.filter(b => b.districtId === did);
   if (isDistrict() || isBranchRole()) return APP.branches.filter(b => b.districtId === did && b.districtId === APP.profile.districtId);
   return [];
 }
-const districtLocked = () => !isSuper() && !isAuditor();
+const districtLocked = () => !isSuper() && !isAuditor() && APP.profile?.role !== 'loading';
 const branchLocked   = () => isBranchRole();
 function initWorkarea() {
-  if (isSuper() || isAuditor() || isMember()) APP.workarea = { districtId:'', branchId:'' };
+  if (isSuper() || isAuditor() || isMember() || APP.profile?.role === 'loading') APP.workarea = { districtId:'', branchId:'' };
   else if (isDistrict()) APP.workarea = { districtId: APP.profile.districtId || '', branchId: '' };
   else if (isBranchRole()) APP.workarea = { districtId: APP.profile.districtId || '', branchId: APP.profile.branchId || '' };
 }
@@ -1581,21 +1139,10 @@ function calcLoan(principal, ratePct, months, interestType = 'simple') {
   const p = num(principal), r = num(ratePct), m = Math.max(0, Math.floor(num(months)));
   const type = String(interestType || 'simple').toLowerCase();
   let interest = 0;
-  if (type === 'compound') {
-    const mr = (r/100)/12;
-    if (m > 0 && mr > 0) interest = p * (Math.pow(1+mr, m) - 1);
-  } else if (type === 'reducing') {
-    const mr = (r/100)/12;
-    if (m > 0 && mr > 0) {
-      const f = Math.pow(1+mr, m);
-      const emi = p * mr * f / (f - 1);
-      interest = (emi * m) - p;
-    }
-  } else if (type === 'fixed') {
-    interest = p * (r/100);
-  } else {
-    interest = p * (r/100) * (m/12);
-  }
+  if (type === 'compound') { const mr = (r/100)/12; if (m > 0 && mr > 0) interest = p * (Math.pow(1+mr, m) - 1); }
+  else if (type === 'reducing') { const mr = (r/100)/12; if (m > 0 && mr > 0) { const f = Math.pow(1+mr, m); const emi = p * mr * f / (f - 1); interest = (emi * m) - p; } }
+  else if (type === 'fixed') { interest = p * (r/100); }
+  else { interest = p * (r/100) * (m/12); }
   interest = Math.max(0, Math.round(interest * 100) / 100);
   const total = Math.round((p + interest) * 100) / 100;
   const monthly = m > 0 ? Math.round((total/m) * 100) / 100 : total;
@@ -1671,7 +1218,6 @@ function getRepaymentPrincipal(r, loan) {
   const interestPart = Math.min(amount, monthlyInterest);
   return Math.max(0, amount - interestPart);
 }
-
 const GRACE_DAYS = () => Math.max(0, Math.floor(num(gracePeriod) || 7));
 const GRACE_MS   = () => GRACE_DAYS() * 86400000;
 
@@ -1684,7 +1230,7 @@ function nextDueDate(loan) {
   const start = loanStartDate(loan);
   if (!start) return null;
   const total = Math.max(1, Math.floor(num(loan?.duration) || 1));
-  const paid  = approvedMonthsPaid(loan);
+  const paid = approvedMonthsPaid(loan);
   if (paid >= total) return null;
   const d = new Date(start);
   d.setMonth(d.getMonth() + paid + 1);
@@ -1732,9 +1278,6 @@ function pendingRepaymentsForLoan(loanId) {
   return APP.repayments.filter(r => r.loanId === loanId && String(r.status || 'pending').toLowerCase() === 'pending');
 }
 
-/* ============================================================
-   LOAN PENALTY (gated by settings)
-============================================================ */
 async function checkAndCreateLoanPenalty(loanId, memberId) {
   try {
     if (!penaltiesEnabled || !penaltyAutoGenerate || !penaltiesApplyLoans) return { penaltyAmount:0, unpaidMonths:0 };
@@ -1743,12 +1286,8 @@ async function checkAndCreateLoanPenalty(loanId, memberId) {
     const loanData = loanDoc.data();
     const start = toDate(loanData.disbursementDate || loanData.date || loanData.createdAt);
     if (!start) return { penaltyAmount:0, unpaidMonths:0 };
-    if (!loanData.principal || !loanData.duration) return { penaltyAmount:0, unpaidMonths:0 };
     const repsSnap = await getDocs(query(collection(db,'transactions'), where('loanId','==',loanId), where('type','==','repayment')));
-    const approvedCount = repsSnap.docs.filter(d => {
-      const s = String(d.data().status || '').toLowerCase();
-      return s === 'approved' || s === 'printed';
-    }).length;
+    const approvedCount = repsSnap.docs.filter(d => { const s = String(d.data().status || '').toLowerCase(); return s === 'approved' || s === 'printed'; }).length;
     const nowShifted = new Date(Date.now() - GRACE_MS());
     let monthsDue = (nowShifted.getFullYear() - start.getFullYear()) * 12 + (nowShifted.getMonth() - start.getMonth());
     if (nowShifted.getDate() < start.getDate()) monthsDue -= 1;
@@ -1765,16 +1304,12 @@ async function checkAndCreateLoanPenalty(loanId, memberId) {
     if (penaltiesMaxAmount > 0 && penaltyAmount > penaltiesMaxAmount) penaltyAmount = penaltiesMaxAmount;
     if (penaltyAmount <= 0) return { penaltyAmount:0, unpaidMonths };
     const existing = await getDocs(query(collection(db,'transactions'), where('loanId','==',loanId), where('type','==','penalty'), where('status','==','pending')));
-    if (!existing.empty) {
-      let tot = 0;
-      existing.forEach(d => { tot += num(d.data().amount); });
-      return { penaltyAmount: tot, unpaidMonths };
-    }
+    if (!existing.empty) { let tot = 0; existing.forEach(d => { tot += num(d.data().amount); }); return { penaltyAmount: tot, unpaidMonths }; }
     await setDoc(doc(collection(db,'transactions')), {
       memberId, customerId: memberId, loanId, type:'penalty', penaltyType:'loan',
       amount: penaltyAmount, unpaidMonths, monthlyPayment, penaltyRate: rate,
       status: 'pending', date: serverTimestamp(), createdAt: serverTimestamp(),
-      description: `Loan penalty for ${unpaidMonths} unpaid month(s) — (${monthlyPayment.toFixed(2)} × ${unpaidMonths}) × ${(rate*100).toFixed(1)}%`,
+      description: `Loan penalty for ${unpaidMonths} unpaid month(s)`,
       createdBy: 'system-auto'
     });
     return { penaltyAmount, unpaidMonths };
@@ -1793,7 +1328,7 @@ async function getMemberLoanPenalties(memberId) {
       if (!isLoan) return;
       const amount = num(data.amount);
       total += amount;
-      details.push({ id:d.id, loanId:data.loanId, unpaidMonths:data.unpaidMonths||0, amount, description:data.description||'' });
+      details.push({ id:d.id, loanId:data.loanId, unpaidMonths:data.unpaidMonths||0, amount });
     });
     return { total: round2(total), details };
   } catch(e) { return { total:0, details:[] }; }
@@ -1808,8 +1343,8 @@ async function generatePaymentHistory(loanId) {
     if (!startDate) return `<p style="color:var(--muted)">Invalid loan start date.</p>`;
     const now = new Date();
     const totalMonths = (now.getFullYear()-startDate.getFullYear())*12 + (now.getMonth()-startDate.getMonth()) + 1;
-    if (totalMonths <= 0) return `<p style="color:var(--muted)">Loan just started — no history yet.</p>`;
-    const txSnap = await getDocs(query(collection(db,'transactions'), where('loanId','==',loanId), where('type','in',['repayment','penalty'])));
+    if (totalMonths <= 0) return `<p style="color:var(--muted)">Loan just started.</p>`;
+    const txSnap = await getDocs(query(collection(db,'transactions'), where('loanId','==',loanId)));
     const principal0 = num(loan.principal), rate = num(loan.interestRate);
     const period = num(loan.duration), loanType = loan.interestType || 'simple';
     const totalInterest = calcLoan(principal0, rate, period, loanType).interest;
@@ -1827,42 +1362,18 @@ async function generatePaymentHistory(loanId) {
         if (typeof data.principalPortion === 'number' && typeof data.interestPortion === 'number') {
           pP = num(data.principalPortion); iP = num(data.interestPortion);
         } else {
-          iP = Math.min(amount, fixedMonthlyInterest);
-          pP = Math.max(0, amount - iP);
+          iP = Math.min(amount, fixedMonthlyInterest); pP = Math.max(0, amount - iP);
         }
         const isApproved = status === 'approved' || status === 'printed';
         if (!monthMap[idx]) monthMap[idx] = { principal:0, interest:0, total:0, status:'pending' };
-        monthMap[idx].principal += pP;
-        monthMap[idx].interest  += iP;
-        monthMap[idx].total     += amount;
+        monthMap[idx].principal += pP; monthMap[idx].interest += iP; monthMap[idx].total += amount;
         if (isApproved) monthMap[idx].status = 'paid';
         else if (monthMap[idx].status !== 'paid') monthMap[idx].status = 'pending';
-      } else if (data.type === 'penalty') {
-        const ps = data.status || 'pending';
-        const covered = num(data.unpaidMonths);
-        if (ps === 'paid' || ps === 'approved') {
-          for (let i = 0; i < covered; i++) {
-            const ii = idx - i; if (ii < 0) continue;
-            if (!monthMap[ii]) monthMap[ii] = { principal:0, interest:0, total:0, status:'pending' };
-            if (monthMap[ii].status !== 'paid') monthMap[ii].status = 'penalty-paid';
-          }
-        } else if (ps === 'pending') {
-          for (let i = 0; i < covered; i++) {
-            const ii = idx - i; if (ii < 0) continue;
-            if (!monthMap[ii]) monthMap[ii] = { principal:0, interest:0, total:0, status:'pending' };
-            if (monthMap[ii].status === 'pending') monthMap[ii].status = 'penalized';
-          }
-        }
       }
     });
     const fmt = (n) => num(n).toLocaleString(undefined, { minimumFractionDigits:2, maximumFractionDigits:2 });
     let tPrincipal = 0, tInterest = 0, tRepaid = 0;
-    let rowsHtml = `<div class="history-row header">
-      <span>${esc(t('month'))}</span><span>Status</span>
-      <span style="text-align:right">${esc(t('colRepPrincipal'))}</span>
-      <span style="text-align:right">${esc(t('colRepInterest'))}</span>
-      <span style="text-align:right">Total</span>
-    </div>`;
+    let rowsHtml = `<div class="history-row header"><span>${esc(t('month'))}</span><span>Status</span><span style="text-align:right">${esc(t('colRepPrincipal'))}</span><span style="text-align:right">${esc(t('colRepInterest'))}</span><span style="text-align:right">Total</span></div>`;
     for (let i = 0; i < totalMonths; i++) {
       const mDate = new Date(startDate); mDate.setMonth(mDate.getMonth() + i);
       const mLabel = mDate.toLocaleDateString('en-US', { month:'short', year:'numeric' });
@@ -1872,44 +1383,24 @@ async function generatePaymentHistory(loanId) {
       const graceEnd = dueDate.getTime() + GRACE_MS();
       const nowMs = Date.now();
       if ((st === 'pending' || st === 'future') && entry.total === 0) {
-        if (nowMs > graceEnd)              st = 'overdue';
+        if (nowMs > graceEnd) st = 'overdue';
         else if (nowMs > dueDate.getTime()) st = 'grace';
-        else                                st = 'future';
+        else st = 'future';
       }
       let sLabel, sCls, rowCls = '';
       switch (st) {
-        case 'paid':         sLabel = t('paid');         sCls = 'paid';        break;
-        case 'penalty-paid': sLabel = t('penaltyPaid');  sCls = 'penalty-paid'; break;
-        case 'penalized':    sLabel = t('penalized');    sCls = 'penalized'; rowCls = 'overdue'; break;
-        case 'future':       sLabel = t('future');       sCls = 'future';      break;
-        case 'grace':        sLabel = t('graceStatus');  sCls = 'grace'; rowCls = 'grace'; break;
-        case 'overdue':      sLabel = t('overdueStatus'); sCls = 'overdue'; rowCls = 'overdue'; break;
-        default:             sLabel = t('pendingLc');    sCls = 'pending';
+        case 'paid': sLabel = t('paid'); sCls = 'paid'; break;
+        case 'future': sLabel = t('future'); sCls = 'future'; break;
+        case 'grace': sLabel = t('graceStatus'); sCls = 'grace'; rowCls = 'grace'; break;
+        case 'overdue': sLabel = t('overdueStatus'); sCls = 'overdue'; rowCls = 'overdue'; break;
+        default: sLabel = t('pendingLc'); sCls = 'pending';
       }
-      if (st === 'paid' || st === 'penalty-paid') {
-        tPrincipal += entry.principal;
-        tInterest  += entry.interest;
-        tRepaid    += entry.total;
-      }
+      if (st === 'paid') { tPrincipal += entry.principal; tInterest += entry.interest; tRepaid += entry.total; }
       const show = entry.total > 0;
-      const pTxt = show ? fmt(entry.principal) : '—';
-      const iTxt = show ? fmt(entry.interest) : '—';
-      const tTxt = show ? fmt(entry.total) : '—';
-      rowsHtml += `<div class="history-row ${rowCls}">
-        <span class="month">${mLabel}</span>
-        <span class="status-cell ${sCls}">${sLabel}</span>
-        <span class="principal">${pTxt}</span>
-        <span class="interest">${iTxt}</span>
-        <span class="total-amount">${tTxt}</span>
-      </div>`;
+      rowsHtml += `<div class="history-row ${rowCls}"><span class="month">${mLabel}</span><span class="status-cell ${sCls}">${sLabel}</span><span class="principal">${show?fmt(entry.principal):'—'}</span><span class="interest">${show?fmt(entry.interest):'—'}</span><span class="total-amount">${show?fmt(entry.total):'—'}</span></div>`;
     }
-    const totalsHtml = `<div class="history-totals">
-      <div class="tot-item"><span class="tot-label">${esc(t('totalPrincipalPaid'))}</span><span class="tot-value principal"><span class="cur">ETB</span>${fmt(tPrincipal)}</span></div>
-      <div class="tot-item"><span class="tot-label">${esc(t('totalInterestPaid'))}</span><span class="tot-value interest"><span class="cur">ETB</span>${fmt(tInterest)}</span></div>
-      <div class="tot-item"><span class="tot-label">${esc(t('totalRepaid'))}</span><span class="tot-value total"><span class="cur">ETB</span>${fmt(tRepaid)}</span></div>
-    </div>`;
-    return `<h5><i class="fas fa-calendar-alt" style="color:var(--primary)"></i> ${esc(t('paymentHistory'))} (${totalMonths} ${t('month').toLowerCase()})</h5>
-      <div class="history-list">${rowsHtml}</div>${totalsHtml}`;
+    const totalsHtml = `<div class="history-totals"><div class="tot-item"><span class="tot-label">${esc(t('totalPrincipalPaid'))}</span><span class="tot-value principal"><span class="cur">ETB</span>${fmt(tPrincipal)}</span></div><div class="tot-item"><span class="tot-label">${esc(t('totalInterestPaid'))}</span><span class="tot-value interest"><span class="cur">ETB</span>${fmt(tInterest)}</span></div><div class="tot-item"><span class="tot-label">${esc(t('totalRepaid'))}</span><span class="tot-value total"><span class="cur">ETB</span>${fmt(tRepaid)}</span></div></div>`;
+    return `<h5><i class="fas fa-calendar-alt" style="color:var(--primary)"></i> ${esc(t('paymentHistory'))} (${totalMonths} ${t('month').toLowerCase()})</h5><div class="history-list">${rowsHtml}</div>${totalsHtml}`;
   } catch(e) {
     console.error(e);
     return `<p style="color:var(--muted)">${esc(t('historyLoadError'))}</p>`;
@@ -1920,34 +1411,32 @@ async function generatePaymentHistory(loanId) {
    NAV
 ============================================================ */
 const NAV = [
-  { section:'navOverview', items:[
-    { key:'dashboard', icon:'fa-th-large', href:'dashboard.html', roles:['*'] }
-  ]},
+  { section:'navOverview', items:[{ key:'dashboard', icon:'fa-th-large', href:'dashboard.html', roles:['*'] }]},
   { section:'navNetwork', items:[
     { key:'districts', icon:'fa-map-marked-alt', href:'districts.html', roles:['super_admin','admin','auditor'] },
-    { key:'branches',  icon:'fa-code-branch',    href:'branches.html',  roles:['super_admin','admin','auditor','manager','cashier','teller','accountant'] }
+    { key:'branches', icon:'fa-code-branch', href:'branches.html', roles:['super_admin','admin','auditor','manager','cashier','teller','accountant'] }
   ]},
   { section:'navOperations', items:[
-    { key:'customers', icon:'fa-users',        href:'customers.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
-    { key:'savings',   icon:'fa-piggy-bank',   href:'savings.html',   roles:['super_admin','admin','manager','cashier','teller','accountant','auditor','member'] },
-    { key:'loans',     icon:'fa-file-invoice', href:'loans.html',     roles:['super_admin','admin','manager','cashier','teller','accountant','auditor','member'] },
-    { key:'shares',    icon:'fa-chart-pie',    href:'share.html',     roles:['super_admin','admin','manager','cashier','teller','accountant','auditor','member'] }
+    { key:'customers', icon:'fa-users', href:'customers.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
+    { key:'savings', icon:'fa-piggy-bank', href:'savings.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor','member'] },
+    { key:'loans', icon:'fa-file-invoice', href:'loans.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor','member'] },
+    { key:'shares', icon:'fa-chart-pie', href:'share.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor','member'] }
   ]},
   { section:'navFinance', items:[
-    { key:'deposits',    icon:'fa-hand-holding-usd', href:'deposits.html',    roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
-    { key:'repayments',  icon:'fa-undo-alt',         href:'repayments.html',  roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
-    { key:'withdrawals', icon:'fa-money-bill-wave',  href:'withdrawals.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
-    { key:'dividends',   icon:'fa-gift',             href:'dividends.html',   roles:['super_admin','admin','manager','accountant','auditor'] },
-    { key:'penalties',   icon:'fa-exclamation-triangle', href:'penalties.html', roles:['super_admin','admin','manager','cashier'] }
+    { key:'deposits', icon:'fa-hand-holding-usd', href:'deposits.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
+    { key:'repayments', icon:'fa-undo-alt', href:'repayments.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
+    { key:'withdrawals', icon:'fa-money-bill-wave', href:'withdrawals.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
+    { key:'dividends', icon:'fa-gift', href:'dividends.html', roles:['super_admin','admin','manager','accountant','auditor'] },
+    { key:'penalties', icon:'fa-exclamation-triangle', href:'penalties.html', roles:['super_admin','admin','manager','cashier'] }
   ]},
   { section:'navAdmin', items:[
-    { key:'reports',  icon:'fa-chart-bar',      href:'reports.html',  roles:['super_admin','admin','manager','accountant','auditor'] },
-    { key:'audit',    icon:'fa-clipboard-list', href:'audit.html',    roles:['super_admin','admin','auditor'] },
-    { key:'users',    icon:'fa-user-cog',       href:'users.html',    roles:['super_admin','admin'] },
-    { key:'settings', icon:'fa-cog',            href:'settings.html', roles:['*'] }
+    { key:'reports', icon:'fa-chart-bar', href:'reports.html', roles:['super_admin','admin','manager','accountant','auditor'] },
+    { key:'audit', icon:'fa-clipboard-list', href:'audit.html', roles:['super_admin','admin','auditor'] },
+    { key:'users', icon:'fa-user-cog', href:'users.html', roles:['super_admin','admin'] },
+    { key:'settings', icon:'fa-cog', href:'settings.html', roles:['*'] }
   ]}
 ];
-const canSeeNav = (item) => item.roles.includes('*') || item.roles.includes(APP.profile?.role) || isSuper();
+const canSeeNav = (item) => item.roles.includes('*') || item.roles.includes(APP.profile?.role) || isSuper() || APP.profile?.role === 'loading';
 
 /* ============================================================
    RENDER SHELL
@@ -1957,9 +1446,7 @@ function renderShell() {
     const items = g.items.filter(canSeeNav);
     if (!items.length) return '';
     return `<div class="sidebar__section">${esc(t(g.section))}</div>` +
-      items.map(it => `<a class="nav-item${it.key==='loans'?' is-active':''}" href="${it.href}" data-tooltip="${esc(t(it.key))}">
-        <i class="fas ${it.icon}"></i><span class="nav-item__label">${esc(t(it.key))}</span>
-      </a>`).join('');
+      items.map(it => `<a class="nav-item${it.key==='loans'?' is-active':''}" href="${it.href}" data-tooltip="${esc(t(it.key))}"><i class="fas ${it.icon}"></i><span class="nav-item__label">${esc(t(it.key))}</span></a>`).join('');
   }).join('');
   const p = APP.profile || {};
   const avatarHtml = p.photoURL ? `<img src="${esc(p.photoURL)}" alt="">` : esc(initials(p.fullName || p.name || p.email || 'U'));
@@ -1998,13 +1485,8 @@ function renderShell() {
               <span class="user-btn__role">${esc(roleLabel(p.role))}</span>
             </div>
             <div class="dropdown__panel hidden" id="userMenu">
-              <div class="dropdown__header">
-                <strong>${esc(p.fullName || p.name || 'User')}</strong>
-                <span>${esc(p.email || '')} · ${esc(roleLabel(p.role))}</span>
-              </div>
-              <button class="dropdown__item dropdown__item--danger" id="menuLogout">
-                <i class="fas fa-sign-out-alt"></i><span>${esc(t('logout'))}</span>
-              </button>
+              <div class="dropdown__header"><strong>${esc(p.fullName || p.name || 'User')}</strong><span>${esc(p.email || '')} · ${esc(roleLabel(p.role))}</span></div>
+              <button class="dropdown__item dropdown__item--danger" id="menuLogout"><i class="fas fa-sign-out-alt"></i><span>${esc(t('logout'))}</span></button>
             </div>
           </div>
         </div>
@@ -2024,10 +1506,7 @@ function renderShell() {
   document.getElementById('sbLogout')?.addEventListener('click', showLogoutModal);
   document.getElementById('menuLogout')?.addEventListener('click', showLogoutModal);
   const ub = document.getElementById('userBtn');
-  ub?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    document.getElementById('userMenu')?.classList.toggle('hidden');
-  });
+  ub?.addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('userMenu')?.classList.toggle('hidden'); });
   document.addEventListener('click', (e) => { if (!e.target.closest('#userBtn')) document.getElementById('userMenu')?.classList.add('hidden'); });
   try { if (localStorage.getItem('sacco.sidebar') === 'collapsed') document.body.classList.add('sidebar-collapsed'); } catch(e){}
 }
@@ -2065,10 +1544,7 @@ function renderWorkareaBar() {
   return `
     <div class="workarea-bar">
       <div class="workarea-bar__icon"><i class="fas fa-file-invoice"></i></div>
-      <div class="workarea-bar__title">
-        <strong>${esc(t('workingArea'))}</strong>
-        <span>${esc(t('workingAreaSub'))}</span>
-      </div>
+      <div class="workarea-bar__title"><strong>${esc(t('workingArea'))}</strong><span>${esc(t('workingAreaSub'))}</span></div>
       <div class="workarea-bar__fields">
         <div class="workarea-bar__group">
           <label>${dLocked ? '<i class="fas fa-lock"></i>' : ''} ${esc(t('districts'))}</label>
@@ -2097,12 +1573,7 @@ function renderMain() {
   const host = document.getElementById('mainContent');
   if (!host) return;
   if (!canView()) {
-    host.innerHTML = `<div class="empty" style="background:#fff;border:1px solid var(--border);border-radius:20px;padding:80px 24px">
-      <i class="fas fa-lock"></i>
-      <div class="empty__title">${esc(t('accessDenied'))}</div>
-      <div class="empty__text">${esc(t('accessDeniedText'))}</div>
-      <div style="margin-top:22px"><a class="btn btn--primary" href="dashboard.html"><i class="fas fa-arrow-left"></i> ${esc(t('backToDashboard'))}</a></div>
-    </div>`;
+    host.innerHTML = `<div class="empty" style="background:#fff;border:1px solid var(--border);border-radius:20px;padding:80px 24px"><i class="fas fa-lock"></i><div class="empty__title">${esc(t('accessDenied'))}</div><div class="empty__text">${esc(t('accessDeniedText'))}</div><div style="margin-top:22px"><a class="btn btn--primary" href="dashboard.html"><i class="fas fa-arrow-left"></i> ${esc(t('backToDashboard'))}</a></div></div>`;
     return;
   }
   const all = filterWorkareaLoans(scopeLoans());
@@ -2120,9 +1591,7 @@ function renderMain() {
     if (isOverdue(l)) overdueCount++;
   });
   const districtOptions = APP.districts.slice().sort((a,b) => (a.name||'').localeCompare(b.name||''));
-  const branchOptions = APP.filters.districtId
-    ? APP.branches.filter(b => b.districtId === APP.filters.districtId)
-    : APP.branches.slice().sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  const branchOptions = APP.filters.districtId ? APP.branches.filter(b => b.districtId === APP.filters.districtId) : APP.branches.slice().sort((a,b) => (a.name||'').localeCompare(b.name||''));
   const scopeMsg = isMember() ? t('memberScope') : t('customerScope');
 
   host.innerHTML = `
@@ -2137,9 +1606,7 @@ function renderMain() {
       </div>
     </div>
     <div class="breadcrumb">
-      <span class="breadcrumb__item is-link" onclick="window.location.href='dashboard.html'">
-        <i class="fas fa-home" style="margin-right:6px"></i>${esc(t('breadcrumbHome'))}
-      </span>
+      <span class="breadcrumb__item is-link" onclick="window.location.href='dashboard.html'"><i class="fas fa-home" style="margin-right:6px"></i>${esc(t('breadcrumbHome'))}</span>
       <span class="breadcrumb__item is-active">${esc(t('breadcrumbLoans'))}</span>
       <span style="margin-left:auto;font-size:11px;font-weight:700;color:var(--muted)">${esc(scopeMsg)}</span>
     </div>
@@ -2147,60 +1614,38 @@ function renderMain() {
     <div class="section-title">${esc(t('summaryTitle'))}</div>
     <section class="stats">
       <div class="stat stat--violet">
-        <div class="stat__head"><div class="stat__label">${esc(t('statDisbursed'))}</div>
-          <div class="stat__icon"><i class="fas fa-hand-holding-usd"></i></div></div>
+        <div class="stat__head"><div class="stat__label">${esc(t('statDisbursed'))}</div><div class="stat__icon"><i class="fas fa-hand-holding-usd"></i></div></div>
         <div class="stat__value" style="font-size:20px;">${esc(moneyShort(totalDisbursed))}</div>
         <div class="stat__hint">${esc(t('colPrincipal'))}</div>
       </div>
       <div class="stat stat--red">
-        <div class="stat__head"><div class="stat__label">${esc(t('statOutstanding'))}</div>
-          <div class="stat__icon"><i class="fas fa-file-invoice-dollar"></i></div></div>
+        <div class="stat__head"><div class="stat__label">${esc(t('statOutstanding'))}</div><div class="stat__icon"><i class="fas fa-file-invoice-dollar"></i></div></div>
         <div class="stat__value" style="font-size:20px;">${esc(moneyShort(totalOutstanding))}</div>
         <div class="stat__hint">${esc(t('colOutstanding'))}</div>
       </div>
       <div class="stat stat--green">
-        <div class="stat__head"><div class="stat__label">${esc(t('statRepaid'))}</div>
-          <div class="stat__icon"><i class="fas fa-check-double"></i></div></div>
+        <div class="stat__head"><div class="stat__label">${esc(t('statRepaid'))}</div><div class="stat__icon"><i class="fas fa-check-double"></i></div></div>
         <div class="stat__value" style="font-size:20px;">${esc(moneyShort(totalRepaid))}</div>
         <div class="stat__hint">${esc(t('repaidLabel'))}</div>
       </div>
       <div class="stat stat--blue">
-        <div class="stat__head"><div class="stat__label">${esc(t('statActiveLoans'))}</div>
-          <div class="stat__icon"><i class="fas fa-clock"></i></div></div>
+        <div class="stat__head"><div class="stat__label">${esc(t('statActiveLoans'))}</div><div class="stat__icon"><i class="fas fa-clock"></i></div></div>
         <div class="stat__value">${activeCount}</div>
         <div class="stat__hint">${esc(t('statAllLoans'))}: ${all.length}</div>
       </div>
       <div class="stat stat--gold">
-        <div class="stat__head"><div class="stat__label">${esc(t('statOverdue'))}</div>
-          <div class="stat__icon"><i class="fas fa-exclamation-triangle"></i></div></div>
+        <div class="stat__head"><div class="stat__label">${esc(t('statOverdue'))}</div><div class="stat__icon"><i class="fas fa-exclamation-triangle"></i></div></div>
         <div class="stat__value">${overdueCount}</div>
         <div class="stat__hint">${esc(t('filterOverdueOnly'))} · grace ${GRACE_DAYS()}d</div>
       </div>
     </section>
     <section class="card">
-      <div class="card__head">
-        <div>
-          <div class="card__title">${esc(t('tableTitle'))}</div>
-          <div class="card__sub">${esc(t('tableSub'))}</div>
-        </div>
-      </div>
+      <div class="card__head"><div><div class="card__title">${esc(t('tableTitle'))}</div><div class="card__sub">${esc(t('tableSub'))}</div></div></div>
       <div class="toolbar">
-        <div class="toolbar__search">
-          <i class="fas fa-search"></i>
-          <input type="search" id="fltSearch" placeholder="${esc(t('searchPlaceholder'))}" value="${esc(APP.filters.search)}">
-        </div>
-        ${districtOptions.length > 0 ? `<select id="fltDistrict">
-            <option value="">${esc(t('filterAllDistricts'))}</option>
-            ${districtOptions.map(d => `<option value="${esc(d.id)}" ${APP.filters.districtId === d.id ? 'selected' : ''}>${esc(d.name || d.id)}</option>`).join('')}
-          </select>` : ''}
-        ${branchOptions.length > 0 ? `<select id="fltBranch">
-            <option value="">${esc(t('filterAllBranches'))}</option>
-            ${branchOptions.map(b => `<option value="${esc(b.id)}" ${APP.filters.branchId === b.id ? 'selected' : ''}>${esc(b.name || b.id)}</option>`).join('')}
-          </select>` : ''}
-        <select id="fltType">
-          <option value="">${esc(t('filterAllTypes'))}</option>
-          ${LOAN_TYPES.map(lt => `<option value="${esc(lt.code)}" ${APP.filters.type===lt.code?'selected':''}>${esc(lt.name)}</option>`).join('')}
-        </select>
+        <div class="toolbar__search"><i class="fas fa-search"></i><input type="search" id="fltSearch" placeholder="${esc(t('searchPlaceholder'))}" value="${esc(APP.filters.search)}"></div>
+        ${districtOptions.length > 0 ? `<select id="fltDistrict"><option value="">${esc(t('filterAllDistricts'))}</option>${districtOptions.map(d => `<option value="${esc(d.id)}" ${APP.filters.districtId === d.id ? 'selected' : ''}>${esc(d.name || d.id)}</option>`).join('')}</select>` : ''}
+        ${branchOptions.length > 0 ? `<select id="fltBranch"><option value="">${esc(t('filterAllBranches'))}</option>${branchOptions.map(b => `<option value="${esc(b.id)}" ${APP.filters.branchId === b.id ? 'selected' : ''}>${esc(b.name || b.id)}</option>`).join('')}</select>` : ''}
+        <select id="fltType"><option value="">${esc(t('filterAllTypes'))}</option>${LOAN_TYPES.map(lt => `<option value="${esc(lt.code)}" ${APP.filters.type===lt.code?'selected':''}>${esc(lt.name)}</option>`).join('')}</select>
         <select id="fltStatus">
           <option value="">${esc(t('filterAllStatus'))}</option>
           <option value="pending" ${APP.filters.status==='pending'?'selected':''}>${esc(t('statusPending'))}</option>
@@ -2238,24 +1683,14 @@ function filteredLoans() {
     list = list.filter(l => {
       const c = customerById(l.customerId || l.customerDocId);
       const name = customerName(c).toLowerCase();
-      return name.includes(s)
-          || (l.serialNumber || '').toLowerCase().includes(s)
-          || (l.loanNumber || '').toLowerCase().includes(s)
-          || (l.customerId || '').toLowerCase().includes(s)
-          || (l.purpose || '').toLowerCase().includes(s)
-          || (l.collateral || '').toLowerCase().includes(s)
-          || (c?.phone || '').toLowerCase().includes(s);
+      return name.includes(s) || (l.serialNumber || '').toLowerCase().includes(s) || (l.loanNumber || '').toLowerCase().includes(s) || (l.customerId || '').toLowerCase().includes(s) || (l.purpose || '').toLowerCase().includes(s) || (c?.phone || '').toLowerCase().includes(s);
     });
   }
   if (APP.filters.type) list = list.filter(l => (l.loanType||'') === APP.filters.type);
   if (APP.filters.status) list = list.filter(l => (l.status||'') === APP.filters.status);
   if (APP.filters.due === 'overdue') list = list.filter(isOverdue);
   else if (APP.filters.due === 'soon') list = list.filter(isDueSoon);
-  return list.slice().sort((a,b) => {
-    const da = toDate(b.createdAt || b.disbursementDate)?.getTime() || 0;
-    const db2 = toDate(a.createdAt || a.disbursementDate)?.getTime() || 0;
-    return db2 - da;
-  });
+  return list.slice().sort((a,b) => (toDate(b.createdAt || b.disbursementDate)?.getTime() || 0) - (toDate(a.createdAt || a.disbursementDate)?.getTime() || 0));
 }
 function renderContent() {
   const host = document.getElementById('contentHost');
@@ -2263,12 +1698,7 @@ function renderContent() {
   const list = filteredLoans();
   if (!list.length) {
     const isFiltered = APP.filters.search || APP.filters.type || APP.filters.status || APP.filters.due;
-    host.innerHTML = `
-      <div class="empty">
-        <i class="fas ${isFiltered ? 'fa-search' : 'fa-file-invoice'}"></i>
-        <div class="empty__title">${isFiltered ? esc(t('noMatch')) : esc(t('noLoans'))}</div>
-        <div class="empty__text">${isFiltered ? esc(t('noMatchText')) : esc(t('noLoansText'))}</div>
-      </div>`;
+    host.innerHTML = `<div class="empty"><i class="fas ${isFiltered ? 'fa-search' : 'fa-file-invoice'}"></i><div class="empty__title">${isFiltered ? esc(t('noMatch')) : esc(t('noLoans'))}</div><div class="empty__text">${isFiltered ? esc(t('noMatchText')) : esc(t('noLoansText'))}</div></div>`;
     return;
   }
   const pages = Math.max(1, Math.ceil(list.length / APP.pageSize));
@@ -2280,8 +1710,7 @@ function renderContent() {
 }
 
 function loanStatusLabel(status) {
-  const map = { pending:t('statusPending'), approved:t('statusApproved'), active:t('statusActive'),
-    repaid:t('statusRepaid'), defaulted:t('statusDefaulted'), rejected:t('statusRejected') };
+  const map = { pending:t('statusPending'), approved:t('statusApproved'), active:t('statusActive'), repaid:t('statusRepaid'), defaulted:t('statusDefaulted'), rejected:t('statusRejected') };
   return map[String(status||'').toLowerCase()] || status || '—';
 }
 function loanStatusCls(status) {
@@ -2314,8 +1743,7 @@ function loanStatusBadgeClass(status) {
 }
 
 function renderGridView(host, pageList, total, pages, start) {
-  const cards = pageList.map(l => renderLoanCard(l)).join('');
-  host.innerHTML = `<div class="loans-grid">${cards}</div>${renderPagination(total, pages, start, pageList.length)}`;
+  host.innerHTML = `<div class="loans-grid">${pageList.map(renderLoanCard).join('')}</div>${renderPagination(total, pages, start, pageList.length)}`;
   wireContentEvents(host, pages);
 }
 function renderLoanCard(l) {
@@ -2335,7 +1763,6 @@ function renderLoanCard(l) {
   const canE = canEdit();
   const canD = canDelete();
   const pendingReps = pendingRepaymentsForLoan(l.id).length;
-
   let scheduleFoot = '';
   if (isActive) {
     const state = scheduleStateLabel(l);
@@ -2345,12 +1772,9 @@ function renderLoanCard(l) {
       else scheduleFoot = `<div class="loan-card__foot-item due"><i class="fas fa-calendar-check"></i> ${esc(state.text)}</div>`;
     }
   }
-  const statusBadge = overdue
-    ? `<span class="status-badge status-badge--defaulted"><i class="fas fa-exclamation-triangle" style="font-size:9px"></i> ${esc(t('overduBadge'))}</span>`
-    : grace
-      ? `<span class="status-badge status-badge--grace"><i class="fas fa-hourglass-half" style="font-size:9px"></i> ${esc(t('graceBadge'))}</span>`
-      : `<span class="status-badge ${loanStatusBadgeClass(status)}">${esc(loanStatusLabel(l.status))}</span>`;
-
+  const statusBadge = overdue ? `<span class="status-badge status-badge--defaulted"><i class="fas fa-exclamation-triangle" style="font-size:9px"></i> ${esc(t('overduBadge'))}</span>`
+                    : grace ? `<span class="status-badge status-badge--grace"><i class="fas fa-hourglass-half" style="font-size:9px"></i> ${esc(t('graceBadge'))}</span>`
+                    : `<span class="status-badge ${loanStatusBadgeClass(status)}">${esc(loanStatusLabel(l.status))}</span>`;
   return `
     <div class="loan-card ${loanCardClass(l)}">
       ${statusBadge}
@@ -2394,103 +1818,78 @@ function renderLoanCard(l) {
 
 function renderTableView(host, pageList, total, pages, start) {
   const canE = canEdit(), canA = canApprove(), canD = canDelete(), canP = canPrint(), canR = canRepay();
-  host.innerHTML = `
-    <div class="tbl-wrap"><table class="tbl">
-      <thead><tr>
-        <th>${esc(t('colLoanNo'))}</th><th>${esc(t('colCustomer'))}</th><th>${esc(t('colType'))}</th>
-        <th>${esc(t('colInterestType'))}</th>
-        <th class="num">${esc(t('colPrincipal'))}</th><th class="num">${esc(t('colRate'))}</th>
-        <th class="num">${esc(t('colDuration'))}</th><th class="num">${esc(t('colTotal'))}</th>
-        <th class="num">${esc(t('colOutstanding'))}</th><th>${esc(t('colProgress'))}</th>
-        <th>${esc(t('colStatus'))}</th><th>${esc(t('colMaturity'))}</th><th class="num">${esc(t('colActions'))}</th>
-      </tr></thead>
-      <tbody>
-        ${pageList.map(l => {
-          const c = customerById(l.customerId || l.customerDocId);
-          const avatar = c?.photoURL ? `<img src="${esc(c.photoURL)}" alt="">` : esc(initials(customerName(c)));
-          const { total } = calcLoan(l.principal, l.interestRate, l.duration, l.interestType);
-          const outstanding = loanOutstanding(l);
-          const progress = loanProgress(l);
-          const overdue = isOverdue(l); const grace = isInGrace(l); const soon = isDueSoon(l);
-          const stCls = loanStatusCls(l.status);
-          const status = String(l.status||'').toLowerCase();
-          const isPending = status === 'pending';
-          const isActive = status === 'active' || status === 'approved';
-          const progressCls = overdue ? 'is-danger' : ((grace || soon) ? 'is-warn' : '');
-          const pendingReps = pendingRepaymentsForLoan(l.id).length;
-          const sState = isActive ? scheduleStateLabel(l) : null;
-          return `<tr>
-            <td><div class="code">${esc(l.serialNumber||l.loanNumber||'—')}</div><div class="muted" style="margin-top:4px">${esc(fmtDate(l.disbursementDate||l.createdAt))}</div>${pendingReps>0?`<div style="margin-top:4px"><span class="tag tag--gold" style="font-size:9.5px"><i class="fas fa-hourglass-half"></i> ${pendingReps} pending</span></div>`:''}</td>
-            <td><div class="cust-cell"><div class="cust-avatar">${avatar}</div><div><div class="name">${esc(customerName(c))}</div><div class="muted">${c?.customerId?esc(c.customerId):(l.customerId||'—')}</div></div></div></td>
-            <td><span class="tag tag--violet">${esc(loanTypeLabel(l.loanType))}</span></td>
-            <td><span class="tag tag--blue" style="font-size:10px">${esc(interestTypeLabel(l.interestType))}</span></td>
-            <td class="num">${money(l.principal)}</td>
-            <td class="num">${num(l.interestRate).toFixed(2)}%</td>
-            <td class="num">${num(l.duration)} ${esc(t('moShort'))}</td>
-            <td class="num">${money(total)}</td>
-            <td class="num" style="color:${outstanding>0?'#b42318':'#067647'}">${money(outstanding)}</td>
-            <td style="min-width:120px"><div style="font-size:11px;font-weight:800;color:var(--muted);font-family:ui-monospace,monospace">${progress}%</div><div class="progress-bar"><div class="progress-bar__fill ${progressCls}" style="width:${progress}%"></div></div></td>
-            <td><span class="tag ${stCls}">${esc(loanStatusLabel(l.status))}</span>${overdue?`<div style="margin-top:4px"><span class="tag tag--red" style="font-size:9.5px"><i class="fas fa-exclamation-triangle"></i> ${esc(t('overduBadge'))}</span></div>`:grace?`<div style="margin-top:4px"><span class="tag tag--gold" style="font-size:9.5px"><i class="fas fa-hourglass-half"></i> ${esc(t('graceBadge'))}</span></div>`:''}</td>
-            <td><div style="font-size:12px">${esc(fmtDate(l.maturityDate))}</div>${sState?`<div class="muted" style="color:${overdue?'#b42318':grace?'#b8860b':'#0b5cab'};font-weight:800">● ${esc(sState.text)}</div>`:''}</td>
-            <td class="num"><div class="row-actions">
-              ${canR && outstanding>0 && isActive ? `<button title="${esc(t('rowRepay'))}" data-action="repay" data-id="${esc(l.id)}" class="pay"><i class="fas fa-hand-holding-usd"></i></button>`:''}
-              ${canP ? `<button title="${esc(t('rowPrint'))}" data-action="print" data-id="${esc(l.id)}" class="print"><i class="fas fa-print"></i></button>`:''}
-              <button title="${esc(t('rowView'))}" data-action="view" data-id="${esc(l.id)}"><i class="fas fa-eye"></i></button>
-              ${canA && isPending ? `<button title="${esc(t('rowApprove'))}" data-action="approve" data-id="${esc(l.id)}" class="approve"><i class="fas fa-check"></i></button><button title="${esc(t('rowReject'))}" data-action="reject" data-id="${esc(l.id)}" class="danger"><i class="fas fa-times"></i></button>`:''}
-              ${canE ? `<button title="${esc(t('rowEdit'))}" data-action="edit" data-id="${esc(l.id)}"><i class="fas fa-pen"></i></button>`:''}
-              ${canD ? `<button title="${esc(t('rowDelete'))}" data-action="delete" data-id="${esc(l.id)}" class="danger"><i class="fas fa-trash"></i></button>`:''}
-            </div></td>
-          </tr>`;
-        }).join('')}
-      </tbody></table></div>
-    ${renderPagination(total, pages, start, pageList.length)}`;
+  host.innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead><tr>
+    <th>${esc(t('colLoanNo'))}</th><th>${esc(t('colCustomer'))}</th><th>${esc(t('colType'))}</th>
+    <th>${esc(t('colInterestType'))}</th>
+    <th class="num">${esc(t('colPrincipal'))}</th><th class="num">${esc(t('colRate'))}</th>
+    <th class="num">${esc(t('colDuration'))}</th><th class="num">${esc(t('colTotal'))}</th>
+    <th class="num">${esc(t('colOutstanding'))}</th><th>${esc(t('colProgress'))}</th>
+    <th>${esc(t('colStatus'))}</th><th>${esc(t('colMaturity'))}</th><th class="num">${esc(t('colActions'))}</th>
+  </tr></thead><tbody>
+    ${pageList.map(l => {
+      const c = customerById(l.customerId || l.customerDocId);
+      const avatar = c?.photoURL ? `<img src="${esc(c.photoURL)}" alt="">` : esc(initials(customerName(c)));
+      const { total } = calcLoan(l.principal, l.interestRate, l.duration, l.interestType);
+      const outstanding = loanOutstanding(l);
+      const progress = loanProgress(l);
+      const overdue = isOverdue(l); const grace = isInGrace(l); const soon = isDueSoon(l);
+      const stCls = loanStatusCls(l.status);
+      const status = String(l.status||'').toLowerCase();
+      const isPending = status === 'pending';
+      const isActive = status === 'active' || status === 'approved';
+      const progressCls = overdue ? 'is-danger' : ((grace || soon) ? 'is-warn' : '');
+      const pendingReps = pendingRepaymentsForLoan(l.id).length;
+      const sState = isActive ? scheduleStateLabel(l) : null;
+      return `<tr>
+        <td><div class="code">${esc(l.serialNumber||l.loanNumber||'—')}</div><div class="muted" style="margin-top:4px">${esc(fmtDate(l.disbursementDate||l.createdAt))}</div>${pendingReps>0?`<div style="margin-top:4px"><span class="tag tag--gold" style="font-size:9.5px"><i class="fas fa-hourglass-half"></i> ${pendingReps} pending</span></div>`:''}</td>
+        <td><div class="cust-cell"><div class="cust-avatar">${avatar}</div><div><div class="name">${esc(customerName(c))}</div><div class="muted">${c?.customerId?esc(c.customerId):(l.customerId||'—')}</div></div></div></td>
+        <td><span class="tag tag--violet">${esc(loanTypeLabel(l.loanType))}</span></td>
+        <td><span class="tag tag--blue" style="font-size:10px">${esc(interestTypeLabel(l.interestType))}</span></td>
+        <td class="num">${money(l.principal)}</td>
+        <td class="num">${num(l.interestRate).toFixed(2)}%</td>
+        <td class="num">${num(l.duration)} ${esc(t('moShort'))}</td>
+        <td class="num">${money(total)}</td>
+        <td class="num" style="color:${outstanding>0?'#b42318':'#067647'}">${money(outstanding)}</td>
+        <td style="min-width:120px"><div style="font-size:11px;font-weight:800;color:var(--muted);font-family:ui-monospace,monospace">${progress}%</div><div class="progress-bar"><div class="progress-bar__fill ${progressCls}" style="width:${progress}%"></div></div></td>
+        <td><span class="tag ${stCls}">${esc(loanStatusLabel(l.status))}</span>${overdue?`<div style="margin-top:4px"><span class="tag tag--red" style="font-size:9.5px"><i class="fas fa-exclamation-triangle"></i> ${esc(t('overduBadge'))}</span></div>`:grace?`<div style="margin-top:4px"><span class="tag tag--gold" style="font-size:9.5px"><i class="fas fa-hourglass-half"></i> ${esc(t('graceBadge'))}</span></div>`:''}</td>
+        <td><div style="font-size:12px">${esc(fmtDate(l.maturityDate))}</div>${sState?`<div class="muted" style="color:${overdue?'#b42318':grace?'#b8860b':'#0b5cab'};font-weight:800">● ${esc(sState.text)}</div>`:''}</td>
+        <td class="num"><div class="row-actions">
+          ${canR && outstanding>0 && isActive ? `<button title="${esc(t('rowRepay'))}" data-action="repay" data-id="${esc(l.id)}" class="pay"><i class="fas fa-hand-holding-usd"></i></button>`:''}
+          ${canP ? `<button title="${esc(t('rowPrint'))}" data-action="print" data-id="${esc(l.id)}" class="print"><i class="fas fa-print"></i></button>`:''}
+          <button title="${esc(t('rowView'))}" data-action="view" data-id="${esc(l.id)}"><i class="fas fa-eye"></i></button>
+          ${canA && isPending ? `<button title="${esc(t('rowApprove'))}" data-action="approve" data-id="${esc(l.id)}" class="approve"><i class="fas fa-check"></i></button><button title="${esc(t('rowReject'))}" data-action="reject" data-id="${esc(l.id)}" class="danger"><i class="fas fa-times"></i></button>`:''}
+          ${canE ? `<button title="${esc(t('rowEdit'))}" data-action="edit" data-id="${esc(l.id)}"><i class="fas fa-pen"></i></button>`:''}
+          ${canD ? `<button title="${esc(t('rowDelete'))}" data-action="delete" data-id="${esc(l.id)}" class="danger"><i class="fas fa-trash"></i></button>`:''}
+        </div></td>
+      </tr>`;
+    }).join('')}
+  </tbody></table></div>${renderPagination(total, pages, start, pageList.length)}`;
   wireContentEvents(host, pages);
 }
 function wireContentEvents(host, pages) {
-  host.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', () => handleRowAction(btn.dataset.action, btn.dataset.id));
-  });
-  host.querySelectorAll('[data-page]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const p = Number(btn.dataset.page);
-      if (p >= 1 && p <= pages) { APP.page = p; renderContent(); }
-    });
-  });
+  host.querySelectorAll('[data-action]').forEach(btn => btn.addEventListener('click', () => handleRowAction(btn.dataset.action, btn.dataset.id)));
+  host.querySelectorAll('[data-page]').forEach(btn => btn.addEventListener('click', () => { const p = Number(btn.dataset.page); if (p >= 1 && p <= pages) { APP.page = p; renderContent(); } }));
 }
 function renderPagination(total, pages, start, shown) {
-  if (total <= APP.pageSize) {
-    return `<div class="pagination"><div class="pagination__info">${esc(t('showing'))} <strong>${total}</strong> ${esc(t('loansWord'))}</div></div>`;
-  }
+  if (total <= APP.pageSize) return `<div class="pagination"><div class="pagination__info">${esc(t('showing'))} <strong>${total}</strong> ${esc(t('loansWord'))}</div></div>`;
   const range = [];
   const startPage = Math.max(1, APP.page - 2);
   const endPage = Math.min(pages, startPage + 4);
   for (let i = startPage; i <= endPage; i++) range.push(i);
-  return `
-    <div class="pagination">
-      <div class="pagination__info">${esc(t('showing'))} <strong>${start + 1}–${start + shown}</strong> ${esc(t('of'))} <strong>${total}</strong> ${esc(t('loansWord'))}</div>
-      <div class="pagination__controls">
-        <button data-page="${APP.page - 1}" ${APP.page === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>
-        ${range.map(p => `<button data-page="${p}" class="${p === APP.page ? 'is-current' : ''}">${p}</button>`).join('')}
-        <button data-page="${APP.page + 1}" ${APP.page === pages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>
-      </div>
-    </div>`;
+  return `<div class="pagination">
+    <div class="pagination__info">${esc(t('showing'))} <strong>${start + 1}–${start + shown}</strong> ${esc(t('of'))} <strong>${total}</strong> ${esc(t('loansWord'))}</div>
+    <div class="pagination__controls">
+      <button data-page="${APP.page - 1}" ${APP.page === 1 ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>
+      ${range.map(p => `<button data-page="${p}" class="${p === APP.page ? 'is-current' : ''}">${p}</button>`).join('')}
+      <button data-page="${APP.page + 1}" ${APP.page === pages ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>
+    </div>
+  </div>`;
 }
 function wireMainEvents() {
-  document.getElementById('waDistrict')?.addEventListener('change', (e) => {
-    APP.workarea.districtId = e.target.value;
-    APP.workarea.branchId = '';
-    renderMain();
-  });
-  document.getElementById('waBranch')?.addEventListener('change', (e) => {
-    APP.workarea.branchId = e.target.value;
-    renderMain();
-  });
+  document.getElementById('waDistrict')?.addEventListener('change', (e) => { APP.workarea.districtId = e.target.value; APP.workarea.branchId = ''; renderMain(); });
+  document.getElementById('waBranch')?.addEventListener('change', (e) => { APP.workarea.branchId = e.target.value; renderMain(); });
   document.getElementById('addLoanBtn')?.addEventListener('click', () => openLoanWizard(null));
-  document.getElementById('clearFiltersBtn')?.addEventListener('click', () => {
-    APP.filters = { search:'', districtId:'', branchId:'', type:'', status:'', due:'' };
-    APP.page = 1;
-    renderMain();
-  });
+  document.getElementById('clearFiltersBtn')?.addEventListener('click', () => { APP.filters = { search:'', districtId:'', branchId:'', type:'', status:'', due:'' }; APP.page = 1; renderMain(); });
   const s = document.getElementById('fltSearch');
   s?.addEventListener('input', debounce(() => { APP.filters.search = s.value; APP.page = 1; renderContent(); }, 220));
   document.getElementById('fltDistrict')?.addEventListener('change', (e) => { APP.filters.districtId = e.target.value; APP.filters.branchId = ''; APP.page = 1; renderMain(); });
@@ -2498,14 +1897,12 @@ function wireMainEvents() {
   document.getElementById('fltType')?.addEventListener('change', (e) => { APP.filters.type = e.target.value; APP.page = 1; renderContent(); });
   document.getElementById('fltStatus')?.addEventListener('change', (e) => { APP.filters.status = e.target.value; APP.page = 1; renderContent(); });
   document.getElementById('fltDue')?.addEventListener('change', (e) => { APP.filters.due = e.target.value; APP.page = 1; renderContent(); });
-  document.querySelectorAll('#viewToggle button').forEach(btn => {
-    btn.addEventListener('click', function () {
-      APP.viewMode = this.dataset.view;
-      try { localStorage.setItem('loans-view', APP.viewMode); } catch(e){}
-      document.querySelectorAll('#viewToggle button').forEach(b => b.classList.toggle('is-active', b.dataset.view === APP.viewMode));
-      renderContent();
-    });
-  });
+  document.querySelectorAll('#viewToggle button').forEach(btn => btn.addEventListener('click', function () {
+    APP.viewMode = this.dataset.view;
+    try { localStorage.setItem('loans-view', APP.viewMode); } catch(e){}
+    document.querySelectorAll('#viewToggle button').forEach(b => b.classList.toggle('is-active', b.dataset.view === APP.viewMode));
+    renderContent();
+  }));
 }
 let _debTimer;
 function debounce(fn, ms) { return function (...args) { clearTimeout(_debTimer); _debTimer = setTimeout(() => fn.apply(this, args), ms); }; }
@@ -2525,32 +1922,16 @@ function handleRowAction(action, id) {
 async function approveLoan(l) {
   if (!canApprove()) { toast(t('noPermission'), 'error'); return; }
   try {
-    await updateDoc(doc(db,'loans',l.id), {
-      status:'active',
-      approvedAt: serverTimestamp(),
-      approvedBy: APP.profile.id,
-      approvedByName: APP.profile.fullName || APP.profile.name || ''
-    });
+    await updateDoc(doc(db,'loans',l.id), { status:'active', approvedAt: serverTimestamp(), approvedBy: APP.profile.id, approvedByName: APP.profile.fullName || APP.profile.name || '' });
     toast(t('approvedOk'), 'success');
-  } catch(e) {
-    const msg = e.code === 'permission-denied' ? t('noPermission') : e.message;
-    toast(t('errorSave') + msg, 'error');
-  }
+  } catch(e) { const msg = e.code === 'permission-denied' ? t('noPermission') : e.message; toast(t('errorSave') + msg, 'error'); }
 }
 async function rejectLoan(l) {
   if (!canApprove()) { toast(t('noPermission'), 'error'); return; }
   try {
-    await updateDoc(doc(db,'loans',l.id), {
-      status:'rejected',
-      rejectedAt: serverTimestamp(),
-      approvedBy: APP.profile.id,
-      approvedByName: APP.profile.fullName || APP.profile.name || ''
-    });
+    await updateDoc(doc(db,'loans',l.id), { status:'rejected', rejectedAt: serverTimestamp(), approvedBy: APP.profile.id, approvedByName: APP.profile.fullName || APP.profile.name || '' });
     toast(t('rejectedOk'), 'success');
-  } catch(e) {
-    const msg = e.code === 'permission-denied' ? t('noPermission') : e.message;
-    toast(t('errorSave') + msg, 'error');
-  }
+  } catch(e) { const msg = e.code === 'permission-denied' ? t('noPermission') : e.message; toast(t('errorSave') + msg, 'error'); }
 }
 async function approveRepayment(txId) {
   if (!canApprove()) { toast(t('noPermission'), 'error'); return; }
@@ -2560,30 +1941,15 @@ async function approveRepayment(txId) {
   const loan = APP.loans.find(l => l.id === tx.loanId);
   if (!loan) { toast(t('loanNotFoundMsg'), 'error'); return; }
   try {
-    await updateDoc(doc(db,'transactions',txId), {
-      status:'approved',
-      approvedAt: serverTimestamp(),
-      approvedBy: APP.profile.id,
-      approvedByName: APP.profile.fullName || APP.profile.name || ''
-    });
+    await updateDoc(doc(db,'transactions',txId), { status:'approved', approvedAt: serverTimestamp(), approvedBy: APP.profile.id, approvedByName: APP.profile.fullName || APP.profile.name || '' });
     const amount = num(tx.amount);
     const newRepaid = round2(loanRepaid(loan) + amount);
     const totalPayable = calcLoan(loan.principal, loan.interestRate, loan.duration, loan.interestType).total;
     const newOutstanding = Math.max(0, round2(totalPayable - newRepaid));
     const newStatus = newOutstanding <= 0.01 ? 'repaid' : (loan.status || 'active');
-    await updateDoc(doc(db,'loans',loan.id), {
-      amountRepaid: newRepaid,
-      status: newStatus,
-      updatedAt: serverTimestamp(),
-      lastRepaymentAt: serverTimestamp(),
-      lastRepaymentBy: APP.profile.id,
-      lastRepaymentByName: APP.profile.fullName || APP.profile.name || ''
-    });
+    await updateDoc(doc(db,'loans',loan.id), { amountRepaid: newRepaid, status: newStatus, updatedAt: serverTimestamp() });
     toast(t('repApprovedOk'), 'success');
-  } catch(err) {
-    const msg = err.code === 'permission-denied' ? t('noPermission') : err.message;
-    toast(t('errorSave') + msg, 'error');
-  }
+  } catch(err) { const msg = err.code === 'permission-denied' ? t('noPermission') : err.message; toast(t('errorSave') + msg, 'error'); }
 }
 async function rejectRepayment(txId) {
   if (!canApprove()) { toast(t('noPermission'), 'error'); return; }
@@ -2591,22 +1957,11 @@ async function rejectRepayment(txId) {
   if (!tx) { toast(t('repNotFound'), 'error'); return; }
   if (String(tx.status||'pending').toLowerCase() !== 'pending') { toast(t('repAlreadyProcessed'), 'warning'); return; }
   try {
-    await updateDoc(doc(db,'transactions',txId), {
-      status:'rejected',
-      rejectedAt: serverTimestamp(),
-      rejectedBy: APP.profile.id,
-      rejectedByName: APP.profile.fullName || APP.profile.name || ''
-    });
+    await updateDoc(doc(db,'transactions',txId), { status:'rejected', rejectedAt: serverTimestamp(), rejectedBy: APP.profile.id, rejectedByName: APP.profile.fullName || APP.profile.name || '' });
     toast(t('repRejectedOk'), 'success');
-  } catch(err) {
-    const msg = err.code === 'permission-denied' ? t('noPermission') : err.message;
-    toast(t('errorSave') + msg, 'error');
-  }
+  } catch(err) { const msg = err.code === 'permission-denied' ? t('noPermission') : err.message; toast(t('errorSave') + msg, 'error'); }
 }
 
-/* ============================================================
-   MODALS / WIZARD
-============================================================ */
 let escHandler = null;
 function closeModal() {
   const el = document.getElementById('modal-backdrop');
@@ -2624,7 +1979,6 @@ function openWizard({ title, subtitle, finishLabel, steps, initial = {}, onFinis
   escHandler = (e) => { if (e.key === 'Escape') closeModal(); };
   document.addEventListener('keydown', escHandler);
   root.addEventListener('click', (e) => { if (e.target === root) closeModal(); });
-
   function collect() {
     root.querySelectorAll('[data-field]').forEach(el => {
       const k = el.dataset.field;
@@ -2643,36 +1997,10 @@ function openWizard({ title, subtitle, finishLabel, steps, initial = {}, onFinis
     const step = steps[idx];
     root.innerHTML = `
       <div class="modal modal--${size}">
-        <div class="modal__head">
-          <div>
-            <div class="modal__title">${esc(title)}</div>
-            ${subtitle ? `<div class="modal__sub">${esc(subtitle)}</div>` : ''}
-          </div>
-          <button class="modal__close" data-close><i class="fas fa-times"></i></button>
-        </div>
-        <div class="steps">
-          ${steps.map((s,i) => `
-            <div class="step ${i < idx ? 'is-done' : ''} ${i === idx ? 'is-active' : ''}">
-              <span class="step__num">${i < idx ? '✓' : i+1}</span>
-              <span class="step__label">${esc(s.label)}</span>
-            </div>
-            ${i < steps.length - 1 ? `<div class="step__line"></div>` : ''}
-          `).join('')}
-        </div>
-        <div class="modal__body">
-          <div class="step-header"><span class="step-header__badge">${idx+1}</span>${esc(step.title || step.label)}</div>
-          ${step.render(data)}
-          <div class="alert alert--error" id="wizErr" style="display:none;margin-top:14px;margin-bottom:0"></div>
-        </div>
-        <div class="modal__foot">
-          <button class="btn" data-close>${esc(t('cancel'))}</button>
-          <div class="spacer"></div>
-          <button class="btn" data-wiz="prev" ${idx === 0 ? 'disabled' : ''}>${esc(t('back'))}</button>
-          <button class="btn btn--primary" data-wiz="next">
-            <span class="spinner-sm hidden"></span>
-            <span class="btn-label">${idx === steps.length - 1 ? esc(finishLabel || t('save')) : esc(t('next'))}</span>
-          </button>
-        </div>
+        <div class="modal__head"><div><div class="modal__title">${esc(title)}</div>${subtitle ? `<div class="modal__sub">${esc(subtitle)}</div>` : ''}</div><button class="modal__close" data-close><i class="fas fa-times"></i></button></div>
+        <div class="steps">${steps.map((s,i) => `<div class="step ${i < idx ? 'is-done' : ''} ${i === idx ? 'is-active' : ''}"><span class="step__num">${i < idx ? '✓' : i+1}</span><span class="step__label">${esc(s.label)}</span></div>${i < steps.length - 1 ? `<div class="step__line"></div>` : ''}`).join('')}</div>
+        <div class="modal__body"><div class="step-header"><span class="step-header__badge">${idx+1}</span>${esc(step.title || step.label)}</div>${step.render(data)}<div class="alert alert--error" id="wizErr" style="display:none;margin-top:14px;margin-bottom:0"></div></div>
+        <div class="modal__foot"><button class="btn" data-close>${esc(t('cancel'))}</button><div class="spacer"></div><button class="btn" data-wiz="prev" ${idx === 0 ? 'disabled' : ''}>${esc(t('back'))}</button><button class="btn btn--primary" data-wiz="next"><span class="spinner-sm hidden"></span><span class="btn-label">${idx === steps.length - 1 ? esc(finishLabel || t('save')) : esc(t('next'))}</span></button></div>
       </div>`;
     root.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeModal));
     root.querySelectorAll('[data-field]').forEach(el => {
@@ -2681,9 +2009,7 @@ function openWizard({ title, subtitle, finishLabel, steps, initial = {}, onFinis
       if (el.type === 'checkbox') el.checked = !!v;
       else el.value = v;
     });
-    root.querySelector('[data-wiz="prev"]').addEventListener('click', () => {
-      if (idx > 0) { collect(); idx--; draw(); }
-    });
+    root.querySelector('[data-wiz="prev"]').addEventListener('click', () => { if (idx > 0) { collect(); idx--; draw(); } });
     root.querySelector('[data-wiz="next"]').addEventListener('click', async () => {
       const step = steps[idx];
       collect();
@@ -2713,13 +2039,9 @@ function openWizard({ title, subtitle, finishLabel, steps, initial = {}, onFinis
   draw();
 }
 
-/* ============================================================
-   LOAN WIZARD
-============================================================ */
 function openLoanWizard(loan) {
   const isEdit = !!loan;
   const l0 = loan || {};
-
   if (isEdit) {
     const existingCustomer = customerById(l0.customerId || l0.customerDocId);
     if (existingCustomer && String(existingCustomer.status || 'active').toLowerCase() !== 'active') {
@@ -2727,24 +2049,19 @@ function openLoanWizard(loan) {
       return;
     }
   }
-
   const initialStatus = l0.status || (requireApprovalLoans ? 'pending' : 'active');
   const initial = {
-    customerId: l0.customerId || '',
-    _customerDocId: l0.customerDocId || '',
+    customerId: l0.customerId || '', _customerDocId: l0.customerDocId || '',
     loanType: l0.loanType || 'personal',
     interestType: l0.interestType || defaultLoanType || 'simple',
     principal: l0.principal != null ? String(num(l0.principal)) : '',
     interestRate: l0.interestRate != null ? String(num(l0.interestRate)) : String(defaultInterestRate),
     duration: l0.duration != null ? String(num(l0.duration)) : '12',
-    purpose: l0.purpose || '',
-    collateral: l0.collateral || '',
-    reference: l0.reference || '',
-    letterNumber: l0.letterNumber || '',
+    purpose: l0.purpose || '', collateral: l0.collateral || '',
+    reference: l0.reference || '', letterNumber: l0.letterNumber || '',
     disbursementDate: l0.disbursementDate || new Date().toISOString().slice(0,10),
     maturityDate: l0.maturityDate || computeMaturityDate(l0.disbursementDate || new Date().toISOString().slice(0,10), l0.duration || 12),
-    status: initialStatus,
-    notes: l0.notes || '',
+    status: initialStatus, notes: l0.notes || '',
     _attachment: l0.attachment || null
   };
   if (initial.customerId) {
@@ -2759,8 +2076,7 @@ function openLoanWizard(loan) {
     subtitle: isEdit ? t('editLoanSub') : t('newLoanSub'),
     finishLabel: isEdit ? t('update') : t('create'),
     successMessage: isEdit ? t('savedOk') : t('createdOk'),
-    size: 'lg',
-    initial,
+    size: 'lg', initial,
     steps: [
       {
         label: t('stepCustomer'), title: t('stepCustomerTitle'),
@@ -2777,19 +2093,12 @@ function openLoanWizard(loan) {
             const isInactive = custStatus !== 'active';
             const blocked = !isEdit && (activeCount >= maxLoansPerCustomer || isInactive);
             const blockText = isInactive ? t('inactiveBlockText') : (blocked ? t('ctxMaxReached', { max: maxLoansPerCustomer }) : '');
-            const badgeHtml = isInactive
-              ? `<span class="customer-pick__block-tag" style="background:#fef3f2;color:#b42318;border:1px solid #fecdca"><i class="fas fa-ban"></i> ${esc(t('inactive'))}</span>`
-              : (blocked
-                  ? `<span class="customer-pick__block-tag"><i class="fas fa-ban"></i> ${esc(t('ctxBlocked'))}</span>`
-                  : (activeCount > 0
-                      ? `<span class="customer-pick__block-tag" style="background:#fdf5e0;color:#b8860b;border:1px solid #f0dcb0"><i class="fas fa-clock"></i> ${esc(t('ctxActiveCount', { n: activeCount }))}</span>`
-                      : ''));
+            const badgeHtml = isInactive ? `<span class="customer-pick__block-tag" style="background:#fef3f2;color:#b42318;border:1px solid #fecdca"><i class="fas fa-ban"></i> ${esc(t('inactive'))}</span>`
+                              : (blocked ? `<span class="customer-pick__block-tag"><i class="fas fa-ban"></i> ${esc(t('ctxBlocked'))}</span>`
+                              : (activeCount > 0 ? `<span class="customer-pick__block-tag" style="background:#fdf5e0;color:#b8860b;border:1px solid #f0dcb0"><i class="fas fa-clock"></i> ${esc(t('ctxActiveCount', { n: activeCount }))}</span>` : ''));
             return `<div class="customer-pick__item ${isOn?'is-on':''} ${blocked?'is-blocked':''}" data-customer-id="${esc(c.id)}" data-customer-code="${esc(c.customerId||c.id)}" data-blocked="${blocked?'1':'0'}" data-block-text="${esc(blockText)}">
               <div class="customer-pick__avatar">${avatar}</div>
-              <div class="customer-pick__main">
-                <div class="customer-pick__name">${esc(customerName(c))} ${c.customerId?`<span class="customer-pick__bal">${esc(c.customerId)}</span>`:''} ${badgeHtml}</div>
-                <div class="customer-pick__meta">${c.branchName?`<span><i class="fas fa-code-branch" style="margin-right:3px"></i>${esc(c.branchName)}</span>`:''} ${c.phone?`<span>· ${esc(formatPhone(c.phone))}</span>`:''}</div>
-              </div>
+              <div class="customer-pick__main"><div class="customer-pick__name">${esc(customerName(c))} ${c.customerId?`<span class="customer-pick__bal">${esc(c.customerId)}</span>`:''} ${badgeHtml}</div><div class="customer-pick__meta">${c.branchName?`<span><i class="fas fa-code-branch" style="margin-right:3px"></i>${esc(c.branchName)}</span>`:''} ${c.phone?`<span>· ${esc(formatPhone(c.phone))}</span>`:''}</div></div>
               <div class="customer-pick__radio"></div>
             </div>`;
           }).join('') : `<div style="padding:28px;text-align:center;color:var(--muted);font-size:13px">${esc(t('noCustomersMatch'))}</div>`;
@@ -2834,17 +2143,8 @@ function openLoanWizard(loan) {
           const { interest, total, monthly, type } = calcLoan(d.principal, d.interestRate, d.duration, d.interestType);
           const typeOptions = LOAN_TYPES.map(lt => `<option value="${esc(lt.code)}" ${d.loanType===lt.code?'selected':''}>${esc(lt.name)}</option>`).join('');
           const itypeOptions = INTEREST_TYPES.map(it => `<option value="${esc(it.code)}" ${d.interestType===it.code?'selected':''}>${esc(it.name)}</option>`).join('');
-          const guaranteesHtml = guarantees.length ? guarantees.map((g,i) => `
-            <div class="guarantee-chip">
-              <div class="guarantee-chip__main">
-                <div class="guarantee-chip__name">${esc(g.name||'—')} <span class="guarantee-chip__type">${esc(g.type||'other')}</span></div>
-                <div class="guarantee-chip__meta">${g.value?esc(t('valueInline',{v:money(g.value)})):''}${g.value && g.contact?' · ':''}${g.contact?esc(t('contactInline',{c:g.contact})):''}</div>
-              </div>
-              <button type="button" class="guarantee-chip__del" data-guarantee-del="${i}"><i class="fas fa-times"></i></button>
-            </div>`).join('') : `<div style="font-size:12.5px;color:var(--muted);padding:8px 0">${esc(t('guaranteesHint'))}</div>`;
-          const amtHint = (minLoanAmount > 0 || maxLoanAmount > 0)
-            ? `<p class="field__hint">${esc(t('allowedRange', { min: minLoanAmount>0?money(minLoanAmount):'0', max: maxLoanAmount>0?money(maxLoanAmount):'∞' }))}</p>`
-            : '';
+          const guaranteesHtml = guarantees.length ? guarantees.map((g,i) => `<div class="guarantee-chip"><div class="guarantee-chip__main"><div class="guarantee-chip__name">${esc(g.name||'—')} <span class="guarantee-chip__type">${esc(g.type||'other')}</span></div><div class="guarantee-chip__meta">${g.value?esc(t('valueInline',{v:money(g.value)})):''}${g.value && g.contact?' · ':''}${g.contact?esc(t('contactInline',{c:g.contact})):''}</div></div><button type="button" class="guarantee-chip__del" data-guarantee-del="${i}"><i class="fas fa-times"></i></button></div>`).join('') : `<div style="font-size:12.5px;color:var(--muted);padding:8px 0">${esc(t('guaranteesHint'))}</div>`;
+          const amtHint = (minLoanAmount > 0 || maxLoanAmount > 0) ? `<p class="field__hint">${esc(t('allowedRange', { min: minLoanAmount>0?money(minLoanAmount):'0', max: maxLoanAmount>0?money(maxLoanAmount):'∞' }))}</p>` : '';
           return `
             <div class="field-row-3">
               <div class="field"><label class="field__required">${esc(t('loanTypeLabel'))}</label><select data-field="loanType">${typeOptions}</select></div>
@@ -2904,29 +2204,20 @@ function openLoanWizard(loan) {
           const itypeSel = root.querySelector('#wiz-itype');
           let timer = null;
           const recalc = () => {
-            data.principal = principalIn.value;
-            data.interestRate = rateIn.value;
-            data.duration = durIn.value;
+            data.principal = principalIn.value; data.interestRate = rateIn.value; data.duration = durIn.value;
             data.interestType = itypeSel?.value || data.interestType;
-            clearTimeout(timer);
-            timer = setTimeout(refresh, 350);
+            clearTimeout(timer); timer = setTimeout(refresh, 350);
           };
           principalIn?.addEventListener('input', recalc);
           rateIn?.addEventListener('input', recalc);
           durIn?.addEventListener('input', () => {
             data.duration = durIn.value;
-            if (disbIn && matIn) {
-              const m = computeMaturityDate(disbIn.value, durIn.value);
-              if (m) { matIn.value = m; data.maturityDate = m; }
-            }
+            if (disbIn && matIn) { const m = computeMaturityDate(disbIn.value, durIn.value); if (m) { matIn.value = m; data.maturityDate = m; } }
             recalc();
           });
           disbIn?.addEventListener('change', () => {
             data.disbursementDate = disbIn.value;
-            if (matIn && durIn) {
-              const m = computeMaturityDate(disbIn.value, durIn.value);
-              if (m) { matIn.value = m; data.maturityDate = m; }
-            }
+            if (matIn && durIn) { const m = computeMaturityDate(disbIn.value, durIn.value); if (m) { matIn.value = m; data.maturityDate = m; } }
           });
           matIn?.addEventListener('change', () => { data.maturityDate = matIn.value; });
           itypeSel?.addEventListener('change', () => { data.interestType = itypeSel.value; recalc(); });
@@ -2960,13 +2251,9 @@ function openLoanWizard(loan) {
           if (upload && fileIn) {
             upload.addEventListener('click', (e) => { e.stopPropagation(); fileIn.click(); });
             fileIn.addEventListener('change', async () => {
-              const f = fileIn.files?.[0];
-              if (!f) return;
+              const f = fileIn.files?.[0]; if (!f) return;
               if (f.size > 3 * 1024 * 1024) { toast(t('fileTooLarge'), 'error'); return; }
-              try {
-                data._attachment = await fileToDataURL(f);
-                refresh();
-              } catch(e) { toast(t('couldNotReadImage'), 'error'); }
+              try { data._attachment = await fileToDataURL(f); refresh(); } catch(e) { toast(t('couldNotReadImage'), 'error'); }
             });
           }
         }
@@ -3021,35 +2308,20 @@ function openLoanWizard(loan) {
       const interestType = d.interestType || 'simple';
       const existingCount = isEdit ? countActiveOrPending(c, l0.id) : countActiveOrPending(c);
       const incomingStatus = String(d.status || 'pending').toLowerCase();
-      if (['pending','active','approved'].includes(incomingStatus) && existingCount >= maxLoansPerCustomer) {
-        throw new Error(t('maxLoansReached', { max: maxLoansPerCustomer }));
-      }
+      if (['pending','active','approved'].includes(incomingStatus) && existingCount >= maxLoansPerCustomer) throw new Error(t('maxLoansReached', { max: maxLoansPerCustomer }));
       const { total } = calcLoan(principal, rate, months, interestType);
       const statusFinal = d.status || (requireApprovalLoans ? 'pending' : 'active');
       const payload = {
-        customerId: c.customerId || c.id,
-        memberId: c.customerId || c.id,
-        customerDocId: c.id,
-        customerName: customerName(c),
-        loanType: d.loanType || 'personal',
-        interestType,
-        principal,
-        interestRate: rate,
-        duration: months,
-        totalPayable: total,
-        purpose: (d.purpose||'').trim(),
-        collateral: (d.collateral||'').trim(),
-        reference: (d.reference||'').trim(),
-        guarantees,
+        customerId: c.customerId || c.id, memberId: c.customerId || c.id, customerDocId: c.id,
+        customerName: customerName(c), loanType: d.loanType || 'personal', interestType,
+        principal, interestRate: rate, duration: months, totalPayable: total,
+        purpose: (d.purpose||'').trim(), collateral: (d.collateral||'').trim(),
+        reference: (d.reference||'').trim(), guarantees,
         disbursementDate: d.disbursementDate || new Date().toISOString().slice(0,10),
         maturityDate: d.maturityDate || computeMaturityDate(d.disbursementDate, months),
-        status: statusFinal,
-        notes: (d.notes||'').trim(),
-        attachment: d._attachment || null,
-        districtId: c.districtId || null,
-        districtName: c.districtName || districtById(c.districtId)?.name || null,
-        branchId: c.branchId || null,
-        branchName: c.branchName || branchById(c.branchId)?.name || null,
+        status: statusFinal, notes: (d.notes||'').trim(), attachment: d._attachment || null,
+        districtId: c.districtId || null, districtName: c.districtName || districtById(c.districtId)?.name || null,
+        branchId: c.branchId || null, branchName: c.branchName || branchById(c.branchId)?.name || null,
         updatedAt: serverTimestamp()
       };
       if (['approved','active'].includes(statusFinal)) {
@@ -3080,9 +2352,6 @@ function openLoanWizard(loan) {
   });
 }
 
-/* ============================================================
-   VIEW MODAL
-============================================================ */
 function openViewModal(l) {
   closeModal();
   const c = customerById(l.customerId || l.customerDocId);
@@ -3094,30 +2363,10 @@ function openViewModal(l) {
   const isActive = st === 'active' || st === 'approved';
   const schState = isActive ? scheduleStateLabel(l) : null;
   const nextDue = isActive ? nextDueDate(l) : null;
-  const graceRow = isActive ? `
-    <div class="review__row">
-      <span class="review__k">${esc(t('nextDueDate'))}</span>
-      <span class="review__v">${nextDue ? esc(fmtDate(nextDue)) : '—'}</span>
-    </div>
-    <div class="review__row">
-      <span class="review__k">${esc(t('gracePeriod'))}</span>
-      <span class="review__v" style="font-weight:800;color:${schState?.kind==='overdue'?'#b42318':schState?.kind==='grace'?'#b8860b':'#067647'}">
-        ${GRACE_DAYS()} day(s) · ${schState ? esc(schState.text) : esc(t('fullyPaidMsg'))}
-      </span>
-    </div>` : '';
-
+  const graceRow = isActive ? `<div class="review__row"><span class="review__k">${esc(t('nextDueDate'))}</span><span class="review__v">${nextDue ? esc(fmtDate(nextDue)) : '—'}</span></div><div class="review__row"><span class="review__k">${esc(t('gracePeriod'))}</span><span class="review__v" style="font-weight:800;color:${schState?.kind==='overdue'?'#b42318':schState?.kind==='grace'?'#b8860b':'#067647'}">${GRACE_DAYS()} day(s) · ${schState ? esc(schState.text) : esc(t('fullyPaidMsg'))}</span></div>` : '';
   let repsHtml = '';
   if (loanReps.length) {
-    const header = `<div class="rep-row header">
-      <span>${esc(t('colRepDate'))}</span>
-      <span style="text-align:right">${esc(t('colRepAmount'))}</span>
-      <span style="text-align:right">${esc(t('colRepPrincipal'))}</span>
-      <span style="text-align:right">${esc(t('colRepInterest'))}</span>
-      <span>${esc(t('colRecordedBy'))}</span>
-      <span>${esc(t('colApprovedBy'))}</span>
-      <span>${esc(t('colRepStatus'))}</span>
-      <span style="text-align:right">Actions</span>
-    </div>`;
+    const header = `<div class="rep-row header"><span>${esc(t('colRepDate'))}</span><span style="text-align:right">${esc(t('colRepAmount'))}</span><span style="text-align:right">${esc(t('colRepPrincipal'))}</span><span style="text-align:right">${esc(t('colRepInterest'))}</span><span>${esc(t('colRecordedBy'))}</span><span>${esc(t('colApprovedBy'))}</span><span>${esc(t('colRepStatus'))}</span><span style="text-align:right">Actions</span></div>`;
     const rows = loanReps.map(r => {
       const rst = String(r.status||'pending').toLowerCase();
       const stCls = rst === 'approved' ? 'approved' : rst === 'rejected' ? 'rejected' : 'pending';
@@ -3125,36 +2374,18 @@ function openViewModal(l) {
       const recordedBy = r.createdByName || r.createdBy || '—';
       const approvedBy = r.approvedByName || r.rejectedByName || '—';
       let actions = '';
-      if (rst === 'pending' && canApprove()) {
-        actions = `<button class="approve-btn" data-approve-rep="${esc(r.id)}" title="${esc(t('approve'))}"><i class="fas fa-check"></i></button>
-                   <button class="reject-btn" data-reject-rep="${esc(r.id)}" title="${esc(t('reject'))}"><i class="fas fa-times"></i></button>`;
-      }
-      actions += `<button class="print-btn" data-print-rep="${esc(r.id)}" title="${esc(t('printReceipt'))}"><i class="fas fa-print"></i></button>`;
-      return `<div class="rep-row">
-        <span class="date">${esc(fmtDate(r.date))}</span>
-        <span class="amt">${esc(money(r.amount))}</span>
-        <span class="pp">${num(r.principalPortion).toLocaleString()}</span>
-        <span class="ip">${num(r.interestPortion).toLocaleString()}${r.interestWaived?' ✓':''}</span>
-        <span class="by">${esc(recordedBy)}</span>
-        <span class="by">${esc(approvedBy)}</span>
-        <span class="status-cell ${stCls}">${stLabel}</span>
-        <span class="actions">${actions}</span>
-      </div>`;
+      if (rst === 'pending' && canApprove()) actions = `<button class="approve-btn" data-approve-rep="${esc(r.id)}" title="${esc(t('approve'))}"><i class="fas fa-check"></i></button><button class="reject-btn" data-reject-rep="${esc(r.id)}" title="${esc(t('reject'))}"><i class="fas fa-times"></i></button>`;
+      return `<div class="rep-row"><span class="date">${esc(fmtDate(r.date))}</span><span class="amt">${esc(money(r.amount))}</span><span class="pp">${num(r.principalPortion).toLocaleString()}</span><span class="ip">${num(r.interestPortion).toLocaleString()}${r.interestWaived?' ✓':''}</span><span class="by">${esc(recordedBy)}</span><span class="by">${esc(approvedBy)}</span><span class="status-cell ${stCls}">${stLabel}</span><span class="actions">${actions}</span></div>`;
     }).join('');
     repsHtml = `<div class="rep-list">${header}${rows}</div>`;
   } else {
     repsHtml = `<div style="padding:22px;text-align:center;color:var(--muted);font-size:12.5px">${esc(t('noRepayments'))}</div>`;
   }
-
   const root = document.createElement('div');
-  root.className = 'modal-backdrop';
-  root.id = 'modal-backdrop';
+  root.className = 'modal-backdrop'; root.id = 'modal-backdrop';
   root.innerHTML = `
     <div class="modal modal--lg">
-      <div class="modal__head">
-        <div><div class="modal__title">${esc(t('viewTitle'))}</div><div class="modal__sub">${esc(l.serialNumber||l.loanNumber||'')} · ${esc(fmtDateTime(l.createdAt||l.disbursementDate))}</div></div>
-        <button class="modal__close" data-close><i class="fas fa-times"></i></button>
-      </div>
+      <div class="modal__head"><div><div class="modal__title">${esc(t('viewTitle'))}</div><div class="modal__sub">${esc(l.serialNumber||l.loanNumber||'')} · ${esc(fmtDateTime(l.createdAt||l.disbursementDate))}</div></div><button class="modal__close" data-close><i class="fas fa-times"></i></button></div>
       <div class="modal__body">
         <div style="display:flex;align-items:center;gap:18px;padding:18px;background:linear-gradient(135deg,#f5f0ff,#fff);border:1px solid #d8c8f5;border-radius:14px;margin-bottom:20px">
           <div style="width:64px;height:64px;border-radius:50%;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#5b21b6,#7c3aed);display:grid;place-items:center;color:#fff;font-weight:800;font-size:22px">${c?.photoURL?`<img src="${esc(c.photoURL)}" alt="" style="width:100%;height:100%;object-fit:cover">`:esc(initials(customerName(c)))}</div>
@@ -3164,7 +2395,6 @@ function openViewModal(l) {
         ${totalPendingAmount > 0 ? `<div class="alert alert--warning"><i class="fas fa-hourglass-half"></i><div><strong>${esc(t('pendingRepaymentsTotal'))} ETB ${totalPendingAmount.toLocaleString()}</strong> ${esc(t('pendingRepaymentsNote'))}</div></div>` : ''}
         <div class="review" style="margin-bottom:20px">
           <div class="review__row"><span class="review__k">${esc(t('agrSerial'))}</span><span class="review__v" style="font-family:ui-monospace,monospace;font-weight:800">${esc(l.serialNumber||l.loanNumber||'—')}</span></div>
-          ${l.letterNumber?`<div class="review__row"><span class="review__k">${esc(t('agrLetterNo'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(l.letterNumber)}</span></div>`:''}
           <div class="review__row"><span class="review__k">${esc(t('colType'))}</span><span class="review__v">${esc(loanTypeLabel(l.loanType))}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('interestTypeLabel'))}</span><span class="review__v">${esc(interestTypeLabel(l.interestType))}</span></div>
           <div class="review__row"><span class="review__k">${esc(t('colPrincipal'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(money(l.principal))}</span></div>
@@ -3219,85 +2449,58 @@ function openViewModal(l) {
   });
 }
 
-/* ============================================================
-   REPAYMENT MODAL — opens instantly, loads async data inside
-============================================================ */
 function openRepaymentModal(loan) {
   if (!canRepay()) { toast(t('noPermission'), 'error'); return; }
   if (!loan) { toast(t('pleaseSelectLoan'), 'warning'); return; }
   closeModal();
-
   const outstanding0 = loanOutstanding(loan);
   if (outstanding0 <= 0) { toast('Nothing to repay.', 'info'); return; }
-
-  const monthly0         = calcLoan(loan.principal, loan.interestRate, loan.duration, loan.interestType).monthly;
-  const allowPartial     = allowPartialRepayment !== false;
-  const start0           = loanStartDate(loan);
-  let   monthsDue0       = 0;
+  const monthly0 = calcLoan(loan.principal, loan.interestRate, loan.duration, loan.interestType).monthly;
+  const allowPartial = allowPartialRepayment !== false;
+  const start0 = loanStartDate(loan);
+  let monthsDue0 = 0;
   if (start0) {
     const nowShifted = new Date(Date.now() - GRACE_MS());
-    monthsDue0 = (nowShifted.getFullYear() - start0.getFullYear()) * 12
-               + (nowShifted.getMonth()   - start0.getMonth());
+    monthsDue0 = (nowShifted.getFullYear() - start0.getFullYear()) * 12 + (nowShifted.getMonth() - start0.getMonth());
     if (nowShifted.getDate() < start0.getDate()) monthsDue0 -= 1;
     monthsDue0 = Math.max(0, monthsDue0);
   }
-  const totalMonths0     = Math.max(1, Math.floor(num(loan.duration) || 1));
-  const paidSoFar0       = loanRepaid(loan);
-  const totalPayable0    = calcLoan(loan.principal, loan.interestRate, loan.duration, loan.interestType).total;
-  const expectedSoFar0   = Math.min(totalPayable0, Math.min(monthsDue0, totalMonths0) * monthly0);
-  const arrearsAmount0   = Math.max(0, round2(expectedSoFar0 - paidSoFar0));
-  const monthsBehind0    = monthly0 > 0 ? Math.ceil(arrearsAmount0 / monthly0) : 0;
-
+  const totalMonths0 = Math.max(1, Math.floor(num(loan.duration) || 1));
+  const paidSoFar0 = loanRepaid(loan);
+  const totalPayable0 = calcLoan(loan.principal, loan.interestRate, loan.duration, loan.interestType).total;
+  const expectedSoFar0 = Math.min(totalPayable0, Math.min(monthsDue0, totalMonths0) * monthly0);
+  const arrearsAmount0 = Math.max(0, round2(expectedSoFar0 - paidSoFar0));
+  const monthsBehind0 = monthly0 > 0 ? Math.ceil(arrearsAmount0 / monthly0) : 0;
   let minPayment0;
   if (!allowPartial) minPayment0 = outstanding0;
-  else if (arrearsAmount0 > 0) {
-    minPayment0 = Math.min(outstanding0, arrearsAmount0);
-    if (minPayment0 <= 0) minPayment0 = Math.min(monthly0, outstanding0);
-  } else minPayment0 = Math.min(monthly0, outstanding0);
-
+  else if (arrearsAmount0 > 0) { minPayment0 = Math.min(outstanding0, arrearsAmount0); if (minPayment0 <= 0) minPayment0 = Math.min(monthly0, outstanding0); }
+  else minPayment0 = Math.min(monthly0, outstanding0);
   const c = customerById(loan.customerId || loan.customerDocId);
   const initSplit = computeRepaymentSplit(minPayment0, loan, outstanding0);
-
-  const cachedReps     = (APP.repayments || []).filter(r => r.loanId === loan.id);
+  const cachedReps = (APP.repayments || []).filter(r => r.loanId === loan.id);
   const approvedCount0 = cachedReps.filter(r => r.status === 'approved' || r.printed === true).length;
-
   const initial = {
-    amount: minPayment0.toFixed(2),
-    date: new Date().toISOString().slice(0,10),
+    amount: minPayment0.toFixed(2), date: new Date().toISOString().slice(0,10),
     method: ['super_admin','admin','manager'].includes(APP.profile.role) ? 'cash' : 'bank',
     ttNumber: '', transferDate: '', bankName: '', bankOther: '', note: '',
-    principalPortion: initSplit.principal,
-    interestPortion:  initSplit.interest,
-    isRepayAll: false,
-    _outstanding:  outstanding0,
-    _monthly:      monthly0,
-    _minPayment:   minPayment0,
-    _approvedCount: approvedCount0,
-    _allowPartial: allowPartial,
-    _monthsBehind: monthsBehind0,
-    _arrearsAmount: arrearsAmount0,
-    _monthsDue:    monthsDue0,
-    _historyHtml:  `<div style="padding:22px;text-align:center;color:var(--muted);font-size:12.5px"><i class="fas fa-spinner fa-spin" style="margin-right:6px"></i>${esc(t('loadingHistory'))}</div>`,
-    _customer:     c,
-    _pending:      { total: 0, details: [] },
-    _list0:        cachedReps,
-    _totalPayable: totalPayable0,
-    _totalMonths:  totalMonths0
+    principalPortion: initSplit.principal, interestPortion: initSplit.interest, isRepayAll: false,
+    _outstanding: outstanding0, _monthly: monthly0, _minPayment: minPayment0,
+    _approvedCount: approvedCount0, _allowPartial: allowPartial,
+    _monthsBehind: monthsBehind0, _arrearsAmount: arrearsAmount0, _monthsDue: monthsDue0,
+    _historyHtml: `<div style="padding:22px;text-align:center;color:var(--muted);font-size:12.5px"><i class="fas fa-spinner fa-spin" style="margin-right:6px"></i>${esc(t('loadingHistory'))}</div>`,
+    _customer: c, _pending: { total: 0, details: [] }, _list0: cachedReps,
+    _totalPayable: totalPayable0, _totalMonths: totalMonths0
   };
-
   openWizard({
-    title: t('repaymentTitle'),
-    subtitle: t('repaymentSub'),
-    finishLabel: t('rowRepay'),
-    successMessage: t('repaymentOk'),
-    size: 'lg',
-    initial,
+    title: t('repaymentTitle'), subtitle: t('repaymentSub'),
+    finishLabel: t('rowRepay'), successMessage: t('repaymentOk'),
+    size: 'lg', initial,
     steps: [
       {
-        label: 'Amount', title: 'Loan & Amount',
+        label:'Amount', title:'Loan & Amount',
         render: (d) => {
-          const gateMonths    = waiverRequiresMinMonths !== false ? minMonthsForRepayAll : 0;
-          const gate          = d._approvedCount < gateMonths;
+          const gateMonths = waiverRequiresMinMonths !== false ? minMonthsForRepayAll : 0;
+          const gate = d._approvedCount < gateMonths;
           const partialLocked = d._allowPartial === false;
           const arrearsBanner = d._monthsBehind > 0
             ? `<div class="alert alert--warning"><i class="fas fa-exclamation-triangle"></i><div>${esc(t('unpaidWarningText'))} <strong>${d._monthsBehind}</strong> ${d._monthsBehind===1?t('monthSingular'):t('monthPlural')} — ${esc(t('arrearsLabel'))}: <strong>${esc(money(d._arrearsAmount))}</strong>.</div></div>`
@@ -3307,20 +2510,18 @@ function openRepaymentModal(loan) {
             ${arrearsBanner}
             <div class="alert alert--info"><i class="fas fa-info-circle"></i><div>${esc(t('repaymentWillBePending'))}</div></div>
             ${partialLocked ? `<div class="alert alert--warning"><i class="fas fa-lock"></i><div>${esc(t('partialRepaymentDisabled', { amount: money(d._outstanding) }))}</div></div>` : ''}
-            <div class="info-panel">
-              <div class="info-panel__grid">
-                <div class="info-row"><span class="k">${esc(t('customer'))}</span><span class="v">${esc(customerName(d._customer))}</span></div>
-                <div class="info-row"><span class="k">${esc(t('loanAmount'))}</span><span class="v">${esc(money(loan.principal))}</span></div>
-                <div class="info-row"><span class="k">${esc(t('totalLabel'))}</span><span class="v">${esc(money(d._totalPayable))}</span></div>
-                <div class="info-row"><span class="k">${esc(t('totalPaid'))}</span><span class="v positive">${esc(money(loanRepaid(loan)))}</span></div>
-                <div class="info-row"><span class="k">${esc(t('remaining'))}</span><span class="v warning">${esc(money(d._outstanding))}</span></div>
-                <div class="info-row"><span class="k">${esc(t('monthlyInstallment'))}</span><span class="v">${esc(money(d._monthly))}</span></div>
-                <div class="info-row"><span class="k">${esc(t('approvedMonthsPaid'))}</span><span class="v">${d._approvedCount} / ${gateMonths}</span></div>
-                <div class="info-row"><span class="k">${esc(t('uninspMonthLabel'))}</span><span class="v" style="color:${d._monthsBehind>0?'#b42318':'#067647'}">${d._monthsBehind}</span></div>
-                <div class="info-row"><span class="k">${esc(t('arrearsLabel'))}</span><span class="v" style="color:${d._arrearsAmount>0?'#b42318':'#067647'}">${esc(money(d._arrearsAmount))}</span></div>
-                <div class="info-row"><span class="k">${esc(t('minRepaymentStatus'))}</span><span class="v">${esc(t('minAmountShort', { v: money(d._minPayment) }))}</span></div>
-              </div>
-            </div>
+            <div class="info-panel"><div class="info-panel__grid">
+              <div class="info-row"><span class="k">${esc(t('customer'))}</span><span class="v">${esc(customerName(d._customer))}</span></div>
+              <div class="info-row"><span class="k">${esc(t('loanAmount'))}</span><span class="v">${esc(money(loan.principal))}</span></div>
+              <div class="info-row"><span class="k">${esc(t('totalLabel'))}</span><span class="v">${esc(money(d._totalPayable))}</span></div>
+              <div class="info-row"><span class="k">${esc(t('totalPaid'))}</span><span class="v positive">${esc(money(loanRepaid(loan)))}</span></div>
+              <div class="info-row"><span class="k">${esc(t('remaining'))}</span><span class="v warning">${esc(money(d._outstanding))}</span></div>
+              <div class="info-row"><span class="k">${esc(t('monthlyInstallment'))}</span><span class="v">${esc(money(d._monthly))}</span></div>
+              <div class="info-row"><span class="k">${esc(t('approvedMonthsPaid'))}</span><span class="v">${d._approvedCount} / ${gateMonths}</span></div>
+              <div class="info-row"><span class="k">${esc(t('uninspMonthLabel'))}</span><span class="v" style="color:${d._monthsBehind>0?'#b42318':'#067647'}">${d._monthsBehind}</span></div>
+              <div class="info-row"><span class="k">${esc(t('arrearsLabel'))}</span><span class="v" style="color:${d._arrearsAmount>0?'#b42318':'#067647'}">${esc(money(d._arrearsAmount))}</span></div>
+              <div class="info-row"><span class="k">${esc(t('minRepaymentStatus'))}</span><span class="v">${esc(t('minAmountShort', { v: money(d._minPayment) }))}</span></div>
+            </div></div>
             <div class="field">
               <label class="field__required">${esc(t('repaymentAmount'))}</label>
               <div class="amount-row">
@@ -3329,7 +2530,6 @@ function openRepaymentModal(loan) {
               </div>
               <small class="field__hint">${esc(t('minRepayHint'))}: <strong>${esc(money(d._minPayment))}</strong></small>
             </div>
-            ${gate?`<div class="alert alert--warning"><i class="fas fa-lock"></i><div>${esc(t('repayAllGateMsg', { n: gateMonths, paid: d._approvedCount }))}</div></div>`:''}
             <div class="alert alert--success" id="rpWaiverNote" style="display:none"><i class="fas fa-gift"></i><div id="rpWaiverText"></div></div>
             <div class="field-row" id="rpSplitRow">
               <div class="field"><label><i class="fas fa-landmark"></i> ${esc(t('principalPortion'))}</label><input type="text" id="rpPrincipalPortion" data-field="principalPortion" readonly value="${num(d.principalPortion).toFixed(2)}" style="background:#f0fdf4;font-weight:800;color:#128a5c" /></div>
@@ -3342,89 +2542,56 @@ function openRepaymentModal(loan) {
           const amt = num(d.amount);
           if (amt <= 0) return t('invalidAmountMsg');
           if (amt > d._outstanding + 0.01) return t('cannotExceedRemaining');
-          if (d._allowPartial === false && amt + 0.01 < d._outstanding)
-            return t('partialRepaymentDisabled', { amount: money(d._outstanding) });
-          if (d._allowPartial !== false && d._monthsBehind > 0 && !d.isRepayAll && amt + 0.01 < d._arrearsAmount)
-            return t('arrearsMustPay', { amount: money(d._arrearsAmount) });
-          if (d._allowPartial !== false && !d.isRepayAll && amt + 0.01 < d._minPayment)
-            return `${t('minPaymentNotMet')} (${money(d._minPayment)})`;
+          if (d._allowPartial === false && amt + 0.01 < d._outstanding) return t('partialRepaymentDisabled', { amount: money(d._outstanding) });
+          if (d._allowPartial !== false && d._monthsBehind > 0 && !d.isRepayAll && amt + 0.01 < d._arrearsAmount) return t('arrearsMustPay', { amount: money(d._arrearsAmount) });
+          if (d._allowPartial !== false && !d.isRepayAll && amt + 0.01 < d._minPayment) return `${t('minPaymentNotMet')} (${money(d._minPayment)})`;
           return null;
         },
         after: (root, data, refresh) => {
-          const amtIn         = root.querySelector('#rpAmount');
-          const repayAllBtn   = root.querySelector('#rpRepayAllBtn');
-          const principalIn   = root.querySelector('#rpPrincipalPortion');
-          const interestIn    = root.querySelector('#rpInterestPortion');
-          const waiverNote    = root.querySelector('#rpWaiverNote');
-          const waiverText    = root.querySelector('#rpWaiverText');
-
+          const amtIn = root.querySelector('#rpAmount');
+          const repayAllBtn = root.querySelector('#rpRepayAllBtn');
+          const principalIn = root.querySelector('#rpPrincipalPortion');
+          const interestIn = root.querySelector('#rpInterestPortion');
+          const waiverNote = root.querySelector('#rpWaiverNote');
+          const waiverText = root.querySelector('#rpWaiverText');
           const updateSplit = () => {
             const amt = num(amtIn.value);
             if (amt <= 0) { principalIn.value = ''; interestIn.value = ''; return; }
             if (data.isRepayAll && allowInterestWaiver) { principalIn.value = amt.toFixed(2); interestIn.value = '0.00'; return; }
             const sp = computeRepaymentSplit(amt, loan, data._outstanding);
             principalIn.value = sp.principal.toFixed(2);
-            interestIn.value  = sp.interest.toFixed(2);
+            interestIn.value = sp.interest.toFixed(2);
           };
-          amtIn.addEventListener('input', () => {
-            data.amount = amtIn.value;
-            if (data.isRepayAll) { data.isRepayAll = false; if (waiverNote) waiverNote.style.display = 'none'; }
-            updateSplit();
-          });
+          amtIn.addEventListener('input', () => { data.amount = amtIn.value; if (data.isRepayAll) { data.isRepayAll = false; if (waiverNote) waiverNote.style.display = 'none'; } updateSplit(); });
           repayAllBtn?.addEventListener('click', () => {
             const gateMonths = waiverRequiresMinMonths !== false ? minMonthsForRepayAll : 0;
-            if (data._approvedCount < gateMonths) {
-              toast(t('repayAllGateMsg', { n: gateMonths, paid: data._approvedCount }), 'warning');
-              return;
-            }
+            if (data._approvedCount < gateMonths) { toast(t('repayAllGateMsg', { n: gateMonths, paid: data._approvedCount }), 'warning'); return; }
             if (allowInterestWaiver) {
-              const paidPrincipal = data._list0
-                .filter(r => r.status === 'approved' || r.printed === true)
-                .reduce((s, r) => s + getRepaymentPrincipal(r, loan), 0);
+              const paidPrincipal = data._list0.filter(r => r.status === 'approved' || r.printed === true).reduce((s, r) => s + getRepaymentPrincipal(r, loan), 0);
               const outstandingPrincipal = Math.max(0, round2(num(loan.principal) - paidPrincipal));
               const waived = Math.max(0, round2(data._outstanding - outstandingPrincipal));
-              amtIn.value = outstandingPrincipal.toFixed(2);
-              data.amount = outstandingPrincipal.toFixed(2);
-              data.isRepayAll = true;
-              if (waived > 0 && waiverNote && waiverText) {
-                waiverNote.style.display = 'flex';
-                waiverText.textContent = t('interestWaiverNote', { paid: data._approvedCount, waived: waived.toFixed(2) });
-              }
-            } else {
-              amtIn.value = data._outstanding.toFixed(2);
-              data.amount = data._outstanding.toFixed(2);
-              data.isRepayAll = false;
-            }
+              amtIn.value = outstandingPrincipal.toFixed(2); data.amount = outstandingPrincipal.toFixed(2); data.isRepayAll = true;
+              if (waived > 0 && waiverNote && waiverText) { waiverNote.style.display = 'flex'; waiverText.textContent = t('interestWaiverNote', { paid: data._approvedCount, waived: waived.toFixed(2) }); }
+            } else { amtIn.value = data._outstanding.toFixed(2); data.amount = data._outstanding.toFixed(2); data.isRepayAll = false; }
             updateSplit();
           });
-
           (async () => {
             try {
               await checkAndCreateLoanPenalty(loan.id, loan.customerId || loan.memberId);
               const [freshPending, freshHistory, freshList] = await Promise.all([
                 getMemberLoanPenalties(loan.customerId || loan.memberId),
                 generatePaymentHistory(loan.id),
-                getDocs(query(collection(db,'transactions'),
-                  where('loanId','==',loan.id),
-                  where('type','==','repayment')))
-                  .then(s => s.docs.map(d => ({ id:d.id, ...d.data() })))
-                  .catch(() => [])
+                getDocs(query(collection(db,'transactions'), where('loanId','==',loan.id), where('type','==','repayment'))).then(s => s.docs.map(d => ({ id:d.id, ...d.data() }))).catch(() => [])
               ]);
-              data._pending      = freshPending;
-              data._historyHtml  = freshHistory;
-              data._list0        = freshList;
+              data._pending = freshPending; data._historyHtml = freshHistory; data._list0 = freshList;
               data._approvedCount = freshList.filter(r => r.status === 'approved' || r.printed === true).length;
               refresh();
-            } catch (e) {
-              console.error('[repayment async load]', e);
-              data._historyHtml = `<div style="padding:20px;text-align:center;color:var(--danger);font-size:12.5px">${esc(t('historyLoadError'))}</div>`;
-              refresh();
-            }
+            } catch (e) { console.error('[repayment async load]', e); data._historyHtml = `<div style="padding:20px;text-align:center;color:var(--danger);font-size:12.5px">${esc(t('historyLoadError'))}</div>`; refresh(); }
           })();
         }
       },
       {
-        label: 'Payment', title: 'Payment details',
+        label:'Payment', title:'Payment details',
         render: (d) => {
           const isCash = d.method === 'cash';
           const bankOpts = BANKS.map(b => `<option value="${esc(b.code)}" ${d.bankName===b.code?'selected':''}>${esc(b.name)}</option>`).join('');
@@ -3451,8 +2618,7 @@ function openRepaymentModal(loan) {
                 </select>
                 <input type="text" data-field="bankOther" id="rpBankOther" placeholder="${esc(t('otherBankName'))}" value="${esc(d.bankOther)}" style="display:${d.bankName==='other'?'block':'none'};margin-top:6px" />
               </div>` : ''}
-            <div class="field"><label>${esc(t('repaymentNotes'))}</label><input type="text" data-field="note" placeholder="${esc(t('notePlaceholder'))}" value="${esc(d.note)}" /></div>
-            <div class="alert alert--warning" id="rpDupWarn" style="display:none"><i class="fas fa-exclamation-triangle"></i><div>${esc(t('duplicateWarn'))}</div></div>`;
+            <div class="field"><label>${esc(t('repaymentNotes'))}</label><input type="text" data-field="note" placeholder="${esc(t('notePlaceholder'))}" value="${esc(d.note)}" /></div>`;
         },
         validate: (d) => {
           if (!d.date) return t('pleaseSelectDate');
@@ -3481,41 +2647,19 @@ function openRepaymentModal(loan) {
           bankOther?.addEventListener('input', () => { data.bankOther = bankOther.value; });
           const ttIn = root.querySelector('#rpTT');
           const tdIn = root.querySelector('#rpTransferDate');
-          const dupWarn = root.querySelector('#rpDupWarn');
-          const checkDup = async () => {
-            if (!enableDuplicateCheck) { if (dupWarn) dupWarn.style.display='none'; return; }
-            const tt = (data.ttNumber||'').trim();
-            const td = data.transferDate;
-            if (!tt || !td || !dupWarn) return;
-            const cid = loan.customerId || loan.memberId;
-            try {
-              const parts = td.split('-').map(Number);
-              const start = new Date(Date.UTC(parts[0], parts[1]-1, parts[2], 0,0,0));
-              const end   = new Date(Date.UTC(parts[0], parts[1]-1, parts[2], 23,59,59,999));
-              const snap = await getDocs(query(collection(db,'transactions'),
-                where('customerId','==',cid),
-                where('ttNumber','==',tt),
-                where('transferDate','>=',start),
-                where('transferDate','<=',end)));
-              dupWarn.style.display = snap.empty ? 'none' : 'flex';
-            } catch(e) { dupWarn.style.display = 'none'; }
-          };
           ttIn?.addEventListener('input', () => { data.ttNumber = ttIn.value; });
-          ttIn?.addEventListener('blur', checkDup);
-          tdIn?.addEventListener('change', () => { data.transferDate = tdIn.value; checkDup(); });
+          tdIn?.addEventListener('change', () => { data.transferDate = tdIn.value; });
         }
       },
       {
-        label: 'Review', title: 'Review and confirm',
+        label:'Review', title:'Review and confirm',
         render: (d) => {
           const amt = num(d.amount);
           const methodLabelStr = { cash:t('methodCash'), bank:t('methodBank'), mobile:t('methodMobile') }[d.method] || d.method;
           const bankDisplay = d.method === 'cash' ? '—' : (d.bankName === 'other' ? d.bankOther : (bankLabel(d.bankName) || d.bankName));
           const remainingAfter = Math.max(0, round2(d._outstanding - amt));
-          const coversArrears = d._monthsBehind === 0 || amt >= d._arrearsAmount;
           return `
             <div class="alert alert--warning"><i class="fas fa-hourglass-half"></i><div>${esc(t('afterSavingPending'))}</div></div>
-            ${d._monthsBehind > 0 ? `<div class="alert alert--${coversArrears?'success':'error'}"><i class="fas fa-${coversArrears?'check-circle':'exclamation-triangle'}"></i><div>${coversArrears ? t('arrearsClearMsg', { n: d._monthsBehind, amount: money(d._arrearsAmount) }) : `${esc(t('unpaidWarningText'))} ${esc(t('arrearsMustPay', { amount: money(d._arrearsAmount) }))}`}</div></div>` : ''}
             <div style="padding:16px;background:linear-gradient(135deg,#f0fdf4,#fff);border:1px solid #a7f3d0;border-radius:14px;margin-bottom:18px;display:flex;align-items:center;gap:16px">
               <div style="width:60px;height:60px;border-radius:50%;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#128a5c,#19a974);display:grid;place-items:center;color:#fff;font-weight:800;font-size:22px">${d._customer?.photoURL?`<img src="${esc(d._customer.photoURL)}" alt="" style="width:100%;height:100%;object-fit:cover">`:esc(initials(customerName(d._customer)))}</div>
               <div style="min-width:0"><div style="font-size:16px;font-weight:800">${esc(customerName(d._customer))}</div>${d._customer?.customerId?`<div style="font-size:12px;color:var(--muted);font-family:ui-monospace,monospace;margin-top:2px">${esc(d._customer.customerId)}</div>`:''}<div style="margin-top:6px"><span class="tag tag--gold">${esc(t('repPending'))}</span> <span class="tag tag--green">${esc(methodLabelStr)}</span></div></div>
@@ -3525,14 +2669,9 @@ function openRepaymentModal(loan) {
               <div class="review__row"><span class="review__k">${esc(t('loanNoShort'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(loan.serialNumber||loan.loanNumber||loan.id.slice(0,8))}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('outstandingUnchanged'))}</span><span class="review__v" style="font-family:ui-monospace,monospace;color:#b42318">${esc(money(d._outstanding))}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('repaymentAmountShort'))}</span><span class="review__v" style="font-family:ui-monospace,monospace;font-weight:800;color:#128a5c">${esc(money(amt))}</span></div>
-              <div class="review__row"><span class="review__k">${esc(t('principalPortion'))}</span><span class="review__v" style="font-family:ui-monospace,monospace;color:#128a5c">${esc(money(d.principalPortion))}</span></div>
-              <div class="review__row"><span class="review__k">${esc(t('interestPortion'))}</span><span class="review__v" style="font-family:ui-monospace,monospace;color:#b8860b">${esc(money(d.interestPortion))}${d.isRepayAll&&allowInterestWaiver?` <em style="color:#128a5c">(${esc(t('waived'))})</em>`:''}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('outstandingAfterApproval'))}</span><span class="review__v" style="font-family:ui-monospace,monospace;font-weight:800;color:${remainingAfter<=0?'#067647':'#b42318'}">${esc(money(remainingAfter))}</span></div>
               <div class="review__row"><span class="review__k">${esc(t('repaymentMethod'))}</span><span class="review__v">${esc(methodLabelStr)}</span></div>
-              ${d.method !== 'cash' ? `
-                <div class="review__row"><span class="review__k">${esc(t('bankProvider'))}</span><span class="review__v">${esc(bankDisplay||'—')}</span></div>
-                <div class="review__row"><span class="review__k">${esc(t('ttNumber'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(d.ttNumber||'—')}</span></div>
-                <div class="review__row"><span class="review__k">${esc(t('transferDate'))}</span><span class="review__v">${esc(fmtDate(d.transferDate))}</span></div>` : ''}
+              ${d.method !== 'cash' ? `<div class="review__row"><span class="review__k">${esc(t('bankProvider'))}</span><span class="review__v">${esc(bankDisplay||'—')}</span></div><div class="review__row"><span class="review__k">${esc(t('ttNumber'))}</span><span class="review__v" style="font-family:ui-monospace,monospace">${esc(d.ttNumber||'—')}</span></div><div class="review__row"><span class="review__k">${esc(t('transferDate'))}</span><span class="review__v">${esc(fmtDate(d.transferDate))}</span></div>` : ''}
               <div class="review__row"><span class="review__k">${esc(t('repaymentDate'))}</span><span class="review__v">${esc(fmtDate(d.date))}</span></div>
               ${d.note ? `<div class="review__row"><span class="review__k">${esc(t('repaymentNotes'))}</span><span class="review__v">${esc(d.note)}</span></div>` : ''}
               <div class="review__row"><span class="review__k">${esc(t('recordedBy'))}</span><span class="review__v" style="font-weight:800;color:#0b5cab">${esc(APP.profile.fullName || APP.profile.name)}</span></div>
@@ -3543,41 +2682,23 @@ function openRepaymentModal(loan) {
     onFinish: async (d) => {
       const freshPending = await getMemberLoanPenalties(loan.customerId || loan.memberId);
       if (freshPending.total > 0) throw new Error(`${t('penaltyBlockedTitle')} ETB ${freshPending.total.toFixed(2)}`);
-
       const amount = num(d.amount);
       if (amount <= 0) throw new Error(t('invalidAmountMsg'));
       if (amount > d._outstanding + 0.01) throw new Error(t('cannotExceedRemaining'));
-      if (d._allowPartial !== false && d._monthsBehind > 0 && !d.isRepayAll && amount + 0.01 < d._arrearsAmount) {
-        throw new Error(t('arrearsMustPay', { amount: money(d._arrearsAmount) }));
-      }
-
       const bankName = d.method === 'cash' ? '' : (d.bankName === 'other' ? d.bankOther : (bankLabel(d.bankName) || d.bankName));
       const txData = {
         type: 'repayment', loanId: loan.id,
-        customerId: loan.customerId || loan.memberId,
-        memberId:   loan.customerId || loan.memberId,
-        customerDocId: loan.customerDocId || null,
-        customerName: loan.customerName || customerName(d._customer) || '',
-        amount,
-        principalPortion: num(d.principalPortion),
-        interestPortion:  num(d.interestPortion),
-        interestWaived:   !!d.isRepayAll && allowInterestWaiver,
-        waivedInterest:   d.isRepayAll ? Math.max(0, round2(amount - num(d.principalPortion))) : 0,
-        date: new Date(d.date),
-        note: (d.note||'').trim(),
-        status: 'pending',
-        paymentMethod: d.method,
-        ttNumber: d.method === 'cash' ? '' : (d.ttNumber||'').trim(),
-        bankName,
-        districtId:   loan.districtId   || null,
-        districtName: loan.districtName || null,
-        branchId:     loan.branchId     || null,
-        branchName:   loan.branchName   || null,
-        createdByName: APP.profile.fullName || APP.profile.name,
-        createdBy:     APP.profile.id,
-        createdByEmail: APP.profile.email || '',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        customerId: loan.customerId || loan.memberId, memberId: loan.customerId || loan.memberId,
+        customerDocId: loan.customerDocId || null, customerName: loan.customerName || customerName(d._customer) || '',
+        amount, principalPortion: num(d.principalPortion), interestPortion: num(d.interestPortion),
+        interestWaived: !!d.isRepayAll && allowInterestWaiver,
+        waivedInterest: d.isRepayAll ? Math.max(0, round2(amount - num(d.principalPortion))) : 0,
+        date: new Date(d.date), note: (d.note||'').trim(), status: 'pending',
+        paymentMethod: d.method, ttNumber: d.method === 'cash' ? '' : (d.ttNumber||'').trim(), bankName,
+        districtId: loan.districtId || null, districtName: loan.districtName || null,
+        branchId: loan.branchId || null, branchName: loan.branchName || null,
+        createdByName: APP.profile.fullName || APP.profile.name, createdBy: APP.profile.id,
+        createdByEmail: APP.profile.email || '', createdAt: serverTimestamp(), updatedAt: serverTimestamp()
       };
       if (d.method !== 'cash' && d.transferDate) txData.transferDate = new Date(d.transferDate);
       await setDoc(doc(collection(db,'transactions')), txData);
@@ -3585,9 +2706,6 @@ function openRepaymentModal(loan) {
   });
 }
 
-/* ============================================================
-   PRINT — A4 AGREEMENT
-============================================================ */
 function buildSlipHtml(l, watermarkText) {
   const c = customerById(l.customerId || l.customerDocId);
   const cName = customerName(c);
@@ -3600,35 +2718,11 @@ function buildSlipHtml(l, watermarkText) {
   const residence = buildResidence(c);
   const purposeText = (l.purpose || '').trim() || 'personal financial need';
   const refs = (l.reference || '').trim() || t('agrReference');
-
   const gListInline = guarantors.length ? guarantors.map(g => esc(g.name||'—')).join(', ') : '____________________';
-  const gRowsHtml = guarantors.length
-    ? guarantors.map((g,i) => `<tr>
-        <td style="padding:14px 6px;border-bottom:1px solid #999;">${i+1}. ${esc(t('agrName'))}: <strong>${esc(g.name||'—')}</strong></td>
-        <td style="padding:14px 6px;border-bottom:1px solid #999;"></td>
-        <td style="padding:14px 6px;border-bottom:1px solid #999;"></td>
-      </tr>`).join('')
-    : `<tr>
-        <td style="padding:14px 6px;border-bottom:1px solid #999;">1. ${esc(t('agrName'))}: ____________________</td>
-        <td style="padding:14px 6px;border-bottom:1px solid #999;"></td>
-        <td style="padding:14px 6px;border-bottom:1px solid #999;"></td>
-      </tr>`;
-
+  const gRowsHtml = guarantors.length ? guarantors.map((g,i) => `<tr><td style="padding:14px 6px;border-bottom:1px solid #999;">${i+1}. ${esc(t('agrName'))}: <strong>${esc(g.name||'—')}</strong></td><td style="padding:14px 6px;border-bottom:1px solid #999;"></td><td style="padding:14px 6px;border-bottom:1px solid #999;"></td></tr>`).join('') : `<tr><td style="padding:14px 6px;border-bottom:1px solid #999;">1. ${esc(t('agrName'))}: ____________________</td><td style="padding:14px 6px;border-bottom:1px solid #999;"></td><td style="padding:14px 6px;border-bottom:1px solid #999;"></td></tr>`;
   return `<div class="slip">
-    <div class="slip__head">
-      <div class="slip__logo"><img src="${esc(LOGO_URL)}" alt=""></div>
-      <div class="slip__brand">
-        <div class="slip__sacco-name">WALDAA LIQII FI QUSANNAA GARASUU DHUKII</div>
-        <div class="slip__sacco-sub">${esc(APP.saccoName||'GERESU DHUKI SACCO')}</div>
-      </div>
-      <div class="slip__logo"><img src="${esc(LOGO_URL)}" alt=""></div>
-    </div>
-    <div class="slip__doc-row">
-      <div><strong>${esc(t('agrLetterNo'))}:</strong> <span style="font-family:monospace;font-weight:800;">GD/______/${new Date().getFullYear()}</span></div>
-      <div><strong>${esc(t('agrSerial'))}:</strong> <span style="font-family:monospace;font-weight:800">${esc(serial)}</span></div>
-      <div><strong>${esc(t('agrDate'))}:</strong> ${esc(dateStr)}</div>
-      <div><span style="display:inline-block;padding:1px 8px;border-radius:3px;font-size:9pt;font-weight:900;letter-spacing:.12em;text-transform:uppercase;background:${watermarkText===t('original')?'#e7f7f0':'#fdf5e0'};color:${watermarkText===t('original')?'#065f46':'#7a5210'};border:1px solid ${watermarkText===t('original')?'#a7f3d0':'#f0dcb0'}">${esc(watermarkText)}</span></div>
-    </div>
+    <div class="slip__head"><div class="slip__logo"><img src="${esc(LOGO_URL)}" alt=""></div><div class="slip__brand"><div class="slip__sacco-name">WALDAA LIQII FI QUSANNAA GARASUU DHUKII</div><div class="slip__sacco-sub">${esc(APP.saccoName||'GERESU DHUKI SACCO')}</div></div><div class="slip__logo"><img src="${esc(LOGO_URL)}" alt=""></div></div>
+    <div class="slip__doc-row"><div><strong>${esc(t('agrLetterNo'))}:</strong> <span style="font-family:monospace;font-weight:800;">GD/______/${new Date().getFullYear()}</span></div><div><strong>${esc(t('agrSerial'))}:</strong> <span style="font-family:monospace;font-weight:800">${esc(serial)}</span></div><div><strong>${esc(t('agrDate'))}:</strong> ${esc(dateStr)}</div><div><span style="display:inline-block;padding:1px 8px;border-radius:3px;font-size:9pt;font-weight:900;letter-spacing:.12em;text-transform:uppercase;background:${watermarkText===t('original')?'#e7f7f0':'#fdf5e0'};color:${watermarkText===t('original')?'#065f46':'#7a5210'};border:1px solid ${watermarkText===t('original')?'#a7f3d0':'#f0dcb0'}">${esc(watermarkText)}</span></div></div>
     <div class="slip__title">${esc(t('agrTitle'))}</div>
     <div class="slip__subject">${esc(t('agrSubject'))}</div>
     <div class="slip__body">
@@ -3642,43 +2736,14 @@ function buildSlipHtml(l, watermarkText) {
       <p>${t('agrBreachClause')}</p>
       <p>${esc(t('agrSignClause'))}</p>
     </div>
-    <table class="slip__table">
-      <thead><tr>
-        <th>${esc(t('agrBorrower'))}</th>
-        <th>${esc(t('agrSignature'))}</th>
-        <th>${esc(t('agrDate'))}</th>
-      </tr></thead>
-      <tbody>
-        <tr>
-          <td>${esc(t('agrName'))}: <strong>${esc(cName)}</strong></td>
-          <td></td><td></td>
-        </tr>
-      </tbody>
-    </table>
-    <table class="slip__table">
-      <thead><tr>
-        <th>${esc(t('agrGuarantors'))}</th>
-        <th>${esc(t('agrSignature'))}</th>
-        <th>${esc(t('agrDate'))}</th>
-      </tr></thead>
-      <tbody>${gRowsHtml}</tbody>
-    </table>
-    <table class="slip__table">
-      <thead><tr>
-        <th>${esc(t('agrCoopApproval'))}</th>
-        <th>${esc(t('agrSignature'))}</th>
-        <th>${esc(t('agrDate'))}</th>
-      </tr></thead>
-      <tbody>
-        <tr><td>${esc(t('approvedBy'))}: <strong>${esc(approvedByName)}</strong></td><td></td><td></td></tr>
-        <tr><td>${esc(t('recordedBy'))}: <strong>${esc(recordedByName)}</strong></td><td></td><td></td></tr>
-        <tr><td colspan="3" style="padding:18px 6px;text-align:center;"><strong>${esc(t('agrOfficialStamp'))}</strong> __________________________</td></tr>
-      </tbody>
-    </table>
-    <div class="slip__footer">
-      <div><strong>GERESU DHUKI SACCO</strong> | ${esc(t('agrTel'))}</div>
-      <div style="margin-top:4px;font-style:italic;color:#0b5cab;font-weight:700;">${esc(t('agrSlogan'))}</div>
-    </div>
+    <table class="slip__table"><thead><tr><th>${esc(t('agrBorrower'))}</th><th>${esc(t('agrSignature'))}</th><th>${esc(t('agrDate'))}</th></tr></thead><tbody><tr><td>${esc(t('agrName'))}: <strong>${esc(cName)}</strong></td><td></td><td></td></tr></tbody></table>
+    <table class="slip__table"><thead><tr><th>${esc(t('agrGuarantors'))}</th><th>${esc(t('agrSignature'))}</th><th>${esc(t('agrDate'))}</th></tr></thead><tbody>${gRowsHtml}</tbody></table>
+    <table class="slip__table"><thead><tr><th>${esc(t('agrCoopApproval'))}</th><th>${esc(t('agrSignature'))}</th><th>${esc(t('agrDate'))}</th></tr></thead><tbody>
+      <tr><td>${esc(t('approvedBy'))}: <strong>${esc(approvedByName)}</strong></td><td></td><td></td></tr>
+      <tr><td>${esc(t('recordedBy'))}: <strong>${esc(recordedByName)}</strong></td><td></td><td></td></tr>
+      <tr><td colspan="3" style="padding:18px 6px;text-align:center;"><strong>${esc(t('agrOfficialStamp'))}</strong> __________________________</td></tr>
+    </tbody></table>
+    <div class="slip__footer"><div><strong>GERESU DHUKI SACCO</strong> | ${esc(t('agrTel'))}</div><div style="margin-top:4px;font-style:italic;color:#0b5cab;font-weight:700;">${esc(t('agrSlogan'))}</div></div>
   </div>`;
 }
 async function printSlip(l) {
@@ -3687,12 +2752,7 @@ async function printSlip(l) {
   const newCount = prevCount + 1;
   const watermarkText = newCount === 1 ? t('original') : t('copy');
   try {
-    await updateDoc(doc(db,'loans',l.id), {
-      printCount: newCount, printStatus: 'printed',
-      lastPrintedAt: serverTimestamp(),
-      lastPrintedBy: APP.profile.id,
-      lastPrintedByName: APP.profile.fullName || APP.profile.name || ''
-    });
+    await updateDoc(doc(db,'loans',l.id), { printCount: newCount, printStatus: 'printed', lastPrintedAt: serverTimestamp(), lastPrintedBy: APP.profile.id, lastPrintedByName: APP.profile.fullName || APP.profile.name || '' });
     l.printCount = newCount; l.printStatus = 'printed';
     if (newCount === 1) toast(t('firstPrint'), 'info');
     else toast(t('reprint') + ' ×' + newCount, 'warning');
@@ -3701,18 +2761,8 @@ async function printSlip(l) {
   const host = document.getElementById('slip-print-host');
   host.innerHTML = buildSlipHtml(l, watermarkText);
   const overlay = document.createElement('div');
-  overlay.className = 'slip-overlay';
-  overlay.id = 'slip-overlay';
-  overlay.innerHTML = `
-    <div class="slip-toolbar">
-      <div style="font-weight:800;font-size:14px;margin-right:12px;display:inline-flex;align-items:center;gap:8px">
-        <i class="fas fa-file-invoice" style="color:var(--primary)"></i>${esc(t('slipPreview'))}
-        <span class="tag ${newCount===1?'tag--print-orig':'tag--print-copy'}" style="margin-left:6px">${esc(watermarkText)}</span>
-      </div>
-      <button class="primary" id="slip-print-btn"><i class="fas fa-print"></i> ${esc(t('printSlip'))}</button>
-      <button id="slip-close-btn"><i class="fas fa-times"></i> ${esc(t('close'))}</button>
-    </div>
-    ${buildSlipHtml(l, watermarkText)}`;
+  overlay.className = 'slip-overlay'; overlay.id = 'slip-overlay';
+  overlay.innerHTML = `<div class="slip-toolbar"><div style="font-weight:800;font-size:14px;margin-right:12px;display:inline-flex;align-items:center;gap:8px"><i class="fas fa-file-invoice" style="color:var(--primary)"></i>${esc(t('slipPreview'))}<span class="tag ${newCount===1?'tag--print-orig':'tag--print-copy'}" style="margin-left:6px">${esc(watermarkText)}</span></div><button class="primary" id="slip-print-btn"><i class="fas fa-print"></i> ${esc(t('printSlip'))}</button><button id="slip-close-btn"><i class="fas fa-times"></i> ${esc(t('close'))}</button></div>${buildSlipHtml(l, watermarkText)}`;
   document.body.appendChild(overlay);
   document.getElementById('slip-print-btn').addEventListener('click', () => { host.innerHTML = buildSlipHtml(l, watermarkText); setTimeout(() => window.print(), 60); });
   document.getElementById('slip-close-btn').addEventListener('click', closeSlipOverlay);
@@ -3728,37 +2778,13 @@ function closeSlipOverlay() {
   if (host) host.innerHTML = '';
 }
 
-/* ============================================================
-   DELETE MODAL
-============================================================ */
 function openDeleteModal(l) {
   closeModal();
   if (!canDelete()) { toast(t('noPermission'), 'error'); return; }
   const c = customerById(l.customerId || l.customerDocId);
   const root = document.createElement('div');
-  root.className = 'modal-backdrop';
-  root.id = 'modal-backdrop';
-  root.innerHTML = `
-    <div class="modal" style="max-width:440px">
-      <div class="modal__head">
-        <div>
-          <div class="modal__title">${esc(t('deleteTitle'))}</div>
-          <div class="modal__sub">${esc(t('deleteText'))}</div>
-        </div>
-        <button class="modal__close" data-close><i class="fas fa-times"></i></button>
-      </div>
-      <div class="modal__body" style="padding-top:14px">
-        <div style="font-weight:800;color:var(--text);font-size:15px;margin-bottom:4px">${esc(customerName(c))}</div>
-        <div style="font-size:13px;color:var(--muted);margin-top:4px">
-          <span class="tag tag--violet">${esc(loanTypeLabel(l.loanType))}</span>
-          <span style="font-family:ui-monospace,monospace;font-weight:800;color:#5b21b6;margin-left:8px">${esc(money(l.principal))}</span>
-        </div>
-      </div>
-      <div class="modal__foot">
-        <button class="btn" data-close>${esc(t('cancel'))}</button>
-        <button class="btn btn--danger" id="confirm-del"><span class="spinner-sm hidden"></span><span class="btn-label">${esc(t('rowDelete'))}</span></button>
-      </div>
-    </div>`;
+  root.className = 'modal-backdrop'; root.id = 'modal-backdrop';
+  root.innerHTML = `<div class="modal" style="max-width:440px"><div class="modal__head"><div><div class="modal__title">${esc(t('deleteTitle'))}</div><div class="modal__sub">${esc(t('deleteText'))}</div></div><button class="modal__close" data-close><i class="fas fa-times"></i></button></div><div class="modal__body" style="padding-top:14px"><div style="font-weight:800;color:var(--text);font-size:15px;margin-bottom:4px">${esc(customerName(c))}</div><div style="font-size:13px;color:var(--muted);margin-top:4px"><span class="tag tag--violet">${esc(loanTypeLabel(l.loanType))}</span><span style="font-family:ui-monospace,monospace;font-weight:800;color:#5b21b6;margin-left:8px">${esc(money(l.principal))}</span></div></div><div class="modal__foot"><button class="btn" data-close>${esc(t('cancel'))}</button><button class="btn btn--danger" id="confirm-del"><span class="spinner-sm hidden"></span><span class="btn-label">${esc(t('rowDelete'))}</span></button></div></div>`;
   document.body.appendChild(root);
   root.addEventListener('click', (e) => { if (e.target === root) closeModal(); });
   root.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeModal));
@@ -3769,40 +2795,16 @@ function openDeleteModal(l) {
     const sp = btn.querySelector('.spinner-sm');
     const lbl = btn.querySelector('.btn-label');
     btn.disabled = true; sp.classList.remove('hidden'); lbl.textContent = t('loading');
-    try {
-      await deleteDoc(doc(db,'loans', l.id));
-      toast(t('deletedOk'), 'success');
-      closeModal();
-    } catch(err) {
-      const msg = err.code === 'permission-denied' ? t('noPermission') : err.message;
-      toast(t('errorDelete') + msg, 'error');
-      btn.disabled = false; sp.classList.add('hidden'); lbl.textContent = t('rowDelete');
-    }
+    try { await deleteDoc(doc(db,'loans', l.id)); toast(t('deletedOk'), 'success'); closeModal(); }
+    catch(err) { const msg = err.code === 'permission-denied' ? t('noPermission') : err.message; toast(t('errorDelete') + msg, 'error'); btn.disabled = false; sp.classList.add('hidden'); lbl.textContent = t('rowDelete'); }
   });
 }
 
-/* ============================================================
-   LOGOUT
-============================================================ */
 function showLogoutModal() {
   closeModal();
   const root = document.createElement('div');
-  root.className = 'modal-backdrop';
-  root.id = 'modal-backdrop';
-  root.innerHTML = `
-    <div class="modal" style="max-width:420px">
-      <div class="modal__head">
-        <div><div class="modal__title">${esc(t('logoutTitle'))}</div></div>
-        <button class="modal__close" data-close><i class="fas fa-times"></i></button>
-      </div>
-      <div class="modal__body" style="padding-top:14px">
-        <p style="color:var(--text-soft);font-size:14px">${esc(t('logoutText'))}</p>
-      </div>
-      <div class="modal__foot">
-        <button class="btn" data-close>${esc(t('cancel'))}</button>
-        <button class="btn btn--danger" id="confirm-logout"><i class="fas fa-sign-out-alt"></i> ${esc(t('logout'))}</button>
-      </div>
-    </div>`;
+  root.className = 'modal-backdrop'; root.id = 'modal-backdrop';
+  root.innerHTML = `<div class="modal" style="max-width:420px"><div class="modal__head"><div><div class="modal__title">${esc(t('logoutTitle'))}</div></div><button class="modal__close" data-close><i class="fas fa-times"></i></button></div><div class="modal__body" style="padding-top:14px"><p style="color:var(--text-soft);font-size:14px">${esc(t('logoutText'))}</p></div><div class="modal__foot"><button class="btn" data-close>${esc(t('cancel'))}</button><button class="btn btn--danger" id="confirm-logout"><i class="fas fa-sign-out-alt"></i> ${esc(t('logout'))}</button></div></div>`;
   document.body.appendChild(root);
   root.addEventListener('click', (e) => { if (e.target === root) closeModal(); });
   root.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeModal));
@@ -3818,18 +2820,12 @@ function showLogoutModal() {
   });
 }
 
-/* ============================================================
-   LISTENERS
-============================================================ */
 function attachListeners() {
   stopListeners();
   const watch = (coll, key) => {
     const unsub = onSnapshot(collection(db, coll),
-      (snap) => {
-        APP[key] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        renderMain();
-      },
-      (err) => { console.warn('[listen]', coll, err.code, err.message); renderMain(); }
+      (snap) => { APP[key] = snap.docs.map(d => ({ id: d.id, ...d.data() })); scheduleRefresh(); },
+      (err) => { console.warn('[listen]', coll, err.code, err.message); }
     );
     APP.unsubs.push(unsub);
   };
@@ -3837,15 +2833,13 @@ function attachListeners() {
   watch('districts', 'districts');
   watch('branches', 'branches');
   watch('loans', 'loans');
-
   const unsubReps = onSnapshot(query(collection(db,'transactions'), where('type','==','repayment')),
-    (snap) => { APP.repayments = snap.docs.map(d => ({id:d.id, ...d.data()})); renderMain(); },
+    (snap) => { APP.repayments = snap.docs.map(d => ({id:d.id, ...d.data()})); scheduleRefresh(); },
     (err) => console.warn('[listen reps]', err.code)
   );
   APP.unsubs.push(unsubReps);
-
   const unsubPen = onSnapshot(query(collection(db,'transactions'), where('type','==','penalty')),
-    (snap) => { APP.penalties = snap.docs.map(d => ({id:d.id, ...d.data()})); renderMain(); },
+    (snap) => { APP.penalties = snap.docs.map(d => ({id:d.id, ...d.data()})); scheduleRefresh(); },
     (err) => console.warn('[listen pen]', err.code)
   );
   APP.unsubs.push(unsubPen);
@@ -3854,9 +2848,14 @@ function stopListeners() {
   APP.unsubs.forEach(u => { try { u(); } catch(e){} });
   APP.unsubs = [];
 }
+let _refreshTimer = null;
+function scheduleRefresh() {
+  if (_refreshTimer) return;
+  _refreshTimer = setTimeout(() => { _refreshTimer = null; if (APP.profile) renderMain(); }, 250);
+}
 
 /* ============================================================
-   BOOT — cache-first render, then auth, then live listeners
+   BOOT — render immediately, never block the loader
 ============================================================ */
 (async function boot() {
   let saved = null;
@@ -3875,57 +2874,58 @@ function stopListeners() {
   }
 
   const cachedProfile = readCachedProfile();
-  let rendered = false;
+  let initialProfile = null;
   if (cachedProfile && cachedProfile.uid) {
-    APP.profile = {
-      id: cachedProfile.uid,
-      role: cachedProfile.role || 'viewer',
-      email: cachedProfile.email || '',
-      fullName: cachedProfile.name || 'User',
+    initialProfile = {
+      id: cachedProfile.uid, role: cachedProfile.role || 'loading',
+      email: cachedProfile.email || '', fullName: cachedProfile.name || 'User',
       photoURL: cachedProfile.photoURL || null,
-      districtId: cachedProfile.districtId || '',
-      districtName: cachedProfile.districtName || '',
-      branchId: cachedProfile.branchId || '',
-      branchName: cachedProfile.branchName || ''
+      districtId: cachedProfile.districtId || '', districtName: cachedProfile.districtName || '',
+      branchId: cachedProfile.branchId || '', branchName: cachedProfile.branchName || ''
     };
-    initWorkarea();
-    renderShell();
-    renderMain();
-    hideLoaderNow();
-    rendered = true;
   } else if (hasMis) {
-    APP.profile = {
-      id: sessionStorage.getItem('uid'),
-      role: sessionStorage.getItem('role') || 'viewer',
-      email: sessionStorage.getItem('email') || '',
-      fullName: sessionStorage.getItem('userName') || 'User',
-      photoURL: null,
-      districtId: '', districtName: '', branchId: '', branchName: ''
+    initialProfile = {
+      id: sessionStorage.getItem('uid') || '', role: sessionStorage.getItem('role') || 'loading',
+      email: sessionStorage.getItem('email') || '', fullName: sessionStorage.getItem('userName') || 'User',
+      photoURL: null, districtId: '', districtName: '', branchId: '', branchName: ''
     };
-    initWorkarea();
-    renderShell();
-    renderMain();
-    hideLoaderNow();
+  } else if (sess && sess.uid) {
+    initialProfile = {
+      id: sess.uid, role: sess.role || 'loading',
+      email: sess.email || '', fullName: sess.name || sess.userName || 'User',
+      photoURL: null,
+      districtId: sess.districtId || '', districtName: sess.districtName || '',
+      branchId: sess.branchId || '', branchName: sess.branchName || ''
+    };
   }
 
-  const user = await new Promise((resolve) => {
-    const unsub = onAuthStateChanged(auth, (u) => { unsub(); resolve(u); });
-  });
-  if (!user) {
+  if (initialProfile) {
+    APP.profile = initialProfile;
+    try { initWorkarea(); renderShell(); renderMain(); } catch (renderErr) { console.error('[initial render]', renderErr); }
+    hideLoaderNow();
+  } else {
     try { sessionStorage.setItem('__redirectReason','expired'); } catch(e){}
-    clearSession(); clearCachedProfile();
     window.location.replace(LOGIN_URL);
     return;
   }
-  if (sess && user.uid !== sess.uid) {
-    try { sessionStorage.setItem('__redirectReason','expired'); } catch(e){}
-    clearSession(); clearCachedProfile();
-    window.location.replace(LOGIN_URL);
-    return;
-  }
-  APP.user = user;
 
   try {
+    const user = await new Promise((resolve) => {
+      const unsub = onAuthStateChanged(auth, (u) => { unsub(); resolve(u); });
+    });
+    if (!user) {
+      try { sessionStorage.setItem('__redirectReason','expired'); } catch(e){}
+      clearSession(); clearCachedProfile();
+      window.location.replace(LOGIN_URL);
+      return;
+    }
+    if (sess && user.uid !== sess.uid) {
+      try { sessionStorage.setItem('__redirectReason','expired'); } catch(e){}
+      clearSession(); clearCachedProfile();
+      window.location.replace(LOGIN_URL);
+      return;
+    }
+    APP.user = user;
     const snap = await getDoc(doc(db, 'users', user.uid));
     if (!snap.exists()) throw new Error('no-user-doc');
     const d = snap.data();
@@ -3933,6 +2933,7 @@ function stopListeners() {
     APP.profile = { id: snap.id, ...d, email: user.email || '' };
     writeCachedProfile();
   } catch(e) {
+    console.error('[auth/profile]', e);
     try { sessionStorage.setItem('__redirectReason','expired'); } catch(e2){}
     clearSession(); clearCachedProfile();
     try { await signOut(auth); } catch(e2){}
@@ -3946,11 +2947,8 @@ function stopListeners() {
     return;
   }
 
-  /* Session watcher starts immediately — not blocked by data */
-  await loadSessionTimeout();
-  startSessionWatcher();
+  try { await loadSessionTimeout(); startSessionWatcher(); } catch(e) { console.warn('[session-watcher]', e); }
 
-  /* Settings */
   try {
     const cfg = await getDoc(doc(db, 'settings', 'system'));
     if (cfg.exists()) {
@@ -3981,22 +2979,12 @@ function stopListeners() {
         if (!isNaN(n) && n >= 1) maxLoansPerCustomer = Math.floor(n);
       }
     }
-  } catch(e) {}
+  } catch(e) { console.warn('[settings]', e); }
 
-  const profileChanged = !rendered ||
-    (cachedProfile && (
-      (cachedProfile.name !== (APP.profile.fullName || APP.profile.name)) ||
-      cachedProfile.role !== APP.profile.role ||
-      cachedProfile.photoURL !== APP.profile.photoURL
-    ));
-  if (profileChanged) {
-    initWorkarea();
-    renderShell();
-    renderMain();
-  }
+  try { initWorkarea(); renderShell(); renderMain(); } catch (renderErr) { console.error('[post-auth render]', renderErr); }
   hideLoaderNow();
 
-  attachListeners();
+  try { attachListeners(); } catch(e) { console.error('[listeners]', e); }
 })();
 
 window.viewLoan = openViewModal;
@@ -4005,7 +2993,7 @@ window.approveRepayment = approveRepayment;
 window.rejectRepayment = rejectRepayment;
 window.printSlip = printSlip;
 
-console.log('[sacco] loans page ready — session fix, cached render, full translations');
+console.log('[sacco] loans page ready');
 </script>
 </body>
 </html>
