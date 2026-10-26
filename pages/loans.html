@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Geresu Dhuki SACCO — Loans</title>
+<title>Geresu Dhuki SACCO</title>
 <script>
 window.addEventListener('error', function(e) {
   console.error('[window error]', e.error || e.message);
@@ -421,6 +421,8 @@ html.theme-dark .rep-list{background:#0f172a;}
 .rep-row .actions button:hover{background:var(--primary);color:#fff;border-color:var(--primary);}
 .rep-row .actions button.approve-btn:hover{background:var(--success);border-color:var(--success);}
 .rep-row .actions button.reject-btn:hover{background:var(--danger);border-color:var(--danger);}
+.rep-row .actions button.print-btn:hover{background:#b8860b;border-color:#b8860b;}
+.rep-row .actions button.edit-btn:hover{background:var(--primary);border-color:var(--primary);}
 .payment-history{margin-top:14px;border-top:1px dashed var(--border);padding-top:14px;}
 .payment-history h5{font-size:12.5px;font-weight:800;margin-bottom:10px;color:var(--text);display:flex;align-items:center;gap:6px;}
 .history-list{max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:#fff;}
@@ -765,8 +767,7 @@ const I18N = {
     allDistricts:'All districts', allBranches:'All branches',
     fullSystem:'Full system — all districts', districtAdmin:'District Admin',
     auditorRole:'Auditor — read-only', selfAccount:'My account',
-    addLoan:'New Loan',
-    summaryTitle:'Summary',
+    addLoan:'New Loan', summaryTitle:'Summary',
     statDisbursed:'Disbursed', statOutstanding:'Outstanding', statRepaid:'Repaid',
     statActiveLoans:'Active Loans', statOverdue:'Overdue', statAllLoans:'All Loans',
     searchPlaceholder:'Search by customer, loan no., ID, purpose or phone…',
@@ -932,7 +933,21 @@ const I18N = {
     noCustomersMatch:'No customers match your search.',
     valueInline:'Value: {v}', contactInline:'Contact: {c}',
     loadingHistory:'Loading payment history…', historyLoadError:'Could not load payment history.',
-    nothingToRepay:'Nothing to repay.'
+    nothingToRepay:'Nothing to repay.',
+    editRepaymentTitle:'Edit Repayment',
+    editRepaymentSub:'Update this repayment record. Approved repayments can only change payment details (not amount).',
+    deleteRepaymentTitle:'Delete Repayment',
+    deleteRepaymentText:'This will permanently remove the repayment and reverse the amount from the loan balance if it was approved.',
+    editRepaymentOk:'Repayment updated.', deleteRepaymentOk:'Repayment deleted.',
+    receiptPreview:'Payment Receipt · A4',
+    receiptTitleLabel:'PAYMENT RECEIPT',
+    receiptBody:'This is to acknowledge that the sum of:',
+    receiptAmountWords:'Amount in words',
+    receiptIssuedTo:'Issued to',
+    receiptApprovedOn:'Approved on',
+    cannotDeleteApproved:'Approved repayments cannot be deleted directly. Reject it first.',
+    cannotEditApprovedAmount:'Cannot change the amount of an approved repayment.',
+    paymentReceipt:'Payment Receipt'
   }
 };
 
@@ -956,8 +971,7 @@ I18N.am = {
   allDistricts:'ሁሉም ወረዳዎች', allBranches:'ሁሉም ቅርንጫፎች',
   fullSystem:'ሙሉ ስርዓት — ሁሉም ወረዳዎች', districtAdmin:'የወረዳ አስተዳዳሪ',
   auditorRole:'ኦዲተር — ተነባቢ ብቻ', selfAccount:'የእኔ ሒሳብ',
-  addLoan:'አዲስ ብድር',
-  summaryTitle:'ማጠቃለያ',
+  addLoan:'አዲስ ብድር', summaryTitle:'ማጠቃለያ',
   statDisbursed:'የተሰጠ', statOutstanding:'ያልተከፈለ', statRepaid:'ተከፍሏል',
   statActiveLoans:'ንቁ ብድሮች', statOverdue:'ዘግይቷል', statAllLoans:'ሁሉም ብድሮች',
   searchPlaceholder:'በደንበኛ፣ በብድር ቁጥር፣ በመታወቂያ፣ በዓላማ ወይም በስልክ ይፈልጉ…',
@@ -1123,7 +1137,21 @@ I18N.am = {
   noCustomersMatch:'ከፍለጋዎ ጋር የሚዛመድ ደንበኛ የለም።',
   valueInline:'ዋጋ: {v}', contactInline:'አድራሻ: {c}',
   loadingHistory:'የክፍያ ታሪክ በመጫን ላይ…', historyLoadError:'የክፍያ ታሪክ ማምጣት አልተቻለም።',
-  nothingToRepay:'የሚከፈል ነገር የለም።'
+  nothingToRepay:'የሚከፈል ነገር የለም።',
+  editRepaymentTitle:'ክፍያ አስተካክል',
+  editRepaymentSub:'ይህን የክፍያ መዝገብ ያዘምኑ። የጸደቁ ክፍያዎች የክፍያ ዝርዝር ብቻ ሊቀየሩ ይችላሉ።',
+  deleteRepaymentTitle:'ክፍያ ሰርዝ',
+  deleteRepaymentText:'ይህ ክፍያን ከ Firestore እስከመጨረሻ ያስወግዳል። የጸደቀ ከሆነ መጠኑ ከብድሩ ቀሪ ይቀነሳል።',
+  editRepaymentOk:'ክፍያው ተዘምኗል።', deleteRepaymentOk:'ክፍያው ተሰርዟል።',
+  receiptPreview:'የክፍያ ደረሰኝ · A4',
+  receiptTitleLabel:'የክፍያ ደረሰኝ',
+  receiptBody:'ይህ የሚያረጋግጠው የሚከተለው መጠን መቀበሉን ነው፦',
+  receiptAmountWords:'መጠን በቃላት',
+  receiptIssuedTo:'የተሰጠው ለ',
+  receiptApprovedOn:'የጸደቀበት',
+  cannotDeleteApproved:'የጸደቁ ክፍያዎች በቀጥታ ሊሰረዙ አይችሉም። መጀመሪያ ውድቅ ያድርጉት።',
+  cannotEditApprovedAmount:'የጸደቀ ክፍያ መጠን መቀየር አይቻልም።',
+  paymentReceipt:'የክፍያ ደረሰኝ'
 };
 
 I18N.om = {
@@ -1146,8 +1174,7 @@ I18N.om = {
   allDistricts:'Aanaa hunda', allBranches:'Damee hunda',
   fullSystem:'Sirna guutuu — aanaa hunda', districtAdmin:'Bulchaa Aanaa',
   auditorRole:'Ooditera — dubbisuu qofa', selfAccount:'Herrega koo',
-  addLoan:'Liqii Haaraa',
-  summaryTitle:'Cuunfaa',
+  addLoan:'Liqii Haaraa', summaryTitle:'Cuunfaa',
   statDisbursed:'Kenne', statOutstanding:'Hin Kaffalamne', statRepaid:'Kaffalame',
   statActiveLoans:'Liqii Sochii', statOverdue:'Tursiise', statAllLoans:'Liqii Hunda',
   searchPlaceholder:'Maamila, lakk. liqii, ID, kaayyoo ykn bilbilaan barbaadi…',
@@ -1313,7 +1340,21 @@ I18N.om = {
   noCustomersMatch:'Maamilli barbaacha kee waliin walsimu hin jiru.',
   valueInline:'Gatii: {v}', contactInline:'Bilbila: {c}',
   loadingHistory:"Seenaa kaffaltii fe'aa jira…", historyLoadError:'Seenaa kaffaltii fiduu hin dandeenye.',
-  nothingToRepay:'Wanti kaffalamu hin jiru.'
+  nothingToRepay:'Wanti kaffalamu hin jiru.',
+  editRepaymentTitle:'Kaffaltii Sirreessi',
+  editRepaymentSub:"Galmee kaffaltii kana haaromsi. Kaffaltiiwwan mirkanaa'an qofa bal'ina kaffaltii jijjiiramuu danda'u.",
+  deleteRepaymentTitle:'Kaffaltii Haqi',
+  deleteRepaymentText:"Kun kaffaltii kana Firestore irraa guutummaatti ni haqa. Yoo mirkanaa'e, baay'inni isaa hafe liqii irraa ni hir'ata.",
+  editRepaymentOk:'Kaffaltiin haaromfame.', deleteRepaymentOk:'Kaffaltiin haqame.',
+  receiptPreview:'Nagahee Kaffaltii · A4',
+  receiptTitleLabel:'NAGAHEE KAFFALTII',
+  receiptBody:'Kun baay\'ina armaan gadii fudhachuu mirkaneessa:',
+  receiptAmountWords:"Baay'ina jechaadhaan",
+  receiptIssuedTo:'Kanaf kenname',
+  receiptApprovedOn:"Yeroo mirkanaa'e",
+  cannotDeleteApproved:"Kaffaltiiwwan mirkanaa'an kallattiin hin haqamanu. Dura didi.",
+  cannotEditApprovedAmount:"Baay'ina kaffaltii mirkanaa'e jijjiiruu hin danda'amu.",
+  paymentReceipt:'Nagahee Kaffaltii'
 };
 
 const SUPPORTED = ['en','am','om'];
@@ -1782,7 +1823,7 @@ async function generatePaymentHistory(loanId) {
 }
 
 /* ============================================================
-   NAV
+   NAV — repayments removed
 ============================================================ */
 const NAV = [
   { section:'navOverview', items:[{ key:'dashboard', icon:'fa-th-large', href:'dashboard.html', roles:['*'] }]},
@@ -1798,7 +1839,6 @@ const NAV = [
   ]},
   { section:'navFinance', items:[
     { key:'deposits', icon:'fa-hand-holding-usd', href:'deposits.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
-    { key:'repayments', icon:'fa-undo-alt', href:'repayments.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
     { key:'withdrawals', icon:'fa-money-bill-wave', href:'withdrawals.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
     { key:'dividends', icon:'fa-gift', href:'dividends.html', roles:['super_admin','admin','manager','accountant','auditor'] },
     { key:'penalties', icon:'fa-exclamation-triangle', href:'penalties.html', roles:['super_admin','admin','manager','cashier'] }
@@ -2709,7 +2749,17 @@ function openViewModal(l) {
       const recordedBy = r.createdByName || r.createdBy || '—';
       const approvedBy = r.approvedByName || r.rejectedByName || '—';
       let actions = '';
-      if (rst === 'pending' && canApprove()) actions = `<button class="approve-btn" data-approve-rep="${esc(r.id)}" title="${esc(t('approve'))}"><i class="fas fa-check"></i></button><button class="reject-btn" data-reject-rep="${esc(r.id)}" title="${esc(t('reject'))}"><i class="fas fa-times"></i></button>`;
+      if (rst === 'pending' && canApprove()) {
+        actions += `<button class="approve-btn" data-approve-rep="${esc(r.id)}" title="${esc(t('approve'))}"><i class="fas fa-check"></i></button>`;
+        actions += `<button class="reject-btn" data-reject-rep="${esc(r.id)}" title="${esc(t('reject'))}"><i class="fas fa-times"></i></button>`;
+      }
+      actions += `<button class="print-btn" data-print-rep="${esc(r.id)}" title="${esc(t('printReceipt'))}"><i class="fas fa-print"></i></button>`;
+      if (rst !== 'approved' && canEdit()) {
+        actions += `<button class="edit-btn" data-edit-rep="${esc(r.id)}" title="${esc(t('rowEdit'))}"><i class="fas fa-pen"></i></button>`;
+      }
+      if (rst !== 'approved' && canDelete()) {
+        actions += `<button class="reject-btn" data-delete-rep="${esc(r.id)}" title="${esc(t('rowDelete'))}"><i class="fas fa-trash"></i></button>`;
+      }
       return `<div class="rep-row"><span class="date">${esc(fmtDate(r.date))}</span><span class="amt">${esc(money(r.amount))}</span><span class="pp">${num(r.principalPortion).toLocaleString()}</span><span class="ip">${num(r.interestPortion).toLocaleString()}${r.interestWaived?' ✓':''}</span><span class="by">${esc(recordedBy)}</span><span class="by">${esc(approvedBy)}</span><span class="status-cell ${stCls}">${stLabel}</span><span class="actions">${actions}</span></div>`;
     }).join('');
     repsHtml = `<div class="rep-list">${header}${rows}</div>`;
@@ -2764,6 +2814,8 @@ function openViewModal(l) {
   document.getElementById('view-edit-btn')?.addEventListener('click', () => { closeModal(); setTimeout(() => openLoanWizard(l), 100); });
   document.getElementById('view-print-btn')?.addEventListener('click', () => { closeModal(); setTimeout(() => printSlip(l), 120); });
   document.getElementById('view-repay-btn')?.addEventListener('click', () => { closeModal(); setTimeout(() => openRepaymentModal(l), 120); });
+
+  /* Repayment action handlers */
   root.querySelectorAll('[data-approve-rep]').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (!confirm(t('approveRepTitle') + '\n\n' + t('approveRepMsg'))) return;
@@ -2781,6 +2833,232 @@ function openViewModal(l) {
       const fresh = APP.loans.find(x => x.id === l.id);
       if (fresh) setTimeout(() => openViewModal(fresh), 200);
     });
+  });
+  root.querySelectorAll('[data-print-rep]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tx = APP.repayments.find(x => x.id === btn.dataset.printRep);
+      if (!tx) { toast(t('repNotFound'), 'error'); return; }
+      printRepaymentReceipt(tx, l);
+    });
+  });
+  root.querySelectorAll('[data-edit-rep]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tx = APP.repayments.find(x => x.id === btn.dataset.editRep);
+      if (!tx) { toast(t('repNotFound'), 'error'); return; }
+      openEditRepaymentModal(tx, l);
+    });
+  });
+  root.querySelectorAll('[data-delete-rep]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tx = APP.repayments.find(x => x.id === btn.dataset.deleteRep);
+      if (!tx) { toast(t('repNotFound'), 'error'); return; }
+      openDeleteRepaymentModal(tx, l);
+    });
+  });
+}
+
+/* ============================================================
+   REPAYMENT RECEIPT — A5 print with watermark
+============================================================ */
+function buildRepaymentReceiptHtml(tx, loan, watermarkText) {
+  const c = customerById(loan.customerId || loan.customerDocId);
+  const cName = customerName(c);
+  const serial = 'RCP-' + (tx.id||'').slice(-8).toUpperCase();
+  const loanSerial = loan.serialNumber || loan.loanNumber || (loan.id||'').slice(0,8).toUpperCase();
+  const amount = num(tx.amount);
+  const amountWords = numberToWords(amount);
+  const methodLabel = { cash:t('methodCash'), bank:t('methodBank'), mobile:t('methodMobile') }[tx.paymentMethod] || tx.paymentMethod || '—';
+  const statusLabel = String(tx.status||'pending').toLowerCase() === 'approved' ? t('repApproved') : String(tx.status||'').toLowerCase() === 'rejected' ? t('repRejected') : t('repPending');
+  const fmt = (n) => num(n).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+  return `<div class="slip">
+    <div class="slip__watermark" aria-hidden="true">
+      <img src="${esc(LOGO_URL)}" alt="" onerror="this.style.display='none'">
+      <div class="slip__watermark-text">${esc(watermarkText)}</div>
+    </div>
+    <div class="slip__head">
+      <div class="slip__logo"><img src="${esc(LOGO_URL)}" alt=""></div>
+      <div class="slip__brand">
+        <div class="slip__sacco-name">WALDAA LIQII FI QUSANNAA GARASUU DHUKII</div>
+        <div class="slip__sacco-sub">${esc(APP.saccoName||'GERESU DHUKI SACCO')}</div>
+      </div>
+      <div class="slip__logo"><img src="${esc(LOGO_URL)}" alt=""></div>
+    </div>
+    <div class="slip__doc-row">
+      <div><strong>${esc(t('receiptNo'))}:</strong> <span style="font-family:monospace;font-weight:800">${esc(serial)}</span></div>
+      <div><strong>${esc(t('agrDate'))}:</strong> ${esc(fmtDate(tx.date))}</div>
+      <div><strong>${esc(t('agrSerial'))}:</strong> <span style="font-family:monospace;font-weight:800">${esc(loanSerial)}</span></div>
+      <div><span style="display:inline-block;padding:1px 8px;border-radius:3px;font-size:9pt;font-weight:900;letter-spacing:.12em;text-transform:uppercase;background:${statusLabel===t('repApproved')?'#e7f7f0':'#fdf5e0'};color:${statusLabel===t('repApproved')?'#065f46':'#7a5210'};border:1px solid ${statusLabel===t('repApproved')?'#a7f3d0':'#f0dcb0'}">${esc(statusLabel)}</span></div>
+    </div>
+    <div class="slip__title">${esc(t('paymentReceipt'))}</div>
+    <div class="slip__body">
+      <p>${esc(t('receiptBody'))}</p>
+      <div class="slip__amount-line">ETB ${esc(fmt(amount))}<br><span style="font-size:11pt;font-weight:600;">( ${esc(amountWords)} )</span></div>
+      <p>${esc(t('receiptIssuedTo'))}: <strong>${esc(cName)}</strong>${c?.customerId?` (${esc(c.customerId)})`:''}</p>
+    </div>
+    <table class="slip__table">
+      <thead><tr>
+        <th>${esc(t('colRepPrincipal'))}</th>
+        <th>${esc(t('colRepInterest'))}</th>
+        <th>${esc(t('colRepAmount'))}</th>
+        <th>${esc(t('repaymentMethod'))}</th>
+      </tr></thead>
+      <tbody><tr>
+        <td>ETB ${esc(fmt(tx.principalPortion))}</td>
+        <td>ETB ${esc(fmt(tx.interestPortion))}</td>
+        <td><strong>ETB ${esc(fmt(amount))}</strong></td>
+        <td>${esc(methodLabel)}</td>
+      </tr></tbody>
+    </table>
+    <table class="slip__table">
+      <thead><tr>
+        <th>${esc(t('recordedBy'))}</th>
+        <th>${esc(t('approvedBy'))}</th>
+        <th>${esc(t('receiptApprovedOn'))}</th>
+      </tr></thead>
+      <tbody><tr>
+        <td>${esc(tx.createdByName || '—')}</td>
+        <td>${esc(tx.approvedByName || tx.rejectedByName || '—')}</td>
+        <td>${esc(fmtDate(tx.approvedAt || tx.rejectedAt || tx.date))}</td>
+      </tr></tbody>
+    </table>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20mm;margin-top:14px">
+      <div style="text-align:center">
+        <div style="border-bottom:1px solid #333;height:20px"></div>
+        <div style="font-size:10pt;color:#333;margin-top:4px;font-weight:600;">${esc(t('borrowerSign'))}</div>
+      </div>
+      <div style="text-align:center">
+        <div style="border-bottom:1px solid #333;height:20px"></div>
+        <div style="font-size:10pt;color:#333;margin-top:4px;font-weight:600;">${esc(t('agrOfficialStamp'))}</div>
+      </div>
+    </div>
+    <div class="slip__footer"><div><strong>GERESU DHUKI SACCO</strong> | ${esc(t('agrTel'))}</div><div style="margin-top:4px;font-style:italic;color:#0b5cab;font-weight:700;">${esc(t('agrSlogan'))}</div></div>
+  </div>`;
+}
+
+function printRepaymentReceipt(tx, loan) {
+  if (!tx || !loan) return;
+  if (!canPrint()) { toast(t('noPermission'), 'error'); return; }
+  const txSt = String(tx.status||'pending').toLowerCase();
+  const watermarkText = txSt === 'approved' ? t('original') : (txSt === 'rejected' ? t('rejectedWatermark') || 'REJECTED' : t('pendingLc') || 'PENDING');
+  closeSlipOverlay();
+  const host = document.getElementById('slip-print-host');
+  host.innerHTML = buildRepaymentReceiptHtml(tx, loan, watermarkText);
+  const overlay = document.createElement('div');
+  overlay.className = 'slip-overlay'; overlay.id = 'slip-overlay';
+  overlay.innerHTML = `<div class="slip-toolbar"><div style="font-weight:800;font-size:14px;margin-right:12px;display:inline-flex;align-items:center;gap:8px"><i class="fas fa-receipt" style="color:var(--primary)"></i>${esc(t('receiptPreview'))}<span class="tag ${txSt==='approved'?'tag--print-orig':'tag--print-copy'}" style="margin-left:6px">${esc(watermarkText)}</span></div><button class="primary" id="slip-print-btn"><i class="fas fa-print"></i> ${esc(t('printReceipt'))}</button><button id="slip-close-btn"><i class="fas fa-times"></i> ${esc(t('close'))}</button></div>${buildRepaymentReceiptHtml(tx, loan, watermarkText)}`;
+  document.body.appendChild(overlay);
+  document.getElementById('slip-print-btn').addEventListener('click', () => { host.innerHTML = buildRepaymentReceiptHtml(tx, loan, watermarkText); setTimeout(() => window.print(), 60); });
+  document.getElementById('slip-close-btn').addEventListener('click', closeSlipOverlay);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeSlipOverlay(); });
+  escHandler = (e) => { if (e.key === 'Escape') closeSlipOverlay(); };
+  document.addEventListener('keydown', escHandler);
+}
+
+function openEditRepaymentModal(tx, loan) {
+  if (!tx || !loan) return;
+  if (!canEdit()) { toast(t('noPermission'), 'error'); return; }
+  const status = String(tx.status||'pending').toLowerCase();
+  if (status === 'approved') { toast(t('cannotEditApprovedAmount'), 'warning'); return; }
+  closeModal();
+  const initial = {
+    amount: tx.amount != null ? String(num(tx.amount)) : '',
+    date: tx.date ? (toDate(tx.date)?.toISOString().slice(0,10) || new Date().toISOString().slice(0,10)) : new Date().toISOString().slice(0,10),
+    method: tx.paymentMethod || 'cash',
+    ttNumber: tx.ttNumber || '',
+    bankName: tx.bankName || '',
+    transferDate: tx.transferDate ? (toDate(tx.transferDate)?.toISOString().slice(0,10) || '') : '',
+    note: tx.note || ''
+  };
+  const root = document.createElement('div');
+  root.className = 'modal-backdrop'; root.id = 'modal-backdrop';
+  root.innerHTML = `<div class="modal"><div class="modal__head"><div><div class="modal__title">${esc(t('editRepaymentTitle'))}</div><div class="modal__sub">${esc(t('editRepaymentSub'))}</div></div><button class="modal__close" data-close><i class="fas fa-times"></i></button></div><div class="modal__body">
+    <div class="field-row">
+      <div class="field"><label class="field__required">${esc(t('repaymentAmount'))}</label><input data-field="amount" type="number" step="0.01" min="0.01" class="amount-input" value="${esc(initial.amount)}"></div>
+      <div class="field"><label class="field__required">${esc(t('repaymentDate'))}</label><input data-field="date" type="date" value="${esc(initial.date)}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>${esc(t('repaymentMethod'))}</label><select data-field="method">
+        <option value="cash" ${initial.method==='cash'?'selected':''}>${esc(t('methodCash'))}</option>
+        <option value="bank" ${initial.method==='bank'?'selected':''}>${esc(t('methodBank'))}</option>
+        <option value="mobile" ${initial.method==='mobile'?'selected':''}>${esc(t('methodMobile'))}</option>
+      </select></div>
+      <div class="field"><label>${esc(t('ttNumber'))}</label><input data-field="ttNumber" type="text" value="${esc(initial.ttNumber)}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>${esc(t('bankProvider'))}</label><input data-field="bankName" type="text" value="${esc(initial.bankName)}"></div>
+      <div class="field"><label>${esc(t('transferDate'))}</label><input data-field="transferDate" type="date" value="${esc(initial.transferDate)}"></div>
+    </div>
+    <div class="field"><label>${esc(t('repaymentNotes'))}</label><textarea data-field="note">${esc(initial.note)}</textarea></div>
+  </div><div class="modal__foot"><button class="btn" data-close>${esc(t('cancel'))}</button><div class="spacer"></div><button class="btn btn--primary" id="edit-save-btn"><span class="spinner-sm hidden"></span><span class="btn-label">${esc(t('save'))}</span></button></div></div>`;
+  document.body.appendChild(root);
+  escHandler = (e) => { if (e.key === 'Escape') closeModal(); };
+  document.addEventListener('keydown', escHandler);
+  root.addEventListener('click', (e) => { if (e.target === root) closeModal(); });
+  root.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeModal));
+  document.getElementById('edit-save-btn').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const sp = btn.querySelector('.spinner-sm');
+    const lbl = btn.querySelector('.btn-label');
+    const amt = num(root.querySelector('[data-field="amount"]').value);
+    const dt = root.querySelector('[data-field="date"]').value;
+    if (!amt || amt <= 0) { toast(t('invalidAmountMsg'), 'error'); return; }
+    if (!dt) { toast(t('pleaseSelectDate'), 'error'); return; }
+    btn.disabled = true; sp.classList.remove('hidden'); lbl.textContent = t('loading');
+    try {
+      const payload = {
+        amount: amt,
+        date: new Date(dt),
+        paymentMethod: root.querySelector('[data-field="method"]').value,
+        ttNumber: (root.querySelector('[data-field="ttNumber"]').value||'').trim(),
+        bankName: (root.querySelector('[data-field="bankName"]').value||'').trim(),
+        note: (root.querySelector('[data-field="note"]').value||'').trim(),
+        updatedAt: serverTimestamp()
+      };
+      const td = root.querySelector('[data-field="transferDate"]').value;
+      if (td) payload.transferDate = new Date(td);
+      await updateDoc(doc(db,'transactions',tx.id), payload);
+      toast(t('editRepaymentOk'), 'success');
+      closeModal();
+      const fresh = APP.loans.find(x => x.id === loan.id);
+      if (fresh) setTimeout(() => openViewModal(fresh), 200);
+    } catch(err) {
+      const msg = err.code === 'permission-denied' ? t('noPermission') : err.message;
+      toast(t('errorSave') + msg, 'error');
+      btn.disabled = false; sp.classList.add('hidden'); lbl.textContent = t('save');
+    }
+  });
+}
+
+function openDeleteRepaymentModal(tx, loan) {
+  if (!tx) return;
+  if (!canDelete()) { toast(t('noPermission'), 'error'); return; }
+  const status = String(tx.status||'pending').toLowerCase();
+  if (status === 'approved') { toast(t('cannotDeleteApproved'), 'warning'); return; }
+  closeModal();
+  const root = document.createElement('div');
+  root.className = 'modal-backdrop'; root.id = 'modal-backdrop';
+  root.innerHTML = `<div class="modal" style="max-width:440px"><div class="modal__head"><div><div class="modal__title">${esc(t('deleteRepaymentTitle'))}</div><div class="modal__sub">${esc(t('deleteRepaymentText'))}</div></div><button class="modal__close" data-close><i class="fas fa-times"></i></button></div><div class="modal__body" style="padding-top:14px"><div style="font-weight:800;color:var(--text);font-size:15px;margin-bottom:4px">${esc(money(tx.amount))}</div><div style="font-size:13px;color:var(--muted);margin-top:4px">${esc(fmtDate(tx.date))} · ${esc(tx.createdByName || '—')}</div></div><div class="modal__foot"><button class="btn" data-close>${esc(t('cancel'))}</button><button class="btn btn--danger" id="confirm-del-rep"><span class="spinner-sm hidden"></span><span class="btn-label">${esc(t('rowDelete'))}</span></button></div></div>`;
+  document.body.appendChild(root);
+  escHandler = (e) => { if (e.key === 'Escape') closeModal(); };
+  document.addEventListener('keydown', escHandler);
+  root.addEventListener('click', (e) => { if (e.target === root) closeModal(); });
+  root.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeModal));
+  document.getElementById('confirm-del-rep').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const sp = btn.querySelector('.spinner-sm');
+    const lbl = btn.querySelector('.btn-label');
+    btn.disabled = true; sp.classList.remove('hidden'); lbl.textContent = t('loading');
+    try {
+      await deleteDoc(doc(db,'transactions',tx.id));
+      toast(t('deleteRepaymentOk'), 'success');
+      closeModal();
+      const fresh = APP.loans.find(x => x.id === (loan?.id));
+      if (fresh) setTimeout(() => openViewModal(fresh), 200);
+    } catch(err) {
+      const msg = err.code === 'permission-denied' ? t('noPermission') : err.message;
+      toast(t('errorDelete') + msg, 'error');
+      btn.disabled = false; sp.classList.add('hidden'); lbl.textContent = t('rowDelete');
+    }
   });
 }
 
@@ -3206,7 +3484,7 @@ function scheduleRefresh() {
 }
 
 /* ============================================================
-   BOOT — render immediately, never block the loader
+   BOOT
 ============================================================ */
 (async function boot() {
   let saved = null;
@@ -3342,6 +3620,7 @@ window.viewLoan = openViewModal;
 window.openRepaymentModal = openRepaymentModal;
 window.approveRepayment = approveRepayment;
 window.rejectRepayment = rejectRepayment;
+window.printRepaymentReceipt = printRepaymentReceipt;
 window.printSlip = printSlip;
 
 console.log('[sacco] loans page ready');
