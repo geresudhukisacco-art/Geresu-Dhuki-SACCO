@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Geresu Dhuki SACCO</title>
+<title>Geresu Dhuki SACCO — Loans</title>
 <link rel="icon" type="image/png" href="../images/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -388,10 +388,6 @@ html.theme-dark .guarantee-form{background:#111a2c;}
 .receipt-upload__hint{font-size:11.5px;color:var(--muted);font-weight:600;}
 .receipt-upload__btn{padding:7px 14px;border:1px solid #d9dee7;border-radius:9px;background:#fff;font-size:12px;font-weight:700;color:var(--text-soft);cursor:pointer;flex-shrink:0;}
 .receipt-thumb{max-width:200px;max-height:200px;border-radius:10px;cursor:pointer;border:1px solid var(--border);object-fit:cover;}
-.dup-check{position:absolute;right:14px;top:42px;font-size:13px;font-weight:700;pointer-events:none;}
-.field input.has-check{padding-right:40px;}
-.field__error{font-size:12px;color:var(--danger);font-weight:600;display:none;margin-top:4px;}
-.field__error.show{display:block;}
 .rep-list{background:#fff;}
 html.theme-dark .rep-list{background:#0f172a;}
 .rep-row{display:grid;grid-template-columns:90px 1fr 1fr 1fr 1.2fr 1.2fr 1.1fr auto;gap:8px;align-items:center;padding:11px 14px;border-bottom:1px solid var(--border-soft);font-size:12px;}
@@ -446,9 +442,6 @@ html.theme-dark .rep-list{background:#0f172a;}
 .info-row .v{font-weight:700;color:var(--text);text-align:right;word-break:break-word;}
 .info-row .v.positive{color:var(--success);}
 .info-row .v.warning{color:var(--danger);}
-.min-banner{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;border-radius:14px;padding:14px 20px;margin-bottom:18px;border:2px solid #f0d68a;}
-.min-banner__text{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-.min-banner__amount{background:rgba(255,255,255,.22);padding:5px 16px;border-radius:999px;font-weight:800;font-size:17px;border:1px solid rgba(255,255,255,.35);}
 .btn-repay-all{background:linear-gradient(135deg,#128a5c,#19a974);color:#fff;border:none;border-radius:11px;padding:0 18px;font-size:13px;font-weight:800;cursor:pointer;transition:.15s;white-space:nowrap;font-family:inherit;display:inline-flex;align-items:center;gap:6px;height:48px;}
 .btn-repay-all:hover:not(:disabled){transform:scale(1.02);box-shadow:0 8px 20px rgba(18,138,92,.3);}
 .btn-repay-all:disabled{opacity:.5;cursor:not-allowed;}
@@ -941,10 +934,10 @@ const I18N = {
     arrearsClearMsg:'This repayment clears the {n} missed month(s) — arrears of {amount} will be settled.',
     arrearsMustPay:'Amount must be at least {amount}.',
     monthSingular:'month', monthPlural:'months',
-    loanNoShort:'Loan No.',
-    moShort:'mo',
+    loanNoShort:'Loan No.', moShort:'mo',
     noCustomersMatch:'No customers match your search.',
-    valueInline:'Value: {v}', contactInline:'Contact: {c}'
+    valueInline:'Value: {v}', contactInline:'Contact: {c}',
+    loadingHistory:'Loading payment history…', historyLoadError:'Could not load payment history.'
   },
 
   am: {
@@ -1149,7 +1142,8 @@ const I18N = {
     arrearsMustPay:'መጠኑ ቢያንስ {amount} መሆን አለበት።',
     monthSingular:'ወር', monthPlural:'ወራት', loanNoShort:'የብድር ቁጥር', moShort:'ወር',
     noCustomersMatch:'ከፍለጋዎ ጋር የሚዛመድ ደንበኛ የለም።',
-    valueInline:'ዋጋ: {v}', contactInline:'አድራሻ: {c}'
+    valueInline:'ዋጋ: {v}', contactInline:'አድራሻ: {c}',
+    loadingHistory:'የክፍያ ታሪክ በመጫን ላይ…', historyLoadError:'የክፍያ ታሪክ ማምጣት አልተቻለም።'
   },
 
   om: {
@@ -1354,7 +1348,8 @@ const I18N = {
     arrearsMustPay:"Baay'inni yoo xiqqaate {amount} ta'uu qaba.",
     monthSingular:"ji'a", monthPlural:"ji'oota", loanNoShort:'Lakk. Liqii', moShort:"ji'a",
     noCustomersMatch:'Maamilli barbaacha kee waliin walsimu hin jiru.',
-    valueInline:'Gatii: {v}', contactInline:'Bilbila: {c}'
+    valueInline:'Gatii: {v}', contactInline:'Bilbila: {c}',
+    loadingHistory:"Seenaa kaffaltii fe'aa jira…", historyLoadError:"Seenaa kaffaltii fiduu hin dandeenye."
   }
 };
 
@@ -1782,7 +1777,6 @@ async function checkAndCreateLoanPenalty(loanId, memberId) {
       description: `Loan penalty for ${unpaidMonths} unpaid month(s) — (${monthlyPayment.toFixed(2)} × ${unpaidMonths}) × ${(rate*100).toFixed(1)}%`,
       createdBy: 'system-auto'
     });
-    toast(`⚠ ${t('penaltyGeneratedMsg', { amount: penaltyAmount.toFixed(2), n: unpaidMonths })}`, 'warning');
     return { penaltyAmount, unpaidMonths };
   } catch(e) {
     console.error('Loan penalty check error:', e);
@@ -1918,7 +1912,7 @@ async function generatePaymentHistory(loanId) {
       <div class="history-list">${rowsHtml}</div>${totalsHtml}`;
   } catch(e) {
     console.error(e);
-    return `<p style="color:var(--muted)">Error loading payment history.</p>`;
+    return `<p style="color:var(--muted)">${esc(t('historyLoadError'))}</p>`;
   }
 }
 
@@ -3226,38 +3220,33 @@ function openViewModal(l) {
 }
 
 /* ============================================================
-   REPAYMENT MODAL
+   REPAYMENT MODAL — opens instantly, loads async data inside
 ============================================================ */
-async function openRepaymentModal(loan) {
+function openRepaymentModal(loan) {
   if (!canRepay()) { toast(t('noPermission'), 'error'); return; }
   if (!loan) { toast(t('pleaseSelectLoan'), 'warning'); return; }
   closeModal();
+
   const outstanding0 = loanOutstanding(loan);
   if (outstanding0 <= 0) { toast('Nothing to repay.', 'info'); return; }
-  await checkAndCreateLoanPenalty(loan.id, loan.customerId || loan.memberId);
-  const [pending0, historyHtml, list0] = await Promise.all([
-    getMemberLoanPenalties(loan.customerId || loan.memberId),
-    generatePaymentHistory(loan.id),
-    getDocs(query(collection(db,'transactions'), where('loanId','==',loan.id), where('type','==','repayment'))).then(s => s.docs.map(d => ({id:d.id,...d.data()}))).catch(() => [])
-  ]);
-  const monthly0 = calcLoan(loan.principal, loan.interestRate, loan.duration, loan.interestType).monthly;
-  const allowPartial = allowPartialRepayment !== false;
-  const approvedCount0 = list0.filter(r => r.status === 'approved' || r.printed === true).length;
 
-  const start0 = loanStartDate(loan);
-  let monthsDue0 = 0;
+  const monthly0         = calcLoan(loan.principal, loan.interestRate, loan.duration, loan.interestType).monthly;
+  const allowPartial     = allowPartialRepayment !== false;
+  const start0           = loanStartDate(loan);
+  let   monthsDue0       = 0;
   if (start0) {
     const nowShifted = new Date(Date.now() - GRACE_MS());
-    monthsDue0 = (nowShifted.getFullYear()-start0.getFullYear())*12 + (nowShifted.getMonth()-start0.getMonth());
+    monthsDue0 = (nowShifted.getFullYear() - start0.getFullYear()) * 12
+               + (nowShifted.getMonth()   - start0.getMonth());
     if (nowShifted.getDate() < start0.getDate()) monthsDue0 -= 1;
     monthsDue0 = Math.max(0, monthsDue0);
   }
-  const totalMonths0 = Math.max(1, Math.floor(num(loan.duration) || 1));
-  const paidSoFar0 = loanRepaid(loan);
-  const totalPayable0 = calcLoan(loan.principal, loan.interestRate, loan.duration, loan.interestType).total;
-  const expectedSoFar0 = Math.min(totalPayable0, Math.min(monthsDue0, totalMonths0) * monthly0);
-  const arrearsAmount0 = Math.max(0, round2(expectedSoFar0 - paidSoFar0));
-  const monthsBehind0 = monthly0 > 0 ? Math.ceil(arrearsAmount0 / monthly0) : 0;
+  const totalMonths0     = Math.max(1, Math.floor(num(loan.duration) || 1));
+  const paidSoFar0       = loanRepaid(loan);
+  const totalPayable0    = calcLoan(loan.principal, loan.interestRate, loan.duration, loan.interestType).total;
+  const expectedSoFar0   = Math.min(totalPayable0, Math.min(monthsDue0, totalMonths0) * monthly0);
+  const arrearsAmount0   = Math.max(0, round2(expectedSoFar0 - paidSoFar0));
+  const monthsBehind0    = monthly0 > 0 ? Math.ceil(arrearsAmount0 / monthly0) : 0;
 
   let minPayment0;
   if (!allowPartial) minPayment0 = outstanding0;
@@ -3268,33 +3257,50 @@ async function openRepaymentModal(loan) {
 
   const c = customerById(loan.customerId || loan.customerDocId);
   const initSplit = computeRepaymentSplit(minPayment0, loan, outstanding0);
+
+  const cachedReps     = (APP.repayments || []).filter(r => r.loanId === loan.id);
+  const approvedCount0 = cachedReps.filter(r => r.status === 'approved' || r.printed === true).length;
+
   const initial = {
     amount: minPayment0.toFixed(2),
     date: new Date().toISOString().slice(0,10),
     method: ['super_admin','admin','manager'].includes(APP.profile.role) ? 'cash' : 'bank',
     ttNumber: '', transferDate: '', bankName: '', bankOther: '', note: '',
-    principalPortion: initSplit.principal, interestPortion: initSplit.interest,
+    principalPortion: initSplit.principal,
+    interestPortion:  initSplit.interest,
     isRepayAll: false,
-    _outstanding: outstanding0, _monthly: monthly0, _minPayment: minPayment0,
-    _approvedCount: approvedCount0, _allowPartial: allowPartial,
-    _monthsBehind: monthsBehind0, _arrearsAmount: arrearsAmount0, _monthsDue: monthsDue0,
-    _historyHtml: historyHtml, _customer: c, _pending: pending0, _list0: list0,
-    _totalPayable: totalPayable0, _totalMonths: totalMonths0
+    _outstanding:  outstanding0,
+    _monthly:      monthly0,
+    _minPayment:   minPayment0,
+    _approvedCount: approvedCount0,
+    _allowPartial: allowPartial,
+    _monthsBehind: monthsBehind0,
+    _arrearsAmount: arrearsAmount0,
+    _monthsDue:    monthsDue0,
+    _historyHtml:  `<div style="padding:22px;text-align:center;color:var(--muted);font-size:12.5px"><i class="fas fa-spinner fa-spin" style="margin-right:6px"></i>${esc(t('loadingHistory'))}</div>`,
+    _customer:     c,
+    _pending:      { total: 0, details: [] },
+    _list0:        cachedReps,
+    _totalPayable: totalPayable0,
+    _totalMonths:  totalMonths0
   };
 
   openWizard({
-    title: t('repaymentTitle'), subtitle: t('repaymentSub'),
-    finishLabel: t('rowRepay'), successMessage: t('repaymentOk'),
-    size: 'lg', initial,
+    title: t('repaymentTitle'),
+    subtitle: t('repaymentSub'),
+    finishLabel: t('rowRepay'),
+    successMessage: t('repaymentOk'),
+    size: 'lg',
+    initial,
     steps: [
       {
-        label:'Amount', title:'Loan & Amount',
+        label: 'Amount', title: 'Loan & Amount',
         render: (d) => {
-          const gateMonths = waiverRequiresMinMonths !== false ? minMonthsForRepayAll : 0;
-          const gate = d._approvedCount < gateMonths;
+          const gateMonths    = waiverRequiresMinMonths !== false ? minMonthsForRepayAll : 0;
+          const gate          = d._approvedCount < gateMonths;
           const partialLocked = d._allowPartial === false;
           const arrearsBanner = d._monthsBehind > 0
-            ? `<div class="alert alert--warning"><i class="fas fa-exclamation-triangle"></i><div>${esc(t('unpaidWarningText'))} <strong>${d._monthsBehind}</strong> ${d._monthsBehind===1?t('monthSingular'):t('monthPlural')} — ${esc(t('arrearsLabel'))}: <strong>${esc(money(d._arrearsAmount))}</strong>. ${esc(t('minRepayHint'))}.</div></div>`
+            ? `<div class="alert alert--warning"><i class="fas fa-exclamation-triangle"></i><div>${esc(t('unpaidWarningText'))} <strong>${d._monthsBehind}</strong> ${d._monthsBehind===1?t('monthSingular'):t('monthPlural')} — ${esc(t('arrearsLabel'))}: <strong>${esc(money(d._arrearsAmount))}</strong>.</div></div>`
             : `<div class="alert alert--success"><i class="fas fa-check-circle"></i><div>${esc(t('upToDate'))}</div></div>`;
           return `
             ${d._pending.total > 0 ? `<div class="alert alert--error"><i class="fas fa-lock"></i><div>${esc(t('penaltyBlockedTitle'))} <strong>ETB ${d._pending.total.toFixed(2)}</strong>. ${esc(t('penaltyBlockPay'))}</div></div>` : ''}
@@ -3336,52 +3342,89 @@ async function openRepaymentModal(loan) {
           const amt = num(d.amount);
           if (amt <= 0) return t('invalidAmountMsg');
           if (amt > d._outstanding + 0.01) return t('cannotExceedRemaining');
-          if (d._allowPartial === false && amt + 0.01 < d._outstanding) return t('partialRepaymentDisabled', { amount: money(d._outstanding) });
-          if (d._allowPartial !== false && d._monthsBehind > 0 && !d.isRepayAll && amt + 0.01 < d._arrearsAmount) {
+          if (d._allowPartial === false && amt + 0.01 < d._outstanding)
+            return t('partialRepaymentDisabled', { amount: money(d._outstanding) });
+          if (d._allowPartial !== false && d._monthsBehind > 0 && !d.isRepayAll && amt + 0.01 < d._arrearsAmount)
             return t('arrearsMustPay', { amount: money(d._arrearsAmount) });
-          }
-          if (d._allowPartial !== false && !d.isRepayAll && amt + 0.01 < d._minPayment) {
+          if (d._allowPartial !== false && !d.isRepayAll && amt + 0.01 < d._minPayment)
             return `${t('minPaymentNotMet')} (${money(d._minPayment)})`;
-          }
           return null;
         },
         after: (root, data, refresh) => {
-          const amtIn = root.querySelector('#rpAmount');
-          const repayAllBtn = root.querySelector('#rpRepayAllBtn');
-          const principalIn = root.querySelector('#rpPrincipalPortion');
-          const interestIn = root.querySelector('#rpInterestPortion');
-          const waiverNote = root.querySelector('#rpWaiverNote');
-          const waiverText = root.querySelector('#rpWaiverText');
+          const amtIn         = root.querySelector('#rpAmount');
+          const repayAllBtn   = root.querySelector('#rpRepayAllBtn');
+          const principalIn   = root.querySelector('#rpPrincipalPortion');
+          const interestIn    = root.querySelector('#rpInterestPortion');
+          const waiverNote    = root.querySelector('#rpWaiverNote');
+          const waiverText    = root.querySelector('#rpWaiverText');
+
           const updateSplit = () => {
             const amt = num(amtIn.value);
             if (amt <= 0) { principalIn.value = ''; interestIn.value = ''; return; }
             if (data.isRepayAll && allowInterestWaiver) { principalIn.value = amt.toFixed(2); interestIn.value = '0.00'; return; }
             const sp = computeRepaymentSplit(amt, loan, data._outstanding);
             principalIn.value = sp.principal.toFixed(2);
-            interestIn.value = sp.interest.toFixed(2);
+            interestIn.value  = sp.interest.toFixed(2);
           };
-          amtIn.addEventListener('input', () => { data.amount = amtIn.value; if (data.isRepayAll) { data.isRepayAll = false; if (waiverNote) waiverNote.style.display = 'none'; } updateSplit(); });
+          amtIn.addEventListener('input', () => {
+            data.amount = amtIn.value;
+            if (data.isRepayAll) { data.isRepayAll = false; if (waiverNote) waiverNote.style.display = 'none'; }
+            updateSplit();
+          });
           repayAllBtn?.addEventListener('click', () => {
             const gateMonths = waiverRequiresMinMonths !== false ? minMonthsForRepayAll : 0;
-            if (data._approvedCount < gateMonths) { toast(t('repayAllGateMsg', { n: gateMonths, paid: data._approvedCount }), 'warning'); return; }
+            if (data._approvedCount < gateMonths) {
+              toast(t('repayAllGateMsg', { n: gateMonths, paid: data._approvedCount }), 'warning');
+              return;
+            }
             if (allowInterestWaiver) {
-              const paidPrincipal = data._list0.filter(r => r.status==='approved' || r.printed===true).reduce((s,r) => s + getRepaymentPrincipal(r, loan), 0);
+              const paidPrincipal = data._list0
+                .filter(r => r.status === 'approved' || r.printed === true)
+                .reduce((s, r) => s + getRepaymentPrincipal(r, loan), 0);
               const outstandingPrincipal = Math.max(0, round2(num(loan.principal) - paidPrincipal));
               const waived = Math.max(0, round2(data._outstanding - outstandingPrincipal));
-              amtIn.value = outstandingPrincipal.toFixed(2); data.amount = outstandingPrincipal.toFixed(2); data.isRepayAll = true;
+              amtIn.value = outstandingPrincipal.toFixed(2);
+              data.amount = outstandingPrincipal.toFixed(2);
+              data.isRepayAll = true;
               if (waived > 0 && waiverNote && waiverText) {
                 waiverNote.style.display = 'flex';
                 waiverText.textContent = t('interestWaiverNote', { paid: data._approvedCount, waived: waived.toFixed(2) });
               }
             } else {
-              amtIn.value = data._outstanding.toFixed(2); data.amount = data._outstanding.toFixed(2); data.isRepayAll = false;
+              amtIn.value = data._outstanding.toFixed(2);
+              data.amount = data._outstanding.toFixed(2);
+              data.isRepayAll = false;
             }
             updateSplit();
           });
+
+          (async () => {
+            try {
+              await checkAndCreateLoanPenalty(loan.id, loan.customerId || loan.memberId);
+              const [freshPending, freshHistory, freshList] = await Promise.all([
+                getMemberLoanPenalties(loan.customerId || loan.memberId),
+                generatePaymentHistory(loan.id),
+                getDocs(query(collection(db,'transactions'),
+                  where('loanId','==',loan.id),
+                  where('type','==','repayment')))
+                  .then(s => s.docs.map(d => ({ id:d.id, ...d.data() })))
+                  .catch(() => [])
+              ]);
+              data._pending      = freshPending;
+              data._historyHtml  = freshHistory;
+              data._list0        = freshList;
+              data._approvedCount = freshList.filter(r => r.status === 'approved' || r.printed === true).length;
+              refresh();
+            } catch (e) {
+              console.error('[repayment async load]', e);
+              data._historyHtml = `<div style="padding:20px;text-align:center;color:var(--danger);font-size:12.5px">${esc(t('historyLoadError'))}</div>`;
+              refresh();
+            }
+          })();
         }
       },
       {
-        label:'Payment', title:'Payment details',
+        label: 'Payment', title: 'Payment details',
         render: (d) => {
           const isCash = d.method === 'cash';
           const bankOpts = BANKS.map(b => `<option value="${esc(b.code)}" ${d.bankName===b.code?'selected':''}>${esc(b.name)}</option>`).join('');
@@ -3425,7 +3468,7 @@ async function openRepaymentModal(loan) {
           const methodSel = root.querySelector('#rpMethod');
           methodSel?.addEventListener('change', () => {
             data.method = methodSel.value;
-            if (data.method === 'cash') { data.ttNumber = ''; data.transferDate = ''; data.bankName = ''; data.bankOther = ''; }
+            if (data.method === 'cash') { data.ttNumber=''; data.transferDate=''; data.bankName=''; data.bankOther=''; }
             refresh();
           });
           const bankSel = root.querySelector('#rpBankName');
@@ -3440,15 +3483,15 @@ async function openRepaymentModal(loan) {
           const tdIn = root.querySelector('#rpTransferDate');
           const dupWarn = root.querySelector('#rpDupWarn');
           const checkDup = async () => {
-            if (!enableDuplicateCheck) { if (dupWarn) dupWarn.style.display = 'none'; return; }
-            const tt = (data.ttNumber || '').trim();
+            if (!enableDuplicateCheck) { if (dupWarn) dupWarn.style.display='none'; return; }
+            const tt = (data.ttNumber||'').trim();
             const td = data.transferDate;
             if (!tt || !td || !dupWarn) return;
             const cid = loan.customerId || loan.memberId;
             try {
               const parts = td.split('-').map(Number);
-              const start = new Date(Date.UTC(parts[0], parts[1]-1, parts[2], 0, 0, 0));
-              const end = new Date(Date.UTC(parts[0], parts[1]-1, parts[2], 23, 59, 59, 999));
+              const start = new Date(Date.UTC(parts[0], parts[1]-1, parts[2], 0,0,0));
+              const end   = new Date(Date.UTC(parts[0], parts[1]-1, parts[2], 23,59,59,999));
               const snap = await getDocs(query(collection(db,'transactions'),
                 where('customerId','==',cid),
                 where('ttNumber','==',tt),
@@ -3463,7 +3506,7 @@ async function openRepaymentModal(loan) {
         }
       },
       {
-        label:'Review', title:'Review and confirm',
+        label: 'Review', title: 'Review and confirm',
         render: (d) => {
           const amt = num(d.amount);
           const methodLabelStr = { cash:t('methodCash'), bank:t('methodBank'), mobile:t('methodMobile') }[d.method] || d.method;
@@ -3500,36 +3543,38 @@ async function openRepaymentModal(loan) {
     onFinish: async (d) => {
       const freshPending = await getMemberLoanPenalties(loan.customerId || loan.memberId);
       if (freshPending.total > 0) throw new Error(`${t('penaltyBlockedTitle')} ETB ${freshPending.total.toFixed(2)}`);
+
       const amount = num(d.amount);
       if (amount <= 0) throw new Error(t('invalidAmountMsg'));
       if (amount > d._outstanding + 0.01) throw new Error(t('cannotExceedRemaining'));
       if (d._allowPartial !== false && d._monthsBehind > 0 && !d.isRepayAll && amount + 0.01 < d._arrearsAmount) {
         throw new Error(t('arrearsMustPay', { amount: money(d._arrearsAmount) }));
       }
+
       const bankName = d.method === 'cash' ? '' : (d.bankName === 'other' ? d.bankOther : (bankLabel(d.bankName) || d.bankName));
       const txData = {
-        type:'repayment', loanId: loan.id,
+        type: 'repayment', loanId: loan.id,
         customerId: loan.customerId || loan.memberId,
-        memberId: loan.customerId || loan.memberId,
+        memberId:   loan.customerId || loan.memberId,
         customerDocId: loan.customerDocId || null,
         customerName: loan.customerName || customerName(d._customer) || '',
         amount,
         principalPortion: num(d.principalPortion),
-        interestPortion: num(d.interestPortion),
-        interestWaived: !!d.isRepayAll && allowInterestWaiver,
-        waivedInterest: d.isRepayAll ? Math.max(0, round2(amount - num(d.principalPortion))) : 0,
+        interestPortion:  num(d.interestPortion),
+        interestWaived:   !!d.isRepayAll && allowInterestWaiver,
+        waivedInterest:   d.isRepayAll ? Math.max(0, round2(amount - num(d.principalPortion))) : 0,
         date: new Date(d.date),
         note: (d.note||'').trim(),
         status: 'pending',
         paymentMethod: d.method,
         ttNumber: d.method === 'cash' ? '' : (d.ttNumber||'').trim(),
         bankName,
-        districtId: loan.districtId || null,
+        districtId:   loan.districtId   || null,
         districtName: loan.districtName || null,
-        branchId: loan.branchId || null,
-        branchName: loan.branchName || null,
+        branchId:     loan.branchId     || null,
+        branchName:   loan.branchName   || null,
         createdByName: APP.profile.fullName || APP.profile.name,
-        createdBy: APP.profile.id,
+        createdBy:     APP.profile.id,
         createdByEmail: APP.profile.email || '',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -3901,7 +3946,7 @@ function stopListeners() {
     return;
   }
 
-  /* Session watcher starts immediately, not blocked by data */
+  /* Session watcher starts immediately — not blocked by data */
   await loadSessionTimeout();
   startSessionWatcher();
 
