@@ -389,7 +389,7 @@ const PROFILE_CACHE_KEY = 'sacco.profile';
 let S = null;
 
 /* ============================================================
-   SESSION — FIXED
+   SESSION
 ============================================================ */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
@@ -1751,6 +1751,11 @@ function computeYearNumbers() {
     totalCustomerShares, grossProfitY, totalDistributedY
   };
 }
+
+/* ============================================================
+   ALL-YEARS aggregation
+   FIX: SACCO Capital (All Years) = gross allocations − service withdrawals
+   ============================================================ */
 function computeAllYearNumbers() {
   const savingsAll = filterWorkareaTxns(APP.txn.savings).filter(isSavingsCounted);
   const totalSavings = savingsAll.reduce((s,x) => s + num(x.amount), 0);
@@ -1786,19 +1791,29 @@ function computeAllYearNumbers() {
   });
   memberDivGrossAll = round2(memberDivGrossAll);
   memberDivNetAll   = round2(memberDivNetAll);
-  const saccoCapitalAll = round2(filterWorkareaTxns(APP.txn.saccoCapital).filter(isSaccoCapitalCounted).reduce((s,x) => s + num(x.amount), 0));
+
+  /* SACCO Capital (All Years) — NET of service withdrawals.
+     Gross = sum of approved sacco_capital allocations
+     Net   = max(0, Gross − Σ service withdrawals (active))
+     totalDistributedAll still uses GROSS (that's what reduced net profit
+     at distribution time — the withdrawals happen after). */
+  const saccoCapitalAllGross = round2(filterWorkareaTxns(APP.txn.saccoCapital).filter(isSaccoCapitalCounted).reduce((s,x) => s + num(x.amount), 0));
+  const saccoCapitalAll = Math.max(0, round2(saccoCapitalAllGross - svcAll));
+
   const grossProfitAll = round2(regFeeAll + otherIncomeAll + interestAll + penaltiesAll);
-  const totalDistributedAll = round2(memberDivGrossAll + saccoCapitalAll);
+  const totalDistributedAll = round2(memberDivGrossAll + saccoCapitalAllGross);
   const netProfitAll = Math.max(0, round2(grossProfitAll - totalDistributedAll));
   const netSavingWithDivAll = round2(netSavingAll + memberDivNetAll);
-  const totalBalanceAll = round2(netSavingWithDivAll + netProfitAll + netShareValueAll + saccoCapitalAll - svcAll);
+  /* saccoCapitalAll is already NET — do NOT subtract svcAll again */
+  const totalBalanceAll = round2(netSavingWithDivAll + netProfitAll + netShareValueAll + saccoCapitalAll);
   return {
     netSavingAll, netSavingWithDivAll, netProfitAll, netShareValueAll, totalBalanceAll,
     shareBuyAll, shareCountAll: SHR.shareCount, svcAll,
     dividendsGrossAll: memberDivGrossAll, dividendsNetAll: memberDivNetAll,
-    saccoCapitalAll, grossProfitAll, totalDistributedAll
+    saccoCapitalAll, saccoCapitalAllGross, grossProfitAll, totalDistributedAll
   };
 }
+
 function renderStatsValues() {
   const Y = computeYearNumbers();
   const A = computeAllYearNumbers();
@@ -1874,10 +1889,15 @@ function renderStatsValues() {
     setStat('s-netShare-count', fmtCount(A.shareCountAll));
     setStat('s-netShare-buy',   moneyFull(A.shareBuyAll));
 
-    setHint('s-saccoCapAll', `<span style="font-family:ui-monospace,monospace;font-size:10.5px">Total retained across all years</span>`);
+    /* FIX — hint now shows the gross − svc = net breakdown */
+    setHint('s-saccoCapAll',
+      `<span style="font-family:ui-monospace,monospace;font-size:10.5px">` +
+      `Gross ${esc(money(A.saccoCapitalAllGross))} − Svc ${esc(money(A.svcAll))} = ${esc(money(A.saccoCapitalAll))}` +
+      `</span>`);
+
     setHint('s-balanceAll',
       `<span style="font-family:ui-monospace,monospace;font-size:10.5px">` +
-      `NetSave ${esc(money(A.netSavingWithDivAll))} + NetProfit ${esc(money(A.netProfitAll))} + Share ${esc(money(A.netShareValueAll))} + SACCO ${esc(money(A.saccoCapitalAll))} − Svc ${esc(money(A.svcAll||0))}` +
+      `NetSave ${esc(money(A.netSavingWithDivAll))} + NetProfit ${esc(money(A.netProfitAll))} + Share ${esc(money(A.netShareValueAll))} + SACCO ${esc(money(A.saccoCapitalAll))}` +
       `</span>`);
   }
   fillDistrictChips();
@@ -2146,9 +2166,6 @@ function renderQuickActions() {
     </a>`).join('');
 }
 
-/* ────────────────────────────────────────────────────────────────
-   PENDING APPROVALS — aggregates pending items from ALL sources
-   ──────────────────────────────────────────────────────────────── */
 const PENDING_CATEGORY_URL = {
   loans: 'loans.html',
   savings: 'savings.html',
@@ -2161,16 +2178,13 @@ const PENDING_CATEGORY_URL = {
   serviceWithdrawals: 'withdrawals.html',
   customers: 'customers.html'
 };
-
 function isPendingStatus(x) {
   if (!x) return false;
   return PENDING_STATUSES.includes(String(x.status || '').toLowerCase());
 }
-
 function getPendingItems() {
   const items = [];
   const seen = new Set();
-
   const push = (list, category, labelKey, icon, color) => {
     (list || []).forEach(x => {
       if (!isPendingStatus(x)) return;
@@ -2187,7 +2201,6 @@ function getPendingItems() {
       });
     });
   };
-
   push(filterWorkareaTxns(APP.txn.loans),               'loans',              'loans',              'fa-wallet',              'blue');
   push(filterWorkareaTxns(APP.txn.savings),             'savings',            'savings',            'fa-piggy-bank',          'green');
   push(filterWorkareaTxns(APP.txn.repayments),          'repayments',         'repayments',         'fa-undo-alt',            'teal');
@@ -2198,7 +2211,6 @@ function getPendingItems() {
   push(filterWorkareaTxns(APP.txn.penalties),           'penalties',          'penalties',          'fa-exclamation-triangle','orange');
   push(filterWorkareaTxns(APP.txn.serviceWithdrawals),  'serviceWithdrawals', 'serviceWithdrawal',  'fa-arrow-up',            'orange');
 
-  // Pending customers (new registrations awaiting approval)
   (applyWorkareaToAllCustomers() || []).forEach(c => {
     if (!isPendingStatus(c)) return;
     const id = c.id;
@@ -2216,33 +2228,27 @@ function getPendingItems() {
 
   return items.sort((a, b) => (toDateSafe(b.at)?.getTime() || 0) - (toDateSafe(a.at)?.getTime() || 0));
 }
-
 function renderPending() {
   const host = document.getElementById('pending');
   if (!host) return;
-
   const all = getPendingItems();
   const countBadge = document.getElementById('pending-count');
   if (countBadge) {
     countBadge.className = all.length ? 'tag tag--gold' : 'tag tag--gray';
     countBadge.textContent = String(all.length);
   }
-
   if (!all.length) {
     host.innerHTML = `<li class="list-empty"><i class="fas fa-inbox"></i><div>${esc(t('nothingPending'))}</div></li>`;
     return;
   }
-
   const MAX_ROWS = 12;
   const rows = all.slice(0, MAX_ROWS);
   const overflow = all.length - rows.length;
-
   const avatarCls = {
     blue:'list__avatar--blue', green:'list__avatar--green', teal:'list__avatar--teal',
     red:'list__avatar--red', violet:'list__avatar--violet', gold:'list__avatar--gold',
     orange:'list__avatar--gold', pink:'list__avatar--pink'
   };
-
   host.innerHTML = rows.map(x => {
     const url = PENDING_CATEGORY_URL[x.category] || '#';
     const metaParts = [];
