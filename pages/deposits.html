@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Deposits — Geresu Dhuki SACCO</title>
+<title>Geresu Dhuki SACCO</title>
 <link rel="icon" type="image/png" href="../images/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -55,8 +55,8 @@ a{color:inherit;text-decoration:none;}
 h1,h2,h3,h4{line-height:1.25;letter-spacing:-.02em;font-weight:800;}
 :focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
 .hidden{display:none !important;}
-#loader{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:9999;transition:opacity .3s;}
-#loader.hide{opacity:0;pointer-events:none;}
+#loader{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:9999;transition:opacity .3s;pointer-events:none;}
+#loader.hide{opacity:0;pointer-events:none;visibility:hidden;}
 .spin{width:44px;height:44px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .app{display:grid;grid-template-columns:var(--sidebar-w) 1fr;grid-template-rows:var(--topbar-h) 1fr;
@@ -186,7 +186,7 @@ html.theme-dark .toolbar{background:#111a2c;border-bottom-color:#1e293b;}
 .toolbar__search{position:relative;flex:1;min-width:200px;max-width:320px;}
 .toolbar__search i{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;pointer-events:none;}
 .toolbar__search input{width:100%;height:42px;padding:0 14px 0 38px;border:1px solid var(--border);border-radius:11px;background:#fff;font-size:13.5px;font-weight:600;transition:.15s;}
-html.theme-dark .toolbar__search input{background:#1a2433;color:#e4e8f0;}
+html.theme-dark .toolbar__search input{background:#1a2433;color:#e4e8f0;border-color:#1e293b;}
 .toolbar__search input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(11,92,171,.10);}
 .toolbar select{height:42px;padding:0 14px;border:1px solid var(--border);border-radius:11px;background:#fff;font-size:13px;font-weight:700;color:var(--text-soft);cursor:pointer;min-width:140px;font-family:inherit;}
 html.theme-dark .toolbar select{background:#1a2433;color:#e4e8f0;border-color:#1e293b;}
@@ -398,7 +398,6 @@ html.theme-dark .customer-pick{border-color:#1e293b;}
 .toast--warning{background:#b8860b;}
 .toast--info{background:#0b5cab;}
 .toast i{font-size:16px;flex-shrink:0;}
-.toast.fade-out{opacity:0;transition:opacity .3s;}
 .overlay-mobile{display:none;position:fixed;inset:0;background:rgba(13,21,32,.45);z-index:25;}
 body.sb-open .overlay-mobile{display:block;}
 #slip-print-host{display:none;}
@@ -406,8 +405,8 @@ body.sb-open .overlay-mobile{display:block;}
   @page{size:A5 landscape;margin:0;}
   html,body{background:#fff !important;margin:0 !important;padding:0 !important;width:auto !important;height:auto !important;overflow:visible !important;}
   body > *:not(#slip-print-host){display:none !important;}
-  #slip-print-host{display:block !important;position:static !important;float:none !important;width:210mm !important;height:148mm !important;padding:0 !important;margin:0 !important;overflow:hidden !important;page-break-inside:avoid !important;page-break-after:avoid !important;}
-  #slip-print-host .slip{display:flex !important;flex-direction:column !important;width:210mm !important;height:148mm !important;padding:6mm 8mm !important;margin:0 !important;border:none !important;border-radius:0 !important;box-shadow:none !important;overflow:hidden !important;box-sizing:border-box !important;page-break-inside:avoid !important;}
+  #slip-print-host{display:block !important;position:static !important;float:none !important;width:210mm !important;height:148mm !important;padding:0 !important;margin:0 !important;overflow:hidden !important;}
+  #slip-print-host .slip{display:flex !important;flex-direction:column !important;width:210mm !important;height:148mm !important;padding:6mm 8mm !important;margin:0 !important;border:none !important;border-radius:0 !important;box-shadow:none !important;overflow:hidden !important;box-sizing:border-box !important;}
   #slip-print-host,#slip-print-host *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
 }
 .slip-overlay{position:fixed;inset:0;z-index:400;background:rgba(15,23,42,.75);display:flex;flex-direction:column;align-items:center;padding:20px 12px 40px;overflow-y:auto;}
@@ -526,6 +525,7 @@ const db    = getFirestore(fbApp);
 const LOGIN_URL = "../index.html";
 const LOGO_URL  = "../images/logo.png";
 const DEFAULT_SACCO_NAME = 'GERESU DHUKI SACCO';
+const PROFILE_CACHE_KEY = 'sacco.profile';
 
 const BANKS = [
   { code:'cbe', name:'Commercial Bank of Ethiopia (CBE)' },
@@ -572,20 +572,51 @@ const MOBILE_PROVIDERS = [
 const bankLabel = (code) => BANKS.find(b => b.code === code)?.name || code || '';
 const mobileProviderLabel = (code) => MOBILE_PROVIDERS.find(m => m.code === code)?.name || code || '';
 
-/* SESSION */
+/* ============================================================
+   SESSION
+============================================================ */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
-let SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
+let SESSION_MINUTES = null;
 let awayStartedAt = null, awayCheckInterval = null;
-function readSession() { try { const raw = sessionStorage.getItem(SESSION_KEY); if (!raw) return null; const s = JSON.parse(raw); return (s && s.uid) ? s : null; } catch(e){ return null; } }
+
+function readSession() { try { const r = sessionStorage.getItem(SESSION_KEY); if (!r) return null; const s = JSON.parse(r); return (s && s.uid) ? s : null; } catch(e) { return null; } }
 function clearSession() { try { sessionStorage.removeItem(SESSION_KEY); } catch(e){} }
 function isSessionRecordValid(s) { return !!(s && s.uid); }
-function getSessionMs() { const s = readSession(); const mins = (s && s.minutes) || SESSION_MINUTES; return Math.max(1, mins) * 60000; }
+function getSessionMs() {
+  const s = readSession();
+  const mins = (SESSION_MINUTES != null && SESSION_MINUTES > 0)
+    ? SESSION_MINUTES
+    : ((s && s.minutes) || DEFAULT_SESSION_MINUTES);
+  return Math.max(1, mins) * 60000;
+}
+function readCachedProfile() { try { const raw = sessionStorage.getItem(PROFILE_CACHE_KEY); if (!raw) return null; const p = JSON.parse(raw); return (p && p.uid) ? p : null; } catch(e){ return null; } }
+function writeCachedProfile() {
+  if (!APP.profile) return;
+  try {
+    const payload = {
+      uid: APP.profile.id || APP.user?.uid || '',
+      role: APP.profile.role || 'viewer',
+      email: APP.profile.email || '',
+      name: APP.profile.fullName || APP.profile.name || 'User',
+      photoURL: APP.profile.photoURL || null,
+      districtId: APP.profile.districtId || '',
+      districtName: APP.profile.districtName || '',
+      branchId: APP.profile.branchId || '',
+      branchName: APP.profile.branchName || ''
+    };
+    if (payload.uid) sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(payload));
+  } catch(e){}
+}
+function clearCachedProfile() { try { sessionStorage.removeItem(PROFILE_CACHE_KEY); } catch(e){} }
+function hideLoaderNow() { const el = document.getElementById('loader'); if (el) el.classList.add('hide'); }
+
 function forceLogout(reason) {
   if (awayCheckInterval) { clearInterval(awayCheckInterval); awayCheckInterval = null; }
   awayStartedAt = null;
   try { sessionStorage.clear(); sessionStorage.setItem('__redirectReason', reason || 'expired'); } catch(e){}
-  clearSession(); try { signOut(auth); } catch(e){}
+  clearSession(); clearCachedProfile();
+  try { signOut(auth); } catch(e){}
   window.location.replace(LOGIN_URL);
 }
 function isWindowActive() { return document.visibilityState === 'visible' && document.hasFocus(); }
@@ -621,11 +652,19 @@ async function loadSessionTimeout() {
       if (!isFinite(m) || m < 1) m = DEFAULT_SESSION_MINUTES;
       if (m > 1440) m = 1440;
       SESSION_MINUTES = Math.round(m);
+    } else {
+      SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
     }
+  } catch(e) { if (SESSION_MINUTES == null) SESSION_MINUTES = DEFAULT_SESSION_MINUTES; }
+  try {
+    const s = readSession();
+    if (s) { s.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); }
   } catch(e){}
 }
 
-/* I18N */
+/* ============================================================
+   I18N — fully translated EN / AM / OM
+============================================================ */
 const I18N = {
   en: {
     brandSub:'SACCO Management', logout:'Sign out', loading:'Loading…',
@@ -713,177 +752,178 @@ const I18N = {
     docTitle:'Deposit Slip', amountInWords:'In words', cashierSign:'Cashier',
     recordedBy:'Recorded by', approvedBy:'Approved by'
   },
-  am: {}, om: {}
-};
-I18N.am = {
-  ...I18N.en,
-  brandSub:'የሳኮ አስተዳደር', logout:'ውጣ', loading:'በመጫን ላይ…',
-  navOverview:'አጠቃላይ እይታ', navNetwork:'ኔትወርክ', navOperations:'ክንውኖች', navFinance:'ፋይናንስ', navAdmin:'አስተዳደር',
-  dashboard:'ዳሽቦርድ', districts:'ወረዳዎች', branches:'ቅርንጫፎች', customers:'ደንበኞች',
-  savings:'ቁጠባ', deposits:'ተቀማጭ', loans:'ብድር', repayments:'ክፍያዎች', withdrawals:'ወጪዎች',
-  dividends:'ክፍፍል', shares:'አክሲዮን', reports:'ሪፖርቶች', penalties:'ቅጣቶች', audit:'የምዝግብ ታሪክ', users:'ተጠቃሚዎች', settings:'ቅንብሮች',
-  pageTitle:'ተቀማጭ', pageSub:'ከምዝገባ ክፍያ እና ከሌሎች ምንጮች የሳኮ ገቢ ይመዝግቡ',
-  breadcrumbHome:'ዳሽቦርድ', breadcrumbDeposits:'ተቀማጭ',
-  workingArea:'የሥራ አካባቢ', workingAreaSub:'መረጃውን በወረዳ እና በቅርንጫፍ ያጣሩ',
-  allDistricts:'ሁሉም ወረዳዎች', allBranches:'ሁሉም ቅርንጫፎች',
-  fullSystem:'ሙሉ ሥርዓት — ሁሉም ወረዳዎች', districtAdmin:'የወረዳ አስተዳዳሪ',
-  auditorRole:'ኦዲተር — ተመልካች ብቻ', selfAccount:'የእኔ ሂሳብ',
-  addTransaction:'አዲስ ተቀማጭ',
-  statTotalIncome:'ጠቅላላ የሳኮ ገቢ', statApproved:'የጸደቀ', statPending:'በመጠባበቅ ላይ', statTxCount:'ግብይቶች',
-  searchPlaceholder:'በደንበኛ፣ በገቢ ዓይነት፣ በTT ወይም በመግለጫ ይፈልጉ…',
-  filterAllDistricts:'ሁሉም ወረዳዎች', filterAllBranches:'ሁሉም ቅርንጫፎች',
-  filterAllTypes:'ሁሉም ዓይነቶች', filterAllStatus:'ሁሉም ሁኔታዎች', filterAllPrint:'ሁሉም ሕትመት',
-  filterNotPrinted:'ያልታተመ', filterPrinted:'የታተመ', filterCopy:'ቅጂ የታተመ',
-  typeRegistrationFee:'የምዝገባ ክፍያ', typeOtherDeposit:'ሌላ ተቀማጭ',
-  statusApproved:'የጸደቀ', statusPending:'በመጠባበቅ ላይ', statusRejected:'ውድቅ የተደረገ',
-  statusCompleted:'ተጠናቅቋል', statusPrinted:'ታትሟል', statusPaid:'ተከፍሏል', statusDone:'ተከናውኗል',
-  tableTitle:'የተቀማጭ ግብይቶች', tableSub:'የሳኮ ገቢ መዝገቦች',
-  colDate:'ቀን', colCustomer:'ምንጭ', colType:'የገቢ ዓይነት', colAmount:'መጠን',
-  colMethod:'ዘዴ', colRef:'ማጣቀሻ', colStatus:'ሁኔታ', colPrint:'ሕትመት', colActions:'እርምጃዎች',
-  noTx:'እስካሁን ተቀማጭ የለም', noTxText:'የመጀመሪያውን ለመመዝገብ "አዲስ ተቀማጭ" ይጫኑ።',
-  noMatch:'ተመሳሳይ ተቀማጭ አልተገኘም', noMatchText:'ፍለጋዎን ወይም ማጣሪያዎን ያስተካክሉ።',
-  newTx:'አዲስ ተቀማጭ', editTx:'ተቀማጭ ያስተካክሉ',
-  newTxSub:'የሳኮ ገቢ ይመዝግቡ። ደንበኛ አማራጭ ነው — ለንጹህ የሳኮ ገቢ ባዶ ይተዉት።',
-  editTxSub:'ይህን የገቢ መዝገብ ያዘምኑ።',
-  stepCustomer:'ምንጭ', stepDetails:'ዝርዝሮች', stepReview:'ግምገማ',
-  stepCustomerTitle:'የገቢ ምንጭ ይምረጡ', stepDetailsTitle:'የገቢ ዝርዝሮች', stepReviewTitle:'ይገምግሙ እና ያስቀምጡ',
-  chooseCustomer:'እባክዎ የገቢ ምንጭ ይምረጡ።',
-  customerSearch:'ደንበኞችን ይፈልጉ…', customerBalance:'የአሁኑ ቀሪ ሂሳብ',
-  saccIncome:'የሳኮ ገቢ', saccIncomeDesc:'ለሳኮ-ደረጃ ገቢ ባዶ ይተዉት (ከየትኛውም አባል ጋር አልተያዘም)',
-  orChooseCustomer:'ወይም ከተወሰነ አባል ጋር ያያዙ (አማራጭ)፦',
-  amountLabel:'መጠን (ብር)', amountHint:'መጠን ከዜሮ በላይ መሆን አለበት።',
-  dateLabel:'የግብይት ቀን', methodLabel:'የክፍያ ዘዴ',
-  refLabel:'ማጣቀሻ / የደረሰኝ ቁጥር', refHint:'አማራጭ። የባንክ ወረቀት፣ ደረሰኝ ወይም ቫውቸር ቁጥር።',
-  notesLabel:'ማስታወሻዎች', notesPlaceholder:'አማራጭ ማስታወሻዎች…', statusLabel:'ሁኔታ',
-  methodCash:'ጥሬ ገንዘብ', methodBank:'የባንክ ዝውውር', methodMobile:'የሞባይል ገንዘብ', methodCheque:'ቼክ', methodOther:'ሌላ',
-  reviewCustomer:'ምንጭ', reviewType:'የገቢ ዓይነት', reviewAmount:'መጠን',
-  reviewDate:'ቀን', reviewMethod:'ዘዴ', reviewRef:'ማጣቀሻ',
-  reviewStatus:'ሁኔታ', reviewNotes:'ማስታወሻዎች',
-  reviewRecordedBy:'የመዘገበው', reviewApprovedBy:'ያጸደቀው', notApprovedYet:'— እስካሁን አልጸደቀም —',
-  cancel:'ሰርዝ', save:'አስቀምጥ', create:'ለማጽደቅ አስገባ', update:'ለውጦችን አስቀምጥ',
-  next:'ቀጣይ →', back:'← ተመለስ',
-  deleteTitle:'ተቀማጭ ሰርዝ', deleteText:'ይህ ተቀማጭ ከFirestore ላይ በቋሚነት ያስወግዳል።',
-  confirm:'አረጋግጥ', rowDelete:'ሰርዝ', rowEdit:'አስተካክል', rowView:'ተመልከት', rowPrint:'ስሊፕ አትም', reset:'ዳግም አስጀምር',
-  approve:'አጽድቅ', reject:'ውድቅ አድርግ',
-  approvedOk:'ተቀማጭ ጸድቋል!',
-  rejectedOk:'ተቀማጭ ውድቅ ተደርጓል።',
-  pendingApprovalNotice:'ይህ ተቀማጭ በመጠባበቅ ላይ ሆኖ ይቀመጣል። ወደ ሳኮ ገቢ ከመቁጠሩ በፊት አስተዳዳሪ ወይም ሥራ አስኪያጅ ማጽደቅ አለበት።',
-  showing:'በማሳየት ላይ', of:'ከ', transactionsWord:'ግብይቶች',
-  savedOk:'ተቀማጭ በተሳካ ሁኔታ ተዘምኗል!', createdOk:'ተቀማጭ ለማጽደቅ ገብቷል!',
-  deletedOk:'ተቀማጭ ተሰርዟል።',
-  errorSave:'ማስቀመጥ አልተቻለም: ', errorDelete:'መሰረዝ አልተቻለም: ',
-  requiredFields:'እባክዎ ሁሉንም አስፈላጊ መስኮች ይሙሉ።', invalidAmount:'መጠን ከዜሮ በላይ መሆን አለበት።',
-  logoutTitle:'የመውጣት ማረጋገጫ', logoutText:'መውጣት እርግጠኛ ነዎት?',
-  accessDenied:'ይህን ገጽ ለማየት ፈቃድ የለዎትም።',
-  accessDeniedText:'የሰራተኛ መለያዎች ብቻ ተቀማጭ ማስተዳደር ይችላሉ።',
-  backToDashboard:'ወደ ዳሽቦርድ ተመለስ', noPermission:'ፈቃድ ተከልክሏል። የFirestore ሕጎችን ያረጋግጡ።',
-  viewTitle:'የተቀማጭ ዝርዝሮች', close:'ዝጋ',
-  customerInfo:'የምንጭ መረጃ', txInfo:'የተቀማጭ መረጃ',
-  unknown:'ያልታወቀ', scopeAll:'ሁሉም ተቀማጮች',
-  ttNumber:'የTT / ማጣቀሻ ቁጥር', ttHint:'ለዚህ የባንክ ዝውውር ልዩ ቁጥር።',
-  transferDate:'የዝውውር ቀን', bankName:'ባንክ', chooseBank:'— ባንክ ይምረጡ —',
-  mobileProvider:'የሞባይል ገንዘብ አቅራቢ', chooseProvider:'— አቅራቢ ይምረጡ —',
-  receiptPhoto:'የደረሰኝ ፎቶ', receiptTitle:'ደረሰኝ አያይዝ',
-  receiptHint:'ፎቶ ለመጫን ይጫኑ (JPG/PNG፣ ከፍተኛ 3 MB)', receiptAdded:'ደረሰኝ ተያይዟል',
-  receiptReplace:'ቀይር', receiptRemove:'አስወግድ', upload:'ጫን',
-  duplicateTT:'ይህ የTT / ማጣቀሻ ቁጥር ለሌላ ግብይት አስቀድሞ ጥቅም ላይ ውሏል።',
-  ttRequired:'የTT ቁጥር ያስፈልጋል።', bankRequired:'እባክዎ ባንክ ይምረጡ።',
-  providerRequired:'እባክዎ አቅራቢ ይምረጡ።', transferDateRequired:'የዝውውር ቀን ያስፈልጋል።',
-  bankTransferSection:'የባንክ ዝውውር ዝርዝሮች', mobileTransferSection:'የሞባይል ገንዘብ ዝርዝሮች',
-  bank:'ባንክ', provider:'አቅራቢ', ttNumberLabel:'የTT ቁጥር', transferDateLabel:'የዝውውር ቀን', receipt:'ደረሰኝ',
-  printSlip:'ስሊፕ አትም', slipPreview:'የስሊፕ ቅድመ እይታ · A5',
-  printStatus:'የሕትመት ሁኔታ', notPrinted:'ያልታተመ', printedOriginal:'ዋና', printedCopy:'ቅጂ',
-  printNo:'የሕትመት ቁጥር', printCount:'ቅጂዎች',
-  original:'ዋና', copy:'ቅጂ',
-  firstPrint:'የመጀመሪያ ሕትመት — ዋና', reprint:'ዳግም ሕትመት — ቅጂ',
-  printedBy:'ያተመው', printedOn:'የታተመበት', printError:'የሕትመት ሁኔታን ማዘመን አልተቻለም',
-  docTitle:'የተቀማጭ ስሊፕ', amountInWords:'በፊደል', cashierSign:'ገንዘብ ተቀባይ',
-  recordedBy:'የመዘገበው', approvedBy:'ያጸደቀው'
-};
-I18N.om = {
-  ...I18N.en,
-  brandSub:'Bulchiinsa SACCO', logout:"Ba'i", loading:"Fe'aa jira…",
-  navOverview:'Aguuggama', navNetwork:'Networkii', navOperations:'Hojimaata', navFinance:'Faayinaansii', navAdmin:'Bulchiinsa',
-  dashboard:'Daashboordii', districts:'Aanaalee', branches:'Dameewwan', customers:'Maamiltoota',
-  savings:'Qusannaa', deposits:'Kaasaa', loans:'Liqii', repayments:'Kaffaltuu', withdrawals:'Baasii',
-  dividends:'Qooda', shares:'Hirmaata', reports:'Gabaasa', penalties:'Adaba', audit:'Seenaa Galmee', users:'Fayyadamtoota', settings:"Qindaa'ina",
-  pageTitle:'Kaasaa', pageSub:'Galii SACCO kaffaltii galmeessaa fi maddawwan biroo irraa galmeessi',
-  breadcrumbHome:'Daashboordii', breadcrumbDeposits:'Kaasaa',
-  workingArea:'Bakka Hojii', workingAreaSub:'Daataan aanaa fi dameetiin filtarii',
-  allDistricts:'Aanaa hunda', allBranches:'Damee hunda',
-  fullSystem:'Sirna guutuu — aanaa hunda', districtAdmin:'Bulchaa Aanaa',
-  auditorRole:'Ooditera — dubbisuu qofa', selfAccount:'Herrega koo',
-  addTransaction:'Kaasaa Haaraa',
-  statTotalIncome:'Galii SACCO Waliigalaa', statApproved:"Mirkanaa'e", statPending:'Eegaa', statTxCount:'Sochii',
-  searchPlaceholder:'Maamila, gosa galii, TT ykn ibsaan barbaadi…',
-  filterAllDistricts:'Aanaa hunda', filterAllBranches:'Damee hunda',
-  filterAllTypes:'Gosa hunda', filterAllStatus:'Haala hunda', filterAllPrint:'Maxxansa hunda',
-  filterNotPrinted:'Hin maxxanfamne', filterPrinted:'Maxxanfame', filterCopy:'Gar-duubaa maxxanfame',
-  typeRegistrationFee:'Kaffaltii Galmeessaa', typeOtherDeposit:'Kaasaa Biroo',
-  statusApproved:"Mirkanaa'e", statusPending:'Eegaa', statusRejected:'Kufe',
-  statusCompleted:'Xumurame', statusPrinted:'Maxxanfame', statusPaid:'Kaffalame', statusDone:'Raawwatame',
-  tableTitle:'Sochii Kaasaa', tableSub:'Galmee galii SACCO',
-  colDate:'Guyyaa', colCustomer:'Madda', colType:'Gosa Galii', colAmount:'Hamma',
-  colMethod:'Mala', colRef:'Wabii', colStatus:'Haala', colPrint:'Maxxansa', colActions:'Gocha',
-  noTx:'Amma ammaatti kaasaan hin jiru', noTxText:'Kan jalqabaa galmeessuuf "Kaasaa Haaraa" tuqi.',
-  noMatch:'Kaasaan walsimu hin argamne', noMatchText:'Barbaacha ykn filtarii keessan sirreessi.',
-  newTx:'Kaasaa Haaraa', editTx:'Kaasaa Gulaali',
-  newTxSub:'Galii SACCO galmeessi. Maamilli filannoo qaba — galii SACCO qulqulluuf duwwaa dhiisi.',
-  editTxSub:'Galmee galii kanaa haaromsi.',
-  stepCustomer:'Madda', stepDetails:'Ragaa', stepReview:'Gamaaggama',
-  stepCustomerTitle:'Madda galii filadhu', stepDetailsTitle:'Ragaa galii', stepReviewTitle:'Gamaaggamiitii olkaasi',
-  chooseCustomer:'Maaloo madda galii filadhu.',
-  customerSearch:'Maamiltoota barbaadi…', customerBalance:'Haftee ammaa',
-  saccIncome:'Galii SACCO', saccIncomeDesc:'Galii SACCO qulqulluuf duwwaa dhiisi (miseensa kamiifuu hin hidhamne)',
-  orChooseCustomer:'Ykn miseensa murtaa\u2019aa tokkoon hidhi (filannoo):',
-  amountLabel:'Hamma (ETB)', amountHint:'Hamman zeeroo caalaa qaba.',
-  dateLabel:'Guyyaa Sochii', methodLabel:'Mala Kaffaltii',
-  refLabel:'Wabii / Lakkoofsa Nagahee', refHint:'Filannoo. Baankii, nagahee ykn vuucherii.',
-  notesLabel:'Yaadannoo', notesPlaceholder:'Yaadannoo filannoo…', statusLabel:'Haala',
-  methodCash:'Maallaqa harkaa', methodBank:'Jijjiirama baankii', methodMobile:'Maallaqa mobaayilaa', methodCheque:'Cheekii', methodOther:'Kan biraa',
-  reviewCustomer:'Madda', reviewType:'Gosa Galii', reviewAmount:'Hamma',
-  reviewDate:'Guyyaa', reviewMethod:'Mala', reviewRef:'Wabii',
-  reviewStatus:'Haala', reviewNotes:'Yaadannoo',
-  reviewRecordedBy:'Kan galmeesse', reviewApprovedBy:'Kan mirkaneesse', notApprovedYet:'— amma hin mirkaneeffamne —',
-  cancel:'Haqi', save:'Olkaasi', create:'Mirkaneessaaf Galchi', update:'Jijjiirama Olkaasi',
-  next:'Itti aanu →', back:"← Deebi'i",
-  deleteTitle:'Kaasaa Haqi', deleteText:'Kaasaan kun Firestore irraa guutummaatti haqama.',
-  confirm:'Mirkaneessi', rowDelete:'Haqi', rowEdit:'Gulaali', rowView:'Ilaali', rowPrint:'Waraqaa Maxxansi', reset:'Deebisi',
-  approve:'Mirkaneessi', reject:'Garfii',
-  approvedOk:'Kaasaan mirkanaa\u2019e!',
-  rejectedOk:'Kaasaan garfame.',
-  pendingApprovalNotice:'Kaasaan kun akka EEGAAtti olkaawama. Duraan Bulchaan ykn Bulchaan guddaan mirkaneeffachuu qaba.',
-  showing:'Agarsiisaa', of:'keessaa', transactionsWord:'sochii',
-  savedOk:'Kaasaan milkaa\u2019inaan haaromfame!', createdOk:'Kaasaan mirkaneessaaf galcheera!',
-  deletedOk:'Kaasaan haqame.',
-  errorSave:'Olkaasuu hin dandeenye: ', errorDelete:'Haqquu hin dandeenye: ',
-  requiredFields:'Maaloo dirqama hundaa guuti.', invalidAmount:'Hamman zeeroo caalaa qabaachuu qaba.',
-  logoutTitle:"Mirkaneessa Ba'uu", logoutText:"Ba'uu mirkaneeffattee?",
-  accessDenied:'Fuula kana ilaaluuf hayyama hin qabdu.',
-  accessDeniedText:"Herregni hojjettootaa qofti kaasaa bulchuu danda'u.",
-  backToDashboard:"Gara Daashboordii Deebi'i", noPermission:'Hayyamni dhorkame. Seera Firestore ilaali.',
-  viewTitle:'Ragaa Kaasaa', close:'Cufi',
-  customerInfo:'Odeeffannoo Madda', txInfo:'Odeeffannoo Kaasaa',
-  unknown:'Hin beekamne', scopeAll:'Kaasaa hunda',
-  ttNumber:'Lakkoofsa TT / Wabii', ttHint:'Lakkoofsa adda jijjiirama baankii kanaaf.',
-  transferDate:'Guyyaa Jijjiiramaa', bankName:'Baankii', chooseBank:'— Baankii filadhu —',
-  mobileProvider:'Dhiyeessaa Maallaqa Mobaayilaa', chooseProvider:'— Dhiyeessaa filadhu —',
-  receiptPhoto:'Suuraa Nagahee', receiptTitle:'Nagahee dabali',
-  receiptHint:'Suuraa olkaasuuf tuqi (JPG/PNG, hanga 3 MB)', receiptAdded:'Nagaheen dabale',
-  receiptReplace:'Jijjiiri', receiptRemove:'Balleessi', upload:'Olkaasi',
-  duplicateTT:'Lakkoofsi TT / Wabii kun sochii biraaf duraan fayyadameera.',
-  ttRequired:'Lakkoofsi TT barbaachisa.', bankRequired:'Maaloo baankii filadhu.',
-  providerRequired:'Maaloo dhiyeessaa filadhu.', transferDateRequired:'Guyyaan jijjiiramaa barbaachisa.',
-  bankTransferSection:'Ragaa Jijjiirama Baankii', mobileTransferSection:'Ragaa Maallaqa Mobaayilaa',
-  bank:'Baankii', provider:'Dhiyeessaa', ttNumberLabel:'Lakkoofsa TT', transferDateLabel:'Guyyaa Jijjiiramaa', receipt:'Nagahee',
-  printSlip:'Waraqaa Maxxansi', slipPreview:'Ilaalcha duraa Waraqaa · A5',
-  printStatus:'Haala Maxxansaa', notPrinted:'Hin maxxanfamne', printedOriginal:'Ijaarsa', printedCopy:'Garagalcha',
-  printNo:'Lakkoofsa Maxxansaa', printCount:'Garagalcha',
-  original:'IJAARSA', copy:'GARAGALCHA',
-  firstPrint:'Maxxansa jalqabaa — Ijaarsa', reprint:'Maxxansa irra deebii — Garagalcha',
-  printedBy:'Kan maxxanse', printedOn:'Kan maxxanfame', printError:'Haala maxxansaa haaromsuu hin dandeenye',
-  docTitle:'Waraqaa Kaasaa', amountInWords:'Qubeessaan', cashierSign:'Kashierii',
-  recordedBy:'Kan galmeesse', approvedBy:'Kan mirkaneesse'
+  am: {
+    brandSub:'የሳኮ አስተዳደር', logout:'ውጣ', loading:'በመጫን ላይ…',
+    navOverview:'አጠቃላይ እይታ', navNetwork:'ኔትወርክ', navOperations:'ክንውኖች', navFinance:'ፋይናንስ', navAdmin:'አስተዳደር',
+    dashboard:'ዳሽቦርድ', districts:'ወረዳዎች', branches:'ቅርንጫፎች', customers:'ደንበኞች',
+    savings:'ቁጠባ', deposits:'ተቀማጭ', loans:'ብድር', repayments:'ክፍያዎች', withdrawals:'ወጪዎች',
+    dividends:'ክፍፍል', shares:'አክሲዮን', reports:'ሪፖርቶች', penalties:'ቅጣቶች', audit:'የምዝግብ ታሪክ', users:'ተጠቃሚዎች', settings:'ቅንብሮች',
+    role_super_admin:'ዋና አስተዳዳሪ', role_admin:'የወረዳ አስተዳዳሪ', role_manager:'ሥራ አስኪያጅ',
+    role_cashier:'ገንዘብ ተቀባይ', role_member:'አባል', role_auditor:'ኦዲተር',
+    pageTitle:'ተቀማጭ', pageSub:'ከምዝገባ ክፍያ እና ከሌሎች ምንጮች የሳኮ ገቢ ይመዝግቡ',
+    breadcrumbHome:'ዳሽቦርድ', breadcrumbDeposits:'ተቀማጭ',
+    workingArea:'የሥራ አካባቢ', workingAreaSub:'መረጃውን በወረዳ እና በቅርንጫፍ ያጣሩ',
+    allDistricts:'ሁሉም ወረዳዎች', allBranches:'ሁሉም ቅርንጫፎች',
+    fullSystem:'ሙሉ ሥርዓት — ሁሉም ወረዳዎች', districtAdmin:'የወረዳ አስተዳዳሪ',
+    auditorRole:'ኦዲተር — ተመልካች ብቻ', selfAccount:'የእኔ ሂሳብ',
+    addTransaction:'አዲስ ተቀማጭ',
+    statTotalIncome:'ጠቅላላ የሳኮ ገቢ', statApproved:'የጸደቀ', statPending:'በመጠባበቅ ላይ', statTxCount:'ግብይቶች',
+    searchPlaceholder:'በደንበኛ፣ በገቢ ዓይነት፣ በTT ወይም በመግለጫ ይፈልጉ…',
+    filterAllDistricts:'ሁሉም ወረዳዎች', filterAllBranches:'ሁሉም ቅርንጫፎች',
+    filterAllTypes:'ሁሉም ዓይነቶች', filterAllStatus:'ሁሉም ሁኔታዎች', filterAllPrint:'ሁሉም ሕትመት',
+    filterNotPrinted:'ያልታተመ', filterPrinted:'የታተመ', filterCopy:'ቅጂ የታተመ',
+    typeRegistrationFee:'የምዝገባ ክፍያ', typeOtherDeposit:'ሌላ ተቀማጭ',
+    statusApproved:'የጸደቀ', statusPending:'በመጠባበቅ ላይ', statusRejected:'ውድቅ የተደረገ',
+    statusCompleted:'ተጠናቅቋል', statusPrinted:'ታትሟል', statusPaid:'ተከፍሏል', statusDone:'ተከናውኗል',
+    tableTitle:'የተቀማጭ ግብይቶች', tableSub:'የሳኮ ገቢ መዝገቦች',
+    colDate:'ቀን', colCustomer:'ምንጭ', colType:'የገቢ ዓይነት', colAmount:'መጠን',
+    colMethod:'ዘዴ', colRef:'ማጣቀሻ', colStatus:'ሁኔታ', colPrint:'ሕትመት', colActions:'እርምጃዎች',
+    noTx:'እስካሁን ተቀማጭ የለም', noTxText:'የመጀመሪያውን ለመመዝገብ "አዲስ ተቀማጭ" ይጫኑ።',
+    noMatch:'ተመሳሳይ ተቀማጭ አልተገኘም', noMatchText:'ፍለጋዎን ወይም ማጣሪያዎን ያስተካክሉ።',
+    newTx:'አዲስ ተቀማጭ', editTx:'ተቀማጭ ያስተካክሉ',
+    newTxSub:'የሳኮ ገቢ ይመዝግቡ። ደንበኛ አማራጭ ነው — ለንጹህ የሳኮ ገቢ ባዶ ይተዉት።',
+    editTxSub:'ይህን የገቢ መዝገብ ያዘምኑ።',
+    stepCustomer:'ምንጭ', stepDetails:'ዝርዝሮች', stepReview:'ግምገማ',
+    stepCustomerTitle:'የገቢ ምንጭ ይምረጡ', stepDetailsTitle:'የገቢ ዝርዝሮች', stepReviewTitle:'ይገምግሙ እና ያስቀምጡ',
+    chooseCustomer:'እባክዎ የገቢ ምንጭ ይምረጡ።',
+    customerSearch:'ደንበኞችን ይፈልጉ…', customerBalance:'የአሁኑ ቀሪ ሂሳብ',
+    saccIncome:'የሳኮ ገቢ', saccIncomeDesc:'ለሳኮ-ደረጃ ገቢ ባዶ ይተዉት (ከየትኛውም አባል ጋር አልተያዘም)',
+    orChooseCustomer:'ወይም ከተወሰነ አባል ጋር ያያዙ (አማራጭ)፦',
+    amountLabel:'መጠን (ብር)', amountHint:'መጠን ከዜሮ በላይ መሆን አለበት።',
+    dateLabel:'የግብይት ቀን', methodLabel:'የክፍያ ዘዴ',
+    refLabel:'ማጣቀሻ / የደረሰኝ ቁጥር', refHint:'አማራጭ። የባንክ ወረቀት፣ ደረሰኝ ወይም ቫውቸር ቁጥር።',
+    notesLabel:'ማስታወሻዎች', notesPlaceholder:'አማራጭ ማስታወሻዎች…', statusLabel:'ሁኔታ',
+    methodCash:'ጥሬ ገንዘብ', methodBank:'የባንክ ዝውውር', methodMobile:'የሞባይል ገንዘብ', methodCheque:'ቼክ', methodOther:'ሌላ',
+    reviewCustomer:'ምንጭ', reviewType:'የገቢ ዓይነት', reviewAmount:'መጠን',
+    reviewDate:'ቀን', reviewMethod:'ዘዴ', reviewRef:'ማጣቀሻ',
+    reviewStatus:'ሁኔታ', reviewNotes:'ማስታወሻዎች',
+    reviewRecordedBy:'የመዘገበው', reviewApprovedBy:'ያጸደቀው', notApprovedYet:'— እስካሁን አልጸደቀም —',
+    cancel:'ሰርዝ', save:'አስቀምጥ', create:'ለማጽደቅ አስገባ', update:'ለውጦችን አስቀምጥ',
+    next:'ቀጣይ →', back:'← ተመለስ',
+    deleteTitle:'ተቀማጭ ሰርዝ', deleteText:'ይህ ተቀማጭ ከFirestore ላይ በቋሚነት ያስወግዳል።',
+    confirm:'አረጋግጥ', rowDelete:'ሰርዝ', rowEdit:'አስተካክል', rowView:'ተመልከት', rowPrint:'ስሊፕ አትም', reset:'ዳግም አስጀምር',
+    approve:'አጽድቅ', reject:'ውድቅ አድርግ',
+    approvedOk:'ተቀማጭ ጸድቋል!',
+    rejectedOk:'ተቀማጭ ውድቅ ተደርጓል።',
+    pendingApprovalNotice:'ይህ ተቀማጭ በመጠባበቅ ላይ ሆኖ ይቀመጣል። ወደ ሳኮ ገቢ ከመቁጠሩ በፊት አስተዳዳሪ ወይም ሥራ አስኪያጅ ማጽደቅ አለበት።',
+    showing:'በማሳየት ላይ', of:'ከ', transactionsWord:'ግብይቶች',
+    savedOk:'ተቀማጭ በተሳካ ሁኔታ ተዘምኗል!', createdOk:'ተቀማጭ ለማጽደቅ ገብቷል!',
+    deletedOk:'ተቀማጭ ተሰርዟል።',
+    errorSave:'ማስቀመጥ አልተቻለም: ', errorDelete:'መሰረዝ አልተቻለም: ',
+    requiredFields:'እባክዎ ሁሉንም አስፈላጊ መስኮች ይሙሉ።', invalidAmount:'መጠን ከዜሮ በላይ መሆን አለበት።',
+    logoutTitle:'የመውጣት ማረጋገጫ', logoutText:'መውጣት እርግጠኛ ነዎት?',
+    accessDenied:'ይህን ገጽ ለማየት ፈቃድ የለዎትም።',
+    accessDeniedText:'የሰራተኛ መለያዎች ብቻ ተቀማጭ ማስተዳደር ይችላሉ።',
+    backToDashboard:'ወደ ዳሽቦርድ ተመለስ', noPermission:'ፈቃድ ተከልክሏል። የFirestore ሕጎችን ያረጋግጡ።',
+    viewTitle:'የተቀማጭ ዝርዝሮች', close:'ዝጋ',
+    customerInfo:'የምንጭ መረጃ', txInfo:'የተቀማጭ መረጃ',
+    unknown:'ያልታወቀ', scopeAll:'ሁሉም ተቀማጮች',
+    ttNumber:'የTT / ማጣቀሻ ቁጥር', ttHint:'ለዚህ የባንክ ዝውውር ልዩ ቁጥር።',
+    transferDate:'የዝውውር ቀን', bankName:'ባንክ', chooseBank:'— ባንክ ይምረጡ —',
+    mobileProvider:'የሞባይል ገንዘብ አቅራቢ', chooseProvider:'— አቅራቢ ይምረጡ —',
+    receiptPhoto:'የደረሰኝ ፎቶ', receiptTitle:'ደረሰኝ አያይዝ',
+    receiptHint:'ፎቶ ለመጫን ይጫኑ (JPG/PNG፣ ከፍተኛ 3 MB)', receiptAdded:'ደረሰኝ ተያይዟል',
+    receiptReplace:'ቀይር', receiptRemove:'አስወግድ', upload:'ጫን',
+    duplicateTT:'ይህ የTT / ማጣቀሻ ቁጥር ለሌላ ግብይት አስቀድሞ ጥቅም ላይ ውሏል።',
+    ttRequired:'የTT ቁጥር ያስፈልጋል።', bankRequired:'እባክዎ ባንክ ይምረጡ።',
+    providerRequired:'እባክዎ አቅራቢ ይምረጡ።', transferDateRequired:'የዝውውር ቀን ያስፈልጋል።',
+    bankTransferSection:'የባንክ ዝውውር ዝርዝሮች', mobileTransferSection:'የሞባይል ገንዘብ ዝርዝሮች',
+    bank:'ባንክ', provider:'አቅራቢ', ttNumberLabel:'የTT ቁጥር', transferDateLabel:'የዝውውር ቀን', receipt:'ደረሰኝ',
+    printSlip:'ስሊፕ አትም', slipPreview:'የስሊፕ ቅድመ እይታ · A5',
+    printStatus:'የሕትመት ሁኔታ', notPrinted:'ያልታተመ', printedOriginal:'ዋና', printedCopy:'ቅጂ',
+    printNo:'የሕትመት ቁጥር', printCount:'ቅጂዎች',
+    original:'ዋና', copy:'ቅጂ',
+    firstPrint:'የመጀመሪያ ሕትመት — ዋና', reprint:'ዳግም ሕትመት — ቅጂ',
+    printedBy:'ያተመው', printedOn:'የታተመበት', printError:'የሕትመት ሁኔታን ማዘመን አልተቻለም',
+    docTitle:'የተቀማጭ ስሊፕ', amountInWords:'በፊደል', cashierSign:'ገንዘብ ተቀባይ',
+    recordedBy:'የመዘገበው', approvedBy:'ያጸደቀው'
+  },
+  om: {
+    brandSub:'Bulchiinsa SACCO', logout:"Ba'i", loading:"Fe'aa jira…",
+    navOverview:'Aguuggama', navNetwork:'Networkii', navOperations:'Hojimaata', navFinance:'Faayinaansii', navAdmin:'Bulchiinsa',
+    dashboard:'Daashboordii', districts:'Aanaalee', branches:'Dameewwan', customers:'Maamiltoota',
+    savings:'Qusannaa', deposits:'Kaasaa', loans:'Liqii', repayments:'Kaffaltuu', withdrawals:'Baasii',
+    dividends:'Qooda', shares:'Hirmaata', reports:'Gabaasa', penalties:'Adaba', audit:'Seenaa Galmee', users:'Fayyadamtoota', settings:"Qindaa'ina",
+    role_super_admin:"Bulchaa Ol'aanaa", role_admin:'Bulchaa Aanaa', role_manager:'Bulchaa',
+    role_cashier:'Kashierii', role_member:'Miseensa', role_auditor:'Ooditera',
+    pageTitle:'Kaasaa', pageSub:'Galii SACCO kaffaltii galmeessaa fi maddawwan biroo irraa galmeessi',
+    breadcrumbHome:'Daashboordii', breadcrumbDeposits:'Kaasaa',
+    workingArea:'Bakka Hojii', workingAreaSub:'Daataan aanaa fi dameetiin filtarii',
+    allDistricts:'Aanaa hunda', allBranches:'Damee hunda',
+    fullSystem:'Sirna guutuu — aanaa hunda', districtAdmin:'Bulchaa Aanaa',
+    auditorRole:'Ooditera — dubbisuu qofa', selfAccount:'Herrega koo',
+    addTransaction:'Kaasaa Haaraa',
+    statTotalIncome:'Galii SACCO Waliigalaa', statApproved:"Mirkanaa'e", statPending:'Eegaa', statTxCount:'Sochii',
+    searchPlaceholder:'Maamila, gosa galii, TT ykn ibsaan barbaadi…',
+    filterAllDistricts:'Aanaa hunda', filterAllBranches:'Damee hunda',
+    filterAllTypes:'Gosa hunda', filterAllStatus:'Haala hunda', filterAllPrint:'Maxxansa hunda',
+    filterNotPrinted:'Hin maxxanfamne', filterPrinted:'Maxxanfame', filterCopy:'Gar-duubaa maxxanfame',
+    typeRegistrationFee:'Kaffaltii Galmeessaa', typeOtherDeposit:'Kaasaa Biroo',
+    statusApproved:"Mirkanaa'e", statusPending:'Eegaa', statusRejected:'Kufe',
+    statusCompleted:'Xumurame', statusPrinted:'Maxxanfame', statusPaid:'Kaffalame', statusDone:'Raawwatame',
+    tableTitle:'Sochii Kaasaa', tableSub:'Galmee galii SACCO',
+    colDate:'Guyyaa', colCustomer:'Madda', colType:'Gosa Galii', colAmount:'Hamma',
+    colMethod:'Mala', colRef:'Wabii', colStatus:'Haala', colPrint:'Maxxansa', colActions:'Gocha',
+    noTx:'Amma ammaatti kaasaan hin jiru', noTxText:'Kan jalqabaa galmeessuuf "Kaasaa Haaraa" tuqi.',
+    noMatch:'Kaasaan walsimu hin argamne', noMatchText:'Barbaacha ykn filtarii keessan sirreessi.',
+    newTx:'Kaasaa Haaraa', editTx:'Kaasaa Gulaali',
+    newTxSub:'Galii SACCO galmeessi. Maamilli filannoo qaba — galii SACCO qulqulluuf duwwaa dhiisi.',
+    editTxSub:'Galmee galii kanaa haaromsi.',
+    stepCustomer:'Madda', stepDetails:'Ragaa', stepReview:'Gamaaggama',
+    stepCustomerTitle:'Madda galii filadhu', stepDetailsTitle:'Ragaa galii', stepReviewTitle:'Gamaaggamiitii olkaasi',
+    chooseCustomer:'Maaloo madda galii filadhu.',
+    customerSearch:'Maamiltoota barbaadi…', customerBalance:'Haftee ammaa',
+    saccIncome:'Galii SACCO', saccIncomeDesc:'Galii SACCO qulqulluuf duwwaa dhiisi (miseensa kamiifuu hin hidhamne)',
+    orChooseCustomer:'Ykn miseensa murtaa’aa tokkoon hidhi (filannoo):',
+    amountLabel:'Hamma (ETB)', amountHint:'Hamman zeeroo caalaa qaba.',
+    dateLabel:'Guyyaa Sochii', methodLabel:'Mala Kaffaltii',
+    refLabel:'Wabii / Lakkoofsa Nagahee', refHint:'Filannoo. Baankii, nagahee ykn vuucherii.',
+    notesLabel:'Yaadannoo', notesPlaceholder:'Yaadannoo filannoo…', statusLabel:'Haala',
+    methodCash:'Maallaqa harkaa', methodBank:'Jijjiirama baankii', methodMobile:'Maallaqa mobaayilaa', methodCheque:'Cheekii', methodOther:'Kan biraa',
+    reviewCustomer:'Madda', reviewType:'Gosa Galii', reviewAmount:'Hamma',
+    reviewDate:'Guyyaa', reviewMethod:'Mala', reviewRef:'Wabii',
+    reviewStatus:'Haala', reviewNotes:'Yaadannoo',
+    reviewRecordedBy:'Kan galmeesse', reviewApprovedBy:'Kan mirkaneesse', notApprovedYet:'— amma hin mirkaneeffamne —',
+    cancel:'Haqi', save:'Olkaasi', create:'Mirkaneessaaf Galchi', update:'Jijjiirama Olkaasi',
+    next:'Itti aanu →', back:"← Deebi'i",
+    deleteTitle:'Kaasaa Haqi', deleteText:'Kaasaan kun Firestore irraa guutummaatti haqama.',
+    confirm:'Mirkaneessi', rowDelete:'Haqi', rowEdit:'Gulaali', rowView:'Ilaali', rowPrint:'Waraqaa Maxxansi', reset:'Deebisi',
+    approve:'Mirkaneessi', reject:'Garfii',
+    approvedOk:'Kaasaan mirkanaa’e!',
+    rejectedOk:'Kaasaan garfame.',
+    pendingApprovalNotice:'Kaasaan kun akka EEGAAtti olkaawama. Duraan Bulchaan ykn Bulchaan guddaan mirkaneeffachuu qaba.',
+    showing:'Agarsiisaa', of:'keessaa', transactionsWord:'sochii',
+    savedOk:'Kaasaan milkaa’inaan haaromfame!', createdOk:'Kaasaan mirkaneessaaf galcheera!',
+    deletedOk:'Kaasaan haqame.',
+    errorSave:'Olkaasuu hin dandeenye: ', errorDelete:'Haqquu hin dandeenye: ',
+    requiredFields:'Maaloo dirqama hundaa guuti.', invalidAmount:'Hamman zeeroo caalaa qabaachuu qaba.',
+    logoutTitle:"Mirkaneessa Ba'uu", logoutText:"Ba'uu mirkaneeffattee?",
+    accessDenied:'Fuula kana ilaaluuf hayyama hin qabdu.',
+    accessDeniedText:"Herregni hojjettootaa qofti kaasaa bulchuu danda'u.",
+    backToDashboard:"Gara Daashboordii Deebi'i", noPermission:'Hayyamni dhorkame. Seera Firestore ilaali.',
+    viewTitle:'Ragaa Kaasaa', close:'Cufi',
+    customerInfo:'Odeeffannoo Madda', txInfo:'Odeeffannoo Kaasaa',
+    unknown:'Hin beekamne', scopeAll:'Kaasaa hunda',
+    ttNumber:'Lakkoofsa TT / Wabii', ttHint:'Lakkoofsa adda jijjiirama baankii kanaaf.',
+    transferDate:'Guyyaa Jijjiiramaa', bankName:'Baankii', chooseBank:'— Baankii filadhu —',
+    mobileProvider:'Dhiyeessaa Maallaqa Mobaayilaa', chooseProvider:'— Dhiyeessaa filadhu —',
+    receiptPhoto:'Suuraa Nagahee', receiptTitle:'Nagahee dabali',
+    receiptHint:'Suuraa olkaasuuf tuqi (JPG/PNG, hanga 3 MB)', receiptAdded:'Nagaheen dabale',
+    receiptReplace:'Jijjiiri', receiptRemove:'Balleessi', upload:'Olkaasi',
+    duplicateTT:'Lakkoofsi TT / Wabii kun sochii biraaf duraan fayyadameera.',
+    ttRequired:'Lakkoofsi TT barbaachisa.', bankRequired:'Maaloo baankii filadhu.',
+    providerRequired:'Maaloo dhiyeessaa filadhu.', transferDateRequired:'Guyyaan jijjiiramaa barbaachisa.',
+    bankTransferSection:'Ragaa Jijjiirama Baankii', mobileTransferSection:'Ragaa Maallaqa Mobaayilaa',
+    bank:'Baankii', provider:'Dhiyeessaa', ttNumberLabel:'Lakkoofsa TT', transferDateLabel:'Guyyaa Jijjiiramaa', receipt:'Nagahee',
+    printSlip:'Waraqaa Maxxansi', slipPreview:'Ilaalcha duraa Waraqaa · A5',
+    printStatus:'Haala Maxxansaa', notPrinted:'Hin maxxanfamne', printedOriginal:'Ijaarsa', printedCopy:'Garagalcha',
+    printNo:'Lakkoofsa Maxxansaa', printCount:'Garagalcha',
+    original:'IJAARSA', copy:'GARAGALCHA',
+    firstPrint:'Maxxansa jalqabaa — Ijaarsa', reprint:'Maxxansa irra deebii — Garagalcha',
+    printedBy:'Kan maxxanse', printedOn:'Kan maxxanfame', printError:'Haala maxxansaa haaromsuu hin dandeenye',
+    docTitle:'Waraqaa Kaasaa', amountInWords:'Qubeessaan', cashierSign:'Kashierii',
+    recordedBy:'Kan galmeesse', approvedBy:'Kan mirkaneesse'
+  }
 };
 
 const SUPPORTED = ['en','am','om'];
@@ -971,7 +1011,7 @@ const isSuper      = () => APP.profile?.role === 'super_admin';
 const isDistrict   = () => APP.profile?.role === 'admin';
 const isAuditor    = () => APP.profile?.role === 'auditor';
 const isBranchRole = () => ['manager','cashier','teller','accountant'].includes(APP.profile?.role);
-const canView      = () => isSuper() || isDistrict() || isBranchRole() || isAuditor();
+const canView      = () => isSuper() || isDistrict() || isBranchRole() || isAuditor() || APP.profile?.role === 'loading';
 const canManage    = () => isSuper() || isDistrict() || isBranchRole();
 const canApprove   = () => isSuper() || isDistrict() || APP.profile?.role === 'manager';
 const canDelete    = () => isSuper() || isDistrict();
@@ -980,7 +1020,7 @@ const canPrint     = () => isSuper() || isDistrict() || isBranchRole();
 function scopeCustomers() {
   if (!APP.profile) return [];
   const role = APP.profile.role;
-  if (role === 'super_admin' || role === 'auditor') return APP.customers.slice();
+  if (role === 'super_admin' || role === 'auditor' || role === 'loading') return APP.customers.slice();
   if (role === 'admin') return APP.customers.filter(c => c.districtId === APP.profile.districtId || c.district === APP.profile.districtId);
   if (['manager','cashier','teller','accountant'].includes(role))
     return APP.customers.filter(c => c.branchId === APP.profile.branchId);
@@ -1022,58 +1062,56 @@ function customerById(id) { if (!id) return null; return APP.customers.find(c =>
 function districtById(id) { return APP.districts.find(d => d.id === id) || null; }
 function branchById(id) { return APP.branches.find(b => b.id === id) || null; }
 function assignableDistricts() {
-  if (isSuper() || isAuditor()) return APP.districts.slice();
+  if (isSuper() || isAuditor() || APP.profile?.role === 'loading') return APP.districts.slice();
   if (isDistrict() || isBranchRole()) return APP.districts.filter(d => d.id === APP.profile.districtId);
   return [];
 }
 function assignableBranches(did) {
   if (!did) return [];
-  if (isSuper() || isAuditor()) return APP.branches.filter(b => b.districtId === did);
+  if (isSuper() || isAuditor() || APP.profile?.role === 'loading') return APP.branches.filter(b => b.districtId === did);
   if (isDistrict() || isBranchRole()) return APP.branches.filter(b => b.districtId === did && b.districtId === APP.profile.districtId);
   return [];
 }
-const districtLocked = () => !isSuper() && !isAuditor();
+const districtLocked = () => !isSuper() && !isAuditor() && APP.profile?.role !== 'loading';
 const branchLocked   = () => isBranchRole();
 function initWorkarea() {
-  if (isSuper() || isAuditor()) APP.workarea = { districtId:'', branchId:'' };
+  if (isSuper() || isAuditor() || APP.profile?.role === 'loading') APP.workarea = { districtId:'', branchId:'' };
   else if (isDistrict()) APP.workarea = { districtId: APP.profile.districtId || '', branchId: '' };
   else if (isBranchRole()) APP.workarea = { districtId: APP.profile.districtId || '', branchId: APP.profile.branchId || '' };
 }
 
 const NAV = [
-  { section:'Overview', items:[{ key:'dashboard', label:'dashboard', icon:'fa-th-large', href:'dashboard.html', roles:['*'] }]},
-  { section:'Network', items:[
+  { section:'navOverview', items:[{ key:'dashboard', label:'dashboard', icon:'fa-th-large', href:'dashboard.html', roles:['*'] }]},
+  { section:'navNetwork', items:[
     { key:'districts', label:'districts', icon:'fa-map-marked-alt', href:'districts.html', roles:['super_admin','admin','auditor'] },
     { key:'branches', label:'branches', icon:'fa-code-branch', href:'branches.html', roles:['super_admin','admin','auditor','manager','cashier','teller','accountant'] }
   ]},
-  { section:'Operations', items:[
+  { section:'navOperations', items:[
     { key:'customers', label:'customers', icon:'fa-users', href:'customers.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
     { key:'savings', label:'savings', icon:'fa-piggy-bank', href:'savings.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor','member'] },
     { key:'loans', label:'loans', icon:'fa-file-invoice', href:'loans.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor','member'] },
     { key:'shares', label:'shares', icon:'fa-chart-pie', href:'share.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor','member'] }
   ]},
-  { section:'Finance', items:[
+  { section:'navFinance', items:[
     { key:'deposits', label:'deposits', icon:'fa-hand-holding-usd', href:'deposits.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
     { key:'withdrawals', label:'withdrawals', icon:'fa-money-bill-wave', href:'withdrawals.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
     { key:'dividends', label:'dividends', icon:'fa-gift', href:'dividends.html', roles:['super_admin','admin','manager','accountant','auditor'] },
     { key:'penalties', label:'penalties', icon:'fa-exclamation-triangle', href:'penalties.html', roles:['super_admin','admin','manager','cashier'] }
   ]},
-  { section:'Administration', items:[
+  { section:'navAdmin', items:[
     { key:'reports', label:'reports', icon:'fa-chart-bar', href:'reports.html', roles:['super_admin','admin','manager','accountant','auditor'] },
     { key:'audit', label:'audit', icon:'fa-clipboard-list', href:'audit.html', roles:['super_admin','admin','auditor'] },
     { key:'users', label:'users', icon:'fa-user-cog', href:'users.html', roles:['super_admin','admin'] },
     { key:'settings', label:'settings', icon:'fa-cog', href:'settings.html', roles:['*'] }
   ]}
 ];
-const canSeeNav = (item) => item.roles.includes('*') || item.roles.includes(APP.profile?.role) || isSuper();
+const canSeeNav = (item) => item.roles.includes('*') || item.roles.includes(APP.profile?.role) || isSuper() || APP.profile?.role === 'loading';
 
 function renderShell() {
   const navHtml = NAV.map(g => {
     const items = g.items.filter(canSeeNav);
     if (!items.length) return '';
-    const sectionKey = 'nav' + g.section.charAt(0).toUpperCase() + g.section.slice(1);
-    const sectionLabel = t(sectionKey) || g.section;
-    return `<div class="sidebar__section">${esc(sectionLabel)}</div>` +
+    return `<div class="sidebar__section">${esc(t(g.section))}</div>` +
       items.map(it => `<a class="nav-item${it.key==='deposits'?' is-active':''}" href="${it.href}" data-tooltip="${esc(t(it.label))}">
         <i class="fas ${it.icon}"></i><span class="nav-item__label">${esc(t(it.label))}</span>
       </a>`).join('');
@@ -1213,11 +1251,6 @@ function renderMain() {
     return;
   }
 
-  /* ==========================================================
-     TOTAL SACCO INCOME — ONLY APPROVED records count.
-     Approved statuses: approved | completed | paid | printed | done
-     Pending and rejected are excluded from this total.
-     ========================================================== */
   const APPROVED_STATUSES = ['approved','completed','paid','printed','done'];
   const all = filterWorkareaTxns(scopeTransactions());
   let approvedAmt = 0, approvedCount = 0, pendingAmt = 0, pendingCount = 0;
@@ -1826,7 +1859,6 @@ function openTxWizard(tx) {
     paymentMethod: t0.paymentMethod || t0.method || 'cash',
     reference: t0.reference || t0.ref || '',
     notes: t0.notes || t0.description || '',
-    /* NEW DEPOSITS ALWAYS START PENDING */
     status: isEdit ? (t0.status || 'pending') : 'pending',
     bankCode: t0.bankCode || '',
     bankName: t0.bankName || '',
@@ -2216,8 +2248,6 @@ function openTxWizard(tx) {
         if (isMobile && !d.mobileProvider) throw new Error(t('providerRequired'));
       }
 
-      /* NEW DEPOSITS ALWAYS START PENDING.
-         Only edits by admins/managers can set a different status. */
       const status = isEdit && canApprove() ? (d.status || 'pending') : 'pending';
       const recordedByName2 = APP.profile?.fullName || APP.profile?.name || '';
       const isSacco = !c;
@@ -2252,7 +2282,6 @@ function openTxWizard(tx) {
         receiptPhoto: d._receiptPhoto || null
       };
 
-      /* Only admins/managers editing can mark approved */
       if (status === 'approved' && isEdit && canApprove()) {
         if (!t0.approvedByName) {
           payload.approvedBy = APP.profile.id;
@@ -2682,6 +2711,7 @@ function showLogoutModal() {
     if (awayCheckInterval) { clearInterval(awayCheckInterval); awayCheckInterval = null; }
     awayStartedAt = null;
     try { sessionStorage.clear(); } catch(e){}
+    clearCachedProfile();
     try { await signOut(auth); } catch(e){}
     window.location.replace(LOGIN_URL);
   });
@@ -2693,8 +2723,8 @@ function attachListeners() {
     let ref = collection(db, coll);
     if (orderField) ref = query(ref, orderBy(orderField, 'desc'), limit(1000));
     const unsub = onSnapshot(ref,
-      (snap) => { APP[key] = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderMain(); },
-      (err) => { console.warn('[listen]', coll, err.code, err.message); renderMain(); }
+      (snap) => { APP[key] = snap.docs.map(d => ({ id: d.id, ...d.data() })); scheduleRefresh(); },
+      (err) => { console.warn('[listen]', coll, err.code, err.message); scheduleRefresh(); }
     );
     APP.unsubs.push(unsub);
   };
@@ -2707,7 +2737,15 @@ function stopListeners() {
   APP.unsubs.forEach(u => { try { u(); } catch(e){} });
   APP.unsubs = [];
 }
+let _refreshTimer = null;
+function scheduleRefresh() {
+  if (_refreshTimer) return;
+  _refreshTimer = setTimeout(() => { _refreshTimer = null; if (APP.profile) renderMain(); }, 250);
+}
 
+/* ============================================================
+   BOOT — instant render from cache, zero-wait loader
+============================================================ */
 (async function boot() {
   let saved = null;
   try { saved = localStorage.getItem(LANG_KEY); } catch(e){}
@@ -2717,33 +2755,83 @@ function stopListeners() {
   document.body.classList.toggle('lang-am', LANG === 'am');
 
   const sess = readSession();
-  if (!isSessionRecordValid(sess)) {
+  const hasMis = sessionStorage.getItem('loggedIn') === 'true' && sessionStorage.getItem('uid');
+  if (!isSessionRecordValid(sess) && !hasMis) {
     try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
     window.location.replace(LOGIN_URL);
     return;
   }
 
-  const user = await new Promise((resolve) => {
-    const unsub = onAuthStateChanged(auth, (u) => { unsub(); resolve(u); });
-  });
-  if (!user || user.uid !== sess.uid) {
+  /* ---- Instant render from cache ---- */
+  const cachedProfile = readCachedProfile();
+  let rendered = false;
+  if (cachedProfile && cachedProfile.uid) {
+    APP.profile = {
+      id: cachedProfile.uid,
+      role: cachedProfile.role || 'viewer',
+      email: cachedProfile.email || '',
+      fullName: cachedProfile.name || 'User',
+      photoURL: cachedProfile.photoURL || null,
+      districtId: cachedProfile.districtId || '',
+      districtName: cachedProfile.districtName || '',
+      branchId: cachedProfile.branchId || '',
+      branchName: cachedProfile.branchName || ''
+    };
+    initWorkarea();
+    renderShell();
+    renderMain();
+    hideLoaderNow();
+    rendered = true;
+  } else if (hasMis) {
+    APP.profile = {
+      id: sessionStorage.getItem('uid'),
+      role: sessionStorage.getItem('role') || 'viewer',
+      email: sessionStorage.getItem('email') || '',
+      fullName: sessionStorage.getItem('userName') || 'User',
+      photoURL: null,
+      districtId: '', districtName: '', branchId: '', branchName: ''
+    };
+    initWorkarea();
+    renderShell();
+    renderMain();
+    hideLoaderNow();
+    rendered = true;
+  }
+
+  /* ---- Auth check ---- */
+  let user;
+  try {
+    user = await new Promise((resolve) => {
+      const unsub = onAuthStateChanged(auth, (u) => { unsub(); resolve(u); });
+    });
+  } catch(e) { user = null; }
+
+  if (!user) {
     try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
-    clearSession();
+    clearSession(); clearCachedProfile();
+    window.location.replace(LOGIN_URL);
+    return;
+  }
+  if (sess && user.uid !== sess.uid) {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    clearSession(); clearCachedProfile();
     window.location.replace(LOGIN_URL);
     return;
   }
   APP.user = user;
 
+  /* ---- Fresh profile ---- */
   try {
     const snap = await getDoc(doc(db, 'users', user.uid));
     if (!snap.exists()) throw new Error('no-user-doc');
     const d = snap.data();
     if (d.status === 'inactive') throw new Error('inactive');
     APP.profile = { id: snap.id, ...d, email: user.email || '' };
+    writeCachedProfile();
   } catch(e) {
-    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
-    clearSession();
-    try { await signOut(auth); } catch(e){}
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e2){}
+    clearSession(); clearCachedProfile();
+    try { await signOut(auth); } catch(e2){}
     window.location.replace(LOGIN_URL);
     return;
   }
@@ -2765,16 +2853,24 @@ function stopListeners() {
     }
   } catch(e){}
 
-  initWorkarea();
-  renderShell();
-  renderMain();
-  setTimeout(() => document.getElementById('loader')?.classList.add('hide'), 150);
+  const profileChanged = !rendered ||
+    (cachedProfile && (
+      (cachedProfile.name !== (APP.profile.fullName || APP.profile.name)) ||
+      cachedProfile.role !== APP.profile.role ||
+      cachedProfile.photoURL !== (APP.profile.photoURL || null)
+    ));
+  if (profileChanged) {
+    initWorkarea();
+    renderShell();
+    renderMain();
+  }
+  hideLoaderNow();
 
   attachListeners();
   startSessionWatcher();
 })();
 
-console.log('[sacco] deposits page ready — approval workflow active');
+console.log('[sacco] deposits page ready — cached render, full i18n, session minutes persisted');
 </script>
 </body>
 </html>
