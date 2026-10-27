@@ -54,9 +54,6 @@ a{color:inherit;text-decoration:none;}
 h1,h2,h3,h4{line-height:1.25;letter-spacing:-.02em;font-weight:800;}
 :focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
 .hidden{display:none !important;}
-#loader{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:9999;transition:opacity .3s;}
-#loader.hide{opacity:0;pointer-events:none;}
-.spin{width:44px;height:44px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .app{display:grid;grid-template-columns:var(--sidebar-w) 1fr;grid-template-rows:var(--topbar-h) 1fr;
   grid-template-areas:"sidebar topbar" "sidebar main";min-height:100vh;
@@ -524,7 +521,6 @@ body.sb-open .overlay-mobile{display:block;}
 </head>
 <body>
 
-<div id="loader"><div class="spin"></div></div>
 <div class="overlay-mobile" id="overlayMobile"></div>
 <div class="toasts" id="toast-container"></div>
 <div id="app"></div>
@@ -577,7 +573,6 @@ function startAwayTimer(){if(awayStartedAt)return;awayStartedAt=Date.now();if(aw
 function stopAwayTimer(){awayStartedAt=null;if(awayCheckInterval){clearInterval(awayCheckInterval);awayCheckInterval=null;}}
 function evaluateActivity(){if(isWindowActive()){if(awayStartedAt){if(Date.now()-awayStartedAt>=getSessionMs()){forceLogout('expired');return;}}stopAwayTimer();}else startAwayTimer();}
 function startSessionWatcher(){document.addEventListener('visibilitychange',evaluateActivity);window.addEventListener('focus',evaluateActivity);window.addEventListener('blur',evaluateActivity);evaluateActivity();}
-async function loadSessionTimeout(){try{const snap=await getDoc(doc(db,'settings','system'));if(snap.exists()){const d=snap.data();let m=DEFAULT_SESSION_MINUTES;if(d.sessionTimeout!=null)m=Number(d.sessionTimeout);if(!isFinite(m)||m<1)m=DEFAULT_SESSION_MINUTES;if(m>1440)m=1440;SESSION_MINUTES=Math.round(m);}}catch(e){}}
 
 /* ---------------- DASHBOARD SETTINGS ---------------- */
 const DEFAULT_DASHBOARD_SETTINGS = {
@@ -589,17 +584,6 @@ const DEFAULT_DASHBOARD_SETTINGS = {
   shareStatuses: ['approved', 'completed', 'done', 'printed', 'paid']
 };
 let dashboardSettings = { ...DEFAULT_DASHBOARD_SETTINGS };
-async function loadDashboardSettings(){
-  try{
-    const snap = await getDoc(doc(db,'settings','system'));
-    if(snap.exists()){
-      const d = snap.data();
-      if(d && d.dashboard && typeof d.dashboard === 'object'){
-        dashboardSettings = { ...DEFAULT_DASHBOARD_SETTINGS, ...d.dashboard };
-      }
-    }
-  }catch(e){}
-}
 
 /* ---------------- HELPERS ---------------- */
 const num = (v) => { const n = Number(v); return isFinite(n) ? n : 0; };
@@ -2456,8 +2440,42 @@ function stopListeners(){
   APP.unsubs=[];
 }
 
+/* ---------------- SYSTEM SETTINGS (single read) ---------------- */
+async function loadSystemSettings(){
+  try{
+    const snap = await getDoc(doc(db,'settings','system'));
+    if(!snap.exists()) return false;
+    const d = snap.data() || {};
+
+    // --- Session timeout ---
+    let m = DEFAULT_SESSION_MINUTES;
+    if(d.sessionTimeout != null) m = Number(d.sessionTimeout);
+    if(!isFinite(m) || m < 1) m = DEFAULT_SESSION_MINUTES;
+    if(m > 1440) m = 1440;
+    SESSION_MINUTES = Math.round(m);
+
+    // --- Dashboard flags ---
+    if(d.dashboard && typeof d.dashboard === 'object'){
+      dashboardSettings = { ...DEFAULT_DASHBOARD_SETTINGS, ...d.dashboard };
+    }
+
+    // --- General branding / finance ---
+    if(d.currency) APP.currency = d.currency;
+    if(d.saccoName && String(d.saccoName).trim()) APP.saccoName = String(d.saccoName).trim();
+    loansPenaltyRate = d.loansPenaltyRate !== undefined
+      ? num(d.loansPenaltyRate)/100
+      : (num(d.penaltyRate)||5)/100;
+
+    return true;
+  }catch(e){
+    console.warn('Settings read failed:', e?.message || e);
+    return false;
+  }
+}
+
 /* ---------------- BOOT ---------------- */
 (async function boot(){
+  // ----- language init (before anything renders) -----
   let saved=null;
   try{saved=localStorage.getItem(LANG_KEY);}catch(e){}
   const b=(navigator.language||'en').slice(0,2);
@@ -2465,12 +2483,15 @@ function stopListeners(){
   document.documentElement.lang=LANG;
   document.body.classList.toggle('lang-am',LANG==='am');
 
+  // ----- session record -----
   const sess=readSession();
   if(!isSessionRecordValid(sess)){
     try{sessionStorage.setItem('__redirectReason','expired');}catch(e){}
     window.location.replace(LOGIN_URL);
     return;
   }
+
+  // ----- auth (fast, no spinner) -----
   const user=await new Promise((resolve)=>{
     const unsub=onAuthStateChanged(auth,(u)=>{unsub();resolve(u);});
   });
@@ -2481,6 +2502,8 @@ function stopListeners(){
     return;
   }
   APP.user=user;
+
+  // ----- profile -----
   try{
     const snap=await getDoc(doc(db,'users',user.uid));
     if(!snap.exists()) throw new Error('no-user-doc');
@@ -2499,25 +2522,28 @@ function stopListeners(){
     window.location.replace('dashboard.html');
     return;
   }
-  await loadSessionTimeout();
-  await loadDashboardSettings();
 
-  try{
-    const cfg=await getDoc(doc(db,'settings','system'));
-    if(cfg.exists()){
-      const d=cfg.data();
-      if(d.currency) APP.currency=d.currency;
-      if(d.saccoName&&String(d.saccoName).trim()) APP.saccoName=String(d.saccoName).trim();
-      loansPenaltyRate=d.loansPenaltyRate!==undefined?num(d.loansPenaltyRate)/100:(num(d.penaltyRate)||5)/100;
-    }
-  }catch(e){}
-
+  // ============================================================
+  // RENDER IMMEDIATELY — no spinner, no waiting for settings.
+  // Data populates automatically via onSnapshot listeners.
+  // ============================================================
   initWorkarea();
   renderShell();
   renderMain();
-  setTimeout(()=>document.getElementById('loader')?.classList.add('hide'),150);
-  attachListeners();
-  startSessionWatcher();
+  attachListeners();     // live data — renders again as docs arrive
+  startSessionWatcher(); // uses SESSION_MINUTES (default 30 until settings load)
+
+  // ============================================================
+  // Load settings in the background (single read) — then re-render
+  // so SESSION_MINUTES, currency, SACCO name and dashboard flags
+  // take effect without blocking first paint.
+  // ============================================================
+  loadSystemSettings().then((ok)=>{
+    if(ok && APP.profile){
+      renderShell();
+      renderMain();
+    }
+  });
 })();
 
 console.log('[sacco] withdrawals page ready — service pool = SACCO Capital (All Years) − Service Withdrawals');
