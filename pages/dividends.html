@@ -50,8 +50,8 @@ a{color:inherit;text-decoration:none;}
 h1,h2,h3,h4{line-height:1.25;letter-spacing:-.02em;font-weight:800;}
 :focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
 .hidden{display:none !important;}
-#loader{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:9999;transition:opacity .3s;}
-#loader.hide{opacity:0;pointer-events:none;}
+#loader{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:9999;transition:opacity .3s;pointer-events:none;}
+#loader.hide{opacity:0;pointer-events:none;visibility:hidden;}
 .spin{width:44px;height:44px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .app{display:grid;grid-template-columns:var(--sidebar-w) 1fr;grid-template-rows:var(--topbar-h) 1fr;
@@ -381,6 +381,9 @@ body.sb-open .overlay-mobile{display:block;}
   border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
 .mono{font-family:ui-monospace,Menlo,Consolas,monospace;}
 
+.loading-placeholder{padding:60px 24px;text-align:center;}
+.loading-placeholder__title{font-size:14px;font-weight:700;color:var(--text-soft);letter-spacing:.02em;}
+
 .breakdown{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}
 .breakdown__cell{padding:12px 14px;background:linear-gradient(135deg,#f8fbff,#fff);
   border:1px solid var(--border);border-radius:12px;}
@@ -633,9 +636,31 @@ const LOGIN_URL = "../index.html";
 const LOGO_URL  = "../images/logo.png";
 
 const SESSION_KEY = "sacco.session";
+const PROFILE_CACHE_KEY = "sacco.profile";
+
 function readSession(){try{const r=sessionStorage.getItem(SESSION_KEY);if(!r)return null;const s=JSON.parse(r);return (s&&s.uid)?s:null;}catch(e){return null;}}
 function clearSession(){try{sessionStorage.removeItem(SESSION_KEY);}catch(e){}}
 function isSessionRecordValid(s){return !!(s&&s.uid);}
+function readCachedProfile(){try{const r=sessionStorage.getItem(PROFILE_CACHE_KEY);if(!r)return null;const p=JSON.parse(r);return (p&&p.uid)?p:null;}catch(e){return null;}}
+function writeCachedProfile(){
+  if(!APP.profile) return;
+  try{
+    const payload = {
+      uid: APP.profile.id || APP.user?.uid || '',
+      role: APP.profile.role || 'loading',
+      email: APP.profile.email || '',
+      name: APP.profile.fullName || APP.profile.name || 'User',
+      photoURL: APP.profile.photoURL || null,
+      districtId: APP.profile.districtId || '',
+      districtName: APP.profile.districtName || '',
+      branchId: APP.profile.branchId || '',
+      branchName: APP.profile.branchName || ''
+    };
+    if(payload.uid) sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(payload));
+  }catch(e){}
+}
+function clearCachedProfile(){try{sessionStorage.removeItem(PROFILE_CACHE_KEY);}catch(e){}}
+function hideLoaderNow(){const el=document.getElementById('loader');if(el) el.classList.add('hide');}
 
 const DEFAULT_DASHBOARD = Object.freeze({
   includeRegistrationFee: true, includeOtherIncome: true, includePaidInterest: true,
@@ -867,7 +892,7 @@ function amountInWords(amount, currency) {
   return s + ' Only';
 }
 
-/* ⚡ Year-close window helpers */
+/* Year-close window helpers */
 function isInYearCloseWindow(year) {
   const now = new Date();
   const y = Number(year);
@@ -1488,7 +1513,6 @@ async function deleteChild(childId, user) {
   if (tx.batchId) await refreshBatchAfterMutation(tx.batchId, tx.year || tx.fiscalYear);
 }
 
-/* ⚡ closeYear — enforces Dec 30/31 window */
 async function closeYear(year, user) {
   if (!isInYearCloseWindow(year)) {
     const info = getYearCloseWindowInfo(year);
@@ -1522,7 +1546,7 @@ const ROLE_GROUPS = {
   print:        ['super_admin','admin','manager','accountant','auditor']
 };
 const hasRole = (...roles) => roles.includes(APP.profile?.role);
-const canView       = () => hasRole(...ROLE_GROUPS.viewAll);
+const canView       = () => hasRole(...ROLE_GROUPS.viewAll) || APP.profile?.role === 'loading';
 const canCreate     = () => hasRole(...ROLE_GROUPS.createBatch);
 const canApprove    = () => hasRole(...ROLE_GROUPS.approveChild);
 const canOverride   = () => hasRole(...ROLE_GROUPS.overrideChild);
@@ -1560,7 +1584,7 @@ function navDef() {
     ]}
   ];
 }
-const canSeeNav = (item) => item.roles.includes('*') || item.roles.includes(APP.profile?.role);
+const canSeeNav = (item) => item.roles.includes('*') || item.roles.includes(APP.profile?.role) || APP.profile?.role === 'loading';
 
 function renderShell() {
   const navHtml = navDef().map(group => {
@@ -1629,7 +1653,10 @@ function renderShell() {
   try { if (localStorage.getItem('sacco.sidebar') === 'collapsed') document.body.classList.add('sidebar-collapsed'); } catch(e){}
 }
 
-async function renderMain() {
+/* ============================================================
+   renderMain — renders skeleton instantly, fills data when ready
+   ============================================================ */
+async function renderMain(opts = {}) {
   const host = document.getElementById('mainContent');
   if (!host) return;
   if (!canView()) {
@@ -1641,6 +1668,9 @@ async function renderMain() {
     </div>`;
     return;
   }
+
+  const loadingPlaceholder = `<div class="loading-placeholder"><div class="loading-placeholder__title">${esc(t('loading'))}</div></div>`;
+
   host.innerHTML = `
     <div class="page-head">
       <div><h1 class="page-head__title">${esc(t('pageTitle'))}</h1><p class="page-head__sub">${esc(t('pageSub'))}</p></div>
@@ -1655,15 +1685,22 @@ async function renderMain() {
     </div>
     ${isReadOnly() ? `<div class="info-banner info-banner--info"><i class="fas fa-eye"></i><div>${esc(t('readOnlyBanner'))}</div></div>` : ''}
     ${APP.bootIssues.length ? `<div class="info-banner info-banner--warning"><i class="fas fa-exclamation-triangle"></i><div><strong>${esc(t('diagTitle'))}:</strong><ul style="margin:6px 0 0 18px;line-height:1.7">${APP.bootIssues.map(i => `<li>${i}</li>`).join('')}</ul></div></div>` : ''}
-    <div id="overviewArea"><div class="empty"><div class="spin" style="margin:0 auto;"></div></div></div>
+    <div id="overviewArea">${APP.overview ? '' : loadingPlaceholder}</div>
   `;
   wireMainEvents();
-  await loadAndRenderOverview();
+
+  if (opts.skipLoad) return;
+
+  if (APP.overview) {
+    renderOverview(APP.overview);
+  } else {
+    await loadAndRenderOverview();
+  }
 }
+
 async function loadAndRenderOverview() {
   const area = document.getElementById('overviewArea');
   if (!area) return;
-  area.innerHTML = `<div class="empty"><div class="spin" style="margin:0 auto;"></div></div>`;
   try {
     const [ov] = await Promise.all([
       getYearOverview(APP.selectedYear),
@@ -1907,17 +1944,19 @@ function renderPreviewCard(ov) {
 }
 
 function renderChildrenCard() {
+  const loadingHtml = `<div class="loading-placeholder"><div class="loading-placeholder__title">${esc(t('loading'))}</div></div>`;
   return `
     <div class="card" id="childrenCard">
       <div class="card__head"><div><div class="card__title"><i class="fas fa-list"></i> ${esc(t('childrenTitle'))}</div><div class="card__sub">${esc(t('childrenSub'))}</div></div></div>
       <div style="padding:12px 22px;border-bottom:1px solid var(--border-soft);background:var(--bg-soft)">
         <input type="search" id="childSearch" placeholder="${esc(t('searchPlaceholder'))}" style="width:100%;max-width:380px;height:42px;padding:0 14px;border:1px solid var(--border);border-radius:11px;font-size:13.5px">
       </div>
-      <div id="childrenHost"><div class="empty"><div class="spin" style="margin:0 auto"></div></div></div>
+      <div id="childrenHost">${loadingHtml}</div>
     </div>`;
 }
 
 function renderHistorySections() {
+  const loadingRow = (cols) => `<tr><td colspan="${cols}" style="padding:32px;text-align:center;color:var(--muted);font-size:13px;">${esc(t('loading'))}</td></tr>`;
   return `
     <section class="card" id="distributionHistoryCard" style="margin-bottom:22px;">
       <div class="card__head">
@@ -1941,9 +1980,7 @@ function renderHistorySections() {
               <th>${esc(t('colPaidDate'))}</th>
               <th>${esc(t('colStatus'))}</th>
             </tr></thead>
-            <tbody id="histDivBody">
-              <tr><td colspan="9" style="padding:32px;text-align:center;color:var(--muted);font-size:13px;">${esc(t('loading'))}</td></tr>
-            </tbody>
+            <tbody id="histDivBody">${loadingRow(9)}</tbody>
           </table>
         </div>
       </div>
@@ -1969,9 +2006,7 @@ function renderHistorySections() {
               <th>${esc(t('colDate'))}</th>
               <th>${esc(t('colStatus'))}</th>
             </tr></thead>
-            <tbody id="histScBody">
-              <tr><td colspan="7" style="padding:32px;text-align:center;color:var(--muted);font-size:13px;">${esc(t('loading'))}</td></tr>
-            </tbody>
+            <tbody id="histScBody">${loadingRow(7)}</tbody>
           </table>
         </div>
       </div>
@@ -2373,7 +2408,6 @@ function openDistributionModal(ov) {
   });
 }
 
-/* ⚡ openCloseYearModal — enforces Dec 30/31 window */
 function openCloseYearModal(ov) {
   if (!canCloseYear()) { toast(t('noPermission'), 'error'); return; }
   const targetYear = Number(ov.year || APP.selectedYear);
@@ -2700,6 +2734,7 @@ function showLogoutModal() {
   });
   root.querySelector('#confirmLogout').addEventListener('click', async () => {
     try { sessionStorage.clear(); } catch(e){}
+    clearCachedProfile();
     try { await signOut(auth); } catch(e){}
     window.location.replace(LOGIN_URL);
   });
@@ -2883,7 +2918,7 @@ function buildVoucherHtml(tx, watermark) {
       <table class="slip__table" style="margin-top:12px"><thead><tr><th style="width:35%">Approved by</th><th style="width:30%">Signature</th><th style="width:35%">Date</th></tr></thead><tbody><tr><td><span class="user-name">${esc(paidBy)}</span></td><td><span class="sig-line"></span></td><td><span class="sig-line"></span></td></tr></tbody></table>
       <p style="text-align:center;margin-top:14px"><strong>${esc(t('officialStamp'))}: __________________________</strong></p>
       <div class="slip__footer">
-        <div class="slip__slogan">“If We Work Together, We Grow Together!”</div>
+        <div class="slip__slogan">"If We Work Together, We Grow Together!"</div>
         <div class="slip__footer-meta"><strong>${esc(APP.saccoName)}</strong> · Printed on ${esc(fmtDateTime(new Date()))}${APP.profile?.fullName ? ' · Printed by ' + esc(APP.profile.fullName) : ''}${printCount > 0 ? ' · Print #' + printCount : ''}</div>
       </div>
     </div>`;
@@ -2949,7 +2984,11 @@ async function loadAvailableYears() {
   if (!APP.years.includes(APP.selectedYear)) APP.selectedYear = APP.years[0] || currentYear;
 }
 
+/* ============================================================
+   BOOT — instant skeleton paint, background data load
+   ============================================================ */
 (async function boot() {
+  // 1. Language init
   let saved = null;
   try { saved = localStorage.getItem(LANG_KEY); } catch(e){}
   const b = (navigator.language || 'en').slice(0,2);
@@ -2957,30 +2996,119 @@ async function loadAvailableYears() {
   document.documentElement.lang = LANG;
   document.body.classList.toggle('lang-am', LANG === 'am');
 
+  // 2. Session check — accept either SESSION_KEY or the loggedIn/uid pair
   const sess = readSession();
-  if (!isSessionRecordValid(sess)) { try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){} window.location.replace(LOGIN_URL); return; }
-
-  const user = await new Promise(resolve => { const unsub = onAuthStateChanged(auth, u => { unsub(); resolve(u); }); });
-  if (!user || user.uid !== sess.uid) { try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){} clearSession(); window.location.replace(LOGIN_URL); return; }
-  APP.user = user;
-
-  try {
-    const snap = await getDoc(doc(db, 'users', user.uid));
-    if (!snap.exists()) throw new Error('no-user-doc');
-    APP.profile = { id: snap.id, ...snap.data(), email: user.email || '' };
-    if (APP.profile.status === 'inactive') throw new Error('inactive');
-  } catch (e) {
+  const hasMis = sessionStorage.getItem('loggedIn') === 'true' && sessionStorage.getItem('uid');
+  if (!isSessionRecordValid(sess) && !hasMis) {
     try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
-    clearSession();
-    try { await signOut(auth); } catch(e){}
     window.location.replace(LOGIN_URL);
     return;
   }
 
-  await Promise.all([loadSettings(), loadCustomers(), loadDistricts(), loadBranches(), loadLoansCollection()]);
-  await loadAvailableYears();
-  await loadAllYearsHistory();
+  // 3. Cached render — paint shell + skeleton main immediately
+  const cachedProfile = readCachedProfile();
+  let rendered = false;
 
+  if (cachedProfile && cachedProfile.uid) {
+    APP.profile = {
+      id: cachedProfile.uid,
+      role: cachedProfile.role || 'loading',
+      email: cachedProfile.email || '',
+      fullName: cachedProfile.name || 'User',
+      photoURL: cachedProfile.photoURL || null,
+      districtId: cachedProfile.districtId || '',
+      districtName: cachedProfile.districtName || '',
+      branchId: cachedProfile.branchId || '',
+      branchName: cachedProfile.branchName || ''
+    };
+    renderShell();
+    renderMain({ skipLoad: true });
+    hideLoaderNow();
+    rendered = true;
+  } else if (hasMis) {
+    APP.profile = {
+      id: sessionStorage.getItem('uid'),
+      role: sessionStorage.getItem('role') || 'loading',
+      email: sessionStorage.getItem('email') || '',
+      fullName: sessionStorage.getItem('userName') || 'User',
+      photoURL: null,
+      districtId: '', districtName: '', branchId: '', branchName: ''
+    };
+    renderShell();
+    renderMain({ skipLoad: true });
+    hideLoaderNow();
+    rendered = true;
+  }
+
+  // 4. Auth verify
+  let user;
+  try {
+    user = await new Promise(resolve => {
+      const unsub = onAuthStateChanged(auth, u => { unsub(); resolve(u); });
+    });
+  } catch(e) { user = null; }
+
+  if (!user) {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    clearSession(); clearCachedProfile();
+    window.location.replace(LOGIN_URL);
+    return;
+  }
+  if (sess && user.uid !== sess.uid) {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    clearSession(); clearCachedProfile();
+    window.location.replace(LOGIN_URL);
+    return;
+  }
+  APP.user = user;
+
+  // 5. Fresh profile
+  let freshProfileLoaded = false;
+  try {
+    const snap = await getDoc(doc(db, 'users', user.uid));
+    if (!snap.exists()) throw new Error('no-user-doc');
+    const d = snap.data();
+    if (d.status === 'inactive') throw new Error('inactive');
+    APP.profile = { id: snap.id, ...d, email: user.email || '' };
+    writeCachedProfile();
+    freshProfileLoaded = true;
+  } catch (e) {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e2){}
+    clearSession(); clearCachedProfile();
+    try { await signOut(auth); } catch(e2){}
+    window.location.replace(LOGIN_URL);
+    return;
+  }
+
+  const allowed = ['super_admin','admin','manager','cashier','teller','accountant','auditor'];
+  if (!allowed.includes(APP.profile.role)) {
+    window.location.replace('dashboard.html');
+    return;
+  }
+
+  // 6. Render shell if profile changed (role/district/branch)
+  const profileChanged = !rendered ||
+    (cachedProfile && (
+      cachedProfile.role !== APP.profile.role ||
+      cachedProfile.name !== (APP.profile.fullName || APP.profile.name) ||
+      cachedProfile.photoURL !== (APP.profile.photoURL || null)
+    ));
+  if (profileChanged || !rendered) {
+    renderShell();
+  }
+
+  // 7. Load all data in parallel — skeleton remains visible
+  await Promise.all([
+    loadSettings(),
+    loadCustomers(),
+    loadDistricts(),
+    loadBranches(),
+    loadLoansCollection(),
+    loadAvailableYears(),
+    loadAllYearsHistory()
+  ]);
+
+  // 8. Orphaned sacco_capital cleanup (best-effort)
   try {
     const [scSnap, batchSnap] = await Promise.all([
       getDocs(query(collection(db, 'transactions'), where('type','==','sacco_capital'))),
@@ -2999,10 +3127,13 @@ async function loadAvailableYears() {
     }
   } catch (e) { console.warn('[boot] sacco_capital cleanup failed', e); }
 
+  // 9. Render full page with loaded data (this also triggers overview load)
   renderShell();
   renderMain();
-  setTimeout(() => document.getElementById('loader')?.classList.add('hide'), 150);
+
+  hideLoaderNow();
 })();
+
 </script>
 
 </body>
