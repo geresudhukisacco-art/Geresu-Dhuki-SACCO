@@ -54,6 +54,9 @@ a{color:inherit;text-decoration:none;}
 h1,h2,h3,h4{line-height:1.25;letter-spacing:-.02em;font-weight:800;}
 :focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
 .hidden{display:none !important;}
+#loader{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:9999;transition:opacity .3s;pointer-events:none;}
+#loader.hide{opacity:0;pointer-events:none;visibility:hidden;}
+.spin{width:44px;height:44px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .app{display:grid;grid-template-columns:var(--sidebar-w) 1fr;grid-template-rows:var(--topbar-h) 1fr;
   grid-template-areas:"sidebar topbar" "sidebar main";min-height:100vh;
@@ -521,6 +524,7 @@ body.sb-open .overlay-mobile{display:block;}
 </head>
 <body>
 
+<div id="loader"><div class="spin"></div></div>
 <div class="overlay-mobile" id="overlayMobile"></div>
 <div class="toasts" id="toast-container"></div>
 <div id="app"></div>
@@ -550,21 +554,51 @@ const db    = getFirestore(fbApp);
 const LOGIN_URL = "../index.html";
 const LOGO_URL  = "../images/logo.png";
 const DEFAULT_SACCO_NAME = 'GERESU DHUKI SACCO';
+const PROFILE_CACHE_KEY = 'sacco.profile';
 
 /* ---------------- SESSION ---------------- */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
-let SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
+let SESSION_MINUTES = null;
 let awayStartedAt = null, awayCheckInterval = null;
+
 function readSession(){try{const r=sessionStorage.getItem(SESSION_KEY);if(!r)return null;const s=JSON.parse(r);return (s&&s.uid)?s:null;}catch(e){return null;}}
 function clearSession(){try{sessionStorage.removeItem(SESSION_KEY);}catch(e){}}
 function isSessionRecordValid(s){return !!(s&&s.uid);}
-function getSessionMs(){const s=readSession();const m=(s&&s.minutes)||SESSION_MINUTES;return Math.max(1,m)*60000;}
+function getSessionMs(){
+  const s = readSession();
+  const mins = (SESSION_MINUTES != null && SESSION_MINUTES > 0)
+    ? SESSION_MINUTES
+    : ((s && s.minutes) || DEFAULT_SESSION_MINUTES);
+  return Math.max(1, mins) * 60000;
+}
+function readCachedProfile(){try{const raw=sessionStorage.getItem(PROFILE_CACHE_KEY);if(!raw)return null;const p=JSON.parse(raw);return (p&&p.uid)?p:null;}catch(e){return null;}}
+function writeCachedProfile(){
+  if(!APP.profile) return;
+  try{
+    const payload = {
+      uid: APP.profile.id || APP.user?.uid || '',
+      role: APP.profile.role || 'viewer',
+      email: APP.profile.email || '',
+      name: APP.profile.fullName || APP.profile.name || 'User',
+      photoURL: APP.profile.photoURL || null,
+      districtId: APP.profile.districtId || '',
+      districtName: APP.profile.districtName || '',
+      branchId: APP.profile.branchId || '',
+      branchName: APP.profile.branchName || ''
+    };
+    if(payload.uid) sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(payload));
+  }catch(e){}
+}
+function clearCachedProfile(){try{sessionStorage.removeItem(PROFILE_CACHE_KEY);}catch(e){}}
+function hideLoaderNow(){const el=document.getElementById('loader');if(el) el.classList.add('hide');}
+
 function forceLogout(reason){
   if(awayCheckInterval){clearInterval(awayCheckInterval);awayCheckInterval=null;}
   awayStartedAt=null;
   try{sessionStorage.clear();sessionStorage.setItem('__redirectReason',reason||'expired');}catch(e){}
-  clearSession();try{signOut(auth);}catch(e){}
+  clearSession(); clearCachedProfile();
+  try{signOut(auth);}catch(e){}
   window.location.replace(LOGIN_URL);
 }
 function isWindowActive(){return document.visibilityState==='visible'&&document.hasFocus();}
@@ -573,6 +607,26 @@ function startAwayTimer(){if(awayStartedAt)return;awayStartedAt=Date.now();if(aw
 function stopAwayTimer(){awayStartedAt=null;if(awayCheckInterval){clearInterval(awayCheckInterval);awayCheckInterval=null;}}
 function evaluateActivity(){if(isWindowActive()){if(awayStartedAt){if(Date.now()-awayStartedAt>=getSessionMs()){forceLogout('expired');return;}}stopAwayTimer();}else startAwayTimer();}
 function startSessionWatcher(){document.addEventListener('visibilitychange',evaluateActivity);window.addEventListener('focus',evaluateActivity);window.addEventListener('blur',evaluateActivity);evaluateActivity();}
+
+async function loadSessionTimeout(){
+  try{
+    const snap = await getDoc(doc(db,'settings','system'));
+    if(snap.exists()){
+      const d = snap.data();
+      let m = DEFAULT_SESSION_MINUTES;
+      if(d.sessionTimeout != null) m = Number(d.sessionTimeout);
+      if(!isFinite(m) || m < 1) m = DEFAULT_SESSION_MINUTES;
+      if(m > 1440) m = 1440;
+      SESSION_MINUTES = Math.round(m);
+    } else {
+      SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
+    }
+  }catch(e){ if(SESSION_MINUTES == null) SESSION_MINUTES = DEFAULT_SESSION_MINUTES; }
+  try{
+    const s = readSession();
+    if(s){ s.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); }
+  }catch(e){}
+}
 
 /* ---------------- DASHBOARD SETTINGS ---------------- */
 const DEFAULT_DASHBOARD_SETTINGS = {
@@ -850,7 +904,7 @@ const isSuper      = () => APP.profile?.role === 'super_admin';
 const isDistrict   = () => APP.profile?.role === 'admin';
 const isAuditor    = () => APP.profile?.role === 'auditor';
 const isBranchRole = () => ['manager','cashier','teller','accountant'].includes(APP.profile?.role);
-const canView      = () => isSuper() || isDistrict() || isBranchRole() || isAuditor();
+const canView      = () => isSuper() || isDistrict() || isBranchRole() || isAuditor() || APP.profile?.role === 'loading';
 const canManage    = () => isSuper() || isDistrict() || isBranchRole();
 const canApprove   = () => isSuper() || isDistrict() || APP.profile?.role === 'manager';
 const canDelete    = () => isSuper() || isDistrict();
@@ -859,7 +913,7 @@ const canPrint     = () => isSuper() || isDistrict() || isBranchRole();
 function scopeCustomers(){
   if(!APP.profile) return [];
   const role=APP.profile.role;
-  if(role==='super_admin'||role==='auditor') return APP.customers.filter(c=>(c.status||'active').toLowerCase()!=='inactive');
+  if(role==='super_admin'||role==='auditor'||role==='loading') return APP.customers.filter(c=>(c.status||'active').toLowerCase()!=='inactive');
   if(role==='admin') return APP.customers.filter(c=>(c.districtId===APP.profile.districtId||c.district===APP.profile.districtId)&&(c.status||'active').toLowerCase()!=='inactive');
   if(['manager','cashier','teller','accountant'].includes(role))
     return APP.customers.filter(c=>c.branchId===APP.profile.branchId&&(c.status||'active').toLowerCase()!=='inactive');
@@ -893,20 +947,20 @@ function customerById(id){ if(!id) return null; return APP.customers.find(c=>c.i
 function districtById(id){ return APP.districts.find(d=>d.id===id)||null; }
 function branchById(id){ return APP.branches.find(b=>b.id===id)||null; }
 function assignableDistricts(){
-  if(isSuper()||isAuditor()) return APP.districts.slice();
+  if(isSuper()||isAuditor()||APP.profile?.role==='loading') return APP.districts.slice();
   if(isDistrict()||isBranchRole()) return APP.districts.filter(d=>d.id===APP.profile.districtId);
   return [];
 }
 function assignableBranches(did){
   if(!did) return [];
-  if(isSuper()||isAuditor()) return APP.branches.filter(b=>b.districtId===did);
+  if(isSuper()||isAuditor()||APP.profile?.role==='loading') return APP.branches.filter(b=>b.districtId===did);
   if(isDistrict()||isBranchRole()) return APP.branches.filter(b=>b.districtId===did&&b.districtId===APP.profile.districtId);
   return [];
 }
-const districtLocked = () => !isSuper() && !isAuditor();
+const districtLocked = () => !isSuper() && !isAuditor() && APP.profile?.role !== 'loading';
 const branchLocked   = () => isBranchRole();
 function initWorkarea(){
-  if(isSuper()||isAuditor()) APP.workarea = { districtId:'', branchId:'' };
+  if(isSuper()||isAuditor()||APP.profile?.role==='loading') APP.workarea = { districtId:'', branchId:'' };
   else if(isDistrict()) APP.workarea = { districtId: APP.profile.districtId||'', branchId:'' };
   else if(isBranchRole()) APP.workarea = { districtId: APP.profile.districtId||'', branchId: APP.profile.branchId||'' };
 }
@@ -1074,7 +1128,7 @@ const NAV = [
     { key:'settings', label:'settings', icon:'fa-cog',            href:'settings.html', roles:['*'] }
   ]}
 ];
-const canSeeNav = (item) => item.roles.includes('*') || item.roles.includes(APP.profile?.role) || isSuper();
+const canSeeNav = (item) => item.roles.includes('*') || item.roles.includes(APP.profile?.role) || isSuper() || APP.profile?.role === 'loading';
 
 function renderShell(){
   const navHtml = NAV.map(g=>{
@@ -2413,6 +2467,7 @@ function showLogoutModal(){
     if(awayCheckInterval){clearInterval(awayCheckInterval);awayCheckInterval=null;}
     awayStartedAt=null;
     try{sessionStorage.clear();}catch(e){}
+    clearCachedProfile();
     try{await signOut(auth);}catch(e){}
     window.location.replace(LOGIN_URL);
   });
@@ -2424,8 +2479,8 @@ function attachListeners(){
     let ref=collection(db,coll);
     if(orderField) ref=query(ref,orderBy(orderField,'desc'),limit(2000));
     const unsub=onSnapshot(ref,
-      (snap)=>{APP[key]=snap.docs.map(d=>({id:d.id,...d.data()}));renderMain();},
-      (err)=>{console.warn('[listen]',coll,err.code,err.message);renderMain();}
+      (snap)=>{APP[key]=snap.docs.map(d=>({id:d.id,...d.data()}));scheduleRefresh();},
+      (err)=>{console.warn('[listen]',coll,err.code,err.message);scheduleRefresh();}
     );
     APP.unsubs.push(unsub);
   };
@@ -2439,43 +2494,17 @@ function stopListeners(){
   APP.unsubs.forEach(u=>{try{u();}catch(e){}});
   APP.unsubs=[];
 }
-
-/* ---------------- SYSTEM SETTINGS (single read) ---------------- */
-async function loadSystemSettings(){
-  try{
-    const snap = await getDoc(doc(db,'settings','system'));
-    if(!snap.exists()) return false;
-    const d = snap.data() || {};
-
-    // --- Session timeout ---
-    let m = DEFAULT_SESSION_MINUTES;
-    if(d.sessionTimeout != null) m = Number(d.sessionTimeout);
-    if(!isFinite(m) || m < 1) m = DEFAULT_SESSION_MINUTES;
-    if(m > 1440) m = 1440;
-    SESSION_MINUTES = Math.round(m);
-
-    // --- Dashboard flags ---
-    if(d.dashboard && typeof d.dashboard === 'object'){
-      dashboardSettings = { ...DEFAULT_DASHBOARD_SETTINGS, ...d.dashboard };
-    }
-
-    // --- General branding / finance ---
-    if(d.currency) APP.currency = d.currency;
-    if(d.saccoName && String(d.saccoName).trim()) APP.saccoName = String(d.saccoName).trim();
-    loansPenaltyRate = d.loansPenaltyRate !== undefined
-      ? num(d.loansPenaltyRate)/100
-      : (num(d.penaltyRate)||5)/100;
-
-    return true;
-  }catch(e){
-    console.warn('Settings read failed:', e?.message || e);
-    return false;
-  }
+let _refreshTimer=null;
+function scheduleRefresh(){
+  if(_refreshTimer) return;
+  _refreshTimer=setTimeout(()=>{_refreshTimer=null; if(APP.profile) renderMain();},250);
 }
 
-/* ---------------- BOOT ---------------- */
+/* ============================================================
+   BOOT — instant render from cache, zero-wait loader
+============================================================ */
 (async function boot(){
-  // ----- language init (before anything renders) -----
+  // Language init
   let saved=null;
   try{saved=localStorage.getItem(LANG_KEY);}catch(e){}
   const b=(navigator.language||'en').slice(0,2);
@@ -2483,40 +2512,96 @@ async function loadSystemSettings(){
   document.documentElement.lang=LANG;
   document.body.classList.toggle('lang-am',LANG==='am');
 
-  // ----- session record -----
+  // Session validity — accept either SESSION_KEY or the loggedIn/uid pair
   const sess=readSession();
-  if(!isSessionRecordValid(sess)){
+  const hasMis = sessionStorage.getItem('loggedIn') === 'true' && sessionStorage.getItem('uid');
+  if(!isSessionRecordValid(sess) && !hasMis){
     try{sessionStorage.setItem('__redirectReason','expired');}catch(e){}
     window.location.replace(LOGIN_URL);
     return;
   }
 
-  // ----- auth (fast, no spinner) -----
-  const user=await new Promise((resolve)=>{
-    const unsub=onAuthStateChanged(auth,(u)=>{unsub();resolve(u);});
-  });
-  if(!user||user.uid!==sess.uid){
-    try{sessionStorage.setItem('__redirectReason','expired');}catch(e){}
-    clearSession();
-    window.location.replace(LOGIN_URL);
-    return;
-  }
-  APP.user=user;
+  // ============================================================
+  // INSTANT RENDER from cache — no spinner, no waiting on network
+  // ============================================================
+  const cachedProfile = readCachedProfile();
+  let rendered = false;
 
-  // ----- profile -----
+  if (cachedProfile && cachedProfile.uid) {
+    APP.profile = {
+      id: cachedProfile.uid,
+      role: cachedProfile.role || 'viewer',
+      email: cachedProfile.email || '',
+      fullName: cachedProfile.name || 'User',
+      photoURL: cachedProfile.photoURL || null,
+      districtId: cachedProfile.districtId || '',
+      districtName: cachedProfile.districtName || '',
+      branchId: cachedProfile.branchId || '',
+      branchName: cachedProfile.branchName || ''
+    };
+    initWorkarea();
+    renderShell();
+    renderMain();
+    hideLoaderNow();
+    rendered = true;
+  } else if (hasMis) {
+    APP.profile = {
+      id: sessionStorage.getItem('uid'),
+      role: sessionStorage.getItem('role') || 'viewer',
+      email: sessionStorage.getItem('email') || '',
+      fullName: sessionStorage.getItem('userName') || 'User',
+      photoURL: null,
+      districtId: '', districtName: '', branchId: '', branchName: ''
+    };
+    initWorkarea();
+    renderShell();
+    renderMain();
+    hideLoaderNow();
+    rendered = true;
+  }
+
+  // ============================================================
+  // Auth check (fast, cached session means we've already rendered)
+  // ============================================================
+  let user;
   try{
-    const snap=await getDoc(doc(db,'users',user.uid));
-    if(!snap.exists()) throw new Error('no-user-doc');
-    const d=snap.data();
-    if(d.status==='inactive') throw new Error('inactive');
-    APP.profile={id:snap.id,...d,email:user.email||''};
-  }catch(e){
+    user = await new Promise((resolve)=>{
+      const unsub = onAuthStateChanged(auth,(u)=>{unsub();resolve(u);});
+    });
+  }catch(e){ user = null; }
+
+  if(!user){
     try{sessionStorage.setItem('__redirectReason','expired');}catch(e){}
-    clearSession();
-    try{await signOut(auth);}catch(e){}
+    clearSession(); clearCachedProfile();
     window.location.replace(LOGIN_URL);
     return;
   }
+  if(sess && user.uid !== sess.uid){
+    try{sessionStorage.setItem('__redirectReason','expired');}catch(e){}
+    clearSession(); clearCachedProfile();
+    window.location.replace(LOGIN_URL);
+    return;
+  }
+  APP.user = user;
+
+  // ============================================================
+  // Fresh profile from Firestore
+  // ============================================================
+  try{
+    const snap = await getDoc(doc(db,'users',user.uid));
+    if(!snap.exists()) throw new Error('no-user-doc');
+    const d = snap.data();
+    if(d.status==='inactive') throw new Error('inactive');
+    APP.profile = { id: snap.id, ...d, email: user.email || '' };
+    writeCachedProfile();
+  }catch(e){
+    try{sessionStorage.setItem('__redirectReason','expired');}catch(e2){}
+    clearSession(); clearCachedProfile();
+    try{ await signOut(auth); }catch(e2){}
+    window.location.replace(LOGIN_URL);
+    return;
+  }
+
   const allowed=['super_admin','admin','manager','cashier','teller','accountant','auditor'];
   if(!allowed.includes(APP.profile.role)){
     window.location.replace('dashboard.html');
@@ -2524,29 +2609,48 @@ async function loadSystemSettings(){
   }
 
   // ============================================================
-  // RENDER IMMEDIATELY — no spinner, no waiting for settings.
-  // Data populates automatically via onSnapshot listeners.
+  // Load system settings (session timeout, dashboard flags,
+  // currency, SACCO name, penalties) — single doc, two reads
   // ============================================================
-  initWorkarea();
-  renderShell();
-  renderMain();
-  attachListeners();     // live data — renders again as docs arrive
-  startSessionWatcher(); // uses SESSION_MINUTES (default 30 until settings load)
+  await loadSessionTimeout();
+
+  try{
+    const cfg = await getDoc(doc(db,'settings','system'));
+    if(cfg.exists()){
+      const d = cfg.data();
+      if(d.currency) APP.currency = d.currency;
+      if(d.saccoName && String(d.saccoName).trim()) APP.saccoName = String(d.saccoName).trim();
+      loansPenaltyRate = d.loansPenaltyRate !== undefined
+        ? num(d.loansPenaltyRate)/100
+        : (num(d.penaltyRate)||5)/100;
+      if(d.dashboard && typeof d.dashboard === 'object'){
+        dashboardSettings = { ...DEFAULT_DASHBOARD_SETTINGS, ...d.dashboard };
+      }
+    }
+  }catch(e){}
 
   // ============================================================
-  // Load settings in the background (single read) — then re-render
-  // so SESSION_MINUTES, currency, SACCO name and dashboard flags
-  // take effect without blocking first paint.
+  // Re-render only if we rendered from cache OR profile changed
   // ============================================================
-  loadSystemSettings().then((ok)=>{
-    if(ok && APP.profile){
-      renderShell();
-      renderMain();
-    }
-  });
+  const profileChanged = !rendered ||
+    (cachedProfile && (
+      (cachedProfile.name !== (APP.profile.fullName || APP.profile.name)) ||
+      cachedProfile.role !== APP.profile.role ||
+      cachedProfile.photoURL !== (APP.profile.photoURL || null)
+    ));
+  if(profileChanged){
+    initWorkarea();
+    renderShell();
+    renderMain();
+  }
+  hideLoaderNow();
+
+  // Live data — renders again as snapshots arrive
+  attachListeners();
+  startSessionWatcher();
 })();
 
-console.log('[sacco] withdrawals page ready — service pool = SACCO Capital (All Years) − Service Withdrawals');
+console.log('[sacco] withdrawals page ready — cached render, no spinner, full i18n, session minutes persisted');
 </script>
 </body>
 </html>
