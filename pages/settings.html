@@ -2014,13 +2014,32 @@ function wireMainEvents(){
     if (title) title.innerHTML = renderBrandTitle(this.value);
   });
 
-  /* Manual share recalculation trigger */
+  /* PATCH 2 — manual share recalculation saves the price first, then recalculates */
   document.getElementById('recalcSharesBtn')?.addEventListener('click', async function(){
     if (!isAdmin) { toast(t('unauthorized'), 'error'); return; }
     const formPrice = Number(document.getElementById('shareValue')?.value) || 0;
     if (formPrice <= 0) { toast(t('recalcSharesInvalidPrice'), 'warning'); return; }
     const savedPrice = Number(currentSettings.shareValue) || formPrice;
-    await promptRecalcShares(savedPrice, formPrice, Math.abs(savedPrice - formPrice) < 0.0001);
+    const priceChanged = Math.abs(savedPrice - formPrice) > 0.0001;
+
+    // Persist the new price first so settings/system is never out of sync with the recalculated records.
+    if (priceChanged) {
+      try {
+        await setDoc(doc(db, 'settings', 'system'),
+          { shareValue: formPrice, sharePrice: formPrice },
+          { merge: true });
+        await logAudit('updated', 'settings', 'system',
+          { shareValue: formPrice, sharePrice: formPrice }, 'Share value updated via recalculation');
+        currentSettings = { ...currentSettings, shareValue: formPrice, sharePrice: formPrice };
+        savedSettings   = { ...currentSettings };
+        loadSettingsToForm(currentSettings);
+        updateDirtyIndicators();
+      } catch (e) {
+        toast(t('settingsSaveError') + e.message, 'error');
+        return;
+      }
+    }
+    await promptRecalcShares(savedPrice, formPrice, priceChanged);
   });
 
   wireProfileEditor();
@@ -2368,6 +2387,7 @@ function collectFormData(){
   data.currency = v('currency');
   data.defaultLanguage = v('defaultLanguage');
   data.shareValue = n('shareValue');
+  data.sharePrice = data.shareValue;   /* PATCH 1 — keep legacy field in sync */
   data.minShares = i('minShares');
   data.maxShares = i('maxShares');
   data.minShareAmount = data.shareValue * data.minShares;
@@ -2474,8 +2494,6 @@ function updateDirtyIndicators(){
 
 /* ============================================================
    SHARE PRICE RECALCULATION
-   When shareValue changes, recalculate every approved, non-merged
-   share record so its total monetary value stays consistent.
    ============================================================ */
 async function recalculateSharesOnPriceChange(oldPrice, newPrice){
   if (!isAdmin) return { updated:0, printed:0 };
@@ -3187,6 +3205,10 @@ async function loadSettings(){
       });
       if (data.penaltyRate !== undefined && data.loansPenaltyRate === undefined) merged.loansPenaltyRate = Number(data.penaltyRate);
       if (data.sessionTimeoutMinutes !== undefined && data.sessionTimeout === undefined) merged.sessionTimeout = Number(data.sessionTimeoutMinutes);
+      /* Legacy fallback: if shareValue is missing but sharePrice exists, use it */
+      if ((data.shareValue === undefined || data.shareValue === null) && data.sharePrice !== undefined && data.sharePrice !== null) {
+        merged.shareValue = Number(data.sharePrice);
+      }
       currentSettings = merged;
       savedSettings = { ...merged };
     } else {
@@ -3314,7 +3336,6 @@ function attachFloatingSaveBar(){
   await loadUserProfile();
   await loadSettings();
 
-  // Re-render with settings loaded
   if (rendered || profileChanged) {
     renderShell();
     renderMain();
@@ -3324,7 +3345,7 @@ function attachFloatingSaveBar(){
   setTimeout(() => document.getElementById('loader')?.classList.add('hide'), 100);
 })();
 
-console.log('[sacco] settings page ready — session fix, cached render, full translations, share price recalculation');
+console.log('[sacco] settings page ready — patches applied: shareValue/sharePrice sync, manual recalc saves price');
 </script>
 
 <div class="floating-save-bar" id="floatingSaveBar">
