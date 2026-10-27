@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Geresu Dhuki SACCO</title>
+<title>Geresu Dhuki SACCO — Penalties</title>
 <link rel="icon" type="image/png" href="../images/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -193,6 +193,8 @@ html.theme-dark .penalty-card{background:#111a2c;}
 .penalty-card--paid::before{background:linear-gradient(90deg,#19a974,#34c78e);}
 .penalty-card--payment-pending::before{background:linear-gradient(90deg,#d4a017,#e8b84b);}
 .penalty-card--payment-rejected::before{background:linear-gradient(90deg,#94a3b8,#64748b);}
+.penalty-card--exhausted{border-color:#fecdca;box-shadow:0 0 0 3px rgba(220,38,38,.10),var(--sh-md);}
+.penalty-card--exhausted::before{background:linear-gradient(90deg,#7f1d1d,#dc2626);}
 .penalty-card__head{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px;margin-top:12px;}
 .penalty-card__avatar{width:54px;height:54px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;font-weight:800;font-size:18px;letter-spacing:-.5px;display:grid;place-items:center;overflow:hidden;position:relative;}
 .penalty-card__avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;}
@@ -254,6 +256,9 @@ html.theme-dark .tbl tbody tr:hover td{background:#0f172a;}
 .tag--blue{background:#eaf3fc;color:#0b5cab;}
 .tag--gray{background:#eef1f5;color:#566075;}
 .tag--violet{background:#f0eaff;color:#5b21b6;}
+.tag--critical{background:#7f1d1d;color:#fff;animation:criticalPulse 1.4s ease-in-out infinite;}
+.tag--auto{background:#0b5cab;color:#fff;}
+@keyframes criticalPulse{0%,100%{opacity:1;}50%{opacity:.55;}}
 .empty{padding:56px 24px;text-align:center;}
 .empty i{font-size:44px;color:#cbd5e1;margin-bottom:14px;}
 .empty__title{font-size:16px;font-weight:800;margin-bottom:6px;}
@@ -307,6 +312,8 @@ html.theme-dark .review__row{border-bottom-color:#1e293b;}
 .alert--info{background:#eaf3fc;color:#0b5cab;border-color:#bdd7f2;}
 .alert--warning{background:#fdf5e0;color:#7a5210;border-color:#f0dcb0;}
 .alert--success{background:#ecfdf3;color:#067647;border-color:#abefc6;}
+.alert--critical{background:#fef2f2;color:#7f1d1d;border:2px solid #dc2626;box-shadow:0 0 0 3px rgba(220,38,38,.10),0 6px 16px rgba(220,38,38,.15);}
+.alert--critical i{color:#dc2626;font-size:20px;}
 .alert.hidden{display:none;}
 .toasts{position:fixed;top:24px;right:24px;z-index:300;display:flex;flex-direction:column;gap:10px;pointer-events:none;max-width:calc(100vw - 48px);}
 .toast{background:var(--text);color:#fff;padding:13px 18px;border-radius:12px;box-shadow:0 12px 32px rgba(20,40,70,.2);font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:12px;pointer-events:auto;animation:toastIn .22s cubic-bezier(.4,0,.2,1);max-width:400px;}
@@ -348,6 +355,18 @@ html.theme-dark .step__line{background:#1e293b;}
 .sav-breakdown .neg{color:#b42318;}
 .sav-breakdown .amt{text-align:right;font-weight:800;}
 .sav-breakdown tr.total td{border-top:1px solid currentColor;padding-top:8px;font-size:13.5px;font-weight:800;}
+/* ---------- Savings warning banner ---------- */
+.savings-warning-banner{padding:16px 18px;border-radius:14px;margin-bottom:18px;border:2px solid #dc2626;background:linear-gradient(135deg,#fef2f2,#fff5f5);box-shadow:0 4px 12px rgba(220,38,38,.15);position:relative;overflow:hidden;}
+html.theme-dark .savings-warning-banner{background:linear-gradient(135deg,#2a0f0f,#1a0808);border-color:#b91c1c;}
+.savings-warning-banner::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:linear-gradient(180deg,#dc2626,#7f1d1d);}
+.savings-warning-banner__head{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-weight:900;color:#7f1d1d;font-size:14px;letter-spacing:-.2px;}
+html.theme-dark .savings-warning-banner__head{color:#fca5a5;}
+.savings-warning-banner__head i{font-size:20px;color:#dc2626;animation:criticalPulse 1.4s ease-in-out infinite;}
+.savings-warning-banner__list{margin:0;padding-left:20px;font-size:12.5px;line-height:1.9;color:#7f1d1d;font-weight:600;}
+html.theme-dark .savings-warning-banner__list{color:#fca5a5;}
+.savings-warning-banner__list strong{font-weight:900;}
+.savings-warning-banner__note{margin-top:8px;font-size:11.5px;font-weight:700;color:#b42318;font-style:italic;}
+html.theme-dark .savings-warning-banner__note{color:#fca5a5;}
 @media (max-width:900px){
   .app{grid-template-columns:1fr !important;grid-template-areas:"topbar" "main";}
   .sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w) !important;z-index:31;transform:translateX(-100%);transition:transform .28s;}
@@ -787,7 +806,14 @@ const translations = {
     customerLeavings:'Customer Leavings',
     penaltiesFromSavings:'Penalties (from Savings)',
     netSavings:'Net Available Savings',
-    required:'Required'
+    required:'Required',
+    autoProcessed:'AUTO',
+    savingsExhausted:'Savings Exhausted',
+    autoProcessedBanner:'Auto-Processed from Savings',
+    autoProcessedBannerSub:'Penalties that were 2nd+ month overdue have been automatically deducted from savings and approved.',
+    savingsExhaustedBanner:'SAVINGS EXHAUSTED',
+    savingsExhaustedBannerSub:'The following customers\' savings have been fully depleted by auto-processed penalties:',
+    autoProcessedNote:'Please contact these customers to arrange further payments.'
   }
 };
 
@@ -845,7 +871,14 @@ translations.am = {
   customerLeavings:'የደንበኛ መውጣት',
   penaltiesFromSavings:'ቅጣቶች (ከቁጠባ)',
   netSavings:'የተጣራ ቁጠባ',
-  required:'የሚያስፈልግ'
+  required:'የሚያስፈልግ',
+  autoProcessed:'ራስ-ሰር',
+  savingsExhausted:'ቁጠባ አልቋል',
+  autoProcessedBanner:'ከቁጠባ በራስ-ሰር ተከፍሏል',
+  autoProcessedBannerSub:'ከ2ኛ ወር በላይ የዘገዩ ቅጣቶች ከቁጠባ በራስ-ሰር ተቀንሰው ጸድቀዋል።',
+  savingsExhaustedBanner:'ቁጠባ አልቋል',
+  savingsExhaustedBannerSub:'የሚከተሉት ደንበኞች ቁጠባ በራስ-ሰር በተከፈሉ ቅጣቶች ሙሉ በሙሉ አልቋል፦',
+  autoProcessedNote:'እባክዎ ተጨማሪ ክፍያ ለማዘጋጀት እነዚህን ደንበኞች ያግኙ።'
 };
 
 translations.om = {
@@ -902,7 +935,14 @@ translations.om = {
   customerLeavings:"Ba'uu Maamilaa",
   penaltiesFromSavings:'Adaba (Qusannaa irraa)',
   netSavings:'Qusannaa Qulqulluu',
-  required:'Barbaachisu'
+  required:'Barbaachisu',
+  autoProcessed:'AUTO',
+  savingsExhausted:'Qusannaan Dhume',
+  autoProcessedBanner:'Kusaa irraa ofumaan kaffalame',
+  autoProcessedBannerSub:"Adabni ji'a 2ffaa fi isaa ol ture kusaa irraa ofumaan hir'atee mirkanaa'e.",
+  savingsExhaustedBanner:'QUSANNAAN DHUME',
+  savingsExhaustedBannerSub:"Maamiltoonni armaan gadii qusannaan isaanii adaba ofumaan kaffalameen guutummaatti dhumeera:",
+  autoProcessedNote:'Maaloo maamiltoota kana quunnamaa kaffaltii dabalataa qindeessuuf.'
 };
 
 /* ============================================================
@@ -929,6 +969,11 @@ let pendingPayId = null;
 let pendingDeleteId = null;
 let pendingApproveId = null;
 let pendingRejectId = null;
+
+/* Auto-process state */
+let autoProcessResult = { processed: 0, flagged: [], processedIds: [] };
+let exhaustedMembers = new Set();
+let autoProcessedMembers = new Set();
 
 const PAY_WIZ_STEPS = 3;
 let payWizStep = 0;
@@ -1205,7 +1250,7 @@ function renderShell() {
 }
 
 /* ============================================================
-   MAIN RENDER — instant skeleton, no spinner
+   MAIN RENDER — includes auto-process warning banner
    ============================================================ */
 function renderMain(opts = {}) {
   const host = document.getElementById('mainContent');
@@ -1237,6 +1282,7 @@ function renderMain(opts = {}) {
         ${esc(t('penaltyRateLabel'))} <strong id="penaltyRateDisplay">${(loansPenaltyRate * 100).toFixed(1)}%</strong>
       </span>
     </div>
+    ${renderAutoProcessBanners()}
     <section class="stats">
       <div class="stat stat--red">
         <div class="stat__head"><div class="stat__label">${esc(t('totalPenalties'))}</div><div class="stat__icon"><i class="fas fa-exclamation-triangle"></i></div></div>
@@ -1310,6 +1356,62 @@ function renderMain(opts = {}) {
 }
 
 /* ============================================================
+   AUTO-PROCESS WARNING BANNERS
+   ============================================================ */
+function renderAutoProcessBanners() {
+  const flagged = autoProcessResult.flagged || [];
+  if (!flagged.length && autoProcessResult.processed === 0) return '';
+
+  const exhausted = flagged.filter(f => f.reason === 'savings_exhausted');
+  const insufficient = flagged.filter(f => f.reason === 'insufficient');
+
+  let html = '';
+
+  if (exhausted.length > 0) {
+    html += `
+      <div class="savings-warning-banner">
+        <div class="savings-warning-banner__head">
+          <i class="fas fa-exclamation-circle"></i>
+          <span>🚨 ${esc(t('savingsExhaustedBanner'))} — ${exhausted.length} ${exhausted.length === 1 ? 'customer' : 'customers'}</span>
+        </div>
+        <div style="font-size:12.5px;line-height:1.7;font-weight:600;color:#7f1d1d;margin-bottom:8px;">
+          ${esc(t('savingsExhaustedBannerSub'))}
+        </div>
+        <ul class="savings-warning-banner__list">
+          ${exhausted.map(e => `<li><strong>${esc(e.customerName)}</strong> — ${esc(t('netSavings'))}: <strong style="color:#dc2626;">ETB ${fmtNum2(e.newBalance)}</strong></li>`).join('')}
+        </ul>
+        <div class="savings-warning-banner__note">${esc(t('autoProcessedNote'))}</div>
+      </div>`;
+  }
+
+  if (insufficient.length > 0) {
+    html += `
+      <div class="alert alert--warning" style="margin-bottom:16px;">
+        <i class="fas fa-exclamation-triangle"></i>
+        <div style="flex:1;">
+          <div style="font-weight:800;font-size:13.5px;margin-bottom:6px;">⚠️ Insufficient Savings — 2nd+ Month Overdue Penalty (${insufficient.length})</div>
+          <ul style="margin:6px 0 0 20px;font-size:12.5px;line-height:1.7;">
+            ${insufficient.map(e => `<li><strong>${esc(e.customerName)}</strong> — required ${esc(money(e.amount))}, available ${esc(money(e.balance))}</li>`).join('')}
+          </ul>
+        </div>
+      </div>`;
+  }
+
+  if (autoProcessResult.processed > 0) {
+    html += `
+      <div class="alert alert--info" style="margin-bottom:16px;">
+        <i class="fas fa-robot"></i>
+        <div style="flex:1;">
+          <div style="font-weight:800;font-size:13.5px;margin-bottom:3px;">🤖 ${esc(t('autoProcessedBanner'))} — ${autoProcessResult.processed}</div>
+          <div style="font-size:12px;">${esc(t('autoProcessedBannerSub'))}</div>
+        </div>
+      </div>`;
+  }
+
+  return html;
+}
+
+/* ============================================================
    CONTENT
    ============================================================ */
 function renderContent() {
@@ -1356,6 +1458,14 @@ function renderContent() {
   });
 }
 
+function isExhausted(memberId) {
+  const id = extractIdFromAny(memberId) || memberId;
+  return exhaustedMembers.has(id);
+}
+function isAutoProcessed(p) {
+  return p && p.auto_processed === true;
+}
+
 function renderCardView(p) {
   const customerName = p.customerName || 'Unknown';
   const penaltyStatusLabel = p.status === 'paid' ? t('paid') : t('pending');
@@ -1365,8 +1475,13 @@ function renderCardView(p) {
   else if (p.payment_status === 'rejected') { paymentLabel = t('paymentRejected'); paymentCls = 'tag--red'; cardCls = 'penalty-card--payment-rejected'; }
   if (p.status === 'paid') cardCls = 'penalty-card--paid';
 
+  const exhausted = isExhausted(p.memberId);
+  if (exhausted) cardCls += ' penalty-card--exhausted';
+
   const cornerCls = p.status === 'paid' ? 'status-badge-corner--paid' : 'status-badge-corner--pending';
   const cornerHtml = `<span class="status-badge-corner ${cornerCls}">${esc(penaltyStatusLabel)}</span>`;
+
+  const autoProc = isAutoProcessed(p);
 
   let actions = '';
   if (can('viewPenalties')) actions += `<button title="${esc(t('view'))}" data-action="view" data-id="${esc(p.id)}"><i class="fas fa-eye"></i></button>`;
@@ -1406,6 +1521,8 @@ function renderCardView(p) {
       <div class="penalty-card__badges">
         <span class="tag ${p.status === 'paid' ? 'tag--green' : 'tag--gold'}">${esc(penaltyStatusLabel)}</span>
         ${paymentLabel ? `<span class="tag ${paymentCls}">${esc(paymentLabel)}</span>` : ''}
+        ${autoProc ? `<span class="tag tag--auto"><i class="fas fa-robot" style="font-size:9px;"></i> ${esc(t('autoProcessed'))}</span>` : ''}
+        ${exhausted ? `<span class="tag tag--critical"><i class="fas fa-exclamation-circle" style="font-size:9px;"></i> ${esc(t('savingsExhausted'))}</span>` : ''}
       </div>
       <div class="penalty-card__foot">
         <div class="penalty-card__foot-item"><i class="fas fa-user-edit"></i><span>${esc(submittedBy)}</span></div>
@@ -1447,6 +1564,8 @@ function renderTableRow(p, idx) {
   const approvedBy = p.approvedBy || p.paidBy || '—';
   const dateStr = fmtDate(p.createdAt);
   const customerName = p.customerName || 'Unknown';
+  const autoProc = isAutoProcessed(p);
+  const exhausted = isExhausted(p.memberId);
 
   let actions = '';
   if (can('viewPenalties')) actions += `<button title="${esc(t('view'))}" data-action="view" data-id="${esc(p.id)}"><i class="fas fa-eye"></i></button>`;
@@ -1462,7 +1581,7 @@ function renderTableRow(p, idx) {
       <div class="cust-cell">
         ${customerAvatarHTML(p.memberId, customerName, 40)}
         <div>
-          <div class="name">${esc(customerName)}</div>
+          <div class="name">${esc(customerName)}${autoProc ? ' <span class="tag tag--auto" style="margin-left:4px;font-size:8px;padding:2px 6px;">AUTO</span>' : ''}${exhausted ? ' <span class="tag tag--critical" style="margin-left:4px;font-size:8px;padding:2px 6px;">EXHAUSTED</span>' : ''}</div>
           <div class="muted">${p.memberId ? esc(String(p.memberId).slice(0,10)) : '—'}</div>
         </div>
       </div>
@@ -1526,7 +1645,7 @@ async function loadSettings() {
       try {
         const s = readSession();
         if (s) { s.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); }
-      } catch(e){}
+      }catch(e){}
     } else {
       SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
     }
@@ -1594,12 +1713,145 @@ async function loadPenalties() {
       allPenalties.push({ id: doc.id, ...d, customerName: getCustomerName(memberId), memberId });
     });
     allPenalties.sort((a, b) => (toDateSafe(b.createdAt)?.getTime()||0) - (toDateSafe(a.createdAt)?.getTime()||0));
+
+    // ⚡ Auto-process 2nd+ month overdue penalties from savings
+    await autoProcessSecondMonthPenalties();
+
     scheduleRefresh();
   } catch (e) {
     console.error(e);
     toast('Error loading penalties: ' + e.message, 'error');
     scheduleRefresh();
   }
+}
+
+/* ============================================================
+   AUTO-PROCESS 2ND+ MONTH OVERDUE PENALTIES FROM SAVINGS
+   ------------------------------------------------------------
+   Logic:
+   1. Group all penalties by customerId + loanId
+   2. Sort each group by createdAt (ascending)
+   3. For every penalty from index 1 onwards (i.e. 2nd, 3rd, ... overdue):
+      - If status still pending & no payment_status:
+        - Read customer's net available savings
+        - If balance >= amount → DEDUCT from savings & AUTO-APPROVE
+        - After deduction, if new balance ≈ 0 → flag as "savings_exhausted"
+        - If balance < amount → flag as "insufficient" (cannot auto-process)
+   4. Populate autoProcessResult and exhaustedMembers set
+   ============================================================ */
+async function autoProcessSecondMonthPenalties() {
+  autoProcessResult = { processed: 0, flagged: [], processedIds: [] };
+  exhaustedMembers = new Set();
+  autoProcessedMembers = new Set();
+
+  if (!allowPenaltyFromSavings) return autoProcessResult;
+
+  // Group pending unpaid penalties by customer+loan
+  const byKey = {};
+  for (const p of allPenalties) {
+    if (p.status === 'paid' || p.payment_status) continue;
+    if (p.auto_processed) continue; // already processed
+    const memberId = extractIdFromAny(p.memberId) || p.memberId || '';
+    if (!memberId) continue;
+    const key = `${memberId}__${p.loanId || 'none'}`;
+    if (!byKey[key]) byKey[key] = [];
+    byKey[key].push(p);
+  }
+
+  // For each group with 2+ penalties, process all except the first (index >= 1)
+  for (const [key, penalties] of Object.entries(byKey)) {
+    penalties.sort((a, b) => (toDateSafe(a.createdAt)?.getTime() || 0) - (toDateSafe(b.createdAt)?.getTime() || 0));
+    if (penalties.length < 2) continue;
+
+    for (let i = 1; i < penalties.length; i++) {
+      const p = penalties[i];
+      if (p.status === 'paid' || p.payment_status || p.auto_processed) continue;
+
+      const amount = num(p.amount);
+      if (amount <= 0) continue;
+
+      try {
+        const balanceBefore = await getCustomerAvailableSavings(p.memberId);
+
+        if (balanceBefore >= amount) {
+          // ── Auto-deduct + auto-approve ──
+          const now = firebase.firestore.FieldValue.serverTimestamp();
+          await db.collection('transactions').doc(p.id).update({
+            status: 'paid',
+            payment_status: 'approved',
+            payment_method: 'savings',
+            paidFrom: 'savings',
+            paymentSource: 'savings',
+            payment_note: `Auto-paid from savings — 2nd+ month overdue (month ${i + 1} in group)`,
+            paidBy: 'SYSTEM (Auto)',
+            paidAt: now,
+            approvedBy: 'SYSTEM (Auto)',
+            approvedAt: now,
+            payment_submitted_by: 'SYSTEM (Auto)',
+            payment_submitted_at: now,
+            auto_processed: true,
+            auto_processed_at: now,
+            auto_processed_reason: 'second_month_overdue'
+          });
+
+          await db.collection('audit').add({
+            action: 'auto_penalty_from_savings',
+            collection: 'transactions',
+            documentId: p.id,
+            details: `Penalty auto-paid from savings (2nd+ month overdue). Balance before: ${balanceBefore}, amount: ${amount}`,
+            timestamp: now,
+            userEmail: 'system',
+            userRole: 'system',
+            userName: 'Auto-Processor'
+          });
+
+          // In-place update so allPenalties reflects the new state
+          p.status = 'paid';
+          p.payment_status = 'approved';
+          p.payment_method = 'savings';
+          p.paidFrom = 'savings';
+          p.paymentSource = 'savings';
+          p.payment_note = `Auto-paid from savings — 2nd+ month overdue (month ${i + 1} in group)`;
+          p.paidBy = 'SYSTEM (Auto)';
+          p.approvedBy = 'SYSTEM (Auto)';
+          p.payment_submitted_by = 'SYSTEM (Auto)';
+          p.auto_processed = true;
+
+          autoProcessResult.processed++;
+          autoProcessResult.processedIds.push(p.id);
+          autoProcessedMembers.add(extractIdFromAny(p.memberId) || p.memberId);
+
+          // Check savings exhausted (re-read so we catch concurrent penalties)
+          const balanceAfter = await getCustomerAvailableSavings(p.memberId);
+          if (balanceAfter <= 0.01) {
+            const id = extractIdFromAny(p.memberId) || p.memberId;
+            if (!exhaustedMembers.has(id)) {
+              exhaustedMembers.add(id);
+              autoProcessResult.flagged.push({
+                memberId: p.memberId,
+                customerName: p.customerName || getCustomerName(p.memberId),
+                reason: 'savings_exhausted',
+                newBalance: balanceAfter
+              });
+            }
+          }
+        } else {
+          // ── Insufficient savings — flag with warning ──
+          autoProcessResult.flagged.push({
+            memberId: p.memberId,
+            customerName: p.customerName || getCustomerName(p.memberId),
+            reason: 'insufficient',
+            amount,
+            balance: balanceBefore
+          });
+        }
+      } catch (err) {
+        console.warn('[auto-process] failed for', p.id, err);
+      }
+    }
+  }
+
+  return autoProcessResult;
 }
 
 function applySearch() {
@@ -1721,8 +1973,24 @@ function viewPenalty(id) {
   else if (p.payment_status === 'rejected'){ payStatus = t('paymentRejected');      payCls = 'tag--red'; }
   const methodLabel = p.payment_method === 'savings' ? '💾 ' + t('payFromSavings') : (p.payment_method || '—');
 
+  const autoBanner = isAutoProcessed(p) ? `
+    <div style="padding:10px 14px;background:linear-gradient(135deg,#eaf3fc,#fff);border:1px solid #bdd7f2;border-radius:10px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">
+      <i class="fas fa-robot" style="color:#0b5cab;font-size:16px;"></i>
+      <div style="font-size:12.5px;color:#0b5cab;font-weight:700;">
+        ${esc(t('autoProcessedBanner'))} — 2nd+ month overdue penalty automatically deducted from savings & approved.
+      </div>
+    </div>` : '';
+
+  const exhaustedBanner = isExhausted(p.memberId) ? `
+    <div style="padding:10px 14px;background:#fef2f2;border:2px solid #dc2626;border-radius:10px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">
+      <i class="fas fa-exclamation-circle" style="color:#dc2626;font-size:16px;"></i>
+      <div style="font-size:12.5px;color:#7f1d1d;font-weight:800;">
+        🚨 ${esc(t('savingsExhaustedBanner'))} — ${esc(t('netSavings'))}: ETB 0.00
+      </div>
+    </div>` : '';
+
   const previewHtml = `
-    <div style="display:flex;align-items:center;gap:16px;padding:16px;background:linear-gradient(135deg,#fef3f2,#fff);border:1px solid #fecdca;border-radius:14px;margin-bottom:18px;">
+    <div style="display:flex;align-items:center;gap:16px;padding:16px;background:linear-gradient(135deg,#fef3f2,#fff);border:1px solid #fecdca;border-radius:14px;margin-bottom:14px;">
       <div style="width:64px;height:64px;border-radius:50%;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,var(--primary),var(--secondary));display:grid;place-items:center;color:#fff;font-weight:800;font-size:22px;">
         ${custPhoto ? `<img src="${esc(custPhoto)}" alt="" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';this.parentNode.textContent='${esc(initials(custName))}';">` : esc(initials(custName))}
       </div>
@@ -1736,7 +2004,9 @@ function viewPenalty(id) {
         <div style="font-size:20px;font-weight:800;font-family:ui-monospace,monospace;color:var(--danger);">${esc(money(p.amount))}</div>
         <div style="margin-top:6px;"><span class="tag ${penaltyStatusCls}">${esc(penaltyStatusLabel)}</span></div>
       </div>
-    </div>`;
+    </div>
+    ${autoBanner}
+    ${exhaustedBanner}`;
 
   document.getElementById('viewPenaltyContent').innerHTML = previewHtml + `
     <div class="review">
@@ -1813,21 +2083,31 @@ async function refreshSavingsBalance() {
     const b = await getCustomerSavingsBreakdown(p.memberId);
     const need = num(p.amount);
     const ok = b.net >= need;
+    const exhausted = b.net <= 0.01;
 
-    info.className = 'alert ' + (ok ? 'alert--success' : 'alert--error');
+    info.className = 'alert ' + (ok ? 'alert--success' : (exhausted ? 'alert--error' : 'alert--error'));
+    if (exhausted) {
+      info.style.borderWidth = '2px';
+      info.style.borderColor = '#dc2626';
+      info.style.boxShadow = '0 0 0 3px rgba(220,38,38,.15)';
+    } else {
+      info.style.borderWidth = '';
+      info.style.borderColor = '';
+      info.style.boxShadow = '';
+    }
     info.innerHTML = `
       <i class="fas fa-piggy-bank"></i>
       <div style="width:100%;">
-        <div style="font-weight:800;margin-bottom:6px;">${esc(t('savingsAvailable'))}</div>
+        <div style="font-weight:800;margin-bottom:6px;">${esc(t('savingsAvailable'))}${exhausted ? ` <span class="tag tag--critical" style="font-size:8.5px;margin-left:6px;">${esc(t('savingsExhausted'))}</span>` : ''}</div>
         <table class="sav-breakdown">
           <tr><td class="lbl pos">+ ${esc(t('grossSavings'))}</td><td class="amt pos">${fmtNum2(b.gross)}</td></tr>
           <tr><td class="lbl neg">− ${esc(t('individualWithdrawals'))}</td><td class="amt neg">${fmtNum2(b.withdrawals)}</td></tr>
           <tr><td class="lbl neg">− ${esc(t('customerLeavings'))}</td><td class="amt neg">${fmtNum2(b.leavings)}</td></tr>
           <tr><td class="lbl neg">− ${esc(t('penaltiesFromSavings'))}</td><td class="amt neg">${fmtNum2(b.penaltiesFromSavings)}</td></tr>
-          <tr class="total"><td class="lbl">= ${esc(t('netSavings'))}</td><td class="amt">${fmtNum2(b.net)}</td></tr>
+          <tr class="total"><td class="lbl">= ${esc(t('netSavings'))}</td><td class="amt" style="color:${exhausted ? '#dc2626' : 'inherit'};">${fmtNum2(b.net)}</td></tr>
         </table>
         <div style="margin-top:8px;font-weight:800;color:${ok ? '#067647' : '#b42318'};">
-          ${ok ? '✓ ' + esc(t('savingsSufficient')) : '⚠ ' + esc(t('savingsInsufficient'))}
+          ${ok ? '✓ ' + esc(t('savingsSufficient')) : (exhausted ? '🚨 ' + esc(t('savingsExhaustedBanner')) : '⚠ ' + esc(t('savingsInsufficient')))}
           ${!ok ? `<span style="font-weight:600;"> · ${esc(t('required'))}: ${fmtNum2(need)}</span>` : ''}
         </div>
       </div>`;
@@ -2242,10 +2522,8 @@ document.getElementById('bankName')?.addEventListener('change', handleBankOtherT
    BOOT — cached render, no spinner, background data load
    ============================================================ */
 (async function boot(){
-  // 1. Language init
   initLanguage();
 
-  // 2. Session check — accept either PROFILE_CACHE or loggedIn/uid pair
   const cachedProfile = readCachedProfile();
   const hasMis = sessionStorage.getItem('loggedIn') === 'true' && sessionStorage.getItem('uid');
   if (!cachedProfile && !hasMis) {
@@ -2254,7 +2532,7 @@ document.getElementById('bankName')?.addEventListener('change', handleBankOtherT
     return;
   }
 
-  // 3. Cached render — paint shell + skeleton immediately
+  // Cached render — paint shell + skeleton immediately
   let rendered = false;
   if (cachedProfile) {
     currentUserUid = cachedProfile.uid;
@@ -2278,7 +2556,7 @@ document.getElementById('bankName')?.addEventListener('change', handleBankOtherT
     rendered = true;
   }
 
-  // 4. Auth verify
+  // Auth verify
   let user;
   try {
     user = await new Promise(resolve => {
@@ -2295,8 +2573,7 @@ document.getElementById('bankName')?.addEventListener('change', handleBankOtherT
   currentUserUid = user.uid;
   currentUserEmail = user.email || '';
 
-  // 5. Fresh profile
-  let freshProfileLoaded = false;
+  // Fresh profile
   try {
     const snap = await db.collection('users').doc(user.uid).get();
     if (snap.exists) {
@@ -2310,7 +2587,6 @@ document.getElementById('bankName')?.addEventListener('change', handleBankOtherT
       currentUserPhotoURL = user.photoURL || '';
     }
     writeCachedProfile();
-    freshProfileLoaded = true;
   } catch (e) {
     currentUserRole = 'viewer';
     currentUserDisplayName = user.displayName || (user.email || '').split('@')[0] || 'User';
@@ -2318,7 +2594,6 @@ document.getElementById('bankName')?.addEventListener('change', handleBankOtherT
     writeCachedProfile();
   }
 
-  // 6. Re-render shell if profile changed
   const profileChanged = !rendered ||
     (cachedProfile && (
       cachedProfile.role !== currentUserRole ||
@@ -2329,24 +2604,20 @@ document.getElementById('bankName')?.addEventListener('change', handleBankOtherT
     renderShell();
   }
 
-  // 7. Load data in parallel (customers + settings + penalties)
-  await Promise.all([
-    loadCustomers(),
-    loadSettings()
-  ]);
+  // Load data + auto-process
+  await Promise.all([loadCustomers(), loadSettings()]);
   await loadPenalties();
 
-  // 8. Full render with loaded data
+  // Full render with loaded data
   renderShell();
   renderMain({ skipLoad: true });
   hideLoaderNow();
 
-  // 9. Session watcher
   startSessionWatcher();
 })();
 
 /* ============================================================
-   SESSION TIMEOUT — uses SESSION_MINUTES from settings/system
+   SESSION TIMEOUT
    ============================================================ */
 function startSessionWatcher() {
   let timer = null, warningTimer = null, warningToast = null, countdownInterval = null;
@@ -2399,6 +2670,7 @@ window.showDeleteModal = showDeleteModal;
 window.testConnection = testConnection;
 window.refreshPage = refreshPage;
 window.getCustomerSavingsBreakdown = getCustomerSavingsBreakdown;
+window.autoProcessSecondMonthPenalties = autoProcessSecondMonthPenalties;
 </script>
 </body>
 </html>
