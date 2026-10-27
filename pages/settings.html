@@ -509,7 +509,7 @@ const DEFAULT_SACCO_NAME = 'GERESU DHUKI SACCO';
 const PROFILE_CACHE_KEY = 'sacco.profile';
 
 /* ============================================================
-   SESSION — fixed
+   SESSION
 ============================================================ */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
@@ -733,7 +733,7 @@ function renderBrandTitle(name){
 }
 
 /* ============================================================
-   TRANSLATIONS — full EN / AM / OM
+   TRANSLATIONS
 ============================================================ */
 const I18N = {
   en: {
@@ -889,7 +889,6 @@ const I18N = {
     profileStatusDirty:'You have unsaved profile changes',
     saveProfileBtn:'Save Profile',
     changePassword: 'Change Password',
-    /* --- share price recalculation --- */
     recalcSharesTitle:'Recalculate Existing Shares?',
     recalcSharesExample:'Example: {oldShares} share × {oldPrice} = {oldAmount} birr → {newShares} share(s) × {newPrice} = {newAmount} birr',
     recalcSharesSummary:'Records to update: {n}\nTotal value before: {oldTotal} birr\nTotal value after:  {newTotal} birr\nRounding delta: {delta} birr',
@@ -1354,7 +1353,7 @@ function setLang(lang){
 }
 
 /* ============================================================
-   RENDER MAIN — settings layout
+   RENDER MAIN
 ============================================================ */
 function renderMain(){
   const host = document.getElementById('mainContent');
@@ -2014,7 +2013,6 @@ function wireMainEvents(){
     if (title) title.innerHTML = renderBrandTitle(this.value);
   });
 
-  /* PATCH 2 — manual share recalculation saves the price first, then recalculates */
   document.getElementById('recalcSharesBtn')?.addEventListener('click', async function(){
     if (!isAdmin) { toast(t('unauthorized'), 'error'); return; }
     const formPrice = Number(document.getElementById('shareValue')?.value) || 0;
@@ -2022,7 +2020,6 @@ function wireMainEvents(){
     const savedPrice = Number(currentSettings.shareValue) || formPrice;
     const priceChanged = Math.abs(savedPrice - formPrice) > 0.0001;
 
-    // Persist the new price first so settings/system is never out of sync with the recalculated records.
     if (priceChanged) {
       try {
         await setDoc(doc(db, 'settings', 'system'),
@@ -2203,7 +2200,7 @@ async function saveUserProfile(){
 
     renderShell();
     renderMain();
-    toast(t('savedOk') || 'Profile updated successfully!', 'success');
+    toast('Profile updated successfully!', 'success');
   } catch (e) {
     console.error('[profile] save', e);
     toast(t('errorSave') + e.message, 'error');
@@ -2387,7 +2384,7 @@ function collectFormData(){
   data.currency = v('currency');
   data.defaultLanguage = v('defaultLanguage');
   data.shareValue = n('shareValue');
-  data.sharePrice = data.shareValue;   /* PATCH 1 — keep legacy field in sync */
+  data.sharePrice = data.shareValue;
   data.minShares = i('minShares');
   data.maxShares = i('maxShares');
   data.minShareAmount = data.shareValue * data.minShares;
@@ -2494,7 +2491,7 @@ function updateDirtyIndicators(){
 
 /* ============================================================
    SHARE PRICE RECALCULATION
-   ============================================================ */
+============================================================ */
 async function recalculateSharesOnPriceChange(oldPrice, newPrice){
   if (!isAdmin) return { updated:0, printed:0 };
   if (!oldPrice || !newPrice || oldPrice <= 0 || newPrice <= 0) return { updated:0, printed:0 };
@@ -2862,7 +2859,20 @@ async function changePassword(){
 ============================================================ */
 window.__confirmCb = null;
 let escHandler = null;
+
+function closeConfirmModal(){
+  /* Remove ALL confirm modals — protects against any stale duplicates */
+  document.querySelectorAll('#confirmModal').forEach(el => el.remove());
+  if (escHandler) { document.removeEventListener('keydown', escHandler); escHandler = null; }
+  window.__confirmCb = null;
+}
+
 function showConfirmModal(title, message, type, cb){
+  /* 1. Clean slate: remove any stale confirm modal first */
+  document.querySelectorAll('#confirmModal').forEach(el => el.remove());
+  if (escHandler) { document.removeEventListener('keydown', escHandler); escHandler = null; }
+  window.__confirmCb = null;
+
   const root = document.createElement('div');
   root.className = 'modal-backdrop';
   root.id = 'confirmModal';
@@ -2886,23 +2896,35 @@ function showConfirmModal(title, message, type, cb){
       </div>
     </div>`;
   document.body.appendChild(root);
+
   escHandler = (e) => { if (e.key === 'Escape') closeConfirmModal(); };
   document.addEventListener('keydown', escHandler);
   root.addEventListener('click', (e) => { if (e.target === root) closeConfirmModal(); });
   root.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeConfirmModal));
-  document.getElementById('confirmOk').addEventListener('click', () => {
-    const cb = window.__confirmCb;
+
+  /* 2. CRITICAL: scope to root.querySelector, not document.getElementById */
+  const okBtn = root.querySelector('#confirmOk');
+  if (!okBtn) {
+    console.error('[showConfirmModal] confirmOk button not found in modal');
+    return;
+  }
+  okBtn.addEventListener('click', () => {
+    const captured = window.__confirmCb;
     window.__confirmCb = null;
     closeConfirmModal();
-    if (typeof cb === 'function') cb();
+    if (typeof captured === 'function') {
+      try {
+        const res = captured();
+        if (res && typeof res.catch === 'function') {
+          res.catch(err => console.error('[confirm cb]', err));
+        }
+      } catch (err) {
+        console.error('[confirm cb]', err);
+      }
+    }
   });
+
   window.__confirmCb = cb;
-}
-function closeConfirmModal(){
-  const el = document.getElementById('confirmModal');
-  if (el) el.remove();
-  if (escHandler) { document.removeEventListener('keydown', escHandler); escHandler = null; }
-  window.__confirmCb = null;
 }
 
 function showLogoutModal(){
@@ -3205,7 +3227,6 @@ async function loadSettings(){
       });
       if (data.penaltyRate !== undefined && data.loansPenaltyRate === undefined) merged.loansPenaltyRate = Number(data.penaltyRate);
       if (data.sessionTimeoutMinutes !== undefined && data.sessionTimeout === undefined) merged.sessionTimeout = Number(data.sessionTimeoutMinutes);
-      /* Legacy fallback: if shareValue is missing but sharePrice exists, use it */
       if ((data.shareValue === undefined || data.shareValue === null) && data.sharePrice !== undefined && data.sharePrice !== null) {
         merged.shareValue = Number(data.sharePrice);
       }
@@ -3239,7 +3260,7 @@ function attachFloatingSaveBar(){
 }
 
 /* ============================================================
-   BOOT — instant render from cached profile
+   BOOT
 ============================================================ */
 (async function boot(){
   let saved = null;
@@ -3345,7 +3366,7 @@ function attachFloatingSaveBar(){
   setTimeout(() => document.getElementById('loader')?.classList.add('hide'), 100);
 })();
 
-console.log('[sacco] settings page ready — patches applied: shareValue/sharePrice sync, manual recalc saves price');
+console.log('[sacco] settings page ready — confirm-modal fix applied (stale modals cleared; scoped #confirmOk lookup)');
 </script>
 
 <div class="floating-save-bar" id="floatingSaveBar">
