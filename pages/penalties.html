@@ -49,8 +49,8 @@ a{color:inherit;text-decoration:none;}
 h1,h2,h3,h4{line-height:1.25;letter-spacing:-.02em;font-weight:800;}
 :focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
 .hidden{display:none !important;}
-#loader{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:9999;transition:opacity .3s;}
-#loader.hide{opacity:0;pointer-events:none;}
+#loader{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:9999;transition:opacity .3s;pointer-events:none;}
+#loader.hide{opacity:0;pointer-events:none;visibility:hidden;}
 .spin{width:44px;height:44px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .app{display:grid;grid-template-columns:var(--sidebar-w) 1fr;grid-template-rows:var(--topbar-h) 1fr;
@@ -180,6 +180,10 @@ html.theme-dark .btn{background:#0f172a;border-color:#1e293b;}
 .btn--success{background:linear-gradient(135deg,#128a5c,#19a974);border:none;color:#fff;box-shadow:0 10px 22px rgba(18,138,92,.2);}
 .btn--sm{height:42px;padding:0 16px;font-size:13px;border-radius:11px;}
 .btn:disabled{opacity:.6;cursor:not-allowed;}
+
+.loading-placeholder{padding:60px 24px;text-align:center;}
+.loading-placeholder__title{font-size:14px;font-weight:700;color:var(--text-soft);letter-spacing:.02em;}
+
 /* ---------- Grid cards ---------- */
 .penalties-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;padding:22px;}
 .penalty-card{position:relative;background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:var(--sh-sm);overflow:hidden;transition:.2s;}
@@ -219,8 +223,6 @@ html.theme-dark .penalty-card__amounts{background:linear-gradient(135deg,#2a0f0f
 .status-badge-corner::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;}
 .status-badge-corner--pending{background:#fdf5e0;color:#b8860b;}
 .status-badge-corner--paid{background:#ecfdf3;color:#067647;}
-.status-badge-corner--payment-pending{background:#fdf5e0;color:#b8860b;}
-.status-badge-corner--payment-rejected{background:#fef3f2;color:#b42318;}
 /* ---------- Table ---------- */
 .tbl-wrap{overflow-x:auto;}
 .tbl{width:100%;border-collapse:collapse;min-width:1300px;}
@@ -411,7 +413,6 @@ html.theme-dark .step__line{background:#1e293b;}
       <button class="modal__close" data-close-modal="payPenaltyModal"><i class="fas fa-times"></i></button>
     </div>
 
-    <!-- Steps indicator -->
     <div class="steps" id="payWizSteps">
       <div class="step is-active" data-step="0"><span class="step__num">1</span><span class="step__label">Details</span></div>
       <div class="step__line"></div>
@@ -423,11 +424,8 @@ html.theme-dark .step__line{background:#1e293b;}
     <div class="modal__body">
       <div class="alert alert--warning hidden" id="duplicateWarning"><i class="fas fa-exclamation-triangle"></i><div>This TT number and transfer date combination already exists. Please check.</div></div>
 
-      <!-- STEP 1: Penalty details -->
       <div class="wiz-step is-on" data-step="0">
         <div class="step-header"><span class="step-header__badge">1</span>Penalty details</div>
-
-        <!-- Customer preview (photo + name + code + phone + amount) -->
         <div id="payCustomerPreview" style="display:flex;align-items:center;gap:14px;padding:14px;background:linear-gradient(135deg,#fef3f2,#fff);border:1px solid #fecdca;border-radius:12px;margin-bottom:16px;">
           <div id="payCustAvatar" style="width:52px;height:52px;border-radius:50%;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,var(--primary),var(--secondary));display:grid;place-items:center;color:#fff;font-weight:800;font-size:18px;"></div>
           <div style="min-width:0;flex:1;">
@@ -439,7 +437,6 @@ html.theme-dark .step__line{background:#1e293b;}
             <div id="payCustAmount" style="font-size:16px;font-weight:800;font-family:ui-monospace,monospace;color:var(--danger);"></div>
           </div>
         </div>
-
         <div class="field"><label>Amount (ETB)</label><div style="font-size:24px;font-weight:800;color:var(--danger);" id="payAmountDisplay">ETB 0.00</div></div>
         <div class="field-row">
           <div class="field"><label>Customer</label><input type="text" id="payMemberName" disabled></div>
@@ -449,7 +446,6 @@ html.theme-dark .step__line{background:#1e293b;}
         <div class="field"><label>Recorded By (Submitted By)</label><input type="text" id="recordedBy" disabled></div>
       </div>
 
-      <!-- STEP 2: Payment details -->
       <div class="wiz-step" data-step="1">
         <div class="step-header"><span class="step-header__badge">2</span>Payment information</div>
         <div class="alert alert--info hidden" id="savingsBalanceInfo"></div>
@@ -469,7 +465,6 @@ html.theme-dark .step__line{background:#1e293b;}
         <div class="field"><label>Note (optional)</label><textarea id="payNote" placeholder="Optional note..."></textarea></div>
       </div>
 
-      <!-- STEP 3: Review -->
       <div class="wiz-step" data-step="2">
         <div class="step-header"><span class="step-header__badge">3</span>Review and submit</div>
         <div id="payReviewContent"></div>
@@ -615,6 +610,61 @@ const LOGO_FALLBACK = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/
 const LOGO_HTML = `<img src="${LOGO_URL}" alt="SACCO" onerror="this.onerror=null;this.outerHTML=this.dataset.fb;" data-fb="${LOGO_FALLBACK.replace(/"/g,'&quot;')}">`;
 
 /* ============================================================
+   CACHE / SESSION
+   ============================================================ */
+const PROFILE_CACHE_KEY = 'sacco.profile';
+const SESSION_KEY = 'sacco.session';
+const DEFAULT_SESSION_MINUTES = 30;
+let SESSION_MINUTES = null;
+
+function readCachedProfile(){
+  try{
+    const r = sessionStorage.getItem(PROFILE_CACHE_KEY);
+    if(!r) return null;
+    const p = JSON.parse(r);
+    return (p && p.uid) ? p : null;
+  }catch(e){ return null; }
+}
+function writeCachedProfile(){
+  if(!currentUserUid) return;
+  try{
+    const payload = {
+      uid: currentUserUid,
+      role: currentUserRole || 'loading',
+      email: currentUserEmail || '',
+      name: currentUserDisplayName || 'User',
+      photoURL: currentUserPhotoURL || null,
+      districtId: '', districtName: '', branchId: '', branchName: ''
+    };
+    sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(payload));
+  }catch(e){}
+}
+function clearCachedProfile(){
+  try{ sessionStorage.removeItem(PROFILE_CACHE_KEY); }catch(e){}
+}
+function readSession(){
+  try{
+    const r = sessionStorage.getItem(SESSION_KEY);
+    if(!r) return null;
+    const s = JSON.parse(r);
+    return (s && s.uid) ? s : null;
+  }catch(e){ return null; }
+}
+function clearSession(){ try{ sessionStorage.removeItem(SESSION_KEY); }catch(e){} }
+function getSessionMs(){
+  const s = readSession();
+  const mins = (SESSION_MINUTES != null && SESSION_MINUTES > 0)
+    ? SESSION_MINUTES
+    : ((s && s.minutes) || DEFAULT_SESSION_MINUTES);
+  return Math.max(1, mins) * 60000;
+}
+
+function hideLoaderNow(){
+  document.getElementById('loader')?.classList.add('hide');
+  document.getElementById('loadingOverlay')?.classList.remove('active');
+}
+
+/* ============================================================
    PERMISSIONS
    ============================================================ */
 const PERMISSIONS = {
@@ -629,6 +679,7 @@ const PERMISSIONS = {
 };
 function can(action) {
   if (!currentUserRole) return false;
+  if (currentUserRole === 'loading') return true;
   if (currentUserRole === 'super_admin') return true;
   return (PERMISSIONS[action] || []).includes(currentUserRole);
 }
@@ -681,7 +732,6 @@ const BANKS_LIST = [
 
 /* ============================================================
    TRANSLATIONS — EN / AM / OM
-   Every key present in EN is now explicitly translated in AM & OM
    ============================================================ */
 const translations = {
   en: {
@@ -859,10 +909,11 @@ translations.om = {
    STATE
    ============================================================ */
 let currentLang = 'en';
-let currentUserRole = 'viewer';
-let currentUserDisplayName = 'Admin';
+let currentUserRole = 'loading';
+let currentUserDisplayName = 'User';
 let currentUserEmail = '';
 let currentUserPhotoURL = '';
+let currentUserUid = '';
 let allPenalties = [];
 let customersMap = {};
 let currentPage = 1;
@@ -879,22 +930,20 @@ let pendingDeleteId = null;
 let pendingApproveId = null;
 let pendingRejectId = null;
 
-/* Wizard state */
 const PAY_WIZ_STEPS = 3;
 let payWizStep = 0;
 
-/* ⚡ LOADER MAX TIME — 2 seconds hard cap */
-const LOADER_MAX_MS = 2000;
-let _loaderForceHideTimer = null;
-
-function hideLoaderNow() {
-  document.getElementById('loader')?.classList.add('hide');
-  document.getElementById('loadingOverlay')?.classList.remove('active');
-  if (_loaderForceHideTimer) { clearTimeout(_loaderForceHideTimer); _loaderForceHideTimer = null; }
-}
-function startLoaderMaxTimer() {
-  if (_loaderForceHideTimer) clearTimeout(_loaderForceHideTimer);
-  _loaderForceHideTimer = setTimeout(hideLoaderNow, LOADER_MAX_MS);
+let _refreshTimer = null;
+function scheduleRefresh(){
+  if(_refreshTimer) return;
+  _refreshTimer = setTimeout(() => {
+    _refreshTimer = null;
+    if (document.getElementById('app')?.innerHTML) {
+      renderShell();
+      renderMain({ skipLoad: true });
+      renderContent();
+    }
+  }, 250);
 }
 
 const t = (key, vars) => {
@@ -937,7 +986,6 @@ function userAvatarHTML(size = 38) {
   }
   return `<div style="${baseStyle}">${esc(initials(name))}</div>`;
 }
-
 function customerAvatarHTML(memberId, fallbackName, size = 40) {
   const c = getCustomerRecord(memberId);
   const url = (c && c.photoURL) || '';
@@ -949,7 +997,6 @@ function customerAvatarHTML(memberId, fallbackName, size = 40) {
   }
   return `<div class="cust-avatar" style="${baseStyle}">${esc(initials(name))}</div>`;
 }
-
 function customerAvatarCardHTML(memberId, fallbackName, size = 54) {
   const c = getCustomerRecord(memberId);
   const url = (c && c.photoURL) || '';
@@ -1031,8 +1078,9 @@ function setLanguage(lang) {
   document.documentElement.lang = lang;
   document.body.classList.toggle('lang-am', lang === 'am');
   buildPaymentMethodOptions();
-  if (document.getElementById('mainContent')) renderMain();
   renderShell();
+  if (document.getElementById('mainContent')) renderMain({ skipLoad: true });
+  renderContent();
 }
 function initLanguage() {
   const saved = localStorage.getItem('sacco.lang') || (navigator.language || 'en').slice(0,2);
@@ -1042,7 +1090,7 @@ function initLanguage() {
 }
 
 /* ============================================================
-   NAV — ⚡ Repayments link REMOVED from Finance section
+   NAV
    ============================================================ */
 function roleLabel(r) {
   const map = { super_admin:'role_super_admin', admin:'role_admin', manager:'role_manager', cashier:'role_cashier', teller:'role_teller', accountant:'role_accountant', auditor:'role_auditor', member:'role_member', viewer:'role_viewer' };
@@ -1062,7 +1110,6 @@ const NAV = [
   ]},
   { section:'Finance', items:[
     { key:'deposits',    label:'navDeposits',    icon:'fa-hand-holding-usd', href:'deposits.html',    roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
-    /* ⚡ Repayments link removed as requested */
     { key:'withdrawals', label:'navWithdrawals', icon:'fa-money-bill-wave',  href:'withdrawals.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
     { key:'dividends',   label:'navDividends',   icon:'fa-gift',             href:'dividends.html',   roles:['super_admin','admin','manager','accountant','auditor'] },
     { key:'penalties',   label:'navPenalties',   icon:'fa-exclamation-triangle', href:'penalties.html', roles:['super_admin','admin','manager','cashier'] }
@@ -1075,7 +1122,7 @@ const NAV = [
   ]}
 ];
 const NAV_SEC_KEY = { 'Overview':'navSecOverview', 'Network':'navSecNetwork', 'Operations':'navSecOperations', 'Finance':'navSecFinance', 'Administration':'navSecAdmin' };
-const canSeeNav = (item, role) => item.roles.includes('*') || item.roles.includes(role) || role === 'super_admin';
+const canSeeNav = (item, role) => item.roles.includes('*') || item.roles.includes(role) || role === 'super_admin' || role === 'loading';
 
 /* ============================================================
    SHELL
@@ -1158,9 +1205,9 @@ function renderShell() {
 }
 
 /* ============================================================
-   MAIN RENDER
+   MAIN RENDER — instant skeleton, no spinner
    ============================================================ */
-function renderMain() {
+function renderMain(opts = {}) {
   const host = document.getElementById('mainContent');
   if (!host) return;
 
@@ -1255,7 +1302,7 @@ function renderMain() {
     btn.addEventListener('click', () => {
       currentView = btn.dataset.view;
       currentPage = 1;
-      renderMain();
+      renderMain({ skipLoad: true });
     });
   });
 
@@ -1263,7 +1310,7 @@ function renderMain() {
 }
 
 /* ============================================================
-   CONTENT — grid vs table
+   CONTENT
    ============================================================ */
 function renderContent() {
   const host = document.getElementById('contentHost');
@@ -1309,7 +1356,6 @@ function renderContent() {
   });
 }
 
-/* ---------- GRID CARD ---------- */
 function renderCardView(p) {
   const customerName = p.customerName || 'Unknown';
   const penaltyStatusLabel = p.status === 'paid' ? t('paid') : t('pending');
@@ -1368,7 +1414,6 @@ function renderCardView(p) {
     </div>`;
 }
 
-/* ---------- TABLE ---------- */
 function renderTableView(pageList, start) {
   return `
     <div class="tbl-wrap">
@@ -1463,7 +1508,7 @@ function handleAction(action, id) {
 }
 
 /* ============================================================
-   DATA
+   DATA LOADING
    ============================================================ */
 async function loadSettings() {
   try {
@@ -1473,8 +1518,22 @@ async function loadSettings() {
       loansPenaltyRate = d.loansPenaltyRate !== undefined ? num(d.loansPenaltyRate) / 100 : (num(d.penaltyRate) || 5) / 100;
       if (d.allowPenaltyFromSavings !== undefined) allowPenaltyFromSavings = !!d.allowPenaltyFromSavings;
       if (d.autoApprovePenaltyFromSavings !== undefined) autoApprovePenaltyFromSavings = !!d.autoApprovePenaltyFromSavings;
+      let m = DEFAULT_SESSION_MINUTES;
+      if (d.sessionTimeout != null) m = Number(d.sessionTimeout);
+      if (!isFinite(m) || m < 1) m = DEFAULT_SESSION_MINUTES;
+      if (m > 1440) m = 1440;
+      SESSION_MINUTES = Math.round(m);
+      try {
+        const s = readSession();
+        if (s) { s.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); }
+      } catch(e){}
+    } else {
+      SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
     }
-  } catch (e) { console.warn('settings', e.message); }
+  } catch (e) {
+    console.warn('settings', e.message);
+    if (SESSION_MINUTES == null) SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
+  }
 }
 
 async function loadCustomers() {
@@ -1508,7 +1567,6 @@ function getCustomerRecord(memberId) {
   const id = extractIdFromAny(memberId);
   return (id && customersMap[id]) || customersMap[memberId] || null;
 }
-
 function extractIdFromAny(val) {
   if (!val) return null;
   if (typeof val === 'string') return val.includes('/') ? val.split('/').pop() : val;
@@ -1527,11 +1585,6 @@ function getCustomerName(memberId) {
 }
 
 async function loadPenalties() {
-  const overlay = document.getElementById('loadingOverlay');
-  const overlayText = document.getElementById('loadingOverlayText');
-  if (overlayText) overlayText.textContent = t('loadingPenalties') || 'Loading penalties…';
-  overlay.classList.add('active');
-  startLoaderMaxTimer();
   try {
     const snap = await db.collection('transactions').where('type', '==', 'penalty').get();
     allPenalties = [];
@@ -1541,13 +1594,11 @@ async function loadPenalties() {
       allPenalties.push({ id: doc.id, ...d, customerName: getCustomerName(memberId), memberId });
     });
     allPenalties.sort((a, b) => (toDateSafe(b.createdAt)?.getTime()||0) - (toDateSafe(a.createdAt)?.getTime()||0));
-    renderMain();
-    hideLoaderNow();
+    scheduleRefresh();
   } catch (e) {
     console.error(e);
     toast('Error loading penalties: ' + e.message, 'error');
-    hideLoaderNow();
-    renderMain();
+    scheduleRefresh();
   }
 }
 
@@ -1558,16 +1609,11 @@ function applySearch() {
 
 async function refreshPage() {
   if (!can('refreshData')) { toast(t('unauthorized'), 'error'); return; }
-  const overlay = document.getElementById('loadingOverlay');
-  overlay.classList.add('active');
-  startLoaderMaxTimer();
   try {
-    await loadCustomers();
-    await loadSettings();
+    await Promise.all([loadCustomers(), loadSettings()]);
     await loadPenalties();
     toast('Refreshed successfully.', 'success');
   } catch (e) { toast('Error refreshing: ' + e.message, 'error'); }
-  finally { hideLoaderNow(); }
 }
 
 async function testConnection() {
@@ -1579,15 +1625,7 @@ async function testConnection() {
 }
 
 /* ============================================================
-   NET SAVINGS — FULL BREAKDOWN
-   Net = Gross + Dividends − Withdrawals − Leavings − Penalties(from savings)
-   ------------------------------------------------------------
-   ⚡ FIX (2026): 'dividend' / 'dividends' come from dividends.html and
-   represent profit distribution paid in CASH or converted to BONUS SHARES.
-   They are NOT savings credits — including them caused net savings to be
-   inflated by every paid dividend. Likewise 'profit_income' is written by
-   deposits.html for registration fees / other SACCO income, not customer
-   savings. Both have been removed from DIVIDEND_TYPES.
+   NET SAVINGS
    ============================================================ */
 async function getCustomerSavingsBreakdown(customerId) {
   const ZERO = { gross:0, dividends:0, withdrawals:0, leavings:0, penaltiesFromSavings:0, net:0 };
@@ -1595,34 +1633,13 @@ async function getCustomerSavingsBreakdown(customerId) {
     const id = extractIdFromAny(customerId) || customerId;
     if (!id) return ZERO;
 
-    const SAVINGS_TYPES = [
-      'savings','saving','deposit','deposits',
-      'individual_savings','individual_deposit','savings_deposit',
-      'member_savings','member_deposit'
-    ];
-    // ⚡ FIX: only *true* savings credits belong here.
-    // Removed: 'dividend','dividends' (dividends.html → profit distribution in cash/bonus shares)
-    // Removed: 'profit_income'      (deposits.html  → registration fee / SACCO income)
-    const DIVIDEND_TYPES = [
-      'profit_share','profit_distribution','interest_income','interest_paid',
-      'share_profit','annual_dividend','dividend_payment'
-    ];
-    const WITHDRAWAL_TYPES = [
-      'withdrawal','withdrawals','withdraw',
-      'individual_withdrawal','individual_withdrawals',
-      'savings_withdrawal','savings_withdrawals','savings_withdraw',
-      'member_withdrawal','member_withdrawals','account_withdrawal'
-    ];
-    const LEAVING_TYPES = [
-      'leaving','customer_leaving','member_leaving','customer_leavings','member_leavings',
-      'exit','member_exit','customer_exit',
-      'savings_closure','clear_savings','withdraw_all','close_account','account_closure',
-      'refund','savings_refund','refund_savings','final_settlement','settlement'
-    ];
+    const SAVINGS_TYPES = ['savings','saving','deposit','deposits','individual_savings','individual_deposit','savings_deposit','member_savings','member_deposit'];
+    const DIVIDEND_TYPES = ['profit_share','profit_distribution','interest_income','interest_paid','share_profit','annual_dividend','dividend_payment'];
+    const WITHDRAWAL_TYPES = ['withdrawal','withdrawals','withdraw','individual_withdrawal','individual_withdrawals','savings_withdrawal','savings_withdrawals','savings_withdraw','member_withdrawal','member_withdrawals','account_withdrawal'];
+    const LEAVING_TYPES = ['leaving','customer_leaving','member_leaving','customer_leavings','member_leavings','exit','member_exit','customer_exit','savings_closure','clear_savings','withdraw_all','close_account','account_closure','refund','savings_refund','refund_savings','final_settlement','settlement'];
     const PENALTY_TYPES = ['penalty','penalties','loan_penalty','penalty_payment'];
 
-    const SAVINGS_PAY_SOURCES = ['savings','saving','from_savings','savings_account',
-                                 'member_savings','sacco_savings','from_saving','account'];
+    const SAVINGS_PAY_SOURCES = ['savings','saving','from_savings','savings_account','member_savings','sacco_savings','from_saving','account'];
     const GOOD_STATUSES = ['approved','paid','done','completed'];
 
     const [byCustId, byMemberId] = await Promise.all([
@@ -1644,8 +1661,7 @@ async function getCustomerSavingsBreakdown(customerId) {
       const amt = num(tx.amount);
       if (amt <= 0) return;
 
-      const rawSrc = tx.paymentMethod || tx.paymentSource || tx.paidFrom || tx.source
-                   || tx.fundingSource || tx.method || tx.paymentType || '';
+      const rawSrc = tx.paymentMethod || tx.paymentSource || tx.paidFrom || tx.source || tx.fundingSource || tx.method || tx.paymentType || '';
       const src = String(rawSrc).toLowerCase().trim();
       const paidFromSavings = src ? SAVINGS_PAY_SOURCES.includes(src) : true;
 
@@ -1684,7 +1700,7 @@ document.querySelectorAll('[data-close-modal]').forEach(btn => btn.addEventListe
 document.querySelectorAll('.modal-backdrop').forEach(bd => bd.addEventListener('click', (e) => { if (e.target === bd) bd.classList.add('hidden'); }));
 
 /* ============================================================
-   VIEW MODAL — includes customer preview header
+   VIEW MODAL
    ============================================================ */
 function viewPenalty(id) {
   if (!can('viewPenalties')) { toast(t('unauthorized'), 'error'); return; }
@@ -1799,8 +1815,6 @@ async function refreshSavingsBalance() {
     const ok = b.net >= need;
 
     info.className = 'alert ' + (ok ? 'alert--success' : 'alert--error');
-    // ⚡ FIX: "Dividends" row removed — dividend records now correctly excluded
-    // from the savings ledger (see getCustomerSavingsBreakdown / DIVIDEND_TYPES).
     info.innerHTML = `
       <i class="fas fa-piggy-bank"></i>
       <div style="width:100%;">
@@ -1825,18 +1839,15 @@ async function refreshSavingsBalance() {
 
 function showPayWizStep(n) {
   payWizStep = Math.max(0, Math.min(PAY_WIZ_STEPS - 1, n));
-
   document.querySelectorAll('#payPenaltyModal .wiz-step').forEach((el, i) => {
     el.classList.toggle('is-on', i === payWizStep);
   });
-
   document.querySelectorAll('#payWizSteps .step').forEach((el, i) => {
     el.classList.toggle('is-active', i === payWizStep);
     el.classList.toggle('is-done', i < payWizStep);
     const numEl = el.querySelector('.step__num');
     if (numEl) numEl.textContent = i < payWizStep ? '✓' : (i + 1);
   });
-
   const prev = document.getElementById('payWizPrev');
   const next = document.getElementById('payWizNext');
   const submit = document.getElementById('payWizSubmit');
@@ -1883,11 +1894,9 @@ function renderPayReview() {
 
 async function validatePayStep(step) {
   if (step === 0) return true;
-
   if (step === 1) {
     const method = document.getElementById('paymentMethod').value;
     if (!method) { toast('Please select a payment method.', 'warning'); return false; }
-
     if (method === 'savings') {
       const p = allPenalties.find(x => x.id === pendingPayId);
       if (!p) return false;
@@ -1898,7 +1907,6 @@ async function validatePayStep(step) {
       }
       return true;
     }
-
     if (method !== 'cash') {
       const tt = document.getElementById('ttNumber').value.trim();
       const td = document.getElementById('transferDate').value;
@@ -2003,9 +2011,6 @@ document.querySelectorAll('[data-close-modal="payPenaltyModal"]').forEach(b => {
   b.addEventListener('click', () => { payWizStep = 0; });
 });
 
-/* ============================================================
-   confirmPayPenalty
-   ============================================================ */
 async function confirmPayPenalty() {
   if (!can('payPenalty')) { toast(t('unauthorized'), 'error'); return; }
   if (!pendingPayId) { toast('No penalty selected.', 'error'); return; }
@@ -2210,7 +2215,11 @@ async function confirmDeletePenalty() {
    ============================================================ */
 function showLogoutModal() { openModal('logoutModal'); }
 async function performLogout() {
-  try { await auth.signOut(); window.location.href = LOGIN_URL; }
+  try {
+    clearCachedProfile();
+    await auth.signOut();
+    window.location.href = LOGIN_URL;
+  }
   catch (e) { toast('Error logging out: ' + e.message, 'error'); }
 }
 document.getElementById('confirmLogoutBtn')?.addEventListener('click', performLogout);
@@ -2230,57 +2239,125 @@ document.getElementById('paymentMethod')?.addEventListener('change', function ()
 document.getElementById('bankName')?.addEventListener('change', handleBankOtherToggle);
 
 /* ============================================================
-   BOOT — loader auto-hides in 2 seconds max
+   BOOT — cached render, no spinner, background data load
    ============================================================ */
-(function boot() {
+(async function boot(){
+  // 1. Language init
   initLanguage();
-  startLoaderMaxTimer();   /* ⚡ 2-second hard cap on the initial loader */
 
-  auth.onAuthStateChanged(async (user) => {
-    if (!user) { window.location.href = LOGIN_URL; return; }
-    try {
-      const snap = await db.collection('users').doc(user.uid).get();
-      if (snap.exists) {
-        const d = snap.data();
-        currentUserRole = d.role || 'viewer';
-        currentUserDisplayName = d.fullName || d.name || d.displayName || user.displayName || (user.email || '').split('@')[0] || 'User';
-        currentUserEmail = user.email || '';
-        currentUserPhotoURL = d.photoURL || d.photo || user.photoURL || '';
-      } else {
-        currentUserRole = 'viewer';
-        currentUserDisplayName = user.displayName || (user.email || '').split('@')[0] || 'User';
-        currentUserEmail = user.email || '';
-        currentUserPhotoURL = user.photoURL || '';
-      }
-    } catch (e) {
+  // 2. Session check — accept either PROFILE_CACHE or loggedIn/uid pair
+  const cachedProfile = readCachedProfile();
+  const hasMis = sessionStorage.getItem('loggedIn') === 'true' && sessionStorage.getItem('uid');
+  if (!cachedProfile && !hasMis) {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    window.location.replace(LOGIN_URL);
+    return;
+  }
+
+  // 3. Cached render — paint shell + skeleton immediately
+  let rendered = false;
+  if (cachedProfile) {
+    currentUserUid = cachedProfile.uid;
+    currentUserRole = cachedProfile.role || 'loading';
+    currentUserEmail = cachedProfile.email || '';
+    currentUserDisplayName = cachedProfile.name || 'User';
+    currentUserPhotoURL = cachedProfile.photoURL || '';
+    renderShell();
+    renderMain({ skipLoad: true });
+    hideLoaderNow();
+    rendered = true;
+  } else if (hasMis) {
+    currentUserUid = sessionStorage.getItem('uid') || '';
+    currentUserRole = sessionStorage.getItem('role') || 'loading';
+    currentUserEmail = sessionStorage.getItem('email') || '';
+    currentUserDisplayName = sessionStorage.getItem('userName') || 'User';
+    currentUserPhotoURL = '';
+    renderShell();
+    renderMain({ skipLoad: true });
+    hideLoaderNow();
+    rendered = true;
+  }
+
+  // 4. Auth verify
+  let user;
+  try {
+    user = await new Promise(resolve => {
+      const unsub = auth.onAuthStateChanged(u => { unsub(); resolve(u); });
+    });
+  } catch(e) { user = null; }
+
+  if (!user) {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    clearCachedProfile();
+    window.location.replace(LOGIN_URL);
+    return;
+  }
+  currentUserUid = user.uid;
+  currentUserEmail = user.email || '';
+
+  // 5. Fresh profile
+  let freshProfileLoaded = false;
+  try {
+    const snap = await db.collection('users').doc(user.uid).get();
+    if (snap.exists) {
+      const d = snap.data();
+      currentUserRole = d.role || 'viewer';
+      currentUserDisplayName = d.fullName || d.name || d.displayName || user.displayName || (user.email || '').split('@')[0] || 'User';
+      currentUserPhotoURL = d.photoURL || d.photo || user.photoURL || '';
+    } else {
       currentUserRole = 'viewer';
       currentUserDisplayName = user.displayName || (user.email || '').split('@')[0] || 'User';
-      currentUserEmail = user.email || '';
       currentUserPhotoURL = user.photoURL || '';
     }
+    writeCachedProfile();
+    freshProfileLoaded = true;
+  } catch (e) {
+    currentUserRole = 'viewer';
+    currentUserDisplayName = user.displayName || (user.email || '').split('@')[0] || 'User';
+    currentUserPhotoURL = user.photoURL || '';
+    writeCachedProfile();
+  }
 
-    await loadSettings();
+  // 6. Re-render shell if profile changed
+  const profileChanged = !rendered ||
+    (cachedProfile && (
+      cachedProfile.role !== currentUserRole ||
+      cachedProfile.name !== currentUserDisplayName ||
+      cachedProfile.photoURL !== (currentUserPhotoURL || null)
+    ));
+  if (profileChanged || !rendered) {
     renderShell();
-    renderMain();
-    await loadCustomers();
-    await loadPenalties();
-    hideLoaderNow();
-    startSessionWatcher();
-  });
+  }
+
+  // 7. Load data in parallel (customers + settings + penalties)
+  await Promise.all([
+    loadCustomers(),
+    loadSettings()
+  ]);
+  await loadPenalties();
+
+  // 8. Full render with loaded data
+  renderShell();
+  renderMain({ skipLoad: true });
+  hideLoaderNow();
+
+  // 9. Session watcher
+  startSessionWatcher();
 })();
 
 /* ============================================================
-   SESSION TIMEOUT
+   SESSION TIMEOUT — uses SESSION_MINUTES from settings/system
    ============================================================ */
 function startSessionWatcher() {
-  const SESSION_TIMEOUT = 5 * 60 * 1000;
-  const WARNING_TIMEOUT = SESSION_TIMEOUT - 30 * 1000;
   let timer = null, warningTimer = null, warningToast = null, countdownInterval = null;
+
   function resetTimer() {
     clearTimeout(timer); clearTimeout(warningTimer); clearInterval(countdownInterval);
     if (warningToast) { warningToast.remove(); warningToast = null; }
-    warningTimer = setTimeout(showWarning, WARNING_TIMEOUT);
-    timer = setTimeout(forceLogout, SESSION_TIMEOUT);
+    const total = getSessionMs();
+    const warnAt = Math.max(30 * 1000, total - 30 * 1000);
+    warningTimer = setTimeout(showWarning, warnAt);
+    timer = setTimeout(forceLogout, total);
   }
   function showWarning() {
     const message = 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
@@ -2299,6 +2376,7 @@ function startSessionWatcher() {
   function forceLogout() {
     clearInterval(countdownInterval);
     if (warningToast) warningToast.remove();
+    clearCachedProfile();
     if (auth) auth.signOut().then(() => window.location.href = LOGIN_URL).catch(() => window.location.href = LOGIN_URL);
     else window.location.href = LOGIN_URL;
   }
