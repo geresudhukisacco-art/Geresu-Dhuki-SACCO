@@ -54,8 +54,8 @@ a{color:inherit;text-decoration:none;}
 h1,h2,h3,h4{line-height:1.25;letter-spacing:-.02em;font-weight:800;}
 :focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
 .hidden{display:none !important;}
-#loader{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:9999;transition:opacity .3s;}
-#loader.hide{opacity:0;pointer-events:none;}
+#loader{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:9999;transition:opacity .3s;pointer-events:none;}
+#loader.hide{opacity:0;pointer-events:none;visibility:hidden;}
 .spin{width:44px;height:44px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .app{display:grid;grid-template-columns:var(--sidebar-w) 1fr;grid-template-rows:var(--topbar-h) 1fr;
@@ -136,8 +136,8 @@ html.theme-dark .lang-toggle{background:#1a2433;}
 html.theme-dark .user-btn{background:#1a2433;}
 .user-btn__avatar{width:38px;height:38px;border-radius:50%;
   background:linear-gradient(135deg, var(--primary), var(--secondary));
-  color:#fff;font-weight:800;font-size:13px;display:grid;place-items:center;overflow:hidden;position:relative;}
-.user-btn__avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+  color:#fff;font-weight:800;font-size:13px;display:grid;place-items:center;overflow:hidden;position:relative;flex-shrink:0;}
+.user-btn__avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;}
 .user-btn__name{font-size:13px;font-weight:700;display:block;color:var(--text);white-space:nowrap;}
 .user-btn__role{font-size:11px;color:var(--muted);font-weight:600;white-space:nowrap;}
 .dropdown__panel{position:absolute;right:0;top:calc(100% + 12px);background:#fff;
@@ -255,7 +255,7 @@ html.theme-dark .tbl tbody tr:hover td{background:#111a2c;}
   background:linear-gradient(135deg,var(--primary),var(--secondary));
   color:#fff;font-weight:800;font-size:12px;
   display:grid;place-items:center;overflow:hidden;position:relative;}
-.cust-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.cust-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;}
 .tag{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:var(--r-full);font-size:11px;font-weight:800;text-transform:uppercase;white-space:nowrap;}
 .tag--green{background:#ecfdf3;color:#067647;}
 .tag--gold{background:#fdf5e0;color:#b8860b;}
@@ -290,6 +290,8 @@ html.theme-dark .row-actions button{background:#111a2c;border-color:#1e293b;colo
 .empty i{font-size:44px;color:#cbd5e1;margin-bottom:14px;display:block;}
 .empty__title{font-size:16px;font-weight:800;margin-bottom:6px;}
 .empty__text{font-size:13.5px;color:var(--muted);max-width:420px;margin:0 auto;line-height:1.6;}
+.loading-placeholder{padding:60px 24px;text-align:center;}
+.loading-placeholder__title{font-size:14px;font-weight:700;color:var(--text-soft);letter-spacing:.02em;}
 .pagination{display:flex;align-items:center;justify-content:space-between;
   padding:16px 24px;border-top:1px solid var(--border-soft);gap:14px;flex-wrap:wrap;}
 .pagination__info{font-size:12.5px;color:var(--muted);font-weight:600;}
@@ -337,7 +339,7 @@ html.theme-dark .detail-user-head{background:linear-gradient(135deg,#111a2c,#0f1
   color:#fff;font-weight:800;font-size:20px;display:grid;place-items:center;overflow:hidden;position:relative;
   border:3px solid #fff;box-shadow:0 4px 14px rgba(20,40,70,.15);}
 html.theme-dark .detail-user-avatar{border-color:#1e293b;}
-.detail-user-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.detail-user-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;}
 .detail-user-info{min-width:0;}
 .detail-user-name{font-size:16px;font-weight:800;color:var(--text);line-height:1.2;word-break:break-word;}
 .detail-user-meta{font-size:12px;color:var(--text-soft);margin-top:3px;font-weight:600;word-break:break-word;}
@@ -439,7 +441,7 @@ const LOGO_URL  = "../images/logo.png";
 const PROFILE_CACHE_KEY = 'sacco.profile';
 
 /* ============================================================
-   SESSION — fixed
+   SESSION
 ============================================================ */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
@@ -717,7 +719,7 @@ const LOGO_HTML = `<img src="${LOGO_URL}" alt="Geresu Dhuki SACCO" onerror="this
 
 const ROLES = { super_admin:'role_super_admin', admin:'role_admin', manager:'role_manager', cashier:'role_cashier', auditor:'role_auditor', member:'role_member' };
 const roleLabel = (r) => ROLES[r] ? t(ROLES[r]) : (r || '').replace(/_/g,' ');
-const isSuper = () => APP.profile?.role === 'super_admin';
+const isSuper = () => APP.profile?.role === 'super_admin' || APP.profile?.role === 'loading';
 
 const APP = {
   user: null, profile: null,
@@ -725,14 +727,12 @@ const APP = {
   entries: [],
   filtered: [],
   userCache: new Map(),
-  sessionDurations: new Map(),   // ⚡ id -> ms for logout entries
+  sessionDurations: new Map(),
   page: 1, pageSize: 15,
-  filters: { search: '', action: 'all', collection: 'all', user: 'all' }
+  filters: { search: '', action: 'all', collection: 'all', user: 'all' },
+  dataLoaded: false
 };
 
-/* ════════════════════════════════════════════════════════════
-   Logout sub-kind: manual vs timeout (both still action='logout')
-════════════════════════════════════════════════════════════ */
 function logoutKind(entry) {
   if (!entry || entry.action !== 'logout') return '';
   const d = String(entry.details || '').toLowerCase();
@@ -740,15 +740,9 @@ function logoutKind(entry) {
   return 'manual';
 }
 
-/* ════════════════════════════════════════════════════════════
-   Session duration — for every logout entry, find the most
-   recent prior login for the same user and compute the delta.
-   Falls back through userId → userEmail → userDisplayName → userName.
-════════════════════════════════════════════════════════════ */
 function computeSessionDurations() {
   APP.sessionDurations = new Map();
   const loginsByUser = new Map();
-
   APP.entries.forEach(e => {
     if (e.action !== 'login') return;
     const key = e.userId || e.userEmail || e.userDisplayName || e.userName;
@@ -759,7 +753,6 @@ function computeSessionDurations() {
   loginsByUser.forEach(arr =>
     arr.sort((a, b) => (toDate(a.timestamp)?.getTime() || 0) - (toDate(b.timestamp)?.getTime() || 0))
   );
-
   APP.entries.forEach(e => {
     if (e.action !== 'logout') return;
     const key = e.userId || e.userEmail || e.userDisplayName || e.userName;
@@ -776,7 +769,6 @@ function computeSessionDurations() {
   });
 }
 
-/* ── Nav definition ────────────────────────────────────── */
 function navDef() {
   return [
     { section: t('navOverview'), items: [ { key:'dashboard', label: t('dashboard'), icon:'fa-th-large', href:'dashboard.html', roles:['*'] } ]},
@@ -806,7 +798,6 @@ function navDef() {
 }
 const canSee = (item) => item.roles.includes('*') || item.roles.includes(APP.profile?.role) || isSuper();
 
-/* ── Render shell ──────────────────────────────────────── */
 function renderShell() {
   const navHtml = navDef().map(group => {
     const items = group.items.filter(canSee);
@@ -873,8 +864,10 @@ function renderShell() {
   try { if (localStorage.getItem('sacco.sidebar') === 'collapsed') document.body.classList.add('sidebar-collapsed'); } catch(e){}
 }
 
-/* ── Render main ──────────────────────────────────────── */
-function renderMain() {
+/* ============================================================
+   MAIN RENDER — instant skeleton, no spinner
+============================================================ */
+function renderMain(opts = {}) {
   const host = document.getElementById('mainContent');
   if (!host) return;
   if (!isSuper()) {
@@ -951,7 +944,11 @@ function renderMain() {
             <th>${esc(t('details'))}</th>
             <th style="text-align:right">${esc(t('actions'))}</th>
           </tr></thead>
-          <tbody id="auditBody"><tr><td colspan="8"><div class="empty"><i class="fas fa-clipboard-list"></i><div class="empty__title">${esc(t('noAudit'))}</div></div></td></tr></tbody>
+          <tbody id="auditBody">
+            ${APP.dataLoaded
+              ? `<tr><td colspan="8"><div class="empty"><i class="fas fa-clipboard-list"></i><div class="empty__title">${esc(t('noAudit'))}</div></div></td></tr>`
+              : `<tr><td colspan="8"><div class="loading-placeholder"><div class="loading-placeholder__title">${esc(t('loading'))}</div></div></td></tr>`}
+          </tbody>
         </table>
       </div>
       <div class="pagination">
@@ -965,9 +962,11 @@ function renderMain() {
     </section>
   `;
   wireMainEvents();
-  populateUserFilter();
-  applyFilters();
-  updateStats();
+  if (APP.dataLoaded) {
+    populateUserFilter();
+    applyFilters();
+    updateStats();
+  }
 }
 function wireMainEvents() {
   document.getElementById('testConnectionBtn')?.addEventListener('click', testConnection);
@@ -997,7 +996,6 @@ function wireMainEvents() {
 let _debTimer;
 function debounce(fn, ms) { return function (...args) { clearTimeout(_debTimer); _debTimer = setTimeout(() => fn.apply(this, args), ms); }; }
 
-/* ── Populate user filter ─────────────────────────────── */
 function populateUserFilter() {
   const sel = document.getElementById('fltUser');
   if (!sel) return;
@@ -1013,7 +1011,6 @@ function populateUserFilter() {
   if (cur !== 'all' && !users.has(cur)) sel.value = 'all';
 }
 
-/* ── Filters ──────────────────────────────────────────── */
 function applyFilters() {
   const { search, action, collection, user } = APP.filters;
   const q = (search || '').toLowerCase().trim();
@@ -1042,10 +1039,6 @@ function paginate() {
   updatePagination();
 }
 
-/* ════════════════════════════════════════════════════════════
-   Table rendering — logout rows show session duration inline
-   and a "Manual" / "Timeout" sub-badge
-════════════════════════════════════════════════════════════ */
 function renderTable(items) {
   const tbody = document.getElementById('auditBody');
   if (!tbody) return;
@@ -1075,7 +1068,6 @@ function renderTable(items) {
     const roleTxt = roleLabel(roleRaw);
     const hasChanges = e.changes && Object.keys(e.changes).length > 0;
 
-    // ⚡ logout sub-kind + inline session duration
     const kind = logoutKind(e);
     const durMs = APP.sessionDurations.get(e.id);
     const detailsBase = esc((e.details || '').slice(0, 60) || '—');
@@ -1173,7 +1165,6 @@ function goToPage(page) {
   document.querySelector('.card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-/* ── Details modal ───────────────────────────────────── */
 function showDetails(entryId) {
   const e = APP.entries.find(x => x.id === entryId);
   if (!e) return;
@@ -1185,7 +1176,6 @@ function showDetails(entryId) {
   const roleTxt = roleLabel(e.userRole || (cached && cached.role) || '');
   const meta = [roleTxt, e.userEmail].filter(Boolean).join(' · ');
 
-  // ⚡ always show duration row for logout entries
   let durationHtml = '';
   if (e.action === 'logout') {
     const durMs = APP.sessionDurations.get(e.id);
@@ -1211,7 +1201,6 @@ function showDetails(entryId) {
     changesHtml = `<table class="changes-table"><thead><tr><th>${esc(t('field'))}</th><th>${esc(t('oldValue'))}</th><th>${esc(t('newValue'))}</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
 
-  // ⚡ action cell with manual/timeout sub-badge
   const kind = logoutKind(e);
   let actionInlineBadge = '';
   if (kind === 'timeout') {
@@ -1260,7 +1249,6 @@ function showDetails(entryId) {
   root.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeModal));
 }
 
-/* ── Delete modal ────────────────────────────────────── */
 let pendingDeleteId = null;
 function showDeleteModal(entryId) {
   if (!isSuper()) { toast(t('unauthorized'), 'error'); return; }
@@ -1309,7 +1297,6 @@ async function confirmDelete() {
   }
 }
 
-/* ── Logout modal ────────────────────────────────────── */
 function showLogoutModal() {
   closeModal();
   const root = document.createElement('div');
@@ -1345,7 +1332,6 @@ async function performLogout() {
 let escHandler = null;
 function closeModal() { const el = document.getElementById('modal-backdrop'); if (el) el.remove(); if (escHandler) { document.removeEventListener('keydown', escHandler); escHandler = null; } }
 
-/* ── Test connection ─────────────────────────────────── */
 async function testConnection() {
   try {
     await getDocs(query(collection(db, 'audit'), limit(1)));
@@ -1355,7 +1341,6 @@ async function testConnection() {
   }
 }
 
-/* ── Load data ───────────────────────────────────────── */
 async function loadUsersPhotoCache() {
   try {
     const snap = await getDocs(collection(db, 'users'));
@@ -1377,6 +1362,7 @@ async function loadAuditEntries() {
     APP.entries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (APP.userCache.size === 0) await loadUsersPhotoCache();
     computeSessionDurations();
+    APP.dataLoaded = true;
     populateUserFilter();
     applyFilters();
   } catch (err) {
@@ -1384,11 +1370,11 @@ async function loadAuditEntries() {
     const msg = err.code === 'permission-denied' ? t('permissionsDenied') : err.message;
     toast(msg, 'error');
     APP.entries = [];
+    APP.dataLoaded = true;
     applyFilters();
   }
 }
 
-/* ── Language ────────────────────────────────────────── */
 function setLang(lang) {
   if (!SUPPORTED.includes(lang)) lang = FALLBACK;
   LANG = lang;
@@ -1399,7 +1385,9 @@ function setLang(lang) {
   renderMain();
 }
 
-/* ── BOOT — instant render with cached profile ──────── */
+/* ============================================================
+   BOOT — cached render, no spinner, background data load
+============================================================ */
 (async function boot() {
   let saved = null;
   try { saved = localStorage.getItem(LANG_KEY); } catch(e){}
@@ -1416,12 +1404,13 @@ function setLang(lang) {
     return;
   }
 
+  // Cached render — paint shell + skeleton immediately
   const cachedProfile = readCachedProfile();
   let rendered = false;
   if (cachedProfile && cachedProfile.uid) {
     APP.profile = {
       id: cachedProfile.uid,
-      role: cachedProfile.role || 'viewer',
+      role: cachedProfile.role || 'loading',
       email: cachedProfile.email || '',
       fullName: cachedProfile.name || 'User',
       photoURL: cachedProfile.photoURL || null,
@@ -1431,24 +1420,30 @@ function setLang(lang) {
       branchName: cachedProfile.branchName || ''
     };
     renderShell();
-    renderMain();
+    renderMain({ skipLoad: true });
     hideLoaderNow();
     rendered = true;
   } else if (hasMis) {
     APP.profile = {
       id: sessionStorage.getItem('uid'),
-      role: sessionStorage.getItem('role') || 'viewer',
+      role: sessionStorage.getItem('role') || 'loading',
       email: sessionStorage.getItem('email') || '',
       fullName: sessionStorage.getItem('userName') || 'User',
       photoURL: null,
       districtId: '', districtName: '', branchId: '', branchName: ''
     };
     renderShell();
-    renderMain();
+    renderMain({ skipLoad: true });
     hideLoaderNow();
+    rendered = true;
   }
 
-  const user = await new Promise((resolve) => { const unsub = onAuthStateChanged(auth, (u) => { unsub(); resolve(u); }); });
+  // Auth verify
+  let user;
+  try {
+    user = await new Promise((resolve) => { const unsub = onAuthStateChanged(auth, (u) => { unsub(); resolve(u); }); });
+  } catch(e) { user = null; }
+
   if (!user) {
     try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
     clearSession(); clearCachedProfile();
@@ -1463,6 +1458,7 @@ function setLang(lang) {
   }
   APP.user = user;
 
+  // Fresh profile from Firestore
   try {
     const snap = await getDoc(doc(db, 'users', user.uid));
     if (!snap.exists()) throw new Error('no-user-doc');
@@ -1480,25 +1476,28 @@ function setLang(lang) {
 
   if (APP.profile.role !== 'super_admin') {
     renderShell();
-    renderMain();
+    renderMain({ skipLoad: true });
     hideLoaderNow();
     toast(t('unauthorized'), 'error');
     setTimeout(() => window.location.replace('dashboard.html'), 2000);
     return;
   }
 
+  // Re-render shell if profile changed
   const profileChanged = !rendered ||
     (cachedProfile && (
-      (cachedProfile.name !== (APP.profile.fullName || APP.profile.name)) ||
+      cachedProfile.name !== (APP.profile.fullName || APP.profile.name) ||
       cachedProfile.role !== APP.profile.role ||
       cachedProfile.photoURL !== APP.profile.photoURL
     ));
-  if (profileChanged) { renderShell(); renderMain(); }
+  if (profileChanged) { renderShell(); }
   hideLoaderNow();
 
+  // Load settings + session in parallel with audit data
   await loadSessionTimeout();
   startSessionWatcher();
 
+  // Load saccoName
   try {
     const cfg = await getDoc(doc(db, 'settings', 'system'));
     if (cfg.exists()) {
@@ -1507,8 +1506,13 @@ function setLang(lang) {
     }
   } catch (e) {}
 
+  // Load users cache + audit entries, then re-render with real data
   await loadUsersPhotoCache();
   await loadAuditEntries();
+
+  renderShell();
+  renderMain({ skipLoad: true });
+  hideLoaderNow();
 })();
 
 console.log('[sacco] audit page ready — session duration inline, manual/timeout sub-badges');
