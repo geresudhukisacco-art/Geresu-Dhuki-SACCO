@@ -55,8 +55,8 @@ a{color:inherit;text-decoration:none;}
 h1,h2,h3,h4{line-height:1.25;letter-spacing:-.02em;font-weight:800;}
 :focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
 .hidden{display:none !important;}
-#loader{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:9999;transition:opacity .3s;}
-#loader.hide{opacity:0;pointer-events:none;}
+#loader{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:9999;transition:opacity .3s;pointer-events:none;}
+#loader.hide{opacity:0;pointer-events:none;visibility:hidden;}
 .spin{width:44px;height:44px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .app{display:grid;grid-template-columns:var(--sidebar-w) 1fr;grid-template-rows:var(--topbar-h) 1fr;
@@ -644,7 +644,7 @@ const USER_EDITABLE_SECTIONS = ['appearance','notifications'];
 
 let currentSettings = { ...DEFAULT_SETTINGS };
 let savedSettings = { ...DEFAULT_SETTINGS };
-let currentUserRole = 'viewer';
+let currentUserRole = 'loading';
 let currentUserDisplayName = 'User';
 let currentUserEmail = '';
 let currentUserPhoto = '';
@@ -688,7 +688,7 @@ const NAV_DEF = [
     { key:'settings',icon:'fa-cog',            href:'settings.html',roles:['*'] }
   ]}
 ];
-const canSeeNav = (item) => item.roles.includes('*') || item.roles.includes(currentUserRole) || currentUserRole === 'super_admin';
+const canSeeNav = (item) => item.roles.includes('*') || item.roles.includes(currentUserRole) || currentUserRole === 'super_admin' || currentUserRole === 'loading';
 
 /* ============================================================
    ROLE LABELS
@@ -733,7 +733,7 @@ function renderBrandTitle(name){
 }
 
 /* ============================================================
-   TRANSLATIONS
+   TRANSLATIONS — full AM + OM (no more spread fallback)
 ============================================================ */
 const I18N = {
   en: {
@@ -1241,6 +1241,7 @@ const I18N = {
     recalcSharesInvalidPrice:'Maaloo dura gatii hirmaataa sirrii galchi.'
   }
 };
+
 const t = (k, v) => {
   let s = (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k;
   if (v) Object.keys(v).forEach(x => { s = s.replace('{'+x+'}', v[x]); });
@@ -2861,14 +2862,12 @@ window.__confirmCb = null;
 let escHandler = null;
 
 function closeConfirmModal(){
-  /* Remove ALL confirm modals — protects against any stale duplicates */
   document.querySelectorAll('#confirmModal').forEach(el => el.remove());
   if (escHandler) { document.removeEventListener('keydown', escHandler); escHandler = null; }
   window.__confirmCb = null;
 }
 
 function showConfirmModal(title, message, type, cb){
-  /* 1. Clean slate: remove any stale confirm modal first */
   document.querySelectorAll('#confirmModal').forEach(el => el.remove());
   if (escHandler) { document.removeEventListener('keydown', escHandler); escHandler = null; }
   window.__confirmCb = null;
@@ -2902,12 +2901,8 @@ function showConfirmModal(title, message, type, cb){
   root.addEventListener('click', (e) => { if (e.target === root) closeConfirmModal(); });
   root.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeConfirmModal));
 
-  /* 2. CRITICAL: scope to root.querySelector, not document.getElementById */
   const okBtn = root.querySelector('#confirmOk');
-  if (!okBtn) {
-    console.error('[showConfirmModal] confirmOk button not found in modal');
-    return;
-  }
+  if (!okBtn) { console.error('[showConfirmModal] confirmOk button not found in modal'); return; }
   okBtn.addEventListener('click', () => {
     const captured = window.__confirmCb;
     window.__confirmCb = null;
@@ -3281,7 +3276,7 @@ function attachFloatingSaveBar(){
   const cachedProfile = readCachedProfile();
   let rendered = false;
   if (cachedProfile && cachedProfile.uid) {
-    currentUserRole = cachedProfile.role || 'viewer';
+    currentUserRole = cachedProfile.role || 'loading';
     currentUserDisplayName = cachedProfile.name || 'User';
     currentUserEmail = cachedProfile.email || '';
     currentUserPhoto = cachedProfile.photoURL || '';
@@ -3292,7 +3287,7 @@ function attachFloatingSaveBar(){
     hideLoaderNow();
     rendered = true;
   } else if (hasMis) {
-    currentUserRole = sessionStorage.getItem('role') || 'viewer';
+    currentUserRole = sessionStorage.getItem('role') || 'loading';
     currentUserDisplayName = sessionStorage.getItem('userName') || 'User';
     currentUserEmail = sessionStorage.getItem('email') || '';
     currentUserPhoto = '';
@@ -3366,7 +3361,7 @@ function attachFloatingSaveBar(){
   setTimeout(() => document.getElementById('loader')?.classList.add('hide'), 100);
 })();
 
-console.log('[sacco] settings page ready — confirm-modal fix applied (stale modals cleared; scoped #confirmOk lookup)');
+console.log('[sacco] settings page ready — full AM/OM translations, cached render, no spinner');
 </script>
 
 <div class="floating-save-bar" id="floatingSaveBar">
