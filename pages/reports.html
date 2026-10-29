@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Reports — Geresu Dhuki SACCO</title>
+<title>Geresu Dhuki SACCO</title>
 <link rel="icon" type="image/png" href="../images/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -57,8 +57,8 @@ a{color:inherit;text-decoration:none;}
 h1,h2,h3,h4{line-height:1.25;letter-spacing:-.02em;font-weight:800;}
 :focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
 .hidden{display:none !important;}
-#loader{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:9999;transition:opacity .3s;}
-#loader.hide{opacity:0;pointer-events:none;}
+#loader{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:9999;transition:opacity .3s;pointer-events:none;}
+#loader.hide{opacity:0;pointer-events:none;visibility:hidden;}
 .spin{width:44px;height:44px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .spin-sm{width:16px;height:16px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
@@ -435,12 +435,55 @@ const DEFAULT_SACCO_NAME = 'GERESU DHUKI SACCO';
 let S = null;
 
 /* ============================================================
-   SESSION
+   SESSION + CACHE
    ============================================================ */
 const SESSION_KEY = "sacco.session";
+const PROFILE_CACHE_KEY = "sacco.profile";
+const DEFAULT_SESSION_MINUTES = 30;
+let SESSION_MINUTES = null;
+
 function readSession(){ try { const r = sessionStorage.getItem(SESSION_KEY); if (!r) return null; const s = JSON.parse(r); return (s && s.uid) ? s : null; } catch(e){ return null; } }
 function clearSession(){ try { sessionStorage.removeItem(SESSION_KEY); } catch(e){} }
 function isSessionRecordValid(s){ return !!(s && s.uid); }
+function getSessionMs(){
+  const s = readSession();
+  const mins = (SESSION_MINUTES != null && SESSION_MINUTES > 0)
+    ? SESSION_MINUTES
+    : ((s && s.minutes) || DEFAULT_SESSION_MINUTES);
+  return Math.max(1, mins) * 60000;
+}
+function readCachedProfile(){
+  try{
+    const r = sessionStorage.getItem(PROFILE_CACHE_KEY);
+    if (!r) return null;
+    const p = JSON.parse(r);
+    return (p && p.uid) ? p : null;
+  } catch(e){ return null; }
+}
+function writeCachedProfile(){
+  if (!S || !S.uid) return;
+  try {
+    const payload = {
+      uid: S.uid,
+      role: S.role || 'loading',
+      email: S.email || '',
+      name: S.name || 'User',
+      photoURL: S.photoURL || null,
+      districtId: S.districtId || '',
+      districtName: S.districtName || '',
+      branchId: S.branchId || '',
+      branchName: S.branchName || '',
+      customerId: S.customerId || '',
+      customerCode: S.customerCode || ''
+    };
+    sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(payload));
+  } catch(e){}
+}
+function clearCachedProfile(){ try { sessionStorage.removeItem(PROFILE_CACHE_KEY); } catch(e){} }
+function hideLoaderNow(){
+  const el = document.getElementById('loader');
+  if (el) el.classList.add('hide');
+}
 
 /* ============================================================
    I18N
@@ -512,7 +555,8 @@ const I18N = {
     formulaNP:'Net Profit = Interest + Paid Penalties + Reg Fee + Other Income',
     formulaTB:'Balance = Net Saving + Net Profit + Share Value − Service Withdrawals',
     formulaDIV:'Total dividends distributed in the period',
-    shareUnit:'sh'
+    shareUnit:'sh',
+    financeThisYear:'Financial Summary'
   },
   am: {
     brandSub:'የሳኮ አስተዳደር',
@@ -580,7 +624,8 @@ const I18N = {
     formulaNP:'የተጣራ ትርፍ = ወለድ + የተከፈሉ ቅጣቶች + የምዝገባ ክፍያ + ሌላ ገቢ',
     formulaTB:'ቀሪ ሒሳብ = የተጣራ ቁጠባ + የተጣራ ትርፍ + የአክሲዮን ዋጋ − የአገልግሎት መውጫዎች',
     formulaDIV:'በዚህ ጊዜ የተከፋፈለ ጠቅላላ ክፍፍል',
-    shareUnit:'አክሲ'
+    shareUnit:'አክሲ',
+    financeThisYear:'የፋይናንስ ማጠቃለያ'
   },
   om: {
     brandSub:'Bulchiinsa SACCO',
@@ -594,11 +639,11 @@ const I18N = {
     role_cashier:'Kashierii', role_teller:'Kashierii', role_accountant:'Kashierii',
     role_auditor:'Ooditera', role_member:'Miseensa', role_viewer:'Miseensa',
     logout:"Ba'i", welcomeBack:'Baga nagaan deebite',
-    pageTitle:'Gabaasa', pageSub:'Gabaasa guyyaa, torban, ji\'aa, waggaa fi dhuunfaa',
-    daily:'Guyyaa', weekly:'Torban', monthly:'Ji\'aa', yearly:'Waggaa', custom:'Dhuunfaa',
-    today:'Har\'a', thisWeek:'Torban Kana', thisMonth:'Ji\'a Kana',
+    pageTitle:'Gabaasa', pageSub:"Gabaasa guyyaa, torban, ji'aa, waggaa fi dhuunfaa",
+    daily:'Guyyaa', weekly:'Torban', monthly:"Ji'aa", yearly:'Waggaa', custom:'Dhuunfaa',
+    today:"Har'a", thisWeek:'Torban Kana', thisMonth:"Ji'a Kana",
     customRange:'Daangaa Dhuunfaa', selectYear:'Waggaa Filadhu',
-    print:'Maxxansi', exportCSV:'CSV Baasi', printOrientation:'Qindaa\'ina',
+    print:'Maxxansi', exportCSV:'CSV Baasi', printOrientation:"Qindaa'ina",
     portrait:'Dhaabbataa', landscape:'Ciisaa',
     from:'Irraa', to:'Hanga', customer:'Maamila (Filannoo)', allCustomers:'Maamiltoota Hunda',
     apply:'Hojiirra oolchi', clear:'Haqi',
@@ -619,9 +664,9 @@ const I18N = {
     shareCount:'Hirmaata', shareAmount:'Hamma Hirmaataa',
     outstandingLoans:'Liqii Haftee', totalCustomers:'Maamiltoota Waliigalaa',
     totalDistricts:'Aanaalee', totalBranches:'Dameewwan',
-    yearlyBreakdown:'Qooda Waggaa', monthlyTrends:'Adeemsa Ji\'aa',
+    yearlyBreakdown:'Qooda Waggaa', monthlyTrends:"Adeemsa Ji'aa",
     savingsVsLoans:'Qusannaa vs Liqii', loansVsRepayments:'Liqii vs Kaffaltuu',
-    sharesFlow:'Yaa\'ii Hirmaataa', transactions:'Sochiiwwan',
+    sharesFlow:"Yaa'ii Hirmaataa", transactions:'Sochiiwwan',
     record:'galmee', records:'galmeewwan',
     year:'Waggaa', capital:'Kaapitaala', profit:"Bu'aa", income:'Galii',
     customerName:'Maamila', type:'Gosa', amount:'Hamma', status:'Haala', date:'Guyyaa',
@@ -630,25 +675,26 @@ const I18N = {
     pending:'Eegaa', approved:"Mirkanaa'e", rejected:'Dide', paid:'Kaffalame',
     active:"Socho'aa", completed:'Xumurame', overdue:'Yeroon Dabare', distributed:'Qoodame',
     transactionDetails:'Ibsa Sochii', close:'Cufi',
-    logoutTitle:'Mirkaneessa Baasii', logoutText:'Dhuguma ba\'uu barbaadda?',
-    cancel:'Haqi', view:'Ilaali', loading:'Fe\'aa jira…',
+    logoutTitle:'Mirkaneessa Baasii', logoutText:"Dhuguma ba'uu barbaadda?",
+    cancel:'Haqi', view:'Ilaali', loading:"Fe'aa jira…",
     noData:'Yeroo filatameef daataan hin jiru.',
     noDataYet:'Amma ammaatti daataan hin jiru',
     nothingToPrint:'Maxxansuuf wanti hin jiru.',
     generateFirst:'Dursaa gabaasa uumi.',
     noDataExport:'Baasuuf daataan hin jiru.',
-    csvExported:'CSV milkaa\'inaan bahe!',
+    csvExported:"CSV milkaa'inaan bahe!",
     noPermission:'Hayyamni hojii kanaaf hin jiru.',
     preparedBy:'Kan Qopheesse (Herregaa)', approvedByMgr:'Kan Mirkaneesse (Manaajara)',
     slogan:'Yoo Waliin Hojjenne, Waliin Guddatna!',
     generatedBy:'Kan', generatedOn:'Kan Uumame',
     accessDenied:'Seensaan dhorkame', accessDeniedText:'Fuula kana ilaaluu hin dandeessu.',
-    backToDashboard:'Gara Daashboordii deebi\'i',
-    formulaNS:'Qusannaa Qulqulluu = Waliigala − Baasii − Adaba(qusannaadhaa) − Ba\'umsa',
+    backToDashboard:"Gara Daashboordii deebi'i",
+    formulaNS:"Qusannaa Qulqulluu = Waliigala − Baasii − Adaba(qusannaadhaa) − Ba'umsa",
     formulaNP:"Bu'aa Qulqulluu = Dhala + Adaba Kaffalame + Kaffaltii Galmee + Galii Biraa",
-    formulaTB:'Haftee = Qusannaa Qulqulluu + Bu\'aa Qulqulluu + Gatii Hirmaataa − Baasii Tajaajilaa',
+    formulaTB:"Haftee = Qusannaa Qulqulluu + Bu'aa Qulqulluu + Gatii Hirmaataa − Baasii Tajaajilaa",
     formulaDIV:'Yeroo kana keessatti qooda waliigalaa qoodame',
-    shareUnit:'qoodaa'
+    shareUnit:'qoodaa',
+    financeThisYear:'Cuunfaa Faayinaansii'
   }
 };
 const SUPPORTED_LANGS = ['en','am','om'];
@@ -748,7 +794,7 @@ function customerNameOf(tx) {
 }
 
 /* ============================================================
-   CLASSIFIERS (mirror dashboard)
+   CLASSIFIERS
    ============================================================ */
 const COUNTED_SHARE_STATUSES = ['approved','completed','done','printed','paid'];
 const REPAYMENT_STATUSES = ['approved','printed','paid','done'];
@@ -794,7 +840,6 @@ function getShareCount(s){
 function getShareAmount(s){ return num(s.amount) || num(s.totalAmount) || num(s.value) || num(s.shareValue); }
 function isRegistrationFeeIncome(it){ const x = String(it || '').toLowerCase().trim(); return x.includes('registration') || x === 'reg fee' || x === 'regfee' || x === 'membership fee'; }
 
-/* Dividend counted if not rejected */
 function isDividendCounted(d){
   if (!d) return false;
   const s = String(d.status || '').toLowerCase();
@@ -836,7 +881,7 @@ const ROLE_LABELS = { super_admin:'role_super_admin', admin:'role_admin', manage
   cashier:'role_cashier', teller:'role_teller', accountant:'role_accountant',
   auditor:'role_auditor', member:'role_member', viewer:'role_viewer' };
 const roleLabel = (r) => t(ROLE_LABELS[r]) || (r||'').replace(/_/g,' ');
-const isSuper      = () => S?.role === 'super_admin';
+const isSuper      = () => S?.role === 'super_admin' || S?.role === 'loading';
 const isDistrict   = () => S?.role === 'admin';
 const isAuditor    = () => S?.role === 'auditor';
 const isBranchRole = () => ['manager','cashier','teller','accountant'].includes(S?.role);
@@ -847,9 +892,9 @@ const ROLE_GROUPS = {
   print:   ['super_admin','admin','manager','accountant','auditor'],
   export:  ['super_admin','admin','manager','accountant','auditor']
 };
-const canView   = () => ROLE_GROUPS.viewAll.includes(S?.role);
-const canPrint  = () => ROLE_GROUPS.print.includes(S?.role);
-const canExport = () => ROLE_GROUPS.export.includes(S?.role);
+const canView   = () => S?.role === 'loading' || ROLE_GROUPS.viewAll.includes(S?.role);
+const canPrint  = () => S?.role === 'loading' || ROLE_GROUPS.print.includes(S?.role);
+const canExport = () => S?.role === 'loading' || ROLE_GROUPS.export.includes(S?.role);
 
 /* ============================================================
    STATE
@@ -999,7 +1044,7 @@ function inRange(dateVal, from, to){
 }
 
 /* ============================================================
-   AGGREGATION — same formulas as dashboard + Dividends
+   AGGREGATION
    ============================================================ */
 function computePeriodAggregates(range){
   const { from, to } = range;
@@ -1068,7 +1113,6 @@ function computePeriodAggregates(range){
   const loansList = APP.txn.loans.filter(l => inScopeTx(l) && inRangeTx(l));
   const totalLoansIssued = loansList.reduce((s,l) => s + num(l.amount), 0);
 
-  /* ★ DIVIDENDS — included in report as a KPI and column */
   const dividendsList = APP.txn.dividends.filter(d => inScopeTx(d) && inRangeTx(d) && isDividendCounted(d));
   const totalDividends = round2(dividendsList.reduce((s,x) => s + getDividendNet(x), 0));
   const dividendCount = dividendsList.length;
@@ -1180,7 +1224,6 @@ const NAV = [
   ]},
   { section:'navSecFinance', items:[
     { key:'deposits',    label:'deposits',    icon:'fa-hand-holding-usd', href:'deposits.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
-    { key:'repayments',  label:'repayments',  icon:'fa-undo-alt',         href:'repayments.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor','member'] },
     { key:'withdrawals', label:'withdrawals', icon:'fa-money-bill-wave',  href:'withdrawals.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
     { key:'dividends',   label:'dividends',   icon:'fa-gift',             href:'dividends.html', roles:['super_admin','admin','manager','accountant','auditor'] },
     { key:'penalties',   label:'penalties',   icon:'fa-exclamation-triangle', href:'penalties.html', roles:['super_admin','admin','manager','cashier'] }
@@ -1192,14 +1235,14 @@ const NAV = [
     { key:'settings',label:'settings',icon:'fa-cog',            href:'settings.html', roles:['*'] }
   ]}
 ];
-const canSeeNav = (item, role) => item.roles.includes('*') || item.roles.includes(role) || role === 'super_admin';
+const canSeeNav = (item, role) => item.roles.includes('*') || item.roles.includes(role) || role === 'super_admin' || role === 'loading';
 
 /* ============================================================
    SHELL
    ============================================================ */
 function renderShell(){
   const navHtml = NAV.map(g => {
-    const items = g.items.filter(it => canSeeNav(it, S.role));
+    const items = g.items.filter(it => canSeeNav(it, S?.role));
     if (!items.length) return '';
     return `<div class="sidebar__section">${esc(t(g.section))}</div>` +
       items.map(it => {
@@ -1275,6 +1318,7 @@ function renderShell(){
 }
 function doLogout(){
   try { sessionStorage.clear(); } catch(e){}
+  clearCachedProfile();
   signOut(auth).catch(()=>{}).finally(() => window.location.replace(LOGIN_URL));
 }
 function setLang(lang){
@@ -1288,9 +1332,9 @@ function setLang(lang){
 }
 
 /* ============================================================
-   MAIN RENDER
+   MAIN RENDER — instant skeleton, skipReport option
    ============================================================ */
-function renderMain(){
+function renderMain(opts = {}){
   const host = document.getElementById('mainContent'); if (!host) return;
   if (!canView()){
     host.innerHTML = `
@@ -1334,14 +1378,18 @@ function renderMain(){
     </div>
 
     <div id="reportHost">
-      <div class="list-empty"><div class="spin" style="margin:0 auto"></div></div>
+      ${APP.dataLoaded ? '' : `<div class="list-empty"><div class="loading-placeholder"><div class="spin-sm" style="margin:0 auto;display:inline-block;"></div> <span style="margin-left:8px;color:var(--muted);font-weight:600">${esc(t('loading'))}</span></div></div>`}
     </div>
   `;
 
   wireMainEvents();
-  renderActiveReport();
+
+  if (!opts.skipReport && APP.dataLoaded) {
+    renderActiveReport();
+  }
 }
 function scopeLabel(){
+  if (S?.role === 'loading') return { badge:`<span class="scope-badge scope-badge--super"><i class="fas fa-lock"></i> ${esc(t('fullSystem'))}</span>` };
   if (isSuper())     return { badge:`<span class="scope-badge scope-badge--super"><i class="fas fa-lock"></i> ${esc(t('fullSystem'))}</span>` };
   if (isAuditor())   return { badge:`<span class="scope-badge scope-badge--super"><i class="fas fa-eye"></i> ${esc(t('auditorRole'))}</span>` };
   if (isDistrict())  return { badge:`<span class="scope-badge scope-badge--district"><i class="fas fa-map-marked-alt"></i> ${esc(t('districtAdmin'))} · ${esc(S.districtName || '—')}</span>` };
@@ -1354,7 +1402,7 @@ function wireMainEvents(){
     btn.addEventListener('click', () => {
       APP.activeTab = btn.dataset.tab;
       document.querySelectorAll('.tab').forEach(el => el.classList.toggle('is-active', el === btn));
-      renderActiveReport();
+      if (APP.dataLoaded) renderActiveReport();
     });
   });
   document.getElementById('printBtn')?.addEventListener('click', printActive);
@@ -1366,8 +1414,10 @@ function wireMainEvents(){
    ============================================================ */
 function renderActiveReport(){
   const host = document.getElementById('reportHost'); if (!host) return;
-  host.innerHTML = `<div class="list-empty"><div class="spin" style="margin:0 auto"></div></div>`;
-
+  if (!APP.dataLoaded){
+    host.innerHTML = `<div class="list-empty"><div class="spin-sm" style="margin:0 auto;display:inline-block;"></div></div>`;
+    return;
+  }
   try {
     const range = currentRange();
     const aggr = computePeriodAggregates(range);
@@ -1381,7 +1431,7 @@ function renderActiveReport(){
   } catch(e){
     console.error('[report]', e);
     host.innerHTML = `<div class="card"><div class="card__body">
-      <div class="info-banner" style="background:#fef3f2;color:#b42318;border:1px solid #fecdca;padding:14px 18px;border-radius:12px;font-size:13.5px">
+      <div style="background:#fef3f2;color:#b42318;border:1px solid #fecdca;padding:14px 18px;border-radius:12px;font-size:13.5px">
         <i class="fas fa-exclamation-circle" style="margin-right:8px"></i>${esc(e.message || 'Render failed.')}
       </div></div></div>`;
   }
@@ -1493,7 +1543,6 @@ function renderReportHTML(range, A, customers, yearly, txRows){
         </div>
       </div>
 
-      <!-- ★★★ DIVIDENDS KPI ★★★ -->
       <div class="stat stat--pink">
         <div class="stat__head"><div class="stat__label">${esc(t('dividendsPaid'))}</div>
           <div class="stat__icon"><i class="fas fa-gift"></i></div></div>
@@ -1721,7 +1770,6 @@ function collectTxRows(range){
   APP.txn.repayments.filter(tx => inRangeTx(tx) && isRepaymentCounted(tx)).forEach(tx => push(tx, t('repaymentsReceived'), tx.status, 'teal'));
   APP.txn.loans.filter(tx => inRangeTx(tx)).forEach(tx => push(tx, t('loansIssued'), tx.status, 'blue'));
 
-  /* ★ DIVIDENDS — added to the transaction list */
   APP.txn.dividends.filter(tx => inRangeTx(tx) && isDividendCounted(tx)).forEach(tx =>
     push(tx, t('dividends'), tx.status, 'violet', getDividendNet(tx))
   );
@@ -1767,6 +1815,7 @@ function printActive(){
   const orientation = document.getElementById('printOrientation')?.value || 'portrait';
   const now = new Date();
   const scopeText = (() => {
+    if (S?.role === 'loading') return '';
     if (isSuper()) return t('fullSystem');
     if (isAuditor()) return t('auditorRole');
     if (isDistrict()) return `${t('districtAdmin')} · ${S.districtName || ''}`;
@@ -1933,7 +1982,34 @@ function exportActive(){
 }
 
 /* ============================================================
-   LOAD
+   LOAD SETTINGS
+   ============================================================ */
+async function loadSettings(){
+  try {
+    const cfg = await getDoc(doc(db, 'settings', 'system'));
+    if (cfg.exists()){
+      const dd = cfg.data();
+      if (dd.saccoName && String(dd.saccoName).trim()) APP.saccoName = String(dd.saccoName).trim();
+
+      let m = DEFAULT_SESSION_MINUTES;
+      if (dd.sessionTimeout != null) m = Number(dd.sessionTimeout);
+      if (!isFinite(m) || m < 1) m = DEFAULT_SESSION_MINUTES;
+      if (m > 1440) m = 1440;
+      SESSION_MINUTES = Math.round(m);
+      try {
+        const s = readSession();
+        if (s){ s.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); }
+      } catch(e){}
+    } else {
+      SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
+    }
+  } catch(e){
+    if (SESSION_MINUTES == null) SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
+  }
+}
+
+/* ============================================================
+   LOAD ALL DATA
    ============================================================ */
 async function loadAllData(){
   const [districts, branches] = await Promise.all([
@@ -2024,9 +2100,51 @@ async function loadAllData(){
 }
 
 /* ============================================================
-   BOOT
+   SESSION WATCHER
+   ============================================================ */
+function startSessionWatcher(){
+  let timer = null, warningTimer = null, warningToast = null, countdownInterval = null;
+
+  function resetTimer(){
+    clearTimeout(timer); clearTimeout(warningTimer); clearInterval(countdownInterval);
+    if (warningToast){ warningToast.remove(); warningToast = null; }
+    const total = getSessionMs();
+    const warnAt = Math.max(30 * 1000, total - 30 * 1000);
+    warningTimer = setTimeout(showWarning, warnAt);
+    timer = setTimeout(forceLogout, total);
+  }
+  function showWarning(){
+    const message = 'Your session will expire in {seconds} seconds. Move your mouse or press a key to stay logged in.';
+    let seconds = 30;
+    warningToast = document.createElement('div');
+    warningToast.style.cssText = `position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#f39c12;color:#fff;padding:16px 24px;border-radius:12px;font-size:15px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.2);z-index:99999;max-width:500px;text-align:center;display:flex;align-items:center;gap:12px;`;
+    warningToast.innerHTML = `<i class="fas fa-clock"></i> <span id="sessionWarningText">${message.replace('{seconds}', seconds)}</span>`;
+    document.body.appendChild(warningToast);
+    countdownInterval = setInterval(() => {
+      seconds--;
+      const el = document.getElementById('sessionWarningText');
+      if (el) el.textContent = message.replace('{seconds}', seconds);
+      if (seconds <= 0) clearInterval(countdownInterval);
+    }, 1000);
+  }
+  function forceLogout(){
+    clearInterval(countdownInterval);
+    if (warningToast) warningToast.remove();
+    clearCachedProfile();
+    if (auth) auth.signOut().then(() => window.location.href = LOGIN_URL).catch(() => window.location.href = LOGIN_URL);
+    else window.location.href = LOGIN_URL;
+  }
+  const events = ['mousemove','click','keydown','scroll','touchstart'];
+  const handleActivity = () => resetTimer();
+  events.forEach(evt => document.addEventListener(evt, handleActivity));
+  resetTimer();
+}
+
+/* ============================================================
+   BOOT — cached render, no spinner, background data load
    ============================================================ */
 (async function boot(){
+  // 1. Language init
   let saved = null;
   try { saved = localStorage.getItem(LANG_KEY); } catch(e){}
   const b = (navigator.language || 'en').slice(0,2);
@@ -2034,22 +2152,76 @@ async function loadAllData(){
   document.documentElement.lang = LANG;
   document.body.classList.toggle('lang-am', LANG === 'am');
 
+  // 2. Session check
   const sess = readSession();
+  const cachedProfile = readCachedProfile();
   const hasMis = sessionStorage.getItem('loggedIn') === 'true' && sessionStorage.getItem('uid');
-  if (!isSessionRecordValid(sess) && !hasMis){
+  if (!isSessionRecordValid(sess) && !cachedProfile && !hasMis){
     try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
     window.location.replace(LOGIN_URL);
     return;
   }
-  const user = await new Promise(resolve => {
-    const unsub = onAuthStateChanged(auth, u => { unsub(); resolve(u); });
-  });
+
+  // 3. Cached render — paint shell + skeleton immediately
+  let rendered = false;
+  if (cachedProfile && cachedProfile.uid){
+    S = {
+      uid: cachedProfile.uid,
+      role: cachedProfile.role || 'loading',
+      email: cachedProfile.email || '',
+      name: cachedProfile.name || 'User',
+      photoURL: cachedProfile.photoURL || null,
+      districtId: cachedProfile.districtId || '',
+      districtName: cachedProfile.districtName || '',
+      branchId: cachedProfile.branchId || '',
+      branchName: cachedProfile.branchName || '',
+      customerId: cachedProfile.customerId || '',
+      customerCode: cachedProfile.customerCode || ''
+    };
+    initWorkarea();
+    renderShell();
+    renderMain({ skipReport: true });
+    hideLoaderNow();
+    rendered = true;
+  } else if (hasMis){
+    S = {
+      uid: sessionStorage.getItem('uid') || '',
+      role: sessionStorage.getItem('role') || 'loading',
+      email: sessionStorage.getItem('email') || '',
+      name: sessionStorage.getItem('userName') || 'User',
+      photoURL: null,
+      districtId: '', districtName: '', branchId: '', branchName: '',
+      customerId: '', customerCode: ''
+    };
+    initWorkarea();
+    renderShell();
+    renderMain({ skipReport: true });
+    hideLoaderNow();
+    rendered = true;
+  }
+
+  // 4. Auth verify
+  let user;
+  try {
+    user = await new Promise(resolve => {
+      const unsub = onAuthStateChanged(auth, u => { unsub(); resolve(u); });
+    });
+  } catch(e) { user = null; }
+
   if (!user){
     try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
-    clearSession();
+    clearSession(); clearCachedProfile();
     window.location.replace(LOGIN_URL);
     return;
   }
+  if (sess && user.uid !== sess.uid){
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    clearSession(); clearCachedProfile();
+    window.location.replace(LOGIN_URL);
+    return;
+  }
+
+  // 5. Fresh profile from Firestore
   try {
     const snap = await getDoc(doc(db, 'users', user.uid));
     if (!snap.exists()) throw new Error('no-user-doc');
@@ -2064,38 +2236,38 @@ async function loadAllData(){
       customerId: d.customerId || d.memberId || '',
       customerCode: d.customerCode || d.memberCode || ''
     };
+    writeCachedProfile();
   } catch(e){
     try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e2){}
-    clearSession();
+    clearSession(); clearCachedProfile();
     try { await signOut(auth); } catch(e2){}
     window.location.replace(LOGIN_URL);
     return;
   }
-  try {
-    const cfg = await getDoc(doc(db, 'settings', 'system'));
-    if (cfg.exists()){
-      const dd = cfg.data();
-      if (dd.saccoName && String(dd.saccoName).trim()) APP.saccoName = String(dd.saccoName).trim();
-    }
-  } catch(e){}
+
+  // 6. Re-render shell if profile changed
+  const profileChanged = !rendered ||
+    (cachedProfile && (
+      cachedProfile.role !== S.role ||
+      cachedProfile.name !== S.name ||
+      cachedProfile.photoURL !== (S.photoURL || null)
+    ));
+  if (profileChanged || !rendered){
+    initWorkarea();
+    renderShell();
+  }
+
+  // 7. Load settings + all data in parallel
+  await Promise.all([loadSettings(), loadAllData()]);
+
+  // 8. Full re-render with all data
   initWorkarea();
   renderShell();
   renderMain();
-  setTimeout(() => document.getElementById('loader')?.classList.add('hide'), 150);
-  try {
-    await loadAllData();
-    initWorkarea();
-    renderMain();
-  } catch(e){
-    console.error('[boot] failed:', e);
-    const host = document.getElementById('mainContent');
-    if (host) host.innerHTML = `
-      <div class="list-empty" style="background:#fff;border:1px solid var(--border);border-radius:20px;padding:60px 24px">
-        <i class="fas fa-exclamation-triangle" style="color:#b8860b"></i>
-        <div style="font-weight:800;font-size:15px;margin-bottom:6px">Failed to load data</div>
-        <div style="color:var(--muted);font-size:13px">${esc(e.message || 'Unknown error')}</div>
-      </div>`;
-  }
+  hideLoaderNow();
+
+  // 9. Start session watcher
+  startSessionWatcher();
 })();
 </script>
 </body>
