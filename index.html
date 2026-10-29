@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Geresu Dhuki SACCO — Sign In</title>
+<title>Geresu Dhuki SACCO</title>
 <link rel="icon" type="image/png" href="images/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -232,7 +232,8 @@ const translations = {
     resetSent:"Password reset link sent. Check your email.",
     resetNeedsEmail:"Enter your email first, then tap “Forgot password”.",
     resetFail:"Could not send reset email. Check the address and try again.",
-    sessionExpired:"Your session expired. Please sign in again."
+    sessionExpired:"Your session expired. Please sign in again.",
+    inactive:"Your account is inactive/deactivated. Please contact your administrator!"
   },
   am: {
     brandTitle:"የገረሱ ዱኪ ሳኮ", brandSubtitle:"የቁጠባና ብድር ማኅበር",
@@ -255,7 +256,8 @@ const translations = {
     resetSent:"የይለፍ ቃል ማስተካከያ ሊንክ ተልኳል። ኢሜይልዎን ይመልከቱ።",
     resetNeedsEmail:"መጀመሪያ ኢሜይልዎን ያስገቡ፣ ከዚያ “የይለፍ ቃል ረሱ?” ይጫኑ።",
     resetFail:"ማስተካከያ ኢሜይል መላክ አልተቻለም። አድራሻውን ያረጋግጡ።",
-    sessionExpired:"ክፍለ ጊዜዎ አልቋል። እባክዎ እንደገና ይግቡ።"
+    sessionExpired:"ክፍለ ጊዜዎ አልቋል። እባክዎ እንደገና ይግቡ።",
+    inactive:"መለያዎ ኢንአክቲቭ/የተሰናከለ ነው። እባክዎ አስተዳዳሪዎን ያግኙ!"
   },
   om: {
     brandTitle:"Geresu Dhuki SACCO", brandSubtitle:"Waldaa Qusannaa fi Liqii",
@@ -278,7 +280,8 @@ const translations = {
     resetSent:"Liinkii jijjiirraa jecha darbii ergameera. Imeelii kee ilaali.",
     resetNeedsEmail:"Dura imeelii kee galchi, sana booda “Jecha darbii dagatte?” tuqi.",
     resetFail:"Imeelii haaromsaa erguu hin danda'amne. Teessoo mirkaneessi.",
-    sessionExpired:"Yeroon kee dhumateera. Maaloo irra deebi'ii seeni."
+    sessionExpired:"Yeroon kee dhumateera. Maaloo irra deebi'ii seeni.",
+    inactive:"Herregni kee hin sochoone/deactivate ta'eera. Maaloo bulchaa kee quunnamaa!"
   }
 };
 const SUPPORTED = ["en","am","om"];
@@ -327,8 +330,7 @@ async function resolveEmail(input){
 }
 
 /* ============================================================
-   ⚡ LOGIN AUDIT — writes a 'login' entry to the audit collection
-   Called after signInWithEmailAndPassword succeeds, before redirect.
+   LOGIN AUDIT — writes a 'login' entry to the audit collection
    ============================================================ */
 function getDeviceType(){
   const ua = navigator.userAgent;
@@ -365,7 +367,6 @@ async function logLoginAudit(user, sessionMinutes){
     });
     console.log('[audit] login written');
   } catch(e) {
-    // Never block login on audit failure
     console.warn('[audit] login write failed:', e.message);
   }
 }
@@ -516,11 +517,24 @@ function bindLogin(){
     }
   });
 
+  /*
+   * AUTH ERROR MAP — every failure that means "wrong credentials" maps to
+   * "invalid". Only auth/user-disabled maps to "inactive" because Firebase
+   * has already told us the account exists but was disabled at Auth level.
+   * Firestore-based inactive detection is handled separately after a
+   * successful sign-in (see the profile check below).
+   */
   const AUTH_ERROR_MAP = {
-    "auth/invalid-email":"invalid","auth/wrong-password":"invalid",
-    "auth/user-not-found":"invalid","auth/invalid-credential":"invalid",
-    "auth/too-many-requests":"tooMany","auth/network-request-failed":"networkError",
-    "auth/user-disabled":"invalid"
+    "auth/invalid-email":        "invalid",
+    "auth/wrong-password":       "invalid",
+    "auth/user-not-found":       "invalid",
+    "auth/invalid-credential":   "invalid",
+    "auth/invalid-login-credentials": "invalid",
+    "auth/missing-password":     "required",
+    "auth/missing-email":        "required",
+    "auth/too-many-requests":    "tooMany",
+    "auth/network-request-failed":"networkError",
+    "auth/user-disabled":        "inactive"
   };
 
   form.addEventListener("submit", async (e) => {
@@ -548,52 +562,60 @@ function bindLogin(){
 
     setLoading(true, "loggingIn");
 
+    let cred;
     try {
       await setPersistence(auth, browserSessionPersistence);
-      const cred = await signInWithEmailAndPassword(auth, emailToUse, password);
-
-      // sessionMinutes
-      let sessionMinutes = DEFAULT_SESSION_MINUTES;
-      try {
-        const cfg = await getDoc(doc(db, "system", "config"));
-        if (cfg.exists()) {
-          const data = cfg.data();
-          if (Number(data.sessionMinutes) > 0) sessionMinutes = Number(data.sessionMinutes);
-        }
-      } catch (err) {
-        console.warn("[session config]", err.code || err.message);
-      }
-
-      // Reject inactive profile
-      try {
-        const snap = await getDoc(doc(db, "users", cred.user.uid));
-        if (snap.exists() && snap.data().status === "inactive") {
-          await signOut(auth);
-          clearSession();
-          showMessage(t("invalid"), "error");
-          setLoading(false);
-          return;
-        }
-      } catch (err) {
-        console.warn("[profile]", err.code || err.message);
-      }
-
-      // Store session in sessionStorage
-      writeSession(cred.user.uid, sessionMinutes);
-      try { sessionStorage.setItem("sacco.uid", cred.user.uid); } catch(e){}
-
-      // ⚡ WRITE LOGIN AUDIT — must run BEFORE redirect, wrapped in try/catch so it never blocks
-      await logLoginAudit(cred.user, sessionMinutes);
-
-      showMessage(t("success"), "success");
-      setTimeout(() => { window.location.href = "pages/dashboard.html"; }, 400);
-
+      cred = await signInWithEmailAndPassword(auth, emailToUse, password);
     } catch (err) {
+      // CREDENTIAL FAILURES → generic "invalid" (never leak that the account exists)
       console.warn("[login]", err.code, err.message);
       const key = AUTH_ERROR_MAP[err.code] || "invalid";
       showMessage(t(key), "error");
       setLoading(false);
+      return;
     }
+
+    // ---------- AUTH SUCCEEDED: now check Firestore status ----------
+    // sessionMinutes
+    let sessionMinutes = DEFAULT_SESSION_MINUTES;
+    try {
+      const cfg = await getDoc(doc(db, "system", "config"));
+      if (cfg.exists()) {
+        const data = cfg.data();
+        if (Number(data.sessionMinutes) > 0) sessionMinutes = Number(data.sessionMinutes);
+      }
+    } catch (err) {
+      console.warn("[session config]", err.code || err.message);
+    }
+
+    // Reject inactive / deactivated profile
+    try {
+      const snap = await getDoc(doc(db, "users", cred.user.uid));
+      if (snap.exists()) {
+        const d = snap.data();
+        const status = String(d.status || '').toLowerCase();
+        const inactiveStatuses = ['inactive', 'deactivated', 'disabled', 'suspended'];
+        if (inactiveStatuses.includes(status)) {
+          await signOut(auth);
+          clearSession();
+          showMessage(t("inactive"), "error");
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("[profile]", err.code || err.message);
+    }
+
+    // Store session
+    writeSession(cred.user.uid, sessionMinutes);
+    try { sessionStorage.setItem("sacco.uid", cred.user.uid); } catch(e){}
+
+    // Login audit
+    await logLoginAudit(cred.user, sessionMinutes);
+
+    showMessage(t("success"), "success");
+    setTimeout(() => { window.location.href = "pages/dashboard.html"; }, 400);
   });
 }
 
@@ -615,8 +637,27 @@ function bindLogin(){
   if (isSessionValid(existing)) {
     await auth.authStateReady?.();
     if (auth.currentUser && auth.currentUser.uid === existing.uid) {
-      window.location.replace("pages/dashboard.html");
-      return;
+      // Re-verify inactive status before auto-redirect
+      try {
+        const snap = await getDoc(doc(db, "users", auth.currentUser.uid));
+        if (snap.exists()) {
+          const status = String(snap.data().status || '').toLowerCase();
+          if (['inactive','deactivated','disabled','suspended'].includes(status)) {
+            await signOut(auth);
+            clearSession();
+          } else {
+            window.location.replace("pages/dashboard.html");
+            return;
+          }
+        } else {
+          window.location.replace("pages/dashboard.html");
+          return;
+        }
+      } catch (err) {
+        // If we can't read the profile (offline, rules), let them through
+        window.location.replace("pages/dashboard.html");
+        return;
+      }
     } else {
       clearSession();
     }
@@ -634,7 +675,7 @@ function bindLogin(){
   }
 })();
 
-console.log("[sacco] login ready (session-based, email or username, audit-on-login)");
+console.log("[sacco] login ready (session-based, email or username, audit-on-login, inactive-block)");
 </script>
 
 </body>
