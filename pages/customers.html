@@ -636,8 +636,6 @@ async function loadSessionTimeout() {
 
 /* ════════════════════════════════════════════════════════════
    REGION → ZONES + CITIES
-   - Zones: cascading dropdown (filtered by region)
-   - Cities: suggestions in a datalist (free typing allowed)
 ════════════════════════════════════════════════════════════ */
 const REGION_DATA = {
   'Addis Ababa': {
@@ -884,7 +882,7 @@ const I18N = {
     activateHintNoDepositTitle:'ሒሳብ እንቅስቃሴ-የለሽ — እስካሁን የቁጠባ ተቀማጭ የለም።',
     activateHintNoDepositBody:'ይህን ደንበኛ ለማንቀሳቀስ ከቁጠባ ገጽ ላይ የቁጠባ ተቀማጭ ያድርጉ።',
     activateHintStaleTitle:'ሒሳብ እንቅስቃሴ-የለሽ — ከ6+ ወራት በላይ የቁጠባ ተቀማጭ የለም።',
-    activateHintStaleBody:'ይህ ደንበኛ ከ6 ወራት በላይ የቁጠባ ተቀማጭ አላደረገም። እንደገና ለማንቀሳቀስ ተቀማጭ ያድርጉ።',
+    activateHintStaleBody:'ይህ ደንበኛ ከ6 ወራት በላይ የቁጥባ ተቀማጭ አላደረገም። እንደገና ለማንቀሳቀስ ተቀማጭ ያድርጉ።',
     depositToActivate:'ለማንቀሳቀስ ተቀማጭ ያድርጉ', depositToReactivate:'እንደገና ለማንቀሳቀስ ተቀማጭ ያድርጉ',
     inactiveNoDepositHint:'እስካሁን የቁጠባ ተቀማጭ የለም። ከመጀመሪያው ተቀማጭ በኋላ ንቁ ይሆናል።',
     savingTx:'ቁጠባ', noPermissionsToEdit:'ይህን ደንበኛ ለማስተካከል ፈቃድ የለዎትም።',
@@ -1046,13 +1044,36 @@ const SELL_SHARE_TYPES = ['share_sell','sell','share_sale'];
 const IN_SHARE_TYPES  = ['share_transfer_in','transfer_in'];
 const OUT_SHARE_TYPES = ['share_transfer_out','transfer_out'];
 const ALL_SHARE_TYPES = [...BUY_SHARE_TYPES, ...SELL_SHARE_TYPES, ...IN_SHARE_TYPES, ...OUT_SHARE_TYPES];
+
+/* FIX — Skip merged top-up children, de-dupe by id AND serialNumber
+   to match the Shares page and stop the double-count. */
 function allShareDocs() {
-  const txShares = APP.transactions.filter(tx => ALL_SHARE_TYPES.includes(String(tx.type || '').toLowerCase()));
+  const txShares  = APP.transactions.filter(tx => ALL_SHARE_TYPES.includes(String(tx.type || '').toLowerCase()));
   const colShares = APP.shareRecords || [];
-  const seen = new Set();
-  return [...txShares, ...colShares].filter(s => { if (!s) return false; const id = s.id || s.docId; if (id) { if (seen.has(id)) return false; seen.add(id); } return true; });
+  const seenIds = new Set();
+  const seenSerials = new Set();
+  const out = [];
+  [...txShares, ...colShares].forEach(s => {
+    if (!s) return;
+    if (s.isMerged === true) return;                     // already inside parent card
+    const id = s.id || s.docId;
+    if (id) { if (seenIds.has(id)) return; seenIds.add(id); }
+    const serial = String(s.serialNumber || '').trim();
+    if (serial) { if (seenSerials.has(serial)) return; seenSerials.add(serial); }
+    out.push(s);
+  });
+  return out;
 }
-function isShareCounted(s) { if (!s) return false; const st = String(s.status || '').toLowerCase(); if (COUNTED_SHARE_STATUSES.includes(st)) return true; if (s.printed === true) return true; if (!st && (s.amount != null || s.shares != null)) return true; return false; }
+/* FIX — Merged children are already inside the parent card → skip. */
+function isShareCounted(s) {
+  if (!s) return false;
+  if (s.isMerged === true) return false;
+  const st = String(s.status || '').toLowerCase();
+  if (COUNTED_SHARE_STATUSES.includes(st)) return true;
+  if (s.printed === true) return true;
+  if (!st && (s.amount != null || s.shares != null)) return true;
+  return false;
+}
 function getShareCount(s) { if (!s) return 0; const d = num(s.shares) || num(s.shareCount) || num(s.quantity) || num(s.numberOfShares) || num(s.shareQuantity); if (d > 0) return d; const amt = num(s.amount) || num(s.totalAmount) || num(s.value) || num(s.shareValue); const price = num(s.pricePerShare) || num(s.sharePrice) || num(s.unitPrice); if (amt > 0 && price > 0) return amt / price; return 0; }
 function txBelongsToCustomer(tx, customer) { if (!tx || !customer) return false; const keys = new Set([customer.id, customer.customerId, customer.memberId, customer.customerCode, customer.memberCode].filter(Boolean)); return keys.has(tx.customerId) || keys.has(tx.memberId) || keys.has(tx.customerDocId) || keys.has(tx.customerCode) || keys.has(tx.memberCode); }
 const COUNTED_TX_STATUSES = ['approved','completed','paid','printed','done'];
@@ -1150,16 +1171,25 @@ const ALL_TX_TYPES_DISPLAY = {
   share_transfer_out:{label:'Share out',color:'pink',icon:'fa-chart-pie'},
   transfer_out:{label:'Share out',color:'pink',icon:'fa-chart-pie'}
 };
+
+/* FIX — Skip merged share children and de-dupe by id AND serial
+   so the same purchase is never shown twice in the transaction history. */
 function customerAllTransactions(customer) {
   if (!customer) return [];
   const out = [];
   APP.transactions.forEach(tx => { if (txBelongsToCustomer(tx, customer)) out.push(tx); });
   (APP.shareRecords || []).forEach(sh => { if (txBelongsToCustomer(sh, customer)) out.push(sh); });
-  const seen = new Set();
+  const seenIds = new Set();
+  const seenSerials = new Set();
   return out.filter(tx => {
     if (!tx) return false;
+    const ty = String(tx.type || '').toLowerCase();
+    const isShare = ALL_SHARE_TYPES.includes(ty);
+    if (isShare && tx.isMerged === true) return false;   // top-up merged into parent
     const id = tx.id || tx.docId;
-    if (id) { if (seen.has(id)) return false; seen.add(id); }
+    if (id) { if (seenIds.has(id)) return false; seenIds.add(id); }
+    const serial = String(tx.serialNumber || '').trim();
+    if (serial) { if (seenSerials.has(serial)) return false; seenSerials.add(serial); }
     return true;
   }).sort((a, b) => {
     const da = toDate(b.createdAt || b.date || b.approvedAt)?.getTime() || 0;
@@ -2030,7 +2060,7 @@ function openCustomerWizard(customer) {
           phoneIn?.addEventListener('input', () => { let v = phoneIn.value.replace(/\D/g, ''); if (v.startsWith('251') && v.length > PHONE_LENGTH) v = v.slice(3); if (v.startsWith('0')) v = v.slice(1); v = v.slice(0, PHONE_LENGTH); if (phoneIn.value !== v) phoneIn.value = v; data.phone = v; });
         }
       },
-      /* STEP 3: ADDRESS (NEW) */
+      /* STEP 3: ADDRESS */
       {
         label: t('stepAddress'), title: t('stepAddressTitle'),
         render: (d) => {
@@ -2494,7 +2524,7 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
   attachListeners();
 })();
 
-console.log('[sacco] customers page ready — Address step, Oromia zones/cities, print statement');
+console.log('[sacco] customers page ready — shares deduped, merged top-ups hidden');
 </script>
 
 </body>
