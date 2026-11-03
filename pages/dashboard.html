@@ -773,7 +773,12 @@ function saccoCapitalMatchesYear(tx, y) {
 }
 function getSharePaymentMethod(s) { const raw = s.paymentMethod || s.paymentSource || s.paidFrom || s.source || s.fundingSource || s.method || s.paymentType || ''; return String(raw).toLowerCase().trim(); }
 function isSharePaidFromSavings(s) { const m = getSharePaymentMethod(s); if (!m) return true; return SAVINGS_PAYMENT_VALUES.includes(m); }
-function isShareCounted(s) { if (!s) return false; const st = String(s.status || '').toLowerCase(); if (COUNTED_SHARE_STATUSES.includes(st)) return true; if (s.printed === true) return true; if (!st && (s.amount != null || s.shares != null)) return true; return false; }
+/* FIX: only approved, non-merged records — matches Shares page */
+function isShareCounted(s) {
+  if (!s) return false;
+  if (s.isMerged === true) return false;
+  return String(s.status || '').toLowerCase() === 'approved';
+}
 function getShareCount(s) { if (!s) return 0; const d = num(s.shares) || num(s.shareCount) || num(s.quantity) || num(s.numberOfShares) || num(s.shareQuantity); if (d > 0) return d; const amt = num(s.amount) || num(s.totalAmount) || num(s.value); const price = num(s.pricePerShare) || num(s.sharePrice) || num(s.unitPrice); if (amt > 0 && price > 0) return amt / price; return 0; }
 function getShareAmount(s) {
   if (!s) return 0;
@@ -1573,18 +1578,25 @@ function renderSaccoCapitalTable() {
   }).join('');
 }
 
+/* FIX: skip merged children + de-dupe by docId and serialNumber */
 function getAllSharesInScope() {
-  const txShares = APP.txn.shares || [];
-  const colShares = APP.shareRecords || [];
-  const all = [...txShares, ...colShares];
-  const seen = new Set();
-  return all.filter(s => {
-    if (!s) return false;
-    const id = s.id || (s.docId || '');
-    if (id) { if (seen.has(id)) return false; seen.add(id); }
-    return true;
+  const txShares  = APP.txn.shares || [];       // collection: transactions
+  const colShares = APP.shareRecords || [];      // collection: shares
+  const seenIds = new Set();
+  const seenSerials = new Set();
+  const out = [];
+  [...colShares, ...txShares].forEach(s => {
+    if (!s) return;
+    if (s.isMerged === true) return;             // already inside its parent card
+    const id = s.id || s.docId || '';
+    if (id) { if (seenIds.has(id)) return; seenIds.add(id); }
+    const serial = String(s.serialNumber || '').trim();
+    if (serial) { if (seenSerials.has(serial)) return; seenSerials.add(serial); }
+    out.push(s);
   });
+  return out;
 }
+/* FIX: buy/sell only, no "unknown = buy" fallback */
 function computeSharesYearNumbers(year) {
   const { districtId, branchId } = APP.workarea;
   const district = APP.districts.find(d => d.id === districtId);
@@ -1605,27 +1617,25 @@ function computeSharesYearNumbers(year) {
   };
   const counted = getAllSharesInScope().filter(s => isShareCounted(s) && inScope(s));
   const yearShares = counted.filter(s => isInYear(s.date || s.createdAt || s.approvedAt || s.updatedAt, year));
-  let buyAmount = 0, sellAmount = 0, transferIn = 0, transferOut = 0;
-  let buyCount = 0, sellCount = 0, transferInCount = 0, transferOutCount = 0;
+  let buyAmount = 0, sellAmount = 0;
+  let buyCount = 0, sellCount = 0;
   yearShares.forEach(s => {
     const ty = String(s.type || '').toLowerCase();
     const amt = getShareAmount(s);
     const cnt = getShareCount(s);
     if (BUY_SHARE_TYPES.includes(ty)) { buyAmount += amt; buyCount += cnt; }
     else if (SELL_SHARE_TYPES.includes(ty)) { sellAmount += amt; sellCount += cnt; }
-    else if (IN_SHARE_TYPES.includes(ty)) { transferIn += amt; transferInCount += cnt; }
-    else if (OUT_SHARE_TYPES.includes(ty)) { transferOut += amt; transferOutCount += cnt; }
-    else { buyAmount += amt; buyCount += cnt; }
   });
   return {
-    shareBuyAmount: round2(buyAmount + transferIn),
+    shareBuyAmount: round2(buyAmount),
     shareSellAmount: round2(sellAmount),
-    netShareValue: round2(buyAmount - sellAmount + transferIn - transferOut),
-    shareCount: buyCount - sellCount + transferInCount - transferOutCount,
-    buyCount, sellCount, transferInCount, transferOutCount,
+    netShareValue: round2(buyAmount - sellAmount),
+    shareCount: buyCount - sellCount,
+    buyCount, sellCount,
     totalTxns: yearShares.length
   };
 }
+/* FIX: same rule for all-years */
 function computeSharesAllYears() {
   const { districtId, branchId } = APP.workarea;
   const district = APP.districts.find(d => d.id === districtId);
@@ -1645,7 +1655,7 @@ function computeSharesAllYears() {
     return true;
   };
   const all = getAllSharesInScope().filter(s => isShareCounted(s) && inScope(s));
-  let buyAmount = 0, sellAmount = 0, transferIn = 0, transferOut = 0;
+  let buyAmount = 0, sellAmount = 0;
   let netCount = 0;
   all.forEach(s => {
     const ty = String(s.type || '').toLowerCase();
@@ -1653,14 +1663,11 @@ function computeSharesAllYears() {
     const cnt = getShareCount(s);
     if (BUY_SHARE_TYPES.includes(ty)) { buyAmount += amt; netCount += cnt; }
     else if (SELL_SHARE_TYPES.includes(ty)) { sellAmount += amt; netCount -= cnt; }
-    else if (IN_SHARE_TYPES.includes(ty)) { transferIn += amt; netCount += cnt; }
-    else if (OUT_SHARE_TYPES.includes(ty)) { transferOut += amt; netCount -= cnt; }
-    else { buyAmount += amt; netCount += cnt; }
   });
   return {
-    shareBuyAmount: round2(buyAmount + transferIn),
+    shareBuyAmount: round2(buyAmount),
     shareSellAmount: round2(sellAmount),
-    netShareValue: round2(buyAmount - sellAmount + transferIn - transferOut),
+    netShareValue: round2(buyAmount - sellAmount),
     shareCount: netCount,
     totalTxns: all.length
   };
@@ -1754,7 +1761,7 @@ function computeYearNumbers() {
 
 /* ============================================================
    ALL-YEARS aggregation
-   FIX: SACCO Capital (All Years) = gross allocations − service withdrawals
+   SACCO Capital (All Years) = gross allocations − service withdrawals
    ============================================================ */
 function computeAllYearNumbers() {
   const savingsAll = filterWorkareaTxns(APP.txn.savings).filter(isSavingsCounted);
@@ -1889,7 +1896,6 @@ function renderStatsValues() {
     setStat('s-netShare-count', fmtCount(A.shareCountAll));
     setStat('s-netShare-buy',   moneyFull(A.shareBuyAll));
 
-    /* FIX — hint now shows the gross − svc = net breakdown */
     setHint('s-saccoCapAll',
       `<span style="font-family:ui-monospace,monospace;font-size:10.5px">` +
       `Gross ${esc(money(A.saccoCapitalAllGross))} − Svc ${esc(money(A.svcAll))} = ${esc(money(A.saccoCapitalAll))}` +
@@ -1913,6 +1919,7 @@ function monthlySum(list, year) {
   });
   return out;
 }
+/* FIX: only buy/sell (no fallback); everything matches the totals above */
 function monthlySumShare(shares, year, type) {
   const out = new Array(12).fill(0);
   shares.forEach(s => {
@@ -1920,8 +1927,8 @@ function monthlySumShare(shares, year, type) {
     if (!d || d.getFullYear() !== year) return;
     const ty = String(s.type || '').toLowerCase();
     const amt = getShareAmount(s);
-    const isBuy = BUY_SHARE_TYPES.includes(ty) || IN_SHARE_TYPES.includes(ty) || (!SELL_SHARE_TYPES.includes(ty) && !OUT_SHARE_TYPES.includes(ty));
-    const isSell = SELL_SHARE_TYPES.includes(ty) || OUT_SHARE_TYPES.includes(ty);
+    const isBuy  = BUY_SHARE_TYPES.includes(ty);
+    const isSell = SELL_SHARE_TYPES.includes(ty);
     if (type === 'net') out[d.getMonth()] += (isBuy ? amt : 0) - (isSell ? amt : 0);
     else if (type === 'buy' && isBuy) out[d.getMonth()] += amt;
   });
