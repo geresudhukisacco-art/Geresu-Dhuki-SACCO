@@ -449,9 +449,7 @@ const LOGO_URL  = "../images/logo.png";
 const DEFAULT_SACCO_NAME = 'GERESU DHUKI SACCO';
 const PROFILE_CACHE_KEY = 'sacco.profile';
 
-/* ============================================================
-   SESSION — fixed
-============================================================ */
+/* SESSION */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
 let SESSION_MINUTES = null;
@@ -493,6 +491,7 @@ function writeCachedProfile() {
       photoURL: APP.profile.photoURL || null,
       districtId: APP.profile.districtId || '',
       districtName: APP.profile.districtName || '',
+      districtCode: APP.profile.districtCode || '',
       branchId: APP.profile.branchId || '',
       branchName: APP.profile.branchName || ''
     };
@@ -555,9 +554,7 @@ async function loadSessionTimeout() {
   } catch (e) {}
 }
 
-/* ============================================================
-   TRANSLATIONS
-============================================================ */
+/* TRANSLATIONS */
 const I18N = {
   en: {
     brandSub: 'SACCO Management',
@@ -568,7 +565,7 @@ const I18N = {
     loans: 'Loans', repayments: 'Repayments', withdrawals: 'Withdrawals',
     dividends: 'Dividends', shares: 'Shares', reports: 'Reports',
     penalties: 'Penalties', audit: 'Audit Trail', users: 'Users', settings: 'Settings',
-    role_super_admin: 'Super Admin', role_admin: 'Admin', role_manager: 'Manager',
+    role_super_admin: 'Super Admin', role_admin: 'District Admin', role_manager: 'Manager',
     role_cashier: 'Cashier', role_member: 'Member', role_auditor: 'Auditor',
     logout: 'Sign out',
     pageTitle: 'Districts',
@@ -811,24 +808,57 @@ function renderBrandTitle(name){
   return esc(head) + ' <span class="sacco-gold">' + esc(tail) + '</span>';
 }
 
+/* ============================================================
+   ROLE HELPERS — single source of truth
+   super_admin  → all districts, create + edit + delete + view
+   admin        → own district only, edit + view (NO create / delete)
+   auditor      → all districts, view only
+   manager      → NO access to this page (branch-level only)
+   cashier      → NO access to this page (branch-level only)
+   member       → NO access to this page
+   ============================================================ */
 const ROLES = {
   super_admin: 'role_super_admin', admin: 'role_admin', manager: 'role_manager',
   cashier: 'role_cashier', auditor: 'role_auditor', member: 'role_member'
 };
 const roleLabel = (r) => ROLES[r] ? t(ROLES[r]) : (r || '').replace(/_/g,' ');
+
 const isSuper   = () => APP.profile?.role === 'super_admin';
 const isAdmin   = () => APP.profile?.role === 'admin';
 const isAuditor = () => APP.profile?.role === 'auditor';
-const canView   = () => isSuper() || isAdmin() || isAuditor();
+const isManager = () => APP.profile?.role === 'manager';
+const isCashier = () => ['cashier','teller','accountant'].includes(APP.profile?.role);
+const isMember  = () => APP.profile?.role === 'member';
 
+/* Page access — only super / admin / auditor */
+const canView = () => isSuper() || isAdmin() || isAuditor();
+
+/* Only super can create */
 const canCreateDistrict = () => isSuper();
-const canEditDistrict = (d) => {
-  if (!d || !APP.profile) return false;
-  if (isSuper()) return true;
-  if (isAdmin()) return _matchesDistrict(d, { id: APP.profile.districtId, code: APP.profile.districtCode, name: APP.profile.districtName });
-  return false;
-};
+
+/* Only super can delete */
 const canDeleteDistrict = () => isSuper();
+
+/* Scope predicate — does this specific district belong to the current user? */
+function inScopeDistrict(d) {
+  if (!d || !APP.profile) return false;
+  if (isSuper() || isAuditor()) return true;
+  if (isAdmin()) {
+    const p = APP.profile || {};
+    const targets = [p.districtId, p.districtCode, p.districtName].filter(Boolean);
+    if (!targets.length) return false;
+    return targets.includes(d.id) || targets.includes(d.code) || targets.includes(d.name);
+  }
+  return false;
+}
+
+/* Per-district permission — super (any) / admin (own district only) */
+function canEditDistrict(d) {
+  if (!d) return false;
+  if (isSuper()) return true;
+  if (isAdmin()) return inScopeDistrict(d);
+  return false;
+}
 
 const APP = {
   user: null,
@@ -855,16 +885,14 @@ function _matchesDistrict(record, district) {
       || keys.includes(record.districtCode)
       || keys.includes(record.district);
 }
+
+/* Scope districts list — super/auditor see all, admin sees own only */
 function scopeDistricts() {
   if (isSuper() || isAuditor()) return APP.districts.slice();
   if (!isAdmin()) return [];
-  const p = APP.profile || {};
-  const target = p.districtId || p.districtCode || p.districtName;
-  if (!target) return [];
-  return APP.districts.filter(d =>
-    d.id === target || d.code === target || d.name === target
-  );
+  return APP.districts.filter(d => inScopeDistrict(d));
 }
+
 function branchCount(district)   { return APP.branches .filter(b => _matchesDistrict(b, district)).length; }
 function customerCount(district) { return APP.customers.filter(c => _matchesDistrict(c, district)).length; }
 
@@ -877,7 +905,7 @@ function navDef() {
       { key:'districts', label: t('districts'), icon:'fa-map-marked-alt', href:'districts.html',
         roles:['super_admin','admin','auditor'] },
       { key:'branches',  label: t('branches'),  icon:'fa-code-branch',    href:'branches.html',
-        roles:['super_admin','admin','auditor'] }
+        roles:['super_admin','admin','auditor','manager','cashier'] }
     ]},
     { section: t('navOperations'), items: [
       { key:'customers', label: t('customers'), icon:'fa-users',        href:'customers.html',
@@ -1380,6 +1408,7 @@ function debounce(fn, ms) {
   };
 }
 
+/* Every row action re-checks role AND scope on the specific district */
 function handleRowAction(action, id) {
   const d = APP.districts.find(x => x.id === id);
   if (!d) return;
@@ -1411,8 +1440,13 @@ function attachEscape() {
 /* ── District modal ───────────────────────────────────── */
 function openDistrictModal(district) {
   closeModal('districtModal');
-  APP.editingId = district?.id || null;
   const isEdit = !!district;
+
+  /* Guard at entry: role + scope */
+  if (isEdit && !canEditDistrict(district)) { toast(t('noPermission'), 'error'); return; }
+  if (!isEdit && !canCreateDistrict())      { toast(t('noPermission'), 'error'); return; }
+
+  APP.editingId = district?.id || null;
   const d = district || {};
 
   const root = document.createElement('div');
@@ -1489,17 +1523,18 @@ async function saveDistrict() {
 
   if (!name || !code) { toast(t('requiredFields'), 'warning'); return; }
 
-  const dup = APP.districts.find(d =>
-    (d.code || '').toString().toUpperCase() === code && d.id !== APP.editingId
-  );
-  if (dup) { toast(t('duplicateCode'), 'warning'); return; }
-
+  /* Role check — edit vs create */
   if (APP.editingId) {
     const target = APP.districts.find(x => x.id === APP.editingId);
     if (!canEditDistrict(target)) { toast(t('noPermission'), 'error'); return; }
   } else if (!canCreateDistrict()) {
     toast(t('noPermission'), 'error'); return;
   }
+
+  const dup = APP.districts.find(d =>
+    (d.code || '').toString().toUpperCase() === code && d.id !== APP.editingId
+  );
+  if (dup) { toast(t('duplicateCode'), 'warning'); return; }
 
   const saveBtn = $('saveDistrictBtn');
   if (saveBtn) {
@@ -1600,6 +1635,9 @@ function openDeleteModal(district) {
 
   btn?.addEventListener('click', async () => {
     if (hasRefs && !check?.checked) return;
+    /* Defence in depth — re-verify before delete */
+    const original = APP.districts.find(x => x.id === APP.deletingId);
+    if (!canDeleteDistrict(original)) { toast(t('noPermission'), 'error'); return; }
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + esc(t('loading'));
     try {
@@ -1732,6 +1770,7 @@ function stopListeners() {
       photoURL: cachedProfile.photoURL || null,
       districtId: cachedProfile.districtId || '',
       districtName: cachedProfile.districtName || '',
+      districtCode: cachedProfile.districtCode || '',
       branchId: cachedProfile.branchId || '',
       branchName: cachedProfile.branchName || ''
     };
@@ -1746,7 +1785,7 @@ function stopListeners() {
       email: sessionStorage.getItem('email') || '',
       fullName: sessionStorage.getItem('userName') || 'User',
       photoURL: null,
-      districtId: '', districtName: '', branchId: '', branchName: ''
+      districtId: '', districtName: '', districtCode: '', branchId: '', branchName: ''
     };
     renderShell();
     renderMain();
@@ -1785,11 +1824,19 @@ function stopListeners() {
     return;
   }
 
+  /* Members, managers and cashiers do NOT have access to districts page */
+  if (isMember() || isManager() || isCashier()) {
+    window.location.replace('dashboard.html');
+    return;
+  }
+
   const profileChanged = !rendered ||
     (cachedProfile && (
       (cachedProfile.name !== (APP.profile.fullName || APP.profile.name)) ||
       cachedProfile.role !== APP.profile.role ||
-      cachedProfile.photoURL !== APP.profile.photoURL
+      cachedProfile.photoURL !== APP.profile.photoURL ||
+      cachedProfile.districtId !== APP.profile.districtId ||
+      cachedProfile.districtCode !== APP.profile.districtCode
     ));
   if (profileChanged) { renderShell(); renderMain(); }
   hideLoaderNow();
@@ -1809,7 +1856,7 @@ function stopListeners() {
   attachListeners();
 })();
 
-console.log('[sacco] districts page ready — session fix, cached render, full translations');
+console.log('[sacco] districts page ready — role-based access control applied');
 </script>
 
 </body>
