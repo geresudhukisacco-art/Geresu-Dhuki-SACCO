@@ -139,6 +139,7 @@ html.theme-dark .main{background:#0b1220;}
 .scope-badge--district{background:linear-gradient(135deg,#fdf5e0,#fff);border-color:#f0dcb0;color:#b8860b;}
 .scope-badge--branch{background:linear-gradient(135deg,#ecfdf3,#fff);border-color:#abefc6;color:#067647;}
 .scope-badge--self{background:linear-gradient(135deg,#f1f5f9,#fff);border-color:#cbd5e1;color:#334155;}
+.scope-badge--audit{background:linear-gradient(135deg,#fef3f2,#fff);border-color:#fecdca;color:#b42318;}
 .breadcrumb{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 20px;margin-bottom:20px;box-shadow:var(--sh-sm);font-size:13px;font-weight:700;}
 html.theme-dark .breadcrumb{background:#0f172a;border-color:#1e293b;}
 .breadcrumb__item{padding:6px 13px;border-radius:999px;background:var(--border-soft);color:var(--text-soft);}
@@ -548,9 +549,7 @@ const MOBILE_PROVIDERS = [
 const bankLabel = (code) => BANKS.find(b => b.code === code)?.name || code || '';
 const mobileProviderLabel = (code) => MOBILE_PROVIDERS.find(m => m.code === code)?.name || code || '';
 
-/* ============================================================
-   SESSION — fixed
-============================================================ */
+/* SESSION */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
 let SESSION_MINUTES = null;
@@ -640,9 +639,7 @@ async function loadSessionTimeout() {
   } catch(e){}
 }
 
-/* ============================================================
-   TRANSLATIONS
-============================================================ */
+/* TRANSLATIONS (kept short — same keys as before, all translations intact) */
 const I18N = {
   en: {
     brandSub:'SACCO Management', logout:'Sign out', loading:'Loading…',
@@ -714,7 +711,7 @@ const I18N = {
     logoutTitle:'Logout Confirmation', logoutText:'Are you sure you want to log out?',
     accessDenied:'You do not have permission to view this page.',
     accessDeniedText:'Only staff accounts can manage savings.',
-    backToDashboard:'Back to Dashboard', noPermission:'Permission denied. Check your Firestore rules.',
+    backToDashboard:'Back to Dashboard', noPermission:'Permission denied.',
     viewTitle:'Transaction Details', close:'Close',
     customerInfo:'Customer Information', txInfo:'Transaction Information',
     unknown:'Unknown', scopeAll:'All transactions',
@@ -839,7 +836,7 @@ const I18N = {
     logoutTitle:'የውጣ ማረጋገጫ', logoutText:'እርግጠኛ ነዎት መውጣት ይፈልጋሉ?',
     accessDenied:'ይህን ገጽ ለማየት ፈቃድ የለዎትም።',
     accessDeniedText:'ቁጠባን ማስተዳደር የሚችሉት የሰራተኛ መለያዎች ብቻ ናቸው።',
-    backToDashboard:'ወደ ዳሽቦርድ ተመለስ', noPermission:'ፈቃድ ተከልክሏል። የ Firestore ደንቦችን ያረጋግጡ።',
+    backToDashboard:'ወደ ዳሽቦርድ ተመለስ', noPermission:'ፈቃድ ተከልክሏል።',
     viewTitle:'የግብይት ዝርዝሮች', close:'ዝጋ',
     customerInfo:'የደንበኛ መረጃ', txInfo:'የግብይት መረጃ',
     unknown:'ያልታወቀ', scopeAll:'ሁሉም ግብይቶች',
@@ -964,7 +961,7 @@ const I18N = {
     logoutTitle:"Mirkaneessa Ba'uu", logoutText:"Dhuguma ba'uu barbaadda?",
     accessDenied:'Fuula kana ilaaluuf hayyama hin qabdu.',
     accessDeniedText:"Qusannaa bulchuu kan danda'an herregni hojjettootaa qofa.",
-    backToDashboard:"Gara Daashboordii Deebi'i", noPermission:'Hayyamni dhorkame. Seera Firestore ilaali.',
+    backToDashboard:"Gara Daashboordii Deebi'i", noPermission:'Hayyamni dhorkame.',
     viewTitle:'Ragaa Sochii', close:'Cufi',
     customerInfo:'Odeeffannoo Maamilaa', txInfo:'Odeeffannoo Sochii',
     unknown:'Hin beekamu', scopeAll:'Sochii hunda',
@@ -1114,16 +1111,44 @@ const ROLE_LABELS = {
   auditor:'role_auditor', member:'role_member', viewer:'role_member'
 };
 const roleLabel = (r) => t(ROLE_LABELS[r]) || (r||'').replace(/_/g,' ');
+
+/* ============================================================
+   ROLE HELPERS — single source of truth
+   super_admin → all districts, full access
+   admin       → own district, create / edit / approve / delete
+   manager     → own branch, view + approve only
+   cashier     → own branch, add + view only
+   member      → own record only
+   auditor     → all districts, view only
+   ============================================================ */
 const isSuper      = () => APP.profile?.role === 'super_admin';
 const isDistrict   = () => APP.profile?.role === 'admin';
 const isAuditor    = () => APP.profile?.role === 'auditor';
+const isManager    = () => APP.profile?.role === 'manager';
+const isCashier    = () => ['cashier','teller','accountant'].includes(APP.profile?.role);
 const isBranchRole = () => ['manager','cashier','teller','accountant'].includes(APP.profile?.role);
 const isMember     = () => APP.profile?.role === 'member';
-const canView      = () => isSuper() || isDistrict() || isBranchRole() || isAuditor() || isMember();
-const canManage    = () => isSuper() || isDistrict() || isBranchRole();
-const canApprove   = () => isSuper() || isDistrict() || APP.profile?.role === 'manager';
-const canDelete    = () => isSuper() || isDistrict();
-const canPrint     = () => isSuper() || isDistrict() || isBranchRole();
+
+const canView    = () => isSuper() || isDistrict() || isBranchRole() || isAuditor() || isMember();
+const canCreate  = () => isSuper() || isDistrict() || isCashier();      // NEW: cashier can add
+const canEdit    = () => isSuper() || isDistrict();                     // only super/admin edit
+const canApprove = () => isSuper() || isDistrict() || isManager();      // manager can approve
+const canDelete  = () => isSuper() || isDistrict();
+const canPrint   = () => isSuper() || isDistrict() || isManager() || isCashier();
+
+/* Scope check for a specific customer / tx — use in handlers */
+function inScopeCustomer(c) {
+  if (!c) return isSuper();
+  if (isSuper()) return true;
+  if (isAuditor()) return true;
+  if (isDistrict()) return c.districtId === APP.profile.districtId || c.district === APP.profile.districtId;
+  if (isManager() || isCashier()) return c.branchId === APP.profile.branchId;
+  if (isMember()) {
+    const p = APP.profile || {};
+    return c.userId === p.id || c.customerId === p.customerId || c.id === p.customerId;
+  }
+  return false;
+}
 
 function scopeCustomers() {
   if (!APP.profile) return [];
@@ -1518,7 +1543,7 @@ function renderScopeBadge() {
   if (!el) return;
   const p = APP.profile || {};
   if (isSuper()) el.innerHTML = `<span class="scope-badge scope-badge--super"><i class="fas fa-lock"></i> ${esc(t('fullSystem'))}</span>`;
-  else if (isAuditor()) el.innerHTML = `<span class="scope-badge scope-badge--super"><i class="fas fa-eye"></i> ${esc(t('auditorRole'))}</span>`;
+  else if (isAuditor()) el.innerHTML = `<span class="scope-badge scope-badge--audit"><i class="fas fa-eye"></i> ${esc(t('auditorRole'))} — ${esc(t('fullSystem'))}</span>`;
   else if (isDistrict()) el.innerHTML = `<span class="scope-badge scope-badge--district"><i class="fas fa-map-marked-alt"></i> ${esc(t('districtAdmin'))} · ${esc(p.districtName || '—')}</span>`;
   else if (isBranchRole()) el.innerHTML = `<span class="scope-badge scope-badge--branch"><i class="fas fa-code-branch"></i> ${esc(roleLabel(p.role))} · ${esc(p.branchName || '—')}</span>`;
   else if (isMember()) el.innerHTML = `<span class="scope-badge scope-badge--self"><i class="fas fa-user"></i> ${esc(p.customerCode || t('selfAccount'))}</span>`;
@@ -1555,7 +1580,7 @@ function renderWorkareaBar() {
           <select class="workarea-bar__select" id="waBranch" ${bLocked || !dVal ? 'disabled' : ''}>
             ${showAllB ? `<option value="">${esc(t('allBranches'))}</option>` : ''}
             ${!dVal && !showAllB ? `<option value="">—</option>` : ''}
-            ${branches.map(b => `<option value="${esc(b.id)}" ${b.id===bVal?'selected':''}>${esc(b.name || b.id)}</option>`).join('')}
+            ${branches.map(b => `<option value="${b.id}" ${b.id===bVal?'selected':''}>${esc(b.name || b.id)}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -1616,7 +1641,7 @@ function renderMain() {
         <div id="scope-badge"></div>
       </div>
       <div class="page-head__actions">
-        ${canManage() ? `<button class="btn btn--primary btn--sm" id="addTxBtn"><i class="fas fa-plus"></i> ${esc(t('addTransaction'))}</button>` : ''}
+        ${canCreate() ? `<button class="btn btn--primary btn--sm" id="addTxBtn"><i class="fas fa-plus"></i> ${esc(t('addTransaction'))}</button>` : ''}
       </div>
     </div>
     <div class="breadcrumb">
@@ -1779,7 +1804,7 @@ function renderContent() {
   else renderTableView(host, pageList, list.length, pages, start);
 }
 function renderTableView(host, pageList, total, pages, start) {
-  const canE = canManage(), canA = canApprove(), canD = canDelete(), canP = canPrint();
+  const canE = canEdit(), canA = canApprove(), canD = canDelete(), canP = canPrint();
   host.innerHTML = `
     <div class="tbl-wrap">
       <table class="tbl">
@@ -1798,6 +1823,7 @@ function renderTableView(host, pageList, total, pages, start) {
             const typeCls = isDep ? 'tag--green' : 'tag--red';
             const stCls = statusCls(tx.status);
             const isPending = String(tx.status || '').toLowerCase() === 'pending';
+            const scoped = inScopeCustomer(c);
             let refDisplay = tx.reference || tx.ref || tx.receiptNumber || '';
             if (tx.ttNumber) refDisplay = `<span style="font-family:ui-monospace,monospace;font-weight:800">${esc(tx.ttNumber)}</span>`;
             else if (tx.bankName) refDisplay = `<span style="font-size:11.5px">${esc(tx.bankName)}</span>`;
@@ -1823,12 +1849,12 @@ function renderTableView(host, pageList, total, pages, start) {
                 <td>${printBadgeHtml(tx)}</td>
                 <td class="num">
                   <div class="row-actions">
-                    ${canP ? `<button title="${esc(t('rowPrint'))}" data-action="print" data-id="${esc(tx.id)}" class="print"><i class="fas fa-print"></i></button>` : ''}
+                    ${(canP && scoped) ? `<button title="${esc(t('rowPrint'))}" data-action="print" data-id="${esc(tx.id)}" class="print"><i class="fas fa-print"></i></button>` : ''}
                     <button title="${esc(t('rowView'))}" data-action="view" data-id="${esc(tx.id)}"><i class="fas fa-eye"></i></button>
-                    ${canA && isPending ? `<button title="${esc(t('approve'))}" data-action="approve" data-id="${esc(tx.id)}" class="approve"><i class="fas fa-check"></i></button>` : ''}
-                    ${canA && isPending ? `<button title="${esc(t('reject'))}" data-action="reject" data-id="${esc(tx.id)}" class="danger"><i class="fas fa-times"></i></button>` : ''}
-                    ${canE ? `<button title="${esc(t('rowEdit'))}" data-action="edit" data-id="${esc(tx.id)}"><i class="fas fa-pen"></i></button>` : ''}
-                    ${canD ? `<button title="${esc(t('rowDelete'))}" data-action="delete" data-id="${esc(tx.id)}" class="danger"><i class="fas fa-trash"></i></button>` : ''}
+                    ${(canA && scoped && isPending) ? `<button title="${esc(t('approve'))}" data-action="approve" data-id="${esc(tx.id)}" class="approve"><i class="fas fa-check"></i></button>` : ''}
+                    ${(canA && scoped && isPending) ? `<button title="${esc(t('reject'))}" data-action="reject" data-id="${esc(tx.id)}" class="danger"><i class="fas fa-times"></i></button>` : ''}
+                    ${(canE && scoped) ? `<button title="${esc(t('rowEdit'))}" data-action="edit" data-id="${esc(tx.id)}"><i class="fas fa-pen"></i></button>` : ''}
+                    ${(canD && scoped) ? `<button title="${esc(t('rowDelete'))}" data-action="delete" data-id="${esc(tx.id)}" class="danger"><i class="fas fa-trash"></i></button>` : ''}
                   </div>
                 </td>
               </tr>`;
@@ -1840,7 +1866,7 @@ function renderTableView(host, pageList, total, pages, start) {
   wireContentEvents(host, pages);
 }
 function renderGridView(host, pageList, total, pages, start) {
-  const canE = canManage(), canA = canApprove(), canD = canDelete(), canP = canPrint();
+  const canE = canEdit(), canA = canApprove(), canD = canDelete(), canP = canPrint();
   const cards = pageList.map(tx => {
     const c = customerById(tx.customerId || tx.memberId);
     const avatar = c?.photoURL ? `<img src="${esc(c.photoURL)}" alt="" style="width:100%;height:100%;object-fit:cover">` : esc(initials(customerName(c)));
@@ -1850,16 +1876,17 @@ function renderGridView(host, pageList, total, pages, start) {
     const stLabel = st === 'approved' ? t('statusApproved') : st === 'rejected' ? t('statusRejected') : t('statusPending');
     const stCls = st === 'approved' ? 'approved' : st === 'rejected' ? 'rejected' : 'pending';
     const cardCls = st === 'approved' ? (isDep ? '' : 'tx-card--withdrawal') : st === 'rejected' ? 'tx-card--rejected' : 'tx-card--pending';
+    const scoped = inScopeCustomer(c);
     let refDisplay = tx.ttNumber || tx.bankName || tx.mobileProviderName || tx.reference || '—';
     let actions = '';
-    if (canP) actions += `<button title="${esc(t('rowPrint'))}" data-action="print" data-id="${esc(tx.id)}" class="print"><i class="fas fa-print"></i></button>`;
+    if (canP && scoped) actions += `<button title="${esc(t('rowPrint'))}" data-action="print" data-id="${esc(tx.id)}" class="print"><i class="fas fa-print"></i></button>`;
     actions += `<button title="${esc(t('rowView'))}" data-action="view" data-id="${esc(tx.id)}"><i class="fas fa-eye"></i></button>`;
-    if (canA && st === 'pending') {
+    if (canA && scoped && st === 'pending') {
       actions += `<button title="${esc(t('approve'))}" data-action="approve" data-id="${esc(tx.id)}" class="approve"><i class="fas fa-check"></i></button>`;
       actions += `<button title="${esc(t('reject'))}" data-action="reject" data-id="${esc(tx.id)}" class="danger"><i class="fas fa-times"></i></button>`;
     }
-    if (canE) actions += `<button title="${esc(t('rowEdit'))}" data-action="edit" data-id="${esc(tx.id)}"><i class="fas fa-pen"></i></button>`;
-    if (canD) actions += `<button title="${esc(t('rowDelete'))}" data-action="delete" data-id="${esc(tx.id)}" class="danger"><i class="fas fa-trash"></i></button>`;
+    if (canE && scoped) actions += `<button title="${esc(t('rowEdit'))}" data-action="edit" data-id="${esc(tx.id)}"><i class="fas fa-pen"></i></button>`;
+    if (canD && scoped) actions += `<button title="${esc(t('rowDelete'))}" data-action="delete" data-id="${esc(tx.id)}" class="danger"><i class="fas fa-trash"></i></button>`;
     return `
       <div class="tx-card ${cardCls}">
         <span class="tx-card__status tx-card__status--${stCls}">${esc(stLabel)}</span>
@@ -1977,18 +2004,56 @@ function printBadgeHtml(tx) {
   if (cnt === 1) return `<span class="tag tag--print-orig" style="font-size:9.5px"><i class="fas fa-certificate" style="font-size:8px"></i> ${esc(t('printedOriginal'))}</span>`;
   return `<span class="tag tag--print-copy" style="font-size:9.5px"><i class="fas fa-copy" style="font-size:8px"></i> ${esc(t('printedCopy'))}<span class="print-count-badge">×${cnt}</span></span>`;
 }
+
+/* ============================================================
+   ROW ACTION HANDLER — every action re-checks permission + scope
+   ============================================================ */
 function handleRowAction(action, id) {
   const tx = APP.transactions.find(x => x.id === id);
   if (!tx) return;
-  if (action === 'view') openViewModal(tx);
-  if (action === 'edit') openTxWizard(tx);
-  if (action === 'delete') openDeleteModal(tx);
-  if (action === 'approve') approveTx(tx);
-  if (action === 'reject') rejectTx(tx);
-  if (action === 'print') printSlip(tx);
+  const c = customerById(tx.customerId || tx.memberId);
+  const scoped = inScopeCustomer(c);
+
+  if (action === 'view') {
+    openViewModal(tx);
+    return;
+  }
+  if (action === 'edit') {
+    if (!canEdit()) { toast(t('noPermission'), 'error'); return; }
+    if (!scoped)    { toast(t('noPermission'), 'error'); return; }
+    openTxWizard(tx);
+    return;
+  }
+  if (action === 'delete') {
+    if (!canDelete()) { toast(t('noPermission'), 'error'); return; }
+    if (!scoped)      { toast(t('noPermission'), 'error'); return; }
+    openDeleteModal(tx);
+    return;
+  }
+  if (action === 'approve') {
+    if (!canApprove()) { toast(t('noPermission'), 'error'); return; }
+    if (!scoped)       { toast(t('noPermission'), 'error'); return; }
+    approveTx(tx);
+    return;
+  }
+  if (action === 'reject') {
+    if (!canApprove()) { toast(t('noPermission'), 'error'); return; }
+    if (!scoped)       { toast(t('noPermission'), 'error'); return; }
+    rejectTx(tx);
+    return;
+  }
+  if (action === 'print') {
+    if (!canPrint()) { toast(t('noPermission'), 'error'); return; }
+    if (!scoped)     { toast(t('noPermission'), 'error'); return; }
+    printSlip(tx);
+    return;
+  }
 }
+
 async function approveTx(tx) {
   if (!canApprove()) { toast(t('noPermission'), 'error'); return; }
+  const c = customerById(tx.customerId || tx.memberId);
+  if (!inScopeCustomer(c)) { toast(t('noPermission'), 'error'); return; }
   try {
     await updateDoc(doc(db, 'transactions', tx.id), {
       status: 'approved', approvedAt: serverTimestamp(),
@@ -2002,6 +2067,8 @@ async function approveTx(tx) {
 }
 async function rejectTx(tx) {
   if (!canApprove()) { toast(t('noPermission'), 'error'); return; }
+  const c = customerById(tx.customerId || tx.memberId);
+  if (!inScopeCustomer(c)) { toast(t('noPermission'), 'error'); return; }
   if (!confirm(t('reject') + '?')) return;
   try {
     await updateDoc(doc(db, 'transactions', tx.id), {
@@ -2163,6 +2230,9 @@ function openWizard({ title, subtitle, finishLabel, steps, initial = {}, onFinis
 
 function openTxWizard(tx) {
   const isEdit = !!tx;
+  /* Permission check at entry */
+  if (isEdit && !canEdit())   { toast(t('noPermission'), 'error'); return; }
+  if (!isEdit && !canCreate()) { toast(t('noPermission'), 'error'); return; }
   const t0 = tx || {};
 
   const initial = {
@@ -2658,8 +2728,15 @@ function openTxWizard(tx) {
       }
     ],
     onFinish: async (d) => {
+      /* Re-check permissions defensively */
+      if (isEdit && !canEdit())   throw new Error(t('noPermission'));
+      if (!isEdit && !canCreate()) throw new Error(t('noPermission'));
+
       const c = customerById(d.customerId);
       if (!c) throw new Error('Customer no longer exists.');
+      /* Scope check on the customer being acted upon */
+      if (!inScopeCustomer(c)) throw new Error(t('noPermission'));
+
       const amt = num(d.amount);
       if (amt <= 0) throw new Error(t('invalidAmount'));
       if (d.type === 'deposit' && minSavingsAmount > 0 && amt < minSavingsAmount)
@@ -2770,6 +2847,7 @@ function openViewModal(tx) {
   const type = String(tx.type || '').toLowerCase();
   const isDep = type === 'savings' || type === 'deposit';
   const isPending = String(tx.status || '').toLowerCase() === 'pending';
+  const scoped = inScopeCustomer(c);
 
   const root = document.createElement('div');
   root.className = 'modal-backdrop';
@@ -2813,12 +2891,12 @@ function openViewModal(tx) {
       <div class="modal__foot">
         <button class="btn" data-close>${esc(t('close'))}</button>
         <div class="spacer"></div>
-        ${canApprove() && isPending ? `
+        ${(canApprove() && scoped && isPending) ? `
           <button class="btn btn--danger" id="view-reject-btn"><i class="fas fa-times"></i> ${esc(t('reject'))}</button>
           <button class="btn btn--success" id="view-approve-btn"><i class="fas fa-check"></i> ${esc(t('approve'))}</button>
         ` : ''}
-        ${canPrint() ? `<button class="btn" id="view-print-btn" style="border-color:#f0dcb0;color:#b8860b"><i class="fas fa-print"></i> ${esc(t('printSlip'))}</button>` : ''}
-        ${canManage() ? `<button class="btn btn--primary" id="view-edit-btn"><i class="fas fa-pen"></i> ${esc(t('rowEdit'))}</button>` : ''}
+        ${(canPrint() && scoped) ? `<button class="btn" id="view-print-btn" style="border-color:#f0dcb0;color:#b8860b"><i class="fas fa-print"></i> ${esc(t('printSlip'))}</button>` : ''}
+        ${(canEdit() && scoped) ? `<button class="btn btn--primary" id="view-edit-btn"><i class="fas fa-pen"></i> ${esc(t('rowEdit'))}</button>` : ''}
       </div>
     </div>`;
   document.body.appendChild(root);
@@ -2936,6 +3014,8 @@ function buildSlipHtml(tx, watermarkText) {
 async function printSlip(tx) {
   if (!tx) return;
   if (!canPrint()) { toast(t('noPermission'), 'error'); return; }
+  const c = customerById(tx.customerId || tx.memberId);
+  if (!inScopeCustomer(c)) { toast(t('noPermission'), 'error'); return; }
   const prevCount = Number(tx.printCount || 0);
   const newCount = prevCount + 1;
   const watermarkText = newCount === 1 ? t('original') : t('copy');
@@ -2990,6 +3070,7 @@ function openDeleteModal(tx) {
   closeModal();
   if (!canDelete()) { toast(t('noPermission'), 'error'); return; }
   const c = customerById(tx.customerId || tx.memberId);
+  if (!inScopeCustomer(c)) { toast(t('noPermission'), 'error'); return; }
   const amt = num(tx.amount);
   const isDep = String(tx.type || '').toLowerCase() === 'savings' || String(tx.type || '').toLowerCase() === 'deposit';
   const root = document.createElement('div');
@@ -3096,9 +3177,7 @@ function stopListeners() {
   APP.unsubs = [];
 }
 
-/* ============================================================
-   BOOT — instant render from cached profile, then auth + data
-============================================================ */
+/* BOOT */
 (async function boot() {
   let saved = null;
   try { saved = localStorage.getItem(LANG_KEY); } catch(e){}
@@ -3227,7 +3306,7 @@ function stopListeners() {
   attachListeners();
 })();
 
-console.log('[sacco] savings page ready — session fix, cached render, full translations');
+console.log('[sacco] savings page ready — role-based access control applied');
 </script>
 </body>
 </html>
