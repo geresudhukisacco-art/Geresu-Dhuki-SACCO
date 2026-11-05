@@ -444,9 +444,7 @@ const LOGO_URL  = "../images/logo.png";
 const DEFAULT_SACCO_NAME = 'GERESU DHUKI SACCO';
 const PROFILE_CACHE_KEY = 'sacco.profile';
 
-/* ============================================================
-   SESSION — fixed
-============================================================ */
+/* SESSION */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
 let SESSION_MINUTES = null;
@@ -536,9 +534,7 @@ async function loadSessionTimeout() {
   } catch (e) {}
 }
 
-/* ============================================================
-   TRANSLATIONS
-============================================================ */
+/* TRANSLATIONS */
 const I18N = {
   en: {
     brandSub:'SACCO Management',
@@ -547,7 +543,7 @@ const I18N = {
     savings:'Savings', deposits:'Deposits', loans:'Loans', repayments:'Repayments',
     withdrawals:'Withdrawals', dividends:'Dividends', shares:'Shares', reports:'Reports',
     penalties:'Penalties', audit:'Audit Trail', users:'Users', settings:'Settings',
-    role_super_admin:'Super Admin', role_admin:'Admin', role_manager:'Manager',
+    role_super_admin:'Super Admin', role_admin:'District Admin', role_manager:'Manager',
     role_cashier:'Cashier', role_member:'Member', role_auditor:'Auditor', logout:'Sign out',
     pageTitle:'Branches', pageSub:'Manage branches across all districts',
     breadcrumbHome:'Dashboard', breadcrumbDistricts:'Districts', breadcrumbBranches:'Branches',
@@ -746,15 +742,59 @@ function renderBrandTitle(name){
   return esc(head) + ' <span class="sacco-gold">' + esc(tail) + '</span>';
 }
 
+/* ============================================================
+   ROLE HELPERS — single source of truth
+   super_admin → all districts, full access
+   admin       → own district, create / edit / delete / view
+   manager     → own branch, view only (no CRUD)
+   cashier     → own branch, view only (no CRUD)
+   auditor     → all districts, view only
+   member      → no access (redirected)
+   ============================================================ */
 const ROLES = { super_admin:'role_super_admin', admin:'role_admin', manager:'role_manager', cashier:'role_cashier', auditor:'role_auditor', member:'role_member' };
 const roleLabel = (r) => ROLES[r] ? t(ROLES[r]) : (r || '').replace(/_/g,' ');
+
 const isSuper    = () => APP.profile?.role === 'super_admin';
 const isAdmin    = () => APP.profile?.role === 'admin';
 const isManager  = () => APP.profile?.role === 'manager';
-const isCashier  = () => APP.profile?.role === 'cashier';
+const isCashier  = () => ['cashier','teller','accountant'].includes(APP.profile?.role);
 const isAuditor  = () => APP.profile?.role === 'auditor';
+const isMember   = () => APP.profile?.role === 'member';
+
+/* Page access (member is not allowed on this page) */
 const canView    = () => isSuper() || isAdmin() || isAuditor() || isManager() || isCashier();
-const canEdit    = () => isSuper() || isAdmin();
+
+/* Role-level permission: only super + admin can create / edit / delete */
+const canCreateRole = () => isSuper() || isAdmin();
+
+/* Branch-level scope check — is this specific branch in the user's reach? */
+function inScopeBranch(b) {
+  if (!b || !APP.profile) return false;
+  if (isSuper() || isAuditor()) return true;
+  if (isAdmin()) {
+    const p = APP.profile || {};
+    const target = p.districtId || p.districtCode || p.districtName;
+    if (!target) return false;
+    const keys = [b.districtId, b.districtCode, b.districtName].filter(Boolean);
+    return keys.includes(target);
+  }
+  if (isManager() || isCashier()) {
+    const p = APP.profile || {};
+    const target = p.branchId || p.branchCode || p.branchName;
+    if (!target) return false;
+    return b.id === target || b.code === target || b.name === target;
+  }
+  return false;
+}
+
+/* Per-branch edit/delete — super all, admin own district, others NO */
+function canEditBranch(b) {
+  if (!b) return false;
+  if (isSuper()) return true;
+  if (isAdmin()) return inScopeBranch(b);
+  return false;
+}
+function canDeleteBranch(b) { return canEditBranch(b); }
 
 const APP = {
   user: null, profile: null,
@@ -1022,7 +1062,7 @@ function renderMain() {
         <p class="page-head__sub">${esc(t('pageSub'))}</p>
       </div>
       <div class="page-head__actions">
-        ${canEdit() ? `
+        ${canCreateRole() ? `
           <button class="btn btn--primary btn--sm" id="addBranchBtn">
             <i class="fas fa-plus"></i> ${esc(t('addBranch'))}
           </button>` : ''}
@@ -1157,7 +1197,8 @@ function renderGridView(host, list) {
 function renderBranchCard(b) {
   const cc = customerCount(b);
   const savings = branchSavings(b);
-  const canE = canEdit();
+  /* Per-branch permission — NOT global canEdit */
+  const canE = canEditBranch(b);
   const dName = liveDistrictName(b);
 
   return `
@@ -1203,7 +1244,8 @@ function renderTableView(host, list) {
   if (APP.page > pages) APP.page = pages;
   const start = (APP.page - 1) * APP.pageSize;
   const pageList = list.slice(start, start + APP.pageSize);
-  const canE = canEdit();
+  /* Column presence: only show Actions column if at least one row is editable */
+  const anyEditable = pageList.some(b => canEditBranch(b));
 
   host.innerHTML = `
     <div class="tbl-wrap">
@@ -1214,12 +1256,13 @@ function renderTableView(host, list) {
           <th>${esc(t('colDistrict'))}</th>
           <th>${esc(t('colCustomers'))}</th>
           <th>${esc(t('colCreated'))}</th>
-          ${canE ? `<th class="num">${esc(t('colActions'))}</th>` : ''}
+          ${anyEditable ? `<th class="num">${esc(t('colActions'))}</th>` : ''}
         </tr></thead>
         <tbody>
           ${pageList.map(b => {
             const cc = customerCount(b);
             const dName = liveDistrictName(b);
+            const canE = canEditBranch(b);
             return `
               <tr>
                 <td>${b.code ? `<span class="code">${esc(b.code)}</span>` : '<span class="muted">—</span>'}</td>
@@ -1227,11 +1270,13 @@ function renderTableView(host, list) {
                 <td>${b.districtId ? `<span class="district-pill"><i class="fas fa-map-marked-alt"></i> ${esc(dName)}</span>` : '<span class="muted">—</span>'}</td>
                 <td><span class="cust-pill"><i class="fas fa-users"></i> ${cc}</span></td>
                 <td>${esc(fmtDate(b.createdAt))}</td>
-                ${canE ? `
+                ${anyEditable ? `
                   <td class="num">
                     <div class="row-actions">
-                      <button title="${esc(t('rowEdit'))}" data-action="edit" data-id="${esc(b.id)}"><i class="fas fa-pen"></i></button>
-                      <button title="${esc(t('rowDelete'))}" data-action="delete" data-id="${esc(b.id)}" class="danger"><i class="fas fa-trash"></i></button>
+                      ${canE ? `
+                        <button title="${esc(t('rowEdit'))}" data-action="edit" data-id="${esc(b.id)}"><i class="fas fa-pen"></i></button>
+                        <button title="${esc(t('rowDelete'))}" data-action="delete" data-id="${esc(b.id)}" class="danger"><i class="fas fa-trash"></i></button>
+                      ` : ''}
                     </div>
                   </td>` : ''}
               </tr>`;
@@ -1297,11 +1342,19 @@ function debounce(fn, ms) {
     _debTimer = setTimeout(() => fn.apply(this, args), ms);
   };
 }
+
+/* Every row action re-checks role AND scope */
 function handleRowAction(action, id) {
   const b = APP.branches.find(x => x.id === id);
   if (!b) return;
-  if (action === 'edit')   { if (!canEdit()) { toast(t('noPermission'),'error'); return; } openBranchModal(b); }
-  if (action === 'delete') { if (!canEdit()) { toast(t('noPermission'),'error'); return; } openDeleteModal(b); }
+  if (action === 'edit') {
+    if (!canEditBranch(b)) { toast(t('noPermission'),'error'); return; }
+    openBranchModal(b);
+  }
+  if (action === 'delete') {
+    if (!canDeleteBranch(b)) { toast(t('noPermission'),'error'); return; }
+    openDeleteModal(b);
+  }
 }
 
 let escHandler = null;
@@ -1321,8 +1374,12 @@ function attachEscape() {
 
 function openBranchModal(branch) {
   closeModal('branchModal');
-  APP.editingId = branch?.id || null;
   const isEdit = !!branch;
+  /* Guard at entry: role + scope */
+  if (isEdit && !canEditBranch(branch)) { toast(t('noPermission'), 'error'); return; }
+  if (!isEdit && !canCreateRole())      { toast(t('noPermission'), 'error'); return; }
+
+  APP.editingId = branch?.id || null;
   const b = branch || {};
 
   const districts = assignableDistricts();
@@ -1398,14 +1455,27 @@ async function saveBranch() {
   const code = $('bCode').value.trim().toUpperCase();
   const notes = $('bNotes').value.trim();
 
+  /* Role check */
+  const isEdit = !!APP.editingId;
+  if (!isEdit && !canCreateRole())   { toast(t('noPermission'),'error'); return; }
+  if (isEdit) {
+    const original = APP.branches.find(x => x.id === APP.editingId);
+    if (!canEditBranch(original)) { toast(t('noPermission'),'error'); return; }
+  }
+
   if (!districtId) { toast(t('noDistrictSelected'), 'warning'); return; }
   if (!name || !code) { toast(t('requiredFields'), 'warning'); return; }
+
+  /* Admin scope guard: districtId must match their own district */
+  if (isAdmin()) {
+    const p = APP.profile || {};
+    const target = p.districtId || p.districtCode || p.districtName;
+    if (target && districtId !== target) { toast(t('noPermission'),'error'); return; }
+  }
 
   const dup = APP.branches.find(b =>
     (b.code || '').toString().toUpperCase() === code && b.id !== APP.editingId);
   if (dup) { toast(t('duplicateCode'), 'warning'); return; }
-
-  if (!canEdit()) { toast(t('noPermission'), 'error'); return; }
 
   const saveBtn = $('saveBranchBtn');
   if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + esc(t('loading')); }
@@ -1445,7 +1515,7 @@ async function saveBranch() {
 
 function openDeleteModal(branch) {
   closeModal('deleteModal');
-  if (!canEdit()) { toast(t('noPermission'), 'error'); return; }
+  if (!canDeleteBranch(branch)) { toast(t('noPermission'), 'error'); return; }
   APP.deletingId = branch.id;
   const cc = customerCount(branch);
   const hasRefs = cc > 0;
@@ -1503,6 +1573,9 @@ function openDeleteModal(branch) {
 
   btn?.addEventListener('click', async () => {
     if (hasRefs && !check?.checked) return;
+    /* Defence in depth: re-check scope and role before deleting */
+    const original = APP.branches.find(x => x.id === APP.deletingId);
+    if (!canDeleteBranch(original)) { toast(t('noPermission'),'error'); return; }
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + esc(t('loading'));
     try {
@@ -1585,9 +1658,7 @@ function stopListeners() {
   APP.unsubs = [];
 }
 
-/* ════════════════════════════════════════════════════════════
-   BOOT — instant render from cache, then auth + background load
-════════════════════════════════════════════════════════════ */
+/* BOOT */
 (async function boot() {
   let saved = null;
   try { saved = localStorage.getItem(LANG_KEY); } catch(e){}
@@ -1668,6 +1739,9 @@ function stopListeners() {
     return;
   }
 
+  /* Members are not allowed on this page */
+  if (isMember()) { window.location.replace('dashboard.html'); return; }
+
   const profileChanged = !rendered ||
     (cachedProfile && (
       (cachedProfile.name !== (APP.profile.fullName || APP.profile.name)) ||
@@ -1692,7 +1766,7 @@ function stopListeners() {
   attachListeners();
 })();
 
-console.log('[sacco] branches page ready — session fix, cached render, full translations');
+console.log('[sacco] branches page ready — role-based access control applied');
 </script>
 
 </body>
