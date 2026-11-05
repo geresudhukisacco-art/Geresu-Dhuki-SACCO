@@ -171,6 +171,7 @@ html.theme-dark .main{background:#0b1220;}
 .scope-badge--district{background:linear-gradient(135deg,#fdf5e0,#fff);border-color:#f0dcb0;color:#b8860b;}
 .scope-badge--branch{background:linear-gradient(135deg,#ecfdf3,#fff);border-color:#abefc6;color:#067647;}
 .scope-badge--self{background:linear-gradient(135deg,#f1f5f9,#fff);border-color:#cbd5e1;color:#334155;}
+.scope-badge--audit{background:linear-gradient(135deg,#fef3f2,#fff);border-color:#fecdca;color:#b42318;}
 .breadcrumb{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fff;border:1px solid var(--border);
   border-radius:var(--r-lg);padding:14px 20px;margin-bottom:20px;box-shadow:var(--sh-sm);font-size:13px;font-weight:700;}
 html.theme-dark .breadcrumb{background:#0f172a;border-color:#1e293b;}
@@ -242,6 +243,7 @@ html.theme-dark .stat{background:#0f172a;border-color:#1e293b;}
 .district-chip--more{padding:4px 10px;font-size:10.5px;color:var(--muted);background:transparent;border-style:dashed;}
 .district-chips__empty{font-size:11px;color:var(--muted);font-style:italic;}
 .grid-2{display:grid;grid-template-columns:1.5fr 1fr;gap:22px;margin-bottom:24px;}
+.grid-2--single{grid-template-columns:1fr;}
 @media (max-width:1100px){.grid-2{grid-template-columns:1fr;}}
 .card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--sh-sm);overflow:hidden;}
 html.theme-dark .card{background:#0f172a;border-color:#1e293b;}
@@ -366,7 +368,7 @@ html.theme-dark .tbl tbody tr:hover td{background:#111a2c;}
 import { initializeApp } from "firebase/app";
 import { getAuth, signOut, onAuthStateChanged } from "firebase/auth";
 import {
-  getFirestore, doc, getDoc, collection, query, where, orderBy,
+  getFirestore, doc, getDoc, collection, query, where,
   limit, getDocs
 } from "firebase/firestore";
 
@@ -388,9 +390,7 @@ const DEFAULT_SACCO_NAME = 'GERESU DHUKI SACCO';
 const PROFILE_CACHE_KEY = 'sacco.profile';
 let S = null;
 
-/* ============================================================
-   SESSION
-============================================================ */
+/* SESSION */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
 let SESSION_MINUTES = null;
@@ -399,7 +399,6 @@ let awayStartedAt = null, awayCheckInterval = null;
 function readSession() { try { const r = sessionStorage.getItem(SESSION_KEY); if (!r) return null; const s = JSON.parse(r); return (s && s.uid) ? s : null; } catch(e){return null;} }
 function clearSession() { try { sessionStorage.removeItem(SESSION_KEY); } catch(e){} }
 function isSessionRecordValid(s) { return !!(s && s.uid); }
-
 function getSessionMs() {
   const s = readSession();
   const m = (SESSION_MINUTES != null && SESSION_MINUTES > 0)
@@ -407,7 +406,6 @@ function getSessionMs() {
     : ((s && s.minutes) || DEFAULT_SESSION_MINUTES);
   return Math.max(1, m) * 60000;
 }
-
 function readCachedProfile() {
   try {
     const raw = sessionStorage.getItem(PROFILE_CACHE_KEY);
@@ -417,23 +415,14 @@ function readCachedProfile() {
     return p;
   } catch (e) { return null; }
 }
-function writeCachedProfile() {
-  if (!S) return;
-  try { sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(S)); } catch(e){}
-}
-function clearCachedProfile() {
-  try { sessionStorage.removeItem(PROFILE_CACHE_KEY); } catch(e){}
-}
-function hideLoaderNow() {
-  const el = document.getElementById('loader');
-  if (el) el.classList.add('hide');
-}
+function writeCachedProfile() { if (!S) return; try { sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(S)); } catch(e){} }
+function clearCachedProfile() { try { sessionStorage.removeItem(PROFILE_CACHE_KEY); } catch(e){} }
+function hideLoaderNow() { const el = document.getElementById('loader'); if (el) el.classList.add('hide'); }
 function forceLogout(reason) {
   if (awayCheckInterval) { clearInterval(awayCheckInterval); awayCheckInterval = null; }
   awayStartedAt = null;
   try { sessionStorage.clear(); sessionStorage.setItem('__redirectReason', reason || 'expired'); } catch(e){}
-  clearSession();
-  clearCachedProfile();
+  clearSession(); clearCachedProfile();
   try { signOut(auth); } catch(e){}
   window.location.replace(LOGIN_URL);
 }
@@ -455,7 +444,6 @@ function startSessionWatcher() {
   window.addEventListener('blur', evaluateActivity);
   evaluateActivity();
 }
-
 async function loadSessionTimeout() {
   try {
     const snap = await getDoc(doc(db, 'settings', 'system'));
@@ -473,13 +461,9 @@ async function loadSessionTimeout() {
   } catch (e) {
     if (SESSION_MINUTES == null) SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
   }
-
   try {
     const s = readSession();
-    if (s) {
-      s.minutes = SESSION_MINUTES;
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify(s));
-    }
+    if (s) { s.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); }
   } catch (e) {}
 }
 
@@ -773,7 +757,6 @@ function saccoCapitalMatchesYear(tx, y) {
 }
 function getSharePaymentMethod(s) { const raw = s.paymentMethod || s.paymentSource || s.paidFrom || s.source || s.fundingSource || s.method || s.paymentType || ''; return String(raw).toLowerCase().trim(); }
 function isSharePaidFromSavings(s) { const m = getSharePaymentMethod(s); if (!m) return true; return SAVINGS_PAYMENT_VALUES.includes(m); }
-/* FIX: only approved, non-merged records — matches Shares page */
 function isShareCounted(s) {
   if (!s) return false;
   if (s.isMerged === true) return false;
@@ -810,11 +793,28 @@ function splitRepayment(amount, loan) {
 
 const ROLE_LABELS = { super_admin:'role_super_admin', admin:'role_admin', manager:'role_manager', cashier:'role_cashier', teller:'role_cashier', accountant:'role_cashier', auditor:'role_auditor', member:'role_member', viewer:'role_member' };
 const roleLabel = (r) => t(ROLE_LABELS[r]) || (r||'').replace(/_/g,' ');
+
+/* ============================================================
+   ROLE HELPERS — single source of truth for permissions
+   super_admin → all
+   admin       → own district
+   manager     → own branch (view / approve)
+   cashier     → own branch (add / view)  [teller / accountant same]
+   member      → own record only
+   auditor     → read-only across ALL districts
+   ============================================================ */
 const isSuper      = () => S?.role === 'super_admin';
 const isDistrict   = () => S?.role === 'admin';
 const isAuditor    = () => S?.role === 'auditor';
+const isManager    = () => S?.role === 'manager';
+const isCashier    = () => ['cashier','teller','accountant'].includes(S?.role);
 const isBranchRole = () => ['manager','cashier','teller','accountant'].includes(S?.role);
 const isMember     = () => S?.role === 'member';
+
+const canApprovePending = () => isSuper() || isDistrict() || isManager();
+const canCreate         = () => isSuper() || isDistrict() || isCashier();
+const canSeeAdminCards  = () => !isMember();   // sacco capital / member dividend cards
+const canSeeNetworkCards = () => !isMember();
 
 const APP = {
   saccoName: DEFAULT_SACCO_NAME,
@@ -829,6 +829,7 @@ const APP = {
 const CUSTOMER_MAP = new Map();
 const LOANS_BY_ID = new Map();
 
+/* Scope constraints for Firestore queries */
 function scopeConstraints() {
   if (!S) return [];
   if (isSuper() || isAuditor()) return [];
@@ -945,7 +946,7 @@ const NAV = [
     { key:'deposits',    label:'deposits',    icon:'fa-hand-holding-usd', href:'deposits.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
     { key:'withdrawals', label:'withdrawals', icon:'fa-money-bill-wave',  href:'withdrawals.html', roles:['super_admin','admin','manager','cashier','teller','accountant','auditor'] },
     { key:'dividends',   label:'dividends',   icon:'fa-gift',             href:'dividends.html', roles:['super_admin','admin','manager','accountant','auditor'] },
-    { key:'penalties',   label:'penalties',   icon:'fa-exclamation-triangle', href:'penalties.html', roles:['super_admin','admin','manager','cashier'] }
+    { key:'penalties',   label:'penalties',   icon:'fa-exclamation-triangle', href:'penalties.html', roles:['super_admin','admin','manager','cashier','auditor'] }
   ]},
   { section:'navSecAdmin', items:[
     { key:'reports', label:'reports', icon:'fa-chart-bar',      href:'reports.html', roles:['super_admin','admin','manager','accountant','auditor'] },
@@ -1046,6 +1047,10 @@ function setLang(lang) {
 function renderMain() {
   const host = document.getElementById('mainContent'); if (!host) return;
   const sName = S?.name || 'User';
+  const showPending = canApprovePending();
+  const showAdminCards = canSeeAdminCards();
+  const showNetwork = canSeeNetworkCards();
+
   host.innerHTML = `
     <div class="page-head">
       <div>
@@ -1058,7 +1063,7 @@ function renderMain() {
     <div class="breadcrumb">
       <span class="breadcrumb__item is-active"><i class="fas fa-home" style="margin-right:6px"></i>${esc(t('dashboard'))}</span>
     </div>
-    ${renderWorkareaBar()}
+    ${isMember() ? '' : renderWorkareaBar()}
     <div class="year-bar">
       <label><i class="fas fa-calendar"></i> ${esc(t('selectYear'))}</label>
       <select id="year-select"></select>
@@ -1067,13 +1072,14 @@ function renderMain() {
       <span class="year-bar__count" id="year-count"></span>
     </div>
     <div id="diagHost"></div>
-    <div class="section-title">${esc(t('networkOverview'))}</div>
-    <section class="stats" id="stats-network"></section>
+    ${showNetwork ? `<div class="section-title">${esc(t('networkOverview'))}</div>
+    <section class="stats" id="stats-network"></section>` : ''}
     <div class="section-title">${esc(t('financeThisYear'))} — <span id="year-title-label"></span></div>
     <section class="stats" id="stats-year"></section>
-    <div class="section-title" id="title-all">${esc(t('financeAllYears'))}</div>
-    <section class="stats" id="stats-all"></section>
+    ${isMember() ? '' : `<div class="section-title" id="title-all">${esc(t('financeAllYears'))}</div>
+    <section class="stats" id="stats-all"></section>`}
 
+    ${showAdminCards ? `
     <section class="card" id="memberDivCard" style="margin-bottom:22px;">
       <div class="card__head">
         <div>
@@ -1130,7 +1136,7 @@ function renderMain() {
           </table>
         </div>
       </div>
-    </section>
+    </section>` : ''}
 
     <section class="grid-2">
       <div class="card">
@@ -1188,6 +1194,8 @@ function renderMain() {
         <div class="card__body"><div class="quick" id="quick-actions"></div></div>
       </div>
     </section>
+
+    ${showPending ? `
     <section class="grid-2">
       <div class="card">
         <div class="card__head">
@@ -1204,7 +1212,7 @@ function renderMain() {
         </div>
         <div class="card__body"><div id="penalty-breakdown"><span class="tbl-loading"></span></div></div>
       </div>
-    </section>
+    </section>` : ''}
   `;
   renderScopeBadge();
   wireMainEvents();
@@ -1213,13 +1221,11 @@ function renderMain() {
   renderQuickActions();
   if (APP.dataLoaded) {
     renderStatsValues();
-    renderMemberDividendTable();
-    renderSaccoCapitalTable();
+    if (showAdminCards) { renderMemberDividendTable(); renderSaccoCapitalTable(); }
     renderChartPair();
     renderShareChart();
     renderActivity();
-    renderPending();
-    renderPenaltyBreakdown();
+    if (showPending) { renderPending(); renderPenaltyBreakdown(); }
     updateYearStatus();
     updateYearLabels();
     updateYearCount();
@@ -1231,24 +1237,28 @@ function renderMain() {
     const c3 = document.getElementById('chart3-year'); if (c3) c3.textContent = APP.currentYear;
   }
 }
+
 function renderScopeBadge() {
   const el = document.getElementById('scope-badge'); if (!el) return;
-  if (isSuper()) el.innerHTML = `<span class="scope-badge scope-badge--super"><i class="fas fa-lock"></i> ${esc(t('fullSystem'))}</span>`;
-  else if (isAuditor()) el.innerHTML = `<span class="scope-badge scope-badge--super"><i class="fas fa-eye"></i> ${esc(t('auditorRole'))}</span>`;
+  if (isSuper())         el.innerHTML = `<span class="scope-badge scope-badge--super"><i class="fas fa-lock"></i> ${esc(t('fullSystem'))}</span>`;
+  else if (isAuditor())  el.innerHTML = `<span class="scope-badge scope-badge--audit"><i class="fas fa-eye"></i> ${esc(t('auditorRole'))} — ${esc(t('fullSystem'))}</span>`;
   else if (isDistrict()) el.innerHTML = `<span class="scope-badge scope-badge--district"><i class="fas fa-map-marked-alt"></i> ${esc(t('districtAdmin'))} · ${esc(S.districtName || '—')}</span>`;
   else if (isBranchRole()) el.innerHTML = `<span class="scope-badge scope-badge--branch"><i class="fas fa-code-branch"></i> ${esc(roleLabel(S.role))} · ${esc(S.branchName || '—')}</span>`;
-  else if (isMember()) el.innerHTML = `<span class="scope-badge scope-badge--self"><i class="fas fa-user"></i> ${esc(S.customerCode || t('selfAccount'))}</span>`;
-  else el.innerHTML = `<span class="scope-badge scope-badge--self"><i class="fas fa-user"></i> ${esc(roleLabel(S?.role || 'viewer'))}</span>`;
+  else if (isMember())   el.innerHTML = `<span class="scope-badge scope-badge--self"><i class="fas fa-user"></i> ${esc(S.customerCode || t('selfAccount'))}</span>`;
+  else                   el.innerHTML = `<span class="scope-badge scope-badge--self"><i class="fas fa-user"></i> ${esc(roleLabel(S?.role || 'viewer'))}</span>`;
 }
+
 function renderHeadActions() {
   const a = [];
-  if (isSuper()) { a.push({k:'districts',h:'districts.html',p:true}); a.push({k:'branches',h:'branches.html'}); }
-  else if (isDistrict()) { a.push({k:'branches',h:'branches.html',p:true}); a.push({k:'customers',h:'customers.html'}); }
-  else if (isBranchRole()) { a.push({k:'savings',h:'savings.html',p:true}); a.push({k:'loans',h:'loans.html'}); }
-  else if (isAuditor()) { a.push({k:'reports',h:'reports.html',p:true}); a.push({k:'audit',h:'audit.html'}); }
-  else if (isMember()) { a.push({k:'savings',h:'savings.html',p:true}); a.push({k:'loans',h:'loans.html'}); }
+  if (isSuper())          { a.push({k:'districts',h:'districts.html',p:true}); a.push({k:'branches',h:'branches.html'}); a.push({k:'reports',h:'reports.html'}); }
+  else if (isDistrict())  { a.push({k:'branches',h:'branches.html',p:true}); a.push({k:'customers',h:'customers.html'}); a.push({k:'reports',h:'reports.html'}); }
+  else if (isManager())   { a.push({k:'savings',h:'savings.html',p:true}); a.push({k:'loans',h:'loans.html'}); a.push({k:'reports',h:'reports.html'}); }
+  else if (isCashier())   { a.push({k:'savings',h:'savings.html',p:true}); a.push({k:'loans',h:'loans.html'}); }
+  else if (isAuditor())   { a.push({k:'reports',h:'reports.html',p:true}); a.push({k:'audit',h:'audit.html'}); }
+  else if (isMember())    { a.push({k:'savings',h:'savings.html',p:true}); a.push({k:'loans',h:'loans.html'}); }
   return a.map(b => `<a class="btn btn--sm ${b.p?'btn--primary':''}" href="${b.h}">${esc(t(b.k))}</a>`).join('');
 }
+
 function renderWorkareaBar() {
   const districts = assignableDistricts();
   const dLocked = districtLocked();
@@ -1288,15 +1298,10 @@ function renderWorkareaBar() {
       </div>
     </div>`;
 }
+
 function renderDiagnostics() {
   const host = document.getElementById('diagHost'); if (!host) return;
-  const counts = { districts: APP.districts.length, branches: APP.branches.length, customers: APP.customers.length,
-    allTransactions: APP.txn.allTxns.length, shareRecords: APP.shareRecords.length, savings: APP.txn.savings.length,
-    loans: APP.txn.loans.length, repayments: APP.txn.repayments.length, withdrawals: APP.txn.withdrawals.length,
-    penalties: APP.txn.penalties.length, shares: APP.txn.shares.length, dividends: APP.txn.dividends.length,
-    saccoCapital: APP.txn.saccoCapital.length,
-    profitIncome: APP.txn.profitIncome.length, serviceWithdrawals: APP.txn.serviceWithdrawals.length };
-  const total = Object.values(counts).reduce((s,n) => s+n, 0);
+  const total = APP.districts.length + APP.branches.length + APP.customers.length + APP.txn.allTxns.length + APP.shareRecords.length;
   if (total > 0) { host.innerHTML = ''; return; }
   host.innerHTML = `
     <div class="diag-box">
@@ -1307,6 +1312,7 @@ function renderDiagnostics() {
       </div>
     </div>`;
 }
+
 function populateYearSelect() {
   const sel = document.getElementById('year-select'); if (!sel) return;
   sel.innerHTML = APP.availableYears.map(y => `<option value="${y}" ${y===APP.currentYear?'selected':''}>${y}</option>`).join('');
@@ -1392,61 +1398,70 @@ function setHint(id, h) {
   const s = el.closest('.stat'); if (!s) return;
   const hi = s.querySelector('.stat__hint'); if (hi) hi.innerHTML = h;
 }
+
 function renderStatsShells() {
   const net = document.getElementById('stats-network');
   const yr  = document.getElementById('stats-year');
   const all = document.getElementById('stats-all');
-  const netCards = isMember() ? [
-    {id:'s-m-savings', lk:'savings',  ic:'fa-piggy-bank', c:'green'},
-    {id:'s-m-shares',  lk:'shares',   ic:'fa-chart-pie',  c:'violet'},
-    {id:'s-m-loans',   lk:'loans',    ic:'fa-wallet',     c:'blue'},
-    {id:'s-m-pending', lk:'pendingApprovals', ic:'fa-clock', c:'gold'}
-  ] : [
-    {id:'s-districts', lk:'totalDistricts', ic:'fa-map-marked-alt', c:'violet'},
-    {id:'s-branches',  lk:'totalBranches',  ic:'fa-code-branch',    c:'gold'},
-    {id:'s-customers', lk:'totalCustomers', ic:'fa-users',          c:'blue', chips:true, chipMax:4}
-  ];
-  net.innerHTML = netCards.map(c => statCard(c.id, c.lk, c.c, c.ic, { chips: !!c.chips, chipMax: c.chipMax || 3 })).join('');
 
-  let yrCards = [
-    {id:'s-grossSav',    lk:'grossSavingsYear', ic:'fa-piggy-bank',   c:'green', chips:true, chipMax:3},
-    {id:'s-withdraw',    lk:'withdrawalsYear',  ic:'fa-arrow-up',     c:'red',   chips:true, chipMax:3},
-    {id:'s-netSav',      lk:'netSaving',        ic:'fa-balance-scale',c:'teal',  chips:true, chipMax:3},
-    {id:'s-shareVal',    lk:'sharesYear',       ic:'fa-chart-pie',    c:'violet', chips:true, chipMax:3,
-      split:[ {id:'s-share-count',  label:t('sharesCountWord'), cls:'stat__split-value--neutral'},
-              {id:'s-share-amount', label:t('shareAmount'),     cls:'stat__split-value--pos'} ]},
-    {id:'s-loansIssued', lk:'loansIssuedYear',  ic:'fa-wallet',       c:'blue'},
-    {id:'s-repayments',  lk:'repaymentsYear',   ic:'fa-undo-alt',     c:'indigo',
-      split:[ {id:'s-repay-principal', label:t('principalPaid'), cls:'stat__split-value--pos'},
-              {id:'s-repay-interest',  label:t('interestPaid'),  cls:'stat__split-value--neutral'} ]},
-    {id:'s-penalties',   lk:'penaltiesPaid',    ic:'fa-exclamation-triangle', c:'orange',
-      split:[ {id:'s-pen-fromSav', label:t('fromSavings'), cls:'stat__split-value--pos'},
-              {id:'s-pen-external',label:t('external'),    cls:'stat__split-value--neutral'} ]},
-    {id:'s-saccoCapY',   lk:'saccoCapitalYear', ic:'fa-building-columns', c:'purple'},
-    {id:'s-netProfit',   lk:'netProfitYear',    ic:'fa-chart-line',   c:'gold'},
-    {id:'s-curBalance',  lk:'currentBalance',   ic:'fa-dollar-sign',  c:'violet'}
-  ];
-  if (isMember()) yrCards = yrCards.filter(c => ['s-grossSav','s-netSav','s-shareVal','s-loansIssued','s-repayments'].includes(c.id));
-  yr.innerHTML = yrCards.map(c => statCard(c.id, c.lk, c.c, c.ic, { chips: !!c.chips, chipMax: c.chipMax || 3, split: c.split })).join('');
-  if (isMember()) {
-    all.innerHTML = ''; all.style.display = 'none';
-    const titleAll = document.getElementById('title-all');
-    if (titleAll) titleAll.style.display = 'none';
-    const scc = document.getElementById('saccoCapitalCard');
-    if (scc) scc.style.display = 'none';
-    const mdc = document.getElementById('memberDivCard');
-    if (mdc) mdc.style.display = 'none';
-  } else {
-    const allCards = [
-      {id:'s-netProfitAll', lk:'netProfitAllYears',    ic:'fa-chart-line', c:'purple'},
-      {id:'s-saccoCapAll',  lk:'saccoCapitalAllYears', ic:'fa-building-columns', c:'gold'},
-      {id:'s-balanceAll',   lk:'totalBalanceAllYears', ic:'fa-layer-group',c:'indigo', chips:true, chipMax:3},
-      {id:'s-divPaid',      lk:'dividendsPaid',        ic:'fa-gift',       c:'gold'},
-      {id:'s-netShareVal',  lk:'netShareValue',        ic:'fa-chart-pie',  c:'teal',
-        split:[ {id:'s-netShare-count', label:t('sharesCountWord'), cls:'stat__split-value--neutral'},
-                {id:'s-netShare-buy',   label:t('shareAmount'),     cls:'stat__split-value--pos'} ]}
+  if (net) {
+    const netCards = isMember() ? [
+      {id:'s-m-savings', lk:'savings',  ic:'fa-piggy-bank', c:'green'},
+      {id:'s-m-shares',  lk:'shares',   ic:'fa-chart-pie',  c:'violet'},
+      {id:'s-m-loans',   lk:'loans',    ic:'fa-wallet',     c:'blue'},
+      {id:'s-m-pending', lk:'pendingApprovals', ic:'fa-clock', c:'gold'}
+    ] : [
+      {id:'s-districts', lk:'totalDistricts', ic:'fa-map-marked-alt', c:'violet'},
+      {id:'s-branches',  lk:'totalBranches',  ic:'fa-code-branch',    c:'gold'},
+      {id:'s-customers', lk:'totalCustomers', ic:'fa-users',          c:'blue', chips:true, chipMax:4}
     ];
-    all.innerHTML = allCards.map(c => statCard(c.id, c.lk, c.c, c.ic, { chips: !!c.chips, chipMax: c.chipMax || 3, split: c.split })).join('');
+    net.innerHTML = netCards.map(c => statCard(c.id, c.lk, c.c, c.ic, { chips: !!c.chips, chipMax: c.chipMax || 3 })).join('');
+  }
+
+  if (yr) {
+    let yrCards = [
+      {id:'s-grossSav',    lk:'grossSavingsYear', ic:'fa-piggy-bank',   c:'green', chips:true, chipMax:3},
+      {id:'s-withdraw',    lk:'withdrawalsYear',  ic:'fa-arrow-up',     c:'red',   chips:true, chipMax:3},
+      {id:'s-netSav',      lk:'netSaving',        ic:'fa-balance-scale',c:'teal',  chips:true, chipMax:3},
+      {id:'s-shareVal',    lk:'sharesYear',       ic:'fa-chart-pie',    c:'violet', chips:true, chipMax:3,
+        split:[ {id:'s-share-count',  label:t('sharesCountWord'), cls:'stat__split-value--neutral'},
+                {id:'s-share-amount', label:t('shareAmount'),     cls:'stat__split-value--pos'} ]},
+      {id:'s-loansIssued', lk:'loansIssuedYear',  ic:'fa-wallet',       c:'blue'},
+      {id:'s-repayments',  lk:'repaymentsYear',   ic:'fa-undo-alt',     c:'indigo',
+        split:[ {id:'s-repay-principal', label:t('principalPaid'), cls:'stat__split-value--pos'},
+                {id:'s-repay-interest',  label:t('interestPaid'),  cls:'stat__split-value--neutral'} ]},
+      {id:'s-penalties',   lk:'penaltiesPaid',    ic:'fa-exclamation-triangle', c:'orange',
+        split:[ {id:'s-pen-fromSav', label:t('fromSavings'), cls:'stat__split-value--pos'},
+                {id:'s-pen-external',label:t('external'),    cls:'stat__split-value--neutral'} ]},
+      {id:'s-saccoCapY',   lk:'saccoCapitalYear', ic:'fa-building-columns', c:'purple'},
+      {id:'s-netProfit',   lk:'netProfitYear',    ic:'fa-chart-line',   c:'gold'},
+      {id:'s-curBalance',  lk:'currentBalance',   ic:'fa-dollar-sign',  c:'violet'}
+    ];
+    if (isMember()) yrCards = yrCards.filter(c => ['s-grossSav','s-netSav','s-shareVal','s-loansIssued','s-repayments'].includes(c.id));
+    yr.innerHTML = yrCards.map(c => statCard(c.id, c.lk, c.c, c.ic, { chips: !!c.chips, chipMax: c.chipMax || 3, split: c.split })).join('');
+  }
+
+  if (all) {
+    if (isMember()) {
+      all.innerHTML = ''; all.style.display = 'none';
+      const titleAll = document.getElementById('title-all');
+      if (titleAll) titleAll.style.display = 'none';
+      const scc = document.getElementById('saccoCapitalCard');
+      if (scc) scc.style.display = 'none';
+      const mdc = document.getElementById('memberDivCard');
+      if (mdc) mdc.style.display = 'none';
+    } else {
+      const allCards = [
+        {id:'s-netProfitAll', lk:'netProfitAllYears',    ic:'fa-chart-line', c:'purple'},
+        {id:'s-saccoCapAll',  lk:'saccoCapitalAllYears', ic:'fa-building-columns', c:'gold'},
+        {id:'s-balanceAll',   lk:'totalBalanceAllYears', ic:'fa-layer-group',c:'indigo', chips:true, chipMax:3},
+        {id:'s-divPaid',      lk:'dividendsPaid',        ic:'fa-gift',       c:'gold'},
+        {id:'s-netShareVal',  lk:'netShareValue',        ic:'fa-chart-pie',  c:'teal',
+          split:[ {id:'s-netShare-count', label:t('sharesCountWord'), cls:'stat__split-value--neutral'},
+                  {id:'s-netShare-buy',   label:t('shareAmount'),     cls:'stat__split-value--pos'} ]}
+      ];
+      all.innerHTML = allCards.map(c => statCard(c.id, c.lk, c.c, c.ic, { chips: !!c.chips, chipMax: c.chipMax || 3, split: c.split })).join('');
+    }
   }
 }
 
@@ -1454,12 +1469,10 @@ function renderMemberDividendTable() {
   const host = document.getElementById('memberDivBody');
   const summaryEl = document.getElementById('memberDivSummary');
   if (!host) return;
-
   const dividends = (APP.txn.dividends || []).filter(tx => {
     const s = String(tx.status || '').toLowerCase();
     return ['paid','completed','approved','done'].includes(s);
   });
-
   const grouped = new Map();
   dividends.forEach(tx => {
     const key = tx.batchId || `single_${tx.id}`;
@@ -1484,12 +1497,10 @@ function renderMemberDividendTable() {
     const gd = toDateSafe(g.date);
     if (d && (!gd || d < gd)) g.date = d;
   });
-
   const list = Array.from(grouped.values()).sort((a, b) => {
     if (a.year !== b.year) return b.year - a.year;
     return (toDateSafe(b.date)?.getTime() || 0) - (toDateSafe(a.date)?.getTime() || 0);
   });
-
   if (!list.length) {
     host.innerHTML = `<tr><td colspan="9" style="padding:40px 20px;text-align:center;color:var(--muted);">
       <i class="fas fa-gift" style="display:block;font-size:36px;color:#cbd5e1;margin-bottom:12px;"></i>
@@ -1499,13 +1510,11 @@ function renderMemberDividendTable() {
     if (summaryEl) { summaryEl.className = 'tag tag--gray'; summaryEl.textContent = '0 batches'; }
     return;
   }
-
   const totalNet = list.reduce((s, x) => s + x.net, 0);
   if (summaryEl) {
     summaryEl.className = 'tag tag--green';
     summaryEl.textContent = `${list.length} batch${list.length === 1 ? '' : 'es'} · ${money(totalNet)} net`;
   }
-
   host.innerHTML = list.map(g => {
     const dateStr = toDateSafe(g.date) ? toDateSafe(g.date).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' }) : '—';
     return `<tr>
@@ -1526,7 +1535,6 @@ function renderSaccoCapitalTable() {
   const host = document.getElementById('saccoCapitalBody');
   const summaryEl = document.getElementById('saccoCapSummary');
   if (!host) return;
-
   const list = (APP.txn.saccoCapital || [])
     .filter(tx => isSaccoCapitalCounted(tx))
     .sort((a, b) => {
@@ -1537,7 +1545,6 @@ function renderSaccoCapitalTable() {
       const db = toDateSafe(b.date || b.createdAt)?.getTime() || 0;
       return db - da;
     });
-
   if (!list.length) {
     host.innerHTML = `<tr><td colspan="7" style="padding:40px 20px;text-align:center;color:var(--muted);">
       <i class="fas fa-building-columns" style="display:block;font-size:36px;color:#cbd5e1;margin-bottom:12px;"></i>
@@ -1547,13 +1554,11 @@ function renderSaccoCapitalTable() {
     if (summaryEl) { summaryEl.className = 'tag tag--gray'; summaryEl.textContent = '0 records'; }
     return;
   }
-
   const totalAmt = list.reduce((s, x) => s + num(x.amount), 0);
   if (summaryEl) {
     summaryEl.className = 'tag tag--violet';
     summaryEl.textContent = `${list.length} record${list.length === 1 ? '' : 's'} · ${money(totalAmt)}`;
   }
-
   host.innerHTML = list.map(tx => {
     const year = tx.year || tx.fiscalYear || '—';
     const ref = tx.batchId || tx.refNo || '—';
@@ -1578,16 +1583,15 @@ function renderSaccoCapitalTable() {
   }).join('');
 }
 
-/* FIX: skip merged children + de-dupe by docId and serialNumber */
 function getAllSharesInScope() {
-  const txShares  = APP.txn.shares || [];       // collection: transactions
-  const colShares = APP.shareRecords || [];      // collection: shares
+  const txShares  = APP.txn.shares || [];
+  const colShares = APP.shareRecords || [];
   const seenIds = new Set();
   const seenSerials = new Set();
   const out = [];
   [...colShares, ...txShares].forEach(s => {
     if (!s) return;
-    if (s.isMerged === true) return;             // already inside its parent card
+    if (s.isMerged === true) return;
     const id = s.id || s.docId || '';
     if (id) { if (seenIds.has(id)) return; seenIds.add(id); }
     const serial = String(s.serialNumber || '').trim();
@@ -1596,7 +1600,6 @@ function getAllSharesInScope() {
   });
   return out;
 }
-/* FIX: buy/sell only, no "unknown = buy" fallback */
 function computeSharesYearNumbers(year) {
   const { districtId, branchId } = APP.workarea;
   const district = APP.districts.find(d => d.id === districtId);
@@ -1635,7 +1638,6 @@ function computeSharesYearNumbers(year) {
     totalTxns: yearShares.length
   };
 }
-/* FIX: same rule for all-years */
 function computeSharesAllYears() {
   const { districtId, branchId } = APP.workarea;
   const district = APP.districts.find(d => d.id === districtId);
@@ -1759,10 +1761,6 @@ function computeYearNumbers() {
   };
 }
 
-/* ============================================================
-   ALL-YEARS aggregation
-   SACCO Capital (All Years) = gross allocations − service withdrawals
-   ============================================================ */
 function computeAllYearNumbers() {
   const savingsAll = filterWorkareaTxns(APP.txn.savings).filter(isSavingsCounted);
   const totalSavings = savingsAll.reduce((s,x) => s + num(x.amount), 0);
@@ -1799,11 +1797,6 @@ function computeAllYearNumbers() {
   memberDivGrossAll = round2(memberDivGrossAll);
   memberDivNetAll   = round2(memberDivNetAll);
 
-  /* SACCO Capital (All Years) — NET of service withdrawals.
-     Gross = sum of approved sacco_capital allocations
-     Net   = max(0, Gross − Σ service withdrawals (active))
-     totalDistributedAll still uses GROSS (that's what reduced net profit
-     at distribution time — the withdrawals happen after). */
   const saccoCapitalAllGross = round2(filterWorkareaTxns(APP.txn.saccoCapital).filter(isSaccoCapitalCounted).reduce((s,x) => s + num(x.amount), 0));
   const saccoCapitalAll = Math.max(0, round2(saccoCapitalAllGross - svcAll));
 
@@ -1811,7 +1804,6 @@ function computeAllYearNumbers() {
   const totalDistributedAll = round2(memberDivGrossAll + saccoCapitalAllGross);
   const netProfitAll = Math.max(0, round2(grossProfitAll - totalDistributedAll));
   const netSavingWithDivAll = round2(netSavingAll + memberDivNetAll);
-  /* saccoCapitalAll is already NET — do NOT subtract svcAll again */
   const totalBalanceAll = round2(netSavingWithDivAll + netProfitAll + netShareValueAll + saccoCapitalAll);
   return {
     netSavingAll, netSavingWithDivAll, netProfitAll, netShareValueAll, totalBalanceAll,
@@ -1919,7 +1911,6 @@ function monthlySum(list, year) {
   });
   return out;
 }
-/* FIX: only buy/sell (no fallback); everything matches the totals above */
 function monthlySumShare(shares, year, type) {
   const out = new Array(12).fill(0);
   shares.forEach(s => {
@@ -2006,6 +1997,7 @@ const MAX_ACTIVITY = 10;
 function renderActivity() {
   const host = document.getElementById('activity');
   const countEl = document.getElementById('activity-count');
+  if (!host) return;
   const y = APP.currentYear;
   const recent = filterWorkareaTxns(APP.txn.recent).filter(x => isInYear(x.date || x.createdAt, y)).slice(0, 40);
   const events = [];
@@ -2141,29 +2133,43 @@ function renderQuickActions() {
     a.push({k:'penalties',h:'penalties.html',i:'fa-exclamation-triangle',c:'orange'});
     a.push({k:'dividends',h:'dividends.html',i:'fa-gift',c:'gold'});
     a.push({k:'reports',h:'reports.html',i:'fa-chart-bar',c:'indigo'});
-  } else if (isBranchRole()) {
+  } else if (isManager()) {
+    /* Manager — view / approve their branch. No dividends, no customers creation. */
+    a.push({k:'customers',h:'customers.html',i:'fa-users',c:'green'});
+    a.push({k:'savings',h:'savings.html',i:'fa-piggy-bank',c:'green'});
+    a.push({k:'loans',h:'loans.html',i:'fa-wallet',c:'red'});
+    a.push({k:'repayments',h:'repayments.html',i:'fa-undo-alt',c:'teal'});
+    a.push({k:'deposits',h:'deposits.html',i:'fa-vault',c:'green'});
+    a.push({k:'withdrawals',h:'withdrawals.html',i:'fa-arrow-up',c:'red'});
+    a.push({k:'penalties',h:'penalties.html',i:'fa-exclamation-triangle',c:'orange'});
+    a.push({k:'shares',h:'share.html',i:'fa-chart-pie',c:'violet'});
+    a.push({k:'reports',h:'reports.html',i:'fa-chart-bar',c:'indigo'});
+  } else if (isCashier()) {
+    /* Cashier — add / view their branch. No dividends, no penalties approval. */
     a.push({k:'customers',h:'customers.html',i:'fa-user-plus',c:'green'});
     a.push({k:'savings',h:'savings.html',i:'fa-piggy-bank',c:'green'});
     a.push({k:'loans',h:'loans.html',i:'fa-wallet',c:'red'});
     a.push({k:'repayments',h:'repayments.html',i:'fa-undo-alt',c:'teal'});
     a.push({k:'deposits',h:'deposits.html',i:'fa-vault',c:'green'});
     a.push({k:'withdrawals',h:'withdrawals.html',i:'fa-arrow-up',c:'red'});
-    a.push({k:'penalties',h:'penalties.html',i:'fa-exclamation-triangle',c:'orange'});
     a.push({k:'shares',h:'share.html',i:'fa-chart-pie',c:'violet'});
-    a.push({k:'reports',h:'reports.html',i:'fa-chart-bar',c:'indigo'});
   } else if (isAuditor()) {
+    /* Auditor — read-only across all districts */
     a.push({k:'reports',h:'reports.html',i:'fa-chart-bar',c:'indigo'});
     a.push({k:'audit',h:'audit.html',i:'fa-clipboard-list',c:'pink'});
     a.push({k:'customers',h:'customers.html',i:'fa-users',c:'blue'});
+    a.push({k:'savings',h:'savings.html',i:'fa-piggy-bank',c:'green'});
+    a.push({k:'loans',h:'loans.html',i:'fa-wallet',c:'red'});
     a.push({k:'withdrawals',h:'withdrawals.html',i:'fa-arrow-up',c:'red'});
     a.push({k:'repayments',h:'repayments.html',i:'fa-undo-alt',c:'teal'});
     a.push({k:'deposits',h:'deposits.html',i:'fa-vault',c:'green'});
     a.push({k:'penalties',h:'penalties.html',i:'fa-exclamation-triangle',c:'orange'});
+    a.push({k:'shares',h:'share.html',i:'fa-chart-pie',c:'violet'});
+    a.push({k:'dividends',h:'dividends.html',i:'fa-gift',c:'gold'});
   } else if (isMember()) {
     a.push({k:'savings',h:'savings.html',i:'fa-piggy-bank',c:'green'});
     a.push({k:'loans',h:'loans.html',i:'fa-wallet',c:'red'});
     a.push({k:'shares',h:'share.html',i:'fa-chart-pie',c:'violet'});
-    a.push({k:'dividends',h:'dividends.html',i:'fa-gift',c:'gold'});
     a.push({k:'reports',h:'reports.html',i:'fa-chart-bar',c:'indigo'});
   }
   host.innerHTML = a.map(x => `
@@ -2324,13 +2330,11 @@ function renderAll() {
   const wc = document.getElementById('wa-count');
   if (wc) wc.innerHTML = `<i class="fas fa-users"></i> ${applyWorkareaToAllCustomers().length} ${esc(t('customers'))}`;
   renderStatsValues();
-  renderMemberDividendTable();
-  renderSaccoCapitalTable();
+  if (canSeeAdminCards()) { renderMemberDividendTable(); renderSaccoCapitalTable(); }
   renderChartPair();
   renderShareChart();
   renderActivity();
-  renderPending();
-  renderPenaltyBreakdown();
+  if (canApprovePending()) { renderPending(); renderPenaltyBreakdown(); }
   updateYearStatus();
   updateYearLabels();
   updateYearCount();
