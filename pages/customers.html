@@ -543,7 +543,7 @@ const LOGIN_URL = "../index.html";
 const LOGO_URL  = "../images/logo.png";
 const PROFILE_CACHE_KEY = 'sacco.profile';
 
-/* SESSION — fixed */
+/* SESSION */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
 let SESSION_MINUTES = null;
@@ -634,9 +634,7 @@ async function loadSessionTimeout() {
   } catch (e) {}
 }
 
-/* ════════════════════════════════════════════════════════════
-   REGION → ZONES + CITIES
-════════════════════════════════════════════════════════════ */
+/* REGION → ZONES + CITIES */
 const REGION_DATA = {
   'Addis Ababa': {
     zones: ['Addis Ketema','Akaki Kaliti','Arada','Bole','Gulele',
@@ -710,7 +708,7 @@ const APP = {
 };
 let LANG = 'en';
 
-/* I18N — full EN / AM / OM */
+/* I18N */
 const I18N = {
   en: {
     brandSub:'SACCO Management', navOverview:'Overview', navNetwork:'Network', navOperations:'Operations',
@@ -1018,25 +1016,80 @@ function toast(msg, type = 'success') {
 const LOGO_FALLBACK = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#0b5cab"/><circle cx="50" cy="47" r="25" fill="none" stroke="#f0c96a" stroke-width="3.5"/><text x="50" y="59" font-family="Georgia,serif" font-size="30" font-weight="900" fill="#f0c96a" text-anchor="middle">G</text></svg>`;
 const LOGO_HTML = `<img src="${LOGO_URL}" alt="Geresu Dhuki SACCO" onerror="this.onerror=null; this.outerHTML=this.dataset.fallback;" data-fallback="${LOGO_FALLBACK.replace(/"/g, '&quot;')}">`;
 
+/* ═══════════════════════════════════════════════════════════
+   ROLE / PERMISSION HELPERS
+   ═══════════════════════════════════════════════════════════ */
 const ROLES = { super_admin:'role_super_admin', admin:'role_admin', manager:'role_manager', cashier:'role_cashier', auditor:'role_auditor', member:'role_member' };
 const roleLabel = (r) => ROLES[r] ? t(ROLES[r]) : (r || '').replace(/_/g,' ');
+
 const isSuper   = () => APP.profile?.role === 'super_admin';
 const isAdmin   = () => APP.profile?.role === 'admin';
 const isManager = () => APP.profile?.role === 'manager';
 const isCashier = () => APP.profile?.role === 'cashier';
 const isAuditor = () => APP.profile?.role === 'auditor';
 const isMember  = () => APP.profile?.role === 'member';
-const canView   = () => isSuper() || isAdmin() || isManager() || isCashier() || isAuditor() || isMember();
-const canCreateCustomer = () => isSuper() || isAdmin();
+const isBranchStaff = () => isManager() || isCashier();
+
+const canView = () => isSuper() || isAdmin() || isManager() || isCashier() || isAuditor() || isMember();
+
+/* CREATE — super_admin (all), admin (own district), cashier (own branch) */
+const canCreateCustomer = () => isSuper() || isAdmin() || isCashier();
+
+/* EDIT — super_admin (all), admin (own district). Others = NO. */
 function canEditCustomer(c) {
   if (!c || !APP.profile) return false;
   const r = APP.profile.role;
   if (r === 'super_admin') return true;
   if (r === 'admin')       return c.districtId === APP.profile.districtId;
-  if (['manager','cashier','teller','accountant'].includes(r)) return c.branchId === APP.profile.branchId;
   return false;
 }
-function scopeCustomers() { return APP.customers.slice(); }
+
+/* DELETE — super_admin (all), admin (own district). Others = NO. */
+function canDeleteCustomer(c) {
+  if (!c || !APP.profile) return false;
+  const r = APP.profile.role;
+  if (r === 'super_admin') return true;
+  if (r === 'admin')       return c.districtId === APP.profile.districtId;
+  return false;
+}
+
+/* Approve helper — use on transaction pages (savings, deposits, loans, withdrawals, penalties) */
+function canApproveTransaction(tx) {
+  if (!tx || !APP.profile) return false;
+  const r = APP.profile.role;
+  if (r === 'super_admin') return true;
+  if (r === 'admin')       return tx.districtId === APP.profile.districtId;
+  if (r === 'manager')     return tx.branchId   === APP.profile.branchId;
+  return false;
+}
+
+/* SCOPE — every page/list must go through this.
+   super_admin → all
+   admin       → own district only
+   manager     → own branch only
+   cashier     → own branch only
+   auditor     → ALL districts (view only)
+   member      → own record only
+*/
+function scopeCustomers() {
+  const all = APP.customers.slice();
+  if (!APP.profile) return [];
+  const r = APP.profile.role;
+  if (r === 'super_admin') return all;
+  if (r === 'auditor')     return all;
+  if (r === 'admin')       return all.filter(c => c.districtId === APP.profile.districtId);
+  if (isBranchStaff())     return all.filter(c => c.branchId   === APP.profile.branchId);
+  if (r === 'member') {
+    const uid = APP.user?.uid;
+    const p = APP.profile || {};
+    const keys = new Set([uid, p.customerId, p.customerDocId, p.memberId, p.memberCode, p.email].filter(Boolean));
+    return all.filter(c =>
+      keys.has(c.id) || keys.has(c.customerId) || keys.has(c.email) ||
+      (uid && (c.userId === uid || c.uid === uid || c.authUid === uid))
+    );
+  }
+  return [];
+}
 
 const COUNTED_SHARE_STATUSES = ['approved','completed','done','printed','paid'];
 const BUY_SHARE_TYPES = ['share_buy','buy','purchase','share_purchase'];
@@ -1045,8 +1098,6 @@ const IN_SHARE_TYPES  = ['share_transfer_in','transfer_in'];
 const OUT_SHARE_TYPES = ['share_transfer_out','transfer_out'];
 const ALL_SHARE_TYPES = [...BUY_SHARE_TYPES, ...SELL_SHARE_TYPES, ...IN_SHARE_TYPES, ...OUT_SHARE_TYPES];
 
-/* FIX — Skip merged top-up children, de-dupe by id AND serialNumber
-   to match the Shares page and stop the double-count. */
 function allShareDocs() {
   const txShares  = APP.transactions.filter(tx => ALL_SHARE_TYPES.includes(String(tx.type || '').toLowerCase()));
   const colShares = APP.shareRecords || [];
@@ -1055,7 +1106,7 @@ function allShareDocs() {
   const out = [];
   [...txShares, ...colShares].forEach(s => {
     if (!s) return;
-    if (s.isMerged === true) return;                     // already inside parent card
+    if (s.isMerged === true) return;
     const id = s.id || s.docId;
     if (id) { if (seenIds.has(id)) return; seenIds.add(id); }
     const serial = String(s.serialNumber || '').trim();
@@ -1064,7 +1115,6 @@ function allShareDocs() {
   });
   return out;
 }
-/* FIX — Merged children are already inside the parent card → skip. */
 function isShareCounted(s) {
   if (!s) return false;
   if (s.isMerged === true) return false;
@@ -1092,7 +1142,7 @@ function isPenaltyPaidFromSavings(p) {
   return !!m && sources.includes(m);
 }
 
-/* ACTIVITY — inactive after 6 months without deposit */
+/* ACTIVITY */
 const INACTIVITY_MONTHS = 6;
 const SAVINGS_DEPOSIT_TYPES = ['savings','deposit'];
 
@@ -1142,7 +1192,7 @@ function effectiveInactiveReason(customer) {
   return '';
 }
 
-/* ALL TRANSACTIONS DISPLAY MAP */
+/* TRANSACTIONS DISPLAY */
 const ALL_TX_TYPES_DISPLAY = {
   savings:{label:'Savings',color:'green',icon:'fa-piggy-bank'},
   saving:{label:'Savings',color:'green',icon:'fa-piggy-bank'},
@@ -1172,8 +1222,6 @@ const ALL_TX_TYPES_DISPLAY = {
   transfer_out:{label:'Share out',color:'pink',icon:'fa-chart-pie'}
 };
 
-/* FIX — Skip merged share children and de-dupe by id AND serial
-   so the same purchase is never shown twice in the transaction history. */
 function customerAllTransactions(customer) {
   if (!customer) return [];
   const out = [];
@@ -1185,7 +1233,7 @@ function customerAllTransactions(customer) {
     if (!tx) return false;
     const ty = String(tx.type || '').toLowerCase();
     const isShare = ALL_SHARE_TYPES.includes(ty);
-    if (isShare && tx.isMerged === true) return false;   // top-up merged into parent
+    if (isShare && tx.isMerged === true) return false;
     const id = tx.id || tx.docId;
     if (id) { if (seenIds.has(id)) return false; seenIds.add(id); }
     const serial = String(tx.serialNumber || '').trim();
@@ -1242,7 +1290,6 @@ function customerPenaltiesFromSavings(customer) {
   return round2(total);
 }
 
-/* PRINT STATEMENT — helpers */
 function customerSavingsAsOf(customer, cutoff) {
   if (!customer || !cutoff) return 0;
   let total = 0;
@@ -1498,8 +1545,8 @@ function navDef() {
     { section: t('navFinance'), items: [
       { key:'deposits',    label: t('deposits'),    icon:'fa-hand-holding-usd', href:'deposits.html',    roles:['super_admin','admin','manager','cashier','auditor'] },
       { key:'withdrawals', label: t('withdrawals'), icon:'fa-money-bill-wave',  href:'withdrawals.html', roles:['super_admin','admin','manager','cashier','auditor'] },
-      { key:'dividends',   label: t('dividends'),   icon:'fa-gift',             href:'dividends.html',   roles:['super_admin','admin'] },
-      { key:'penalties',   label: t('penalties'),   icon:'fa-exclamation-triangle', href:'penalties.html', roles:['super_admin','admin','manager','cashier'] }
+      { key:'dividends',   label: t('dividends'),   icon:'fa-gift',             href:'dividends.html',   roles:['super_admin','admin','auditor'] },
+      { key:'penalties',   label: t('penalties'),   icon:'fa-exclamation-triangle', href:'penalties.html', roles:['super_admin','admin','manager','cashier','auditor'] }
     ]},
     { section: t('navAdmin'), items: [
       { key:'reports', label: t('reports'), icon:'fa-chart-bar',      href:'reports.html', roles:['super_admin','admin','manager','auditor'] },
@@ -1590,8 +1637,23 @@ function renderMain() {
   const active = all.filter(c => effectiveStatus(c) === 'active').length;
   const totalSavings = all.reduce((s, c) => s + customerSavings(c), 0);
   const totalShares = all.reduce((s, c) => s + customerShares(c), 0);
-  const districtOptions = APP.districts.slice().sort((a,b) => (a.name||'').localeCompare(b.name||''));
-  const branchOptions = APP.filters.districtId ? branchesOfDistrict(APP.filters.districtId) : APP.branches.slice().sort((a,b) => (a.name||'').localeCompare(b.name||''));
+
+  /* ── Scope the district / branch filter dropdowns ── */
+  const fullAccess = isSuper() || isAuditor();
+  const districtOptions = fullAccess
+    ? APP.districts.slice().sort((a,b) => (a.name||'').localeCompare(b.name||''))
+    : (isAdmin() || isBranchStaff())
+      ? APP.districts.filter(d => d.id === APP.profile?.districtId)
+      : [];
+
+  const branchOptions = fullAccess
+    ? (APP.filters.districtId ? branchesOfDistrict(APP.filters.districtId) : APP.branches.slice().sort((a,b) => (a.name||'').localeCompare(b.name||'')))
+    : isAdmin()
+      ? APP.branches.filter(b => b.districtId === APP.profile?.districtId)
+      : isBranchStaff()
+        ? APP.branches.filter(b => b.id === APP.profile?.branchId)
+        : [];
+
   host.innerHTML = `
     <div class="page-head">
       <div><h1 class="page-head__title">${esc(t('pageTitle'))}</h1><p class="page-head__sub">${esc(t('pageSub'))}</p></div>
@@ -1670,6 +1732,7 @@ function renderCustomerCard(c) {
   const branch   = c.branchName || branchById(c.branchId)?.name || '';
   const location = [branch, district].filter(Boolean).join(' · ');
   const editable = canEditCustomer(c);
+  const deletable = canDeleteCustomer(c);
   const pillText = reason === 'no-deposit' ? t('depositToActivate')
                  : reason === 'stale'      ? t('depositToReactivate')
                  : '';
@@ -1692,7 +1755,8 @@ function renderCustomerCard(c) {
       </div>
       <div class="customer-card__actions">
         <button title="${esc(t('rowView'))}" data-action="view" data-id="${esc(c.id)}"><i class="fas fa-eye"></i></button>
-        ${editable ? `<button title="${esc(t('rowEdit'))}" data-action="edit" data-id="${esc(c.id)}"><i class="fas fa-pen"></i></button><button title="${esc(t('rowDelete'))}" data-action="delete" data-id="${esc(c.id)}" class="danger"><i class="fas fa-trash"></i></button>` : ''}
+        ${editable  ? `<button title="${esc(t('rowEdit'))}"   data-action="edit"   data-id="${esc(c.id)}"><i class="fas fa-pen"></i></button>` : ''}
+        ${deletable ? `<button title="${esc(t('rowDelete'))}" data-action="delete" data-id="${esc(c.id)}" class="danger"><i class="fas fa-trash"></i></button>` : ''}
       </div>
       <div class="customer-card__stats">
         <div class="mini-stat"><div class="mini-stat__icon mini-stat__icon--savings"><i class="fas fa-piggy-bank"></i></div><div style="min-width:0;"><div class="mini-stat__value">${esc(moneyShort(savings))}</div><div class="mini-stat__label">${esc(t('gridSavings'))}</div></div></div>
@@ -1718,6 +1782,7 @@ function renderTableView(host, list) {
             const district = c.districtName || districtById(c.districtId)?.name || '—';
             const branch   = c.branchName || branchById(c.branchId)?.name || '—';
             const editable = canEditCustomer(c);
+            const deletable = canDeleteCustomer(c);
             return `
               <tr>
                 <td>${c.customerId ? `<span class="code">${esc(c.customerId)}</span>` : '<span class="muted">—</span>'}</td>
@@ -1729,7 +1794,7 @@ function renderTableView(host, list) {
                 <td class="num">${fmtNum(customerShares(c))}</td>
                 <td><span class="status-badge status-badge--${active ? 'active' : 'inactive'}" style="position:static;display:inline-flex;">${esc(active ? t('statusActive') : t('statusInactive'))}</span></td>
                 <td>${esc(fmtDate(c.dateJoined || c.createdAt))}</td>
-                <td class="num"><div class="row-actions"><button title="${esc(t('rowView'))}" data-action="view" data-id="${esc(c.id)}"><i class="fas fa-eye"></i></button>${editable ? `<button title="${esc(t('rowEdit'))}" data-action="edit" data-id="${esc(c.id)}"><i class="fas fa-pen"></i></button><button title="${esc(t('rowDelete'))}" data-action="delete" data-id="${esc(c.id)}" class="danger"><i class="fas fa-trash"></i></button>` : ''}</div></td>
+                <td class="num"><div class="row-actions"><button title="${esc(t('rowView'))}" data-action="view" data-id="${esc(c.id)}"><i class="fas fa-eye"></i></button>${editable  ? `<button title="${esc(t('rowEdit'))}"   data-action="edit"   data-id="${esc(c.id)}"><i class="fas fa-pen"></i></button>` : ''}${deletable ? `<button title="${esc(t('rowDelete'))}" data-action="delete" data-id="${esc(c.id)}" class="danger"><i class="fas fa-trash"></i></button>` : ''}</div></td>
               </tr>`;
           }).join('')}
         </tbody>
@@ -1760,8 +1825,14 @@ function handleRowAction(action, id) {
   const c = APP.customers.find(x => x.id === id);
   if (!c) return;
   if (action === 'view') return openViewModal(c);
-  if (action === 'edit') { if (!canEditCustomer(c)) { toast(t('noPermission'), 'error'); return; } openCustomerWizard(c); }
-  if (action === 'delete') { if (!canEditCustomer(c)) { toast(t('noPermission'), 'error'); return; } openDeleteModal(c); }
+  if (action === 'edit') {
+    if (!canEditCustomer(c)) { toast(t('noPermission'), 'error'); return; }
+    openCustomerWizard(c);
+  }
+  if (action === 'delete') {
+    if (!canDeleteCustomer(c)) { toast(t('noPermission'), 'error'); return; }
+    openDeleteModal(c);
+  }
 }
 
 function openViewModal(customer) {
@@ -1988,6 +2059,19 @@ function openCustomerWizard(customer) {
   };
   if (isEdit) { initial._idPreview = c.customerId || ''; initial._acctPreview = c.accountNumber || ''; }
 
+  /* Pre-fill + lock scope for non-super-admins */
+  if (!isSuper()) {
+    if (isBranchStaff() && APP.profile?.branchId) {
+      const b = branchById(APP.profile.branchId);
+      if (b) {
+        initial.districtId = initial.districtId || b.districtId;
+        initial.branchId   = initial.branchId   || APP.profile.branchId;
+      }
+    } else if (isAdmin() && APP.profile?.districtId) {
+      initial.districtId = initial.districtId || APP.profile.districtId;
+    }
+  }
+
   async function refreshIdPreview(data) {
     if (!data.districtId || !data.branchId) { data._idPreview = ''; data._acctPreview = ''; return; }
     const d = districtById(data.districtId);
@@ -2007,7 +2091,6 @@ function openCustomerWizard(customer) {
     size: 'lg',
     initial,
     steps: [
-      /* STEP 1: PERSONAL */
       {
         label: t('stepPersonal'), title: t('stepPersonalTitle'),
         render: (d) => `
@@ -2037,7 +2120,6 @@ function openCustomerWizard(customer) {
         },
         after: (root, data) => { wirePhotoField(root, data); }
       },
-      /* STEP 2: IDENTITY */
       {
         label: t('stepIdentity'), title: t('stepIdentityTitle'),
         render: (d) => `
@@ -2060,7 +2142,6 @@ function openCustomerWizard(customer) {
           phoneIn?.addEventListener('input', () => { let v = phoneIn.value.replace(/\D/g, ''); if (v.startsWith('251') && v.length > PHONE_LENGTH) v = v.slice(3); if (v.startsWith('0')) v = v.slice(1); v = v.slice(0, PHONE_LENGTH); if (phoneIn.value !== v) phoneIn.value = v; data.phone = v; });
         }
       },
-      /* STEP 3: ADDRESS */
       {
         label: t('stepAddress'), title: t('stepAddressTitle'),
         render: (d) => {
@@ -2131,17 +2212,18 @@ function openCustomerWizard(customer) {
           cityIn?.addEventListener('input', () => { data.city = cityIn.value; });
         }
       },
-      /* STEP 4: ACCOUNT */
       {
         label: t('stepAccount'), title: t('stepAccountTitle'),
         render: (d) => {
           const districtOpts = APP.districts.slice().sort((a,b) => (a.name||'').localeCompare(b.name||''));
           const branchOpts = d.districtId ? branchesOfDistrict(d.districtId) : [];
           const idPreview = d._idPreview || '', acctPreview = d._acctPreview || '';
+          const lockDistrict = !isSuper() && (isAdmin() || isBranchStaff());
+          const lockBranch   = !isSuper() && isBranchStaff();
           return `
             <div class="field-row">
-              <div class="field"><label class="field__required">${esc(t('districtLabel'))}</label><select id="wiz-district" data-field="districtId"><option value="">${esc(t('chooseDistrict'))}</option>${districtOpts.map(x => `<option value="${esc(x.id)}" ${d.districtId === x.id ? 'selected' : ''}>${esc(x.name || x.id)}</option>`).join('')}</select></div>
-              <div class="field"><label class="field__required">${esc(t('branchLabel'))}</label><select id="wiz-branch" data-field="branchId" ${d.districtId ? '' : 'disabled'}><option value="">${d.districtId ? esc(t('chooseBranch')) : esc(t('chooseDistrictFirst'))}</option>${branchOpts.map(x => `<option value="${esc(x.id)}" ${d.branchId === x.id ? 'selected' : ''}>${esc(x.name || x.id)}</option>`).join('')}</select></div>
+              <div class="field"><label class="field__required">${esc(t('districtLabel'))}</label><select id="wiz-district" data-field="districtId" ${lockDistrict ? 'disabled' : ''}><option value="">${esc(t('chooseDistrict'))}</option>${districtOpts.map(x => `<option value="${esc(x.id)}" ${d.districtId === x.id ? 'selected' : ''}>${esc(x.name || x.id)}</option>`).join('')}</select></div>
+              <div class="field"><label class="field__required">${esc(t('branchLabel'))}</label><select id="wiz-branch" data-field="branchId" ${lockBranch ? 'disabled' : ''} ${d.districtId ? '' : 'disabled'}><option value="">${d.districtId ? esc(t('chooseBranch')) : esc(t('chooseDistrictFirst'))}</option>${branchOpts.map(x => `<option value="${esc(x.id)}" ${d.branchId === x.id ? 'selected' : ''}>${esc(x.name || x.id)}</option>`).join('')}</select></div>
             </div>
             <div class="id-preview ${idPreview ? '' : 'id-preview--muted'}"><i class="fas fa-id-badge"></i><span class="id-preview__label">${esc(t('idPreview'))}:</span><span>${esc(idPreview || '—')}</span></div>
             <div class="id-preview ${acctPreview ? '' : 'id-preview--muted'}"><i class="fas fa-hashtag"></i><span class="id-preview__label">${esc(t('acctPreview'))}:</span><span>${esc(acctPreview || '—')}</span></div>
@@ -2161,7 +2243,6 @@ function openCustomerWizard(customer) {
           if (!isEdit && data.districtId && data.branchId && !data._idPreview) refreshIdPreview(data).then(() => refresh());
         }
       },
-      /* STEP 5: REVIEW */
       {
         label: t('stepReview'), title: t('stepReviewTitle'),
         render: (d) => {
@@ -2309,6 +2390,8 @@ function buildCustomersQuery() {
     cons.push(where('districtId', '==', APP.profile.districtId));
   } else if (['manager','cashier','teller','accountant'].includes(role) && APP.profile?.branchId) {
     cons.push(where('branchId', '==', APP.profile.branchId));
+  } else if (role === 'member' && APP.profile?.customerId) {
+    cons.push(where('customerId', '==', APP.profile.customerId));
   }
   const base = collection(db, 'customers');
   return cons.length ? query(base, ...cons, limit(2000)) : query(base, limit(2000));
@@ -2318,6 +2401,14 @@ async function loadCustomersFallback() {
   if (_customerFallbackUsed) return;
   _customerFallbackUsed = true;
   APP.diag.primaryFallback = true;
+
+  /* Members must never fall back to an unscoped read */
+  if (isMember()) {
+    APP.customers = [];
+    renderMain();
+    return;
+  }
+
   console.warn('[customers] primary listener failed — trying unscoped getDocs fallback');
   try {
     const snap = await getDocs(query(collection(db, 'customers'), limit(3000)));
@@ -2389,7 +2480,7 @@ function attachListeners() {
 }
 function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} }); APP.unsubs = []; }
 
-/* BOOT — instant render with cached profile */
+/* BOOT */
 (async function boot() {
   let saved = null;
   try { saved = localStorage.getItem(LANG_KEY); } catch(e){}
@@ -2499,7 +2590,7 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
     APP.customers = custSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     APP.diag.preload = 'scoped (' + APP.customers.length + ')';
     console.log('[boot] customers preloaded (scoped):', APP.customers.length);
-    if (APP.customers.length === 0) {
+    if (APP.customers.length === 0 && !isMember()) {
       const s2 = await getDocs(query(collection(db, 'customers'), limit(3000)));
       APP.customers = s2.docs.map(d => ({ id: d.id, ...d.data() }));
       APP.diag.preload = 'unscoped (' + APP.customers.length + ')';
@@ -2509,13 +2600,16 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
   } catch (e) {
     console.error('[boot] customer preload failed:', e.code || e.message);
     try {
-      const s2 = await getDocs(query(collection(db, 'customers'), limit(3000)));
-      APP.customers = s2.docs.map(d => ({ id: d.id, ...d.data() }));
-      APP.diag.preload = 'unscoped-after-error (' + APP.customers.length + ')';
+      if (isMember()) { APP.customers = []; }
+      else {
+        const s2 = await getDocs(query(collection(db, 'customers'), limit(3000)));
+        APP.customers = s2.docs.map(d => ({ id: d.id, ...d.data() }));
+        APP.diag.preload = 'unscoped-after-error (' + APP.customers.length + ')';
+      }
     } catch (e2) {
       APP.diag.preload = 'failed';
       APP.diag.customersError = (e2.code || e2.message || 'unknown');
-      toast('Cannot load customers: ' + (e2.code || e2.message), 'error');
+      if (!isMember()) toast('Cannot load customers: ' + (e2.code || e2.message), 'error');
       APP.customers = [];
     }
     renderMain();
@@ -2524,7 +2618,7 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
   attachListeners();
 })();
 
-console.log('[sacco] customers page ready — shares deduped, merged top-ups hidden');
+console.log('[sacco] customers page ready — role-based access control enabled');
 </script>
 
 </body>
