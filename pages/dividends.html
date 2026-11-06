@@ -376,6 +376,17 @@ body.sidebar-collapsed .sidebar__logout span{display:none;}
 .toast--info{background:#0b5cab;}
 .toast i{font-size:16px;flex-shrink:0;}
 .overlay-mobile{display:none;position:fixed;inset:0;background:rgba(13,21,32,.45);z-index:25;}
+
+.basis-tabs{display:flex;gap:4px;padding:4px;background:#f1f4f8;border-radius:12px;flex-wrap:wrap;margin-bottom:14px;}
+.basis-tabs button{padding:9px 14px;border-radius:8px;font-size:12.5px;font-weight:800;
+  color:var(--muted);cursor:pointer;transition:.15s;background:none;border:none;font-family:inherit;
+  display:inline-flex;align-items:center;gap:6px;}
+.basis-tabs button:hover:not(:disabled){background:#fff;color:var(--primary);}
+.basis-tabs button.is-on{background:#fff;color:var(--primary);box-shadow:0 2px 6px rgba(20,40,70,.08);}
+.basis-tabs button:disabled{opacity:.45;cursor:not-allowed;}
+.basis-tabs button i{font-size:11px;}
+.basis-dot{display:inline-block;width:8px;height:8px;border-radius:50%;}
+
 body.sb-open .overlay-mobile{display:block;}
 .spinner-sm{width:16px;height:16px;border:2px solid currentColor;
   border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
@@ -672,6 +683,11 @@ const DEFAULT_DASHBOARD = Object.freeze({
   defaultMemberPercent: 70, defaultSaccoPercent: 30
 });
 const ALWAYS_COUNTED_DEPOSIT  = ['approved','printed','completed','done','paid'];
+
+/* Distribution basis — must be one of these */
+const BASIS_ORDER = ['shares', 'savings', 'loans', 'all'];
+const BASIS_DEFAULT = 'shares';
+
 const ACTIVE_SERVICE_WITHDRAW = ['pending','approved','completed'];
 const COUNTED_SHARE_STATUSES  = ['approved','completed','done','printed','paid'];
 
@@ -683,7 +699,8 @@ const APP = {
   years: [], selectedYear: new Date().getFullYear(),
   overview: null, childrenPage: 1, childrenPageSize: 12,
   unsubs: [], bootIssues: [],
-  dividendHistory: [], saccoCapitalHistory: []
+  dividendHistory: [], saccoCapitalHistory: [],
+  selectedBasis: BASIS_DEFAULT
 };
 let LANG = 'en';
 
@@ -709,7 +726,7 @@ const I18N = {
     regFee:'Registration Fee', otherIncome:'Other Income', interestPaid:'Interest Paid',
     paidPenalties:'Paid Penalties', totalIncome:'Total Income',
     saccoServices:'SACCO Service Withdrawals',
-    previewTitle:'Dividend Preview', previewSub:'Computed from year profit ÷ total closing shares (at 100%)',
+    previewTitle:'Dividend Preview', previewSub:'Computed from year profit ÷ total closing weight (at 100%)',
     previewNote:'Preview shows 100% of profit. You choose the member/SACCO split when distributing.',
     distributeBtn:'Distribute Dividends', distributeConfirm:'Confirm Distribution',
     distributeConfirmText:'This will create dividend records for all eligible members and allocate retained capital to SACCO.',
@@ -780,7 +797,7 @@ const I18N = {
     colYear:'Year', colBatchRef:'Batch Reference', colRecipients:'Recipients',
     colMemberGross:'Member Gross', colMemberTax:'Tax Withheld', colMemberNet:'Net Payout',
     colTotalProfit:'Total Profit', colSaccoPct:'SACCO %', colSaccoAmt:'SACCO Amount',
-    colPaidDate:'Paid Date',
+    colPaidDate:'Paid Date', colBasis:'Basis',
     noMemberDiv:'No member dividend records yet',
     noMemberDivText:'Distribute dividends from above to populate this history table.',
     noSaccoCap:'No SACCO capital allocations',
@@ -791,7 +808,23 @@ const I18N = {
     closeWindowExpired:'The closing window closed on {date}.',
     closeWindowNotYet:'Cannot close Year {year} today',
     closeWindowBody:'Year {year} can only be closed on <strong>December 30 or 31, {year}</strong> — the last day(s) of that year.',
-    closeWindowToday:'Today is {today}.'
+    closeWindowToday:'Today is {today}.',
+    basisLabel:'Distribution Basis',
+    basisShares:'By Shares', basisSavings:'By Savings',
+    basisLoans:'By Loans Commitment', basisAll:'All Commitments',
+    basisSharesDesc:'Distribute based on closing share balance',
+    basisSavingsDesc:'Distribute based on cumulative savings balance',
+    basisLoansDesc:'Distribute based on outstanding loan commitment',
+    basisAllDesc:'Combine shares + savings + loans with equal weighting',
+    basisAllSuperAdminOnly:'Super Admin only',
+    basisAllRestricted:'This basis can be previewed by all roles, but only a Super Admin can actually distribute using it.',
+    basisNoData:'No data available for this basis',
+    basisNoDataText:'No eligible commitment values were found for this year. Try another basis.',
+    savingsBalance:'Savings Balance', loanCommitment:'Loan Commitment',
+    totalSavings:'Total Savings', totalLoans:'Total Loan Commitments',
+    allWeight:'Combined Weight', rate:'Rate',
+    weightPercent:'Weight %',
+    noSavingsData:'No savings balances for this year', noLoansData:'No active loan commitments'
   }
 };
 I18N.am = { ...I18N.en };
@@ -1120,6 +1153,72 @@ function calculateYearProfitFromData({ year, cfg, income, repayments, loansTx = 
   };
 }
 
+/* ============================================================
+   BASIS DATA LOADERS
+   ============================================================ */
+
+const COUNTED_BASIS_STATUSES = ['approved','completed','done','paid','printed'];
+
+async function loadSavingsBalancesForBasis(){
+  const balances = {};
+
+  // 1) Try a dedicated `savings` collection (one doc per customer)
+  try {
+    const snap = await getDocs(collection(db, 'savings'));
+    snap.forEach(d => {
+      const x = d.data();
+      const cid = x.customerId || x.memberId || x.customerDocId;
+      if (!cid) return;
+      const st = String(x.status || 'active').toLowerCase();
+      if (['closed','cancelled','canceled'].includes(st)) return;
+      const bal = num(x.balance ?? x.currentBalance ?? x.totalBalance ?? x.amount);
+      if (bal > 0) balances[cid] = (balances[cid] || 0) + bal;
+    });
+    if (Object.keys(balances).length) return balances;
+  } catch (e) { console.warn('[basis savings]', e.code || e.message); }
+
+  // 2) Fall back to transactions ledger: deposits − withdrawals
+  try {
+    const [depSnap, wdSnap] = await Promise.all([
+      getDocs(query(collection(db, 'transactions'), where('type', 'in', ['savings_deposit','deposit','saving_deposit']))),
+      getDocs(query(collection(db, 'transactions'), where('type', 'in', ['savings_withdrawal','withdrawal','saving_withdrawal'])))
+    ]);
+    const apply = (snap, sign) => snap.forEach(d => {
+      const x = d.data();
+      const st = String(x.status || 'approved').toLowerCase();
+      if (!COUNTED_BASIS_STATUSES.includes(st)) return;
+      const cid = x.customerId || x.memberId || x.customerDocId;
+      if (!cid) return;
+      balances[cid] = (balances[cid] || 0) + sign * num(x.amount);
+    });
+    apply(depSnap, +1);
+    apply(wdSnap, -1);
+  } catch (e) { console.warn('[basis savings tx]', e.code || e.message); }
+
+  Object.keys(balances).forEach(k => { if (balances[k] < 0) balances[k] = 0; });
+  return balances;
+}
+
+async function loadLoansCommitmentForBasis(){
+  const balances = {};
+  const ACTIVE = ['active','approved','running','disbursed','current','ongoing'];
+  try {
+    const snap = await getDocs(collection(db, 'loans'));
+    snap.forEach(d => {
+      const l = d.data();
+      const st = String(l.status || '').toLowerCase();
+      if (!ACTIVE.includes(st)) return;
+      const cid = l.customerId || l.memberId || l.customerDocId;
+      if (!cid) return;
+      const outstanding =
+        num(l.outstandingBalance ?? l.remainingBalance ?? l.remaining ?? l.balance)
+        || Math.max(0, num(l.amount ?? l.principal) - num(l.paidAmount ?? l.repaidAmount ?? l.totalPaid));
+      if (outstanding > 0) balances[cid] = (balances[cid] || 0) + outstanding;
+    });
+  } catch (e) { console.warn('[basis loans]', e.code || e.message); }
+  return balances;
+}
+
 async function getShareLedgerForYear(year, settings) {
   const cfg = mergeDashboard(settings);
   const snap = await getDocs(query(collection(db, 'shares')));
@@ -1171,37 +1270,113 @@ function bucketSharesForYear({ year, cfg, shares }) {
   };
 }
 
-function buildPreview({ profit, ledger, customers, taxRate = 0, memberPercent = 100 }) {
-  const totalClosing = ledger.totals.closing;
-  if (totalClosing <= 0 || profit.netProfit <= 0) return [];
-  const memberPool = round2(profit.netProfit * (num(memberPercent) / 100));
-  const dps = memberPool / totalClosing;
+/* ---------- normalize helpers ---------- */
+function _normWeights(byCust, total){
+  const out = {};
+  if (!total || total <= 0) return out;
+  Object.keys(byCust || {}).forEach(k => {
+    const v = num(byCust[k]);
+    if (v > 0) out[k] = v / total;
+  });
+  return out;
+}
+function _combineWeights(basisData){
+  const parts = [];
+  if (basisData.shares.total  > 0) parts.push(_normWeights(basisData.shares.byCustomer,  basisData.shares.total));
+  if (basisData.savings.total > 0) parts.push(_normWeights(basisData.savings.byCustomer, basisData.savings.total));
+  if (basisData.loans.total   > 0) parts.push(_normWeights(basisData.loans.byCustomer,   basisData.loans.total));
+  if (!parts.length) return {};
+  const cids = new Set();
+  parts.forEach(p => Object.keys(p).forEach(k => cids.add(k)));
+  const combined = {};
+  cids.forEach(cid => {
+    combined[cid] = parts.reduce((s, p) => s + (p[cid] || 0), 0) / parts.length;
+  });
+  return combined;
+}
+
+/* ---------- generalized preview builder ---------- */
+function buildPreviewForBasis({ profit, basisData, basis = 'shares', customers, taxRate = 0, memberPercent = 100 }){
+  if (!basisData) return [];
+  if (!profit || num(profit.netProfit) <= 0) return [];
+
+  let byCustomer = {}, total = 0;
+  if (basis === 'shares')       { byCustomer = basisData.shares.byCustomer;  total = basisData.shares.total; }
+  else if (basis === 'savings') { byCustomer = basisData.savings.byCustomer; total = basisData.savings.total; }
+  else if (basis === 'loans')   { byCustomer = basisData.loans.byCustomer;   total = basisData.loans.total; }
+  else if (basis === 'all')     { byCustomer = _combineWeights(basisData);   total = 1; }
+  else return [];
+
+  if (total <= 0) return [];
+
+  const memberPool = round2(num(profit.netProfit) * (num(memberPercent) / 100));
+  const dps = memberPool / total;
   const rows = [];
+
   for (const c of (customers || [])) {
-    const cd = ledger.byCustomer[c.id] || { opening:0, bought:0, sold:0, closing:0 };
-    if (cd.closing <= 0) continue;
-    const sharePercent = (cd.closing / totalClosing) * 100;
-    const gross = round2(cd.closing * dps);
+    const w = num(byCustomer[c.id]);
+    if (w <= 0) continue;
+    const weightPercent = (w / total) * 100;
+    const gross = round2(w * dps);
     const tax   = round2(gross * (num(taxRate) / 100));
     const net   = round2(gross - tax);
+    const lDet  = basisData.shares.ledger?.byCustomer[c.id] || {};
     rows.push({
-      customerId: c.id, customerName: customerName(c), customerIdShort: c.customerId || c.memberId || '',
-      opening: cd.opening, bought: cd.bought, sold: cd.sold, shares: cd.closing,
-      sharePercent, grossAmount: gross, taxAmount: tax, netAmount: net
+      customerId: c.id,
+      customerName: customerName(c),
+      customerIdShort: c.customerId || c.memberId || '',
+      opening: num(lDet.opening), bought: num(lDet.bought), sold: num(lDet.sold),
+      shares: num(lDet.closing),
+      savingsBalance: num(basisData.savings.byCustomer[c.id]),
+      loanCommitment: num(basisData.loans.byCustomer[c.id]),
+      weight: w, weightPercent, sharePercent: weightPercent,
+      grossAmount: gross, taxAmount: tax, netAmount: net
     });
   }
-  rows.sort((a,b) => b.shares - a.shares);
+  rows.sort((a,b) => b.weight - a.weight);
+
+  // Reconcile rounding: force gross sum to equal memberPool exactly
+  if (rows.length) {
+    const sumGross = round2(rows.reduce((s, r) => s + r.grossAmount, 0));
+    const diff = round2(memberPool - sumGross);
+    if (Math.abs(diff) >= 0.01) {
+      rows[0].grossAmount = round2(rows[0].grossAmount + diff);
+      rows[0].taxAmount   = round2(rows[0].grossAmount * (num(taxRate) / 100));
+      rows[0].netAmount   = round2(rows[0].grossAmount - rows[0].taxAmount);
+    }
+  }
   return rows;
 }
 
+function getBasisTotal(basisData, basis){
+  if (!basisData) return 0;
+  if (basis === 'shares')  return num(basisData.shares.total);
+  if (basis === 'savings') return num(basisData.savings.total);
+  if (basis === 'loans')   return num(basisData.loans.total);
+  if (basis === 'all')     return 1;
+  return 0;
+}
+
+function basisLabel(b){
+  switch (String(b || 'shares').toLowerCase()) {
+    case 'savings': return t('basisSavings');
+    case 'loans':   return t('basisLoans');
+    case 'all':     return t('basisAll');
+    default:        return t('basisShares');
+  }
+}
+
 async function getYearOverview(year) {
-  const [profit, ledger, batchSnap, yearCloseSnap, saccoCapSnap] = await Promise.all([
+  const [profit, ledger, savingsByCust, loansByCust, batchSnap, yearCloseSnap, saccoCapSnap] = await Promise.all([
     computeYearProfit(year, APP.settings),
     getShareLedgerForYear(year, APP.settings),
+    loadSavingsBalancesForBasis(),
+    loadLoansCommitmentForBasis(),
     getDocs(query(collection(db,'dividendBatches'), where('year','==',year), where('status','in',['pending','paid','closed']))),
     getDocs(query(collection(db,'transactions'), where('type','==','year_close'), where('year','==',year))),
     getDocs(query(collection(db,'transactions'), where('type','==','sacco_capital'), where('year','==',year)))
   ]);
+
   const batch = batchSnap.empty ? null : { id: batchSnap.docs[0].id, ...batchSnap.docs[0].data() };
   const yearClosed = !yearCloseSnap.empty;
   const saccoCapital = saccoCapSnap.docs.reduce((s, d) => {
@@ -1210,16 +1385,40 @@ async function getYearOverview(year) {
     if (['approved','paid','completed','done'].includes(st)) return s + num(x.amount);
     return s;
   }, 0);
+
+  const sumObj = o => Object.values(o || {}).reduce((s,v) => s + num(v), 0);
+  const basisData = {
+    shares:  { byCustomer: Object.fromEntries(Object.entries(ledger.byCustomer || {}).map(([k,v]) => [k, num(v.closing)])),
+               total: num(ledger.totals.closing), ledger },
+    savings: { byCustomer: savingsByCust, total: round2(sumObj(savingsByCust)) },
+    loans:   { byCustomer: loansByCust,   total: round2(sumObj(loansByCust)) }
+  };
+
   const customers = APP.customers.slice();
-  const availableProfit = batch ? 0 : profit.netProfit;
   const memberPercentDefault = num(APP.settings.defaultMemberPercent) || 70;
-  const preview = batch ? [] : buildPreview({
-    profit, ledger, customers,
-    taxRate: num(APP.settings.withholdingTaxRate),
-    memberPercent: memberPercentDefault
+  const taxRate = num(APP.settings.withholdingTaxRate);
+
+  // Preview for all four bases so switching is instant
+  const previewByBasis = {};
+  BASIS_ORDER.forEach(b => {
+    previewByBasis[b] = batch ? [] : buildPreviewForBasis({
+      profit, basisData, basis: b, customers, taxRate, memberPercent: memberPercentDefault
+    });
   });
+
+  // Ensure the selected basis still has data, else fall back to shares
+  let basis = APP.selectedBasis && BASIS_ORDER.includes(APP.selectedBasis) ? APP.selectedBasis : BASIS_DEFAULT;
+  if (!previewByBasis[basis]?.length && previewByBasis.shares?.length) basis = 'shares';
+  APP.selectedBasis = basis;
+
+  const preview = previewByBasis[basis] || [];
+  const basisTotal = getBasisTotal(basisData, basis);
+  const availableProfit = batch ? 0 : profit.netProfit;
+
   return {
-    year, yearClosed, batch, profit, availableProfit, ledger, preview,
+    year, yearClosed, batch, profit, availableProfit, ledger,
+    basisData, previewByBasis, basis, basisTotal,
+    preview,
     saccoCapital: round2(saccoCapital),
     memberPercentDefault,
     saccoPercentDefault: round2(100 - memberPercentDefault),
@@ -1242,10 +1441,14 @@ async function loadAllYearsHistory() {
   }
 }
 
-async function distributeBatch({ year, profit, ledger, previewRows, autoApprove, taxRate, memberPercent, user }) {
+async function distributeBatch({ year, profit, ledger, previewRows, autoApprove, taxRate, memberPercent, user, basis = 'shares', totalWeight = 0 }) {
   if (!previewRows || !previewRows.length) throw new Error('No eligible customers.');
   if (profit.netProfit <= 0) throw new Error('Net profit is zero.');
-  if (ledger.totals.closing <= 0) throw new Error('No closing shares for the year.');
+  if (basis === 'all' && (user?.role !== 'super_admin' && APP.profile?.role !== 'super_admin'))
+    throw new Error('Only a Super Admin can distribute using the "All Commitments" basis.');
+
+  const totalW = num(totalWeight) || num(ledger?.totals?.closing) || 0;
+  if (totalW <= 0) throw new Error('No closing weight for this basis.');
 
   const memberPct = Math.min(100, Math.max(0, num(memberPercent)));
   const saccoPct  = round2(100 - memberPct);
@@ -1254,15 +1457,17 @@ async function distributeBatch({ year, profit, ledger, previewRows, autoApprove,
   const saccoPortion  = round2(totalProfit - memberPortion);
 
   const cfg = mergeDashboard(APP.settings);
-  const totalShares = ledger.totals.closing;
-  const sortedPreview = previewRows.slice().sort((a,b) => num(b.shares) - num(a.shares));
+  const sortedPreview = previewRows.slice().sort((a,b) =>
+    num(b.weight ?? b.shares) - num(a.weight ?? a.shares)
+  );
 
   let runningSum = 0;
   const allocated = new Array(sortedPreview.length);
   for (let i = 1; i < sortedPreview.length; i++) {
     const r = sortedPreview[i];
-    const shareFraction = totalShares > 0 ? num(r.shares) / totalShares : 0;
-    const gross = round2(memberPortion * shareFraction);
+    const w = num(r.weight ?? r.shares);
+    const frac = totalW > 0 ? w / totalW : 0;
+    const gross = round2(memberPortion * frac);
     runningSum = round2(runningSum + gross);
     const tax = round2(gross * (num(taxRate) / 100));
     const net = round2(gross - tax);
@@ -1300,12 +1505,13 @@ async function distributeBatch({ year, profit, ledger, previewRows, autoApprove,
     tx.set(yearIndexRef, { year, batchId, createdAt: serverTimestamp(), createdBy: uid });
     tx.set(batchRef, {
       year, fiscalLabel: String(year), mode: 'bulk',
+      basis,
       status: autoApprove ? 'paid' : 'pending',
       profitFormula: { ...profit },
       settingsSnapshot: { ...cfg, taxRate },
       totalProfit, memberPortion, saccoPortion, memberPercent: memberPct, saccoPercent: saccoPct, verified,
-      totalSharesClosing: totalShares,
-      dividendPerShare: totalShares > 0 ? round4(memberPortion / totalShares) : 0,
+      totalSharesClosing: totalW,
+      dividendPerShare: totalW > 0 ? round4(memberPortion / totalW) : 0,
       totals: { count: allocated.length, gross: totalGross, tax: totalTax, net: totalNet, member: memberPortion, sacco: saccoPortion },
       refNo, printCount: 0,
       createdBy: uid, createdByName: uname, createdAt: serverTimestamp(),
@@ -1321,7 +1527,7 @@ async function distributeBatch({ year, profit, ledger, previewRows, autoApprove,
     for (const row of slice) {
       const childRef = doc(collection(db, 'transactions'));
       childIds.push(childRef.id);
-      wb.set(childRef, childPayload({ row, batchId, year, autoApprove, uid, uname, refNo, taxRate, memberPct }));
+      wb.set(childRef, childPayload({ row, batchId, year, autoApprove, uid, uname, refNo, taxRate, memberPct, basis }));
     }
     await wb.commit();
   }
@@ -1334,6 +1540,7 @@ async function distributeBatch({ year, profit, ledger, previewRows, autoApprove,
         type: 'sacco_capital', batchId, year, fiscalYear: String(year),
         amount: saccoPortion, percent: saccoPct,
         source: 'dividend_allocation',
+        basis,
         notes: `SACCO retained capital from ${year} dividend distribution (${saccoPct}% of ${totalProfit})`,
         status: autoApprove ? 'approved' : 'pending',
         date: new Date(), createdAt: serverTimestamp(),
@@ -1345,10 +1552,11 @@ async function distributeBatch({ year, profit, ledger, previewRows, autoApprove,
 
   return { batchId, refNo, count: allocated.length, totalNet, memberPortion, saccoPortion, verified, childIds };
 }
-function childPayload({ row, batchId, year, autoApprove, uid, uname, refNo, taxRate, memberPct }) {
+function childPayload({ row, batchId, year, autoApprove, uid, uname, refNo, taxRate, memberPct, basis = 'shares' }) {
   const status = autoApprove ? 'paid' : 'pending';
   const base = {
     type: 'dividend', batchId, year, fiscalYear: String(year),
+    basis,
     customerId: row.customerId, memberId: row.customerId, customerDocId: row.customerId,
     customerName: row.customerName, customerIdShort: row.customerIdShort || '',
     payoutType: 'cash',
@@ -1555,6 +1763,11 @@ const canDelete     = () => hasRole(...ROLE_GROUPS.deleteChild);
 const canCloseYear  = () => hasRole(...ROLE_GROUPS.closeYear);
 const canPrint      = () => hasRole(...ROLE_GROUPS.print);
 const isReadOnly    = () => canView() && !canCreate();
+const canDistributeBasis = (basis) => {
+  if (!canCreate()) return false;
+  if (basis === 'all') return APP.profile?.role === 'super_admin';
+  return true;
+};
 
 function navDef() {
   return [
@@ -1652,9 +1865,6 @@ function renderShell() {
   try { if (localStorage.getItem('sacco.sidebar') === 'collapsed') document.body.classList.add('sidebar-collapsed'); } catch(e){}
 }
 
-/* ============================================================
-   renderMain — renders skeleton instantly, fills data when ready
-   ============================================================ */
 async function renderMain(opts = {}) {
   const host = document.getElementById('mainContent');
   if (!host) return;
@@ -1755,12 +1965,22 @@ function renderOverview(ov) {
         <div class="stat__hint">${batch ? num(batch.saccoPercent ?? 0).toFixed(1) + '%' : '—'}</div>
       </div>
       <div class="stat stat--blue">
-        <div class="stat__head"><div class="stat__label">${esc(t('totalShares'))}</div><div class="stat__icon"><i class="fas fa-chart-pie"></i></div></div>
-        <div class="stat__value">${num(ov.ledger.totals.closing).toLocaleString()}</div>
-        <div class="stat__hint">Closing</div>
+        <div class="stat__head"><div class="stat__label">${esc(
+          APP.selectedBasis === 'savings' ? t('totalSavings') :
+          APP.selectedBasis === 'loans'   ? t('totalLoans')   :
+          APP.selectedBasis === 'all'     ? t('allWeight')    :
+                                            t('totalShares')
+        )}</div><div class="stat__icon"><i class="fas fa-chart-pie"></i></div></div>
+        <div class="stat__value" style="font-size:19px">${
+          APP.selectedBasis === 'savings' ? esc(moneyShort(ov.basisData?.savings.total)) :
+          APP.selectedBasis === 'loans'   ? esc(moneyShort(ov.basisData?.loans.total))   :
+          APP.selectedBasis === 'all'     ? '1.0000' :
+                                            num(ov.ledger.totals.closing).toLocaleString()
+        }</div>
+        <div class="stat__hint">${esc(basisLabel(APP.selectedBasis))}</div>
       </div>
       <div class="stat stat--gold">
-        <div class="stat__head"><div class="stat__label">${esc(t('perShare'))}</div><div class="stat__icon"><i class="fas fa-percentage"></i></div></div>
+        <div class="stat__head"><div class="stat__label">${esc(t('rate'))}</div><div class="stat__icon"><i class="fas fa-percentage"></i></div></div>
         <div class="stat__value" style="font-size:19px">${esc(money(dps.toFixed(4)))}</div>
         <div class="stat__hint">${esc(t('avgDividend'))}: ${esc(money(avg))}</div>
       </div>
@@ -1791,9 +2011,8 @@ function renderOverview(ov) {
   if (!APP.customers.length) bodyHtml += `<div class="info-banner info-banner--danger"><i class="fas fa-users-slash"></i><div><strong>No customers loaded.</strong></div></div>`;
 
   if (batch) bodyHtml += renderBatchCard(batch);
-  else if (profit.netProfit > 0 && ov.preview.length > 0) bodyHtml += renderPreviewCard(ov);
+  else if (profit.netProfit > 0) bodyHtml += renderPreviewCard(ov);
   else if (profit.netProfit <= 0) bodyHtml += `<div class="info-banner info-banner--warning"><i class="fas fa-exclamation-triangle"></i><div><strong>${esc(t('noProfit'))}.</strong> ${esc(t('noProfitText'))}</div></div>`;
-  else if (ov.ledger.totals.closing <= 0) bodyHtml += `<div class="info-banner info-banner--warning"><i class="fas fa-exclamation-triangle"></i><div><strong>${esc(t('noShares'))}.</strong> ${esc(t('noSharesText'))}</div></div>`;
 
   bodyHtml += renderChildrenCard();
   bodyHtml += renderHistorySections();
@@ -1853,6 +2072,7 @@ function renderBatchCard(batch) {
           </div>
         ` : ''}
         <div class="review" style="max-width:720px">
+          <div class="review__row"><span class="review__k">${esc(t('basisLabel'))}</span><span class="review__v"><span class="tag tag--violet">${esc(basisLabel(batch.basis || 'shares'))}</span></span></div>
           <div class="review__row"><span class="review__k">${esc(t('splitTotal'))}</span><span class="review__v mono" style="font-weight:800">${esc(money(totalProfit))}</span></div>
           <div class="review__row" style="background:#f0fdf4"><span class="review__k" style="color:#067647">${esc(t('splitMembers'))} (${memberPct.toFixed(2)}%)</span><span class="review__v mono" style="color:#067647;font-weight:800">${esc(money(memberPortion))}</span></div>
           ${taxAmount > 0 ? `<div class="review__row"><span class="review__k">↳ ${esc(t('taxApplied'))}</span><span class="review__v mono" style="color:#b8860b">− ${esc(money(taxAmount))}</span></div>
@@ -1874,47 +2094,162 @@ function renderBatchCard(batch) {
 }
 
 function renderPreviewCard(ov) {
-  const rows = ov.preview;
+  const basis = ov.basis || 'shares';
+  const rows = ov.previewByBasis?.[basis] || ov.preview || [];
+  const isSuperAdmin = APP.profile?.role === 'super_admin';
+  const canDistCurrent = canDistributeBasis(basis);
+
   const memberPctPreview = num(ov.memberPercentDefault) || 70;
   const memberPortionPreview = round2(num(ov.profit.netProfit) * memberPctPreview / 100);
   const saccoPortionPreview  = round2(num(ov.profit.netProfit) - memberPortionPreview);
   const sumPreview = round2(memberPortionPreview + saccoPortionPreview);
   const verified = Math.abs(sumPreview - num(ov.profit.netProfit)) < 0.01;
 
-  let totalOpen = 0, totalBuy = 0, totalSell = 0, totalClose = 0, totalNet = 0;
-  let html = '';
-  rows.forEach((r, i) => {
-    totalOpen += r.opening; totalBuy += r.bought; totalSell += r.sold;
-    totalClose += r.shares; totalNet += r.netAmount;
-    html += `<tr>
-      <td class="center">${i + 1}</td>
-      <td><div class="name">${esc(r.customerName)}</div>${r.customerIdShort ? `<div class="muted mono">${esc(r.customerIdShort)}</div>` : ''}</td>
-      <td class="num">${r.opening.toFixed(2)}</td>
-      <td class="num" style="color:#128a5c">${r.bought > 0 ? '+' + r.bought.toFixed(2) : '—'}</td>
-      <td class="num" style="color:#b42318">${r.sold > 0 ? '-' + r.sold.toFixed(2) : '—'}</td>
-      <td class="num"><strong>${r.shares.toFixed(2)}</strong></td>
-      <td class="num">${r.sharePercent.toFixed(3)}%</td>
-      <td class="num"><strong style="color:#067647">${r.netAmount.toFixed(2)}</strong></td>
-    </tr>`;
-  });
-  html += `<tr class="total-row">
-    <td colspan="2" class="num" style="text-align:right"><strong>TOTAL</strong></td>
-    <td class="num">${totalOpen.toFixed(2)}</td>
-    <td class="num">+${totalBuy.toFixed(2)}</td>
-    <td class="num">-${totalSell.toFixed(2)}</td>
-    <td class="num">${totalClose.toFixed(2)}</td>
-    <td class="num">100.000%</td>
-    <td class="num">${totalNet.toFixed(2)}</td>
-  </tr>`;
+  // basis-specific KPI summary
+  const basisKpi = {
+    shares:  { label: t('totalShares'),          value: num(ov.basisData?.shares.total).toLocaleString(),  rateLabel: t('perShare') },
+    savings: { label: t('totalSavings'),         value: esc(money(ov.basisData?.savings.total)),           rateLabel: 'ETB rate' },
+    loans:   { label: t('totalLoans'),           value: esc(money(ov.basisData?.loans.total)),             rateLabel: 'ETB rate' },
+    all:     { label: t('allWeight'),            value: '1.0000',                                          rateLabel: t('rate') }
+  }[basis] || { label: t('totalShares'), value: '—', rateLabel: t('perShare') };
+
+  let totalWeight = 0, totalNet = 0;
+  let tableHtml = '';
+
+  if (!rows.length) {
+    tableHtml = `<div class="empty" style="padding:40px 20px">
+      <i class="fas fa-inbox"></i>
+      <div class="empty__title">${esc(t('basisNoData'))}</div>
+      <div class="empty__text">${esc(t('basisNoDataText'))}</div>
+    </div>`;
+  } else if (basis === 'shares') {
+    let tO = 0, tB = 0, tS = 0, tC = 0;
+    const body = rows.map((r, i) => {
+      tO += r.opening; tB += r.bought; tS += r.sold; tC += r.shares; totalNet += r.netAmount;
+      return `<tr>
+        <td class="center">${i + 1}</td>
+        <td><div class="name">${esc(r.customerName)}</div>${r.customerIdShort ? `<div class="muted mono">${esc(r.customerIdShort)}</div>` : ''}</td>
+        <td class="num">${r.opening.toFixed(2)}</td>
+        <td class="num" style="color:#128a5c">${r.bought > 0 ? '+' + r.bought.toFixed(2) : '—'}</td>
+        <td class="num" style="color:#b42318">${r.sold > 0 ? '-' + r.sold.toFixed(2) : '—'}</td>
+        <td class="num"><strong>${r.shares.toFixed(2)}</strong></td>
+        <td class="num">${r.weightPercent.toFixed(3)}%</td>
+        <td class="num"><strong style="color:#067647">${r.netAmount.toFixed(2)}</strong></td>
+      </tr>`;
+    }).join('');
+    tableHtml = `<div class="tbl-wrap" style="max-height:440px;overflow-y:auto">
+      <table class="tbl">
+        <thead><tr>
+          <th class="center">${esc(t('colHash'))}</th><th>${esc(t('colCustomer'))}</th>
+          <th class="num">Opening</th><th class="num">Bought</th><th class="num">Sold</th>
+          <th class="num">${esc(t('colShares'))}</th><th class="num">${esc(t('colPercent'))}</th><th class="num">${esc(t('colNet'))}</th>
+        </tr></thead>
+        <tbody>${body}</tbody>
+        <tfoot><tr class="total-row">
+          <td colspan="2" class="num" style="text-align:right"><strong>TOTAL</strong></td>
+          <td class="num">${tO.toFixed(2)}</td>
+          <td class="num">+${tB.toFixed(2)}</td>
+          <td class="num">-${tS.toFixed(2)}</td>
+          <td class="num">${tC.toFixed(2)}</td>
+          <td class="num">100.000%</td>
+          <td class="num">${totalNet.toFixed(2)}</td>
+        </tr></tfoot>
+      </table></div>`;
+  } else if (basis === 'savings' || basis === 'loans') {
+    const weightField  = basis === 'savings' ? 'savingsBalance' : 'loanCommitment';
+    const weightHeader = basis === 'savings' ? t('savingsBalance') : t('loanCommitment');
+    const body = rows.map((r, i) => {
+      totalWeight += r.weight; totalNet += r.netAmount;
+      return `<tr>
+        <td class="center">${i + 1}</td>
+        <td><div class="name">${esc(r.customerName)}</div>${r.customerIdShort ? `<div class="muted mono">${esc(r.customerIdShort)}</div>` : ''}</td>
+        <td class="num"><strong>${esc(money(r[weightField]))}</strong></td>
+        <td class="num">${r.weightPercent.toFixed(3)}%</td>
+        <td class="num"><strong style="color:#067647">${esc(money(r.netAmount))}</strong></td>
+      </tr>`;
+    }).join('');
+    tableHtml = `<div class="tbl-wrap" style="max-height:440px;overflow-y:auto">
+      <table class="tbl">
+        <thead><tr>
+          <th class="center">${esc(t('colHash'))}</th><th>${esc(t('colCustomer'))}</th>
+          <th class="num">${esc(weightHeader)}</th>
+          <th class="num">${esc(t('colPercent'))}</th>
+          <th class="num">${esc(t('colNet'))}</th>
+        </tr></thead>
+        <tbody>${body}</tbody>
+        <tfoot><tr class="total-row">
+          <td colspan="2" class="num" style="text-align:right"><strong>TOTAL</strong></td>
+          <td class="num">${esc(money(totalWeight))}</td>
+          <td class="num">100.000%</td>
+          <td class="num">${esc(money(totalNet))}</td>
+        </tr></tfoot>
+      </table></div>`;
+  } else { // 'all'
+    const body = rows.map((r, i) => {
+      totalWeight += r.weight; totalNet += r.netAmount;
+      return `<tr>
+        <td class="center">${i + 1}</td>
+        <td><div class="name">${esc(r.customerName)}</div>${r.customerIdShort ? `<div class="muted mono">${esc(r.customerIdShort)}</div>` : ''}</td>
+        <td class="num">${r.shares.toFixed(2)}</td>
+        <td class="num">${esc(money(r.savingsBalance))}</td>
+        <td class="num">${esc(money(r.loanCommitment))}</td>
+        <td class="num"><strong>${(r.weight * 100).toFixed(3)}%</strong></td>
+        <td class="num"><strong style="color:#067647">${esc(money(r.netAmount))}</strong></td>
+      </tr>`;
+    }).join('');
+    tableHtml = `<div class="tbl-wrap" style="max-height:440px;overflow-y:auto">
+      <table class="tbl">
+        <thead><tr>
+          <th class="center">${esc(t('colHash'))}</th><th>${esc(t('colCustomer'))}</th>
+          <th class="num">${esc(t('colShares'))}</th>
+          <th class="num">${esc(t('savingsBalance'))}</th>
+          <th class="num">${esc(t('loanCommitment'))}</th>
+          <th class="num">${esc(t('weightPercent'))}</th>
+          <th class="num">${esc(t('colNet'))}</th>
+        </tr></thead>
+        <tbody>${body}</tbody>
+        <tfoot><tr class="total-row">
+          <td colspan="2" class="num" style="text-align:right"><strong>TOTAL</strong></td>
+          <td class="num">${num(ov.basisData?.shares.total).toFixed(2)}</td>
+          <td class="num">${esc(money(ov.basisData?.savings.total))}</td>
+          <td class="num">${esc(money(ov.basisData?.loans.total))}</td>
+          <td class="num">100.000%</td>
+          <td class="num">${esc(money(totalNet))}</td>
+        </tr></tfoot>
+      </table></div>`;
+  }
+
+  const tabs = BASIS_ORDER.map(b => {
+    const on = b === basis ? ' is-on' : '';
+    const disabled = b === 'all' && !isSuperAdmin ? ' disabled' : '';
+    const lock = b === 'all' && !isSuperAdmin ? `<i class="fas fa-lock"></i>` : '';
+    return `<button data-basis="${b}" class="${on}"${disabled}>${lock}${esc(t('basis' + b.charAt(0).toUpperCase() + b.slice(1)))}</button>`;
+  }).join('');
+
+  const avail = ov.basisData?.[basis] || {};
+  const rate = num(avail.total) > 0 ? (memberPortionPreview / num(avail.total)) : 0;
 
   return `
     <div class="card">
       <div class="card__head">
-        <div><div class="card__title"><i class="fas fa-eye"></i> ${esc(t('previewTitle'))}</div><div class="card__sub">${esc(t('previewSub'))} — shown at ${memberPctPreview.toFixed(0)}% to members</div></div>
-        <div class="card__actions">${canCreate() ? `<button class="btn btn--success btn--sm" id="distributeBtn"><i class="fas fa-gift"></i> ${esc(t('distributeBtn'))}</button>` : ''}</div>
+        <div>
+          <div class="card__title"><i class="fas fa-eye"></i> ${esc(t('previewTitle'))}</div>
+          <div class="card__sub">${esc(t('basisLabel'))}: <strong>${esc(basisLabel(basis))}</strong> · ${esc(memberPctPreview.toFixed(0))}% to members</div>
+        </div>
+        <div class="card__actions">
+          ${canDistCurrent
+            ? `<button class="btn btn--success btn--sm" id="distributeBtn"><i class="fas fa-gift"></i> ${esc(t('distributeBtn'))}</button>`
+            : `<button class="btn btn--sm" disabled title="${esc(t('basisAllSuperAdminOnly'))}"><i class="fas fa-lock"></i> ${esc(t('distributeBtn'))}</button>`}
+        </div>
       </div>
       <div class="card__body" style="padding-top:14px">
+        <div class="basis-tabs">${tabs}</div>
+
+        ${basis === 'all' && !isSuperAdmin ? `<div class="info-banner info-banner--warning">
+          <i class="fas fa-lock"></i><div>${esc(t('basisAllRestricted'))}</div></div>` : ''}
+
         <div class="info-banner info-banner--success"><i class="fas fa-info-circle"></i><div>${esc(t('previewNote'))}</div></div>
+
         <div class="split-grid">
           <div class="split-box split-box--members is-active">
             <div class="split-box__label">${esc(t('splitMembers'))} (${memberPctPreview.toFixed(1)}%)</div>
@@ -1927,17 +2262,16 @@ function renderPreviewCard(ov) {
             <div class="split-box__amt">${esc(t('saccoAmount'))}</div>
           </div>
         </div>
-        <div class="verify-line ${verified ? '' : 'is-bad'}">${verified ? '✓ ' : '⚠ '}${esc(money(memberPortionPreview))} + ${esc(money(saccoPortionPreview))} = ${esc(money(sumPreview))}${verified ? '' : ' — mismatch vs ' + esc(money(ov.profit.netProfit))}</div>
-        <div class="tbl-wrap" style="max-height:440px;overflow-y:auto;margin-top:14px">
-          <table class="tbl">
-            <thead><tr>
-              <th class="center">${esc(t('colHash'))}</th><th>${esc(t('colCustomer'))}</th>
-              <th class="num">Opening</th><th class="num">Bought</th><th class="num">Sold</th>
-              <th class="num">${esc(t('colShares'))}</th><th class="num">${esc(t('colPercent'))}</th><th class="num">${esc(t('colNet'))}</th>
-            </tr></thead>
-            <tbody>${html}</tbody>
-          </table>
+
+        <div class="verify-line ${verified ? '' : 'is-bad'}">${verified ? '✓ ' : '⚠ '}${esc(money(memberPortionPreview))} + ${esc(money(saccoPortionPreview))} = ${esc(money(sumPreview))}</div>
+
+        <div class="payout-preview" style="margin-top:14px;margin-bottom:14px">
+          <div class="payout-preview__cell"><div class="payout-preview__label">${esc(basisKpi.label)}</div><div class="payout-preview__value">${basisKpi.value}</div></div>
+          <div class="payout-preview__cell"><div class="payout-preview__label">${esc(basisKpi.rateLabel)}</div><div class="payout-preview__value is-primary">${esc(money(rate))}</div></div>
+          <div class="payout-preview__cell"><div class="payout-preview__label">${esc(t('customersPaid'))}</div><div class="payout-preview__value is-green">${rows.length}</div></div>
         </div>
+
+        ${tableHtml}
       </div>
     </div>`;
 }
@@ -1971,6 +2305,7 @@ function renderHistorySections() {
             <thead><tr>
               <th>${esc(t('colYear'))}</th>
               <th>${esc(t('colBatchRef'))}</th>
+              <th>${esc(t('colBasis'))}</th>
               <th class="num">${esc(t('colRecipients'))}</th>
               <th class="num">${esc(t('colMemberGross'))}</th>
               <th class="num">${esc(t('colMemberTax'))}</th>
@@ -1979,7 +2314,7 @@ function renderHistorySections() {
               <th>${esc(t('colPaidDate'))}</th>
               <th>${esc(t('colStatus'))}</th>
             </tr></thead>
-            <tbody id="histDivBody">${loadingRow(9)}</tbody>
+            <tbody id="histDivBody">${loadingRow(10)}</tbody>
           </table>
         </div>
       </div>
@@ -2033,6 +2368,7 @@ function renderDistributionHistoryBody() {
         year: Number(tx.year || tx.fiscalYear || 0),
         gross: 0, tax: 0, net: 0, count: 0,
         saccoPct: 0,
+        basis: tx.basis || 'shares',
         date: tx.paidAt || tx.createdAt || tx.date
       });
     }
@@ -2056,7 +2392,7 @@ function renderDistributionHistoryBody() {
   });
 
   if (!list.length) {
-    host.innerHTML = `<tr><td colspan="9" style="padding:40px 20px;text-align:center;color:var(--muted);">
+    host.innerHTML = `<tr><td colspan="10" style="padding:40px 20px;text-align:center;color:var(--muted);">
       <i class="fas fa-gift" style="display:block;font-size:36px;color:#cbd5e1;margin-bottom:12px;"></i>
       <div style="font-weight:800;color:var(--text);font-size:14px;margin-bottom:4px;">${esc(t('noMemberDiv'))}</div>
       <div style="font-size:12.5px;">${esc(t('noMemberDivText'))}</div>
@@ -2078,6 +2414,7 @@ function renderDistributionHistoryBody() {
     return `<tr>
       <td><span class="tag tag--blue" style="font-size:11px;">${esc(String(g.year || '—'))}</span></td>
       <td><span class="mono" style="font-size:11.5px;font-weight:700;color:var(--text-soft);">${esc(String(g.refNo).slice(0, 36))}</span></td>
+      <td><span class="tag tag--violet" style="font-size:10px;">${esc(basisLabel(g.basis))}</span></td>
       <td class="num">${g.count}</td>
       <td class="num">${esc(money(g.gross))}</td>
       <td class="num">${g.tax > 0 ? esc(money(g.tax)) : '—'}</td>
@@ -2264,6 +2601,25 @@ function wireOverviewEvents(ov) {
   document.getElementById('distributeBtn')?.addEventListener('click', () => openDistributionModal(ov2));
   document.getElementById('closeYearBtn')?.addEventListener('click', () => openCloseYearModal(ov2));
   document.getElementById('batchPrintBtn')?.addEventListener('click', () => printYearlyReport());
+
+  // Basis tabs (preview card)
+  document.querySelectorAll('.basis-tabs [data-basis]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const b = btn.dataset.basis;
+      if (!BASIS_ORDER.includes(b)) return;
+      if (btn.disabled) return;
+      if (!APP.overview) return;
+      APP.selectedBasis = b;
+      APP.overview.basis = b;
+      APP.overview.preview = APP.overview.previewByBasis?.[b] || [];
+      APP.overview.basisTotal = getBasisTotal(APP.overview.basisData, b);
+      APP.overview.canDistribute = !APP.overview.batch && !APP.overview.yearClosed
+        && APP.overview.availableProfit > 0
+        && APP.overview.preview.length > 0;
+      renderOverview(APP.overview);
+    });
+  });
+
   const s = document.getElementById('childSearch');
   s?.addEventListener('input', debounce(() => {
     const q = s.value.trim().toLowerCase();
@@ -2321,8 +2677,12 @@ function openModal({ size = '', head, body, foot }) {
 function openDistributionModal(ov) {
   if (!canCreate()) { toast(t('noPermission'), 'error'); return; }
   if (!ov?.canDistribute) { toast(t('noPermission'), 'warning'); return; }
+  if (!canDistributeBasis(ov.basis || 'shares')) {
+    toast(t('basisAllRestricted'), 'error'); return;
+  }
   const totalProfit = round2(num(ov.profit.netProfit));
   const defaultMemberPct = num(ov.memberPercentDefault) || 70;
+  const previewRowsCount = (ov.previewByBasis?.[ov.basis] || ov.preview || []).length;
 
   const root = openModal({
     size: 'lg',
@@ -2330,9 +2690,10 @@ function openDistributionModal(ov) {
     body: `
       <div class="review" style="margin-bottom:16px">
         <div class="review__row"><span class="review__k">${esc(t('year'))}</span><span class="review__v">${ov.year}</span></div>
+        <div class="review__row"><span class="review__k">${esc(t('basisLabel'))}</span><span class="review__v"><span class="tag tag--violet">${esc(basisLabel(ov.basis || 'shares'))}</span></span></div>
         <div class="review__row"><span class="review__k">${esc(t('netProfit'))} (total)</span><span class="review__v mono" style="color:#b8860b;font-weight:800">${esc(money(totalProfit))}</span></div>
         <div class="review__row"><span class="review__k">${esc(t('totalShares'))}</span><span class="review__v mono">${num(ov.ledger.totals.closing).toLocaleString()}</span></div>
-        <div class="review__row"><span class="review__k">${esc(t('customersPaid'))}</span><span class="review__v">${ov.preview.length}</span></div>
+        <div class="review__row"><span class="review__k">${esc(t('customersPaid'))}</span><span class="review__v">${previewRowsCount}</span></div>
       </div>
       <div class="field-row" style="margin-bottom:14px">
         <div class="field" style="margin-bottom:0"><label class="field__required">${esc(t('memberSharePct'))}</label><input type="number" id="optMemberPct" min="0" max="100" step="0.1" value="${defaultMemberPct}" class="amount-input"></div>
@@ -2393,7 +2754,10 @@ function openDistributionModal(ov) {
       const taxRate = num(APP.settings.withholdingTaxRate) || 0;
       const result = await distributeBatch({
         year: ov.year, profit: ov.profit, ledger: ov.ledger,
-        previewRows: ov.preview, autoApprove, taxRate, memberPercent, user: APP.user
+        previewRows: ov.previewByBasis?.[ov.basis] || ov.preview,
+        autoApprove, taxRate, memberPercent, user: APP.user,
+        basis: ov.basis || 'shares',
+        totalWeight: ov.basisTotal || num(ov.ledger?.totals?.closing)
       });
       if (!result.verified) toast('Distribution saved but sum check failed. Please audit.', 'warning');
       else toast(t('createdOk'), 'success');
@@ -2463,6 +2827,7 @@ function openViewChildModal(tx) {
     body: `<div class="review" style="margin-bottom:18px">
       <div class="review__row"><span class="review__k">${esc(t('colSerial'))}</span><span class="review__v mono">${esc(tx.serialNumber || '—')}</span></div>
       <div class="review__row"><span class="review__k">${esc(t('customer'))}</span><span class="review__v">${esc(displayName)}</span></div>
+      <div class="review__row"><span class="review__k">${esc(t('basisLabel'))}</span><span class="review__v"><span class="tag tag--violet">${esc(basisLabel(tx.basis || 'shares'))}</span></span></div>
       <div class="review__row"><span class="review__k">${esc(t('paymentType'))}</span><span class="review__v"><span class="tag ${ty === 'shares' ? 'tag--violet' : 'tag--gold'}">${esc(ty === 'shares' ? t('typeShares') : t('typeCash'))}</span></span></div>
       <div class="review__row"><span class="review__k">${esc(t('fiscalYear'))}</span><span class="review__v">${esc(tx.fiscalYear || tx.year || '—')}</span></div>
       <div class="review__row"><span class="review__k">${esc(t('sharesHeld'))}</span><span class="review__v mono">${num(tx.sharesHeld).toFixed(2)}</span></div>
@@ -2672,7 +3037,8 @@ function openManualDividendModal(existing) {
       const wb = writeBatch(db);
       wb.set(batchRef, {
         year, fiscalLabel: root.querySelector('#mFY').value || String(year),
-        mode: 'manual', status: state.status === 'paid' ? 'paid' : 'pending',
+        mode: 'manual', basis: 'shares',
+        status: state.status === 'paid' ? 'paid' : 'pending',
         profitFormula: { netProfit: 0, registrationFee: 0, otherIncome: 0, paidInterest: 0, paidPenalties: 0, serviceWithdrawals: 0, totalIncome: 0 },
         totalProfit: gross, memberPortion: gross, saccoPortion: 0,
         memberPercent: 100, saccoPercent: 0, verified: true,
@@ -2682,6 +3048,7 @@ function openManualDividendModal(existing) {
       });
       wb.set(childRef, {
         type: 'dividend', batchId, year, fiscalYear: root.querySelector('#mFY').value || String(year),
+        basis: 'shares',
         customerId: state.customerId, memberId: state.customerId, customerDocId: state.customerId,
         customerName: state.customerName, customerIdShort: state.customerIdShort || '',
         payoutType: state.payoutType, sharesHeld: state.sharesHeld, ratePerShare: state.ratePerShare,
@@ -2803,13 +3170,14 @@ async function printYearlyReport() {
   const saccoPortion  = num(batch?.saccoPortion ?? (totalProfit - memberPortion));
   const memberPct = num(batch?.memberPercent ?? (totalProfit > 0 ? (memberPortion / totalProfit) * 100 : 100));
   const saccoPct  = num(batch?.saccoPercent  ?? (totalProfit > 0 ? 100 - memberPct : 0));
+  const basisStr = basisLabel(batch?.basis || APP.selectedBasis || 'shares');
 
   const rowsHtml = rows.map((r, i) => `<tr><td class="center">${i + 1}</td><td>${esc(r.customerName)}</td><td class="center">${esc(r.customerIdShort || '—')}</td><td class="right">${r.opening.toFixed(2)}</td><td class="right tx-buy">${r.bought > 0 ? '+' + r.bought.toFixed(2) : '—'}</td><td class="right tx-sell">${r.sold > 0 ? '-' + r.sold.toFixed(2) : '—'}</td><td class="right"><strong>${r.shares.toFixed(2)}</strong></td><td class="right"><strong>${r.dividendAmount.toFixed(2)}</strong></td></tr>`).join('');
 
   host.innerHTML = `
     <div class="report-doc">
       <div class="report-header">
-        <div class="left"><div class="logo"><img src="${LOGO_URL}" onerror="this.style.display='none'"></div><div><h1>${esc(APP.saccoName.toUpperCase())}</h1><p>${esc(reportLabel)} — ${year}</p></div></div>
+        <div class="left"><div class="logo"><img src="${LOGO_URL}" onerror="this.style.display='none'"></div><div><h1>${esc(APP.saccoName.toUpperCase())}</h1><p>${esc(reportLabel)} — ${year}</p><p>Basis: ${esc(basisStr)}</p></div></div>
         <div class="right"><div class="title">Shareholder Summary</div><div>Ref: ${esc(refNo)}</div><div>Printed: ${esc(printedAt)}</div><div>By: ${esc(user.fullName || user.name || user.email || '—')}</div></div>
       </div>
       <div class="a4-summary-strip">
@@ -2890,7 +3258,7 @@ function buildVoucherHtml(tx, watermark) {
         <div style="text-align:right"><div><strong>Fiscal Year :</strong> ${esc(tx.fiscalYear || tx.year || '—')}</div><div><span class="slip__doc-stamp ${isCopy ? 'slip__doc-stamp--copy' : 'slip__doc-stamp--original'}">${esc(watermark)}</span></div></div>
       </div>
       <div class="slip__title">${esc(t('voucher'))}</div>
-      <div class="slip__subtitle">${esc(t('voucherSub'))} — ${esc(tx.fiscalYear || tx.year || '')}</div>
+      <div class="slip__subtitle">${esc(t('voucherSub'))} — ${esc(tx.fiscalYear || tx.year || '')} · ${esc(basisLabel(tx.basis || 'shares'))}</div>
       <div class="slip__cert-frame">
         <div class="slip__body">
           <p>This voucher certifies the annual dividend distribution to the member named below for the stated fiscal year, in accordance with the Cooperative's profit-sharing policy.</p>
