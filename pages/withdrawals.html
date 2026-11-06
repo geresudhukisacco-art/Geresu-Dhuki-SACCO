@@ -731,8 +731,8 @@ const I18N = {
     fromCustomer:'From Customer', toCustomer:'To Customer', sameCustomer:'Cannot transfer to the same customer.',
     typeLabel:'Withdrawal Type',
     typeIndividualDesc:'Customer net saving withdrawal (max 95%)',
-    typeServiceDesc:'Withdraw from SACCO capital (all years)',
-    typeLeavingDesc:'Full capital withdrawal — savings + shares',
+    typeServiceDesc:'Withdraw from SACCO capital — Admin only',
+    typeLeavingDesc:'Full capital withdrawal — Admin only',
     typeTransferDesc:'Transfer capital between two customers',
     amountLabel:'Amount (ETB)', amountHint:'Amount must be greater than zero.',
     dateLabel:'Transaction Date', reasonLabel:'Reason', noteLabel:'Note (optional)',
@@ -803,7 +803,7 @@ I18N.am = { ...I18N.en,
   totalSaccoCapitalAll:'ጠቅላላ የሳኮ ካፒታል (ሁሉም ዓመታት)',
   availableToWithdraw:'ለመውጣት የሚገኝ',
   serviceWithdrawalsUsed:'የአገልግሎት ወጪዎች ተጠቅመዋል',
-  typeServiceDesc:'ከሳኮ ካፒታል (ሁሉም ዓመታት) ወጪ ያድርጉ'
+  typeServiceDesc:'ከሳኮ ካፒታል ወጪ ያድርጉ — ለአስተዳዳሪዎች ብቻ'
 };
 I18N.om = { ...I18N.en,
   brandSub:'Bulchiinsa SACCO', logout:"Ba'i", loading:"Fe'aa jira…",
@@ -826,7 +826,7 @@ I18N.om = { ...I18N.en,
   totalSaccoCapitalAll:'Kaappitaala SACCO Waliigalaa (Waggoota Hunda)',
   availableToWithdraw:'Baasuuf Jiru',
   serviceWithdrawalsUsed:'baasii tajaajilaa fayyadame',
-  typeServiceDesc:'Kaappitaala SACCO (waggoota hunda) irraa baasi'
+  typeServiceDesc:'Kaappitaala SACCO irraa baasi — bulchitootaaf qofa'
 };
 
 const SUPPORTED = ['en','am','om'];
@@ -910,14 +910,22 @@ const ROLE_LABELS = {
 };
 const roleLabel = (r) => t(ROLE_LABELS[r]) || (r||'').replace(/_/g,' ');
 
-/* -------- ROLE CHECKS (match the RBAC matrix) --------
-   Super Admin        : add ✅ view ✅ edit ✅ delete ✅ approve ✅ print ✅
-   District Admin     : add ✅ view ✅ edit ✅ delete ✅ approve ✅ print ✅   (own district)
-   Manager            : add ❌ view ✅ edit ❌ delete ❌ approve ✅ print ✅   (own branch)
-   Cashier/Teller/Acc : add ✅ view ✅ edit ❌ delete ❌ approve ❌ print ✅   (own branch)
-   Auditor            : add ❌ view ✅ edit ❌ delete ❌ approve ❌ print ❌   (all districts)
+/* ============================================================================
+   ROLE CHECKS — must match the RBAC matrix exactly.
+
+   Super Admin        : add ✅ view ✅ edit ✅ delete ✅ approve ✅ print ✅ (all districts)
+   District Admin     : add ✅ view ✅ edit ✅ delete ✅ approve ✅ print ✅ (own district)
+   Manager            : add ❌ view ✅ edit ❌ delete ❌ approve ✅ print ✅ (own branch)
+   Cashier/Teller/Acc : add ✅ view ✅ edit ❌ delete ❌ approve ❌ print ✅ (own branch)
+   Auditor            : add ❌ view ✅ edit ❌ delete ❌ approve ❌ print ❌ (all districts, READ-ONLY)
    Member             : add ❌ view ✅(own) edit ❌ delete ❌ approve ❌ print ❌
-   ------------------------------------------------------- */
+
+   Additional withdrawal-type restrictions:
+     • Individual withdrawal : Super Admin, District Admin, Cashier/Teller/Accountant
+     • SACCO Service         : Super Admin, District Admin ONLY
+     • Customer Leaving      : Super Admin, District Admin ONLY
+     • Transfer              : Super Admin, District Admin, Cashier/Teller/Accountant
+   ============================================================================ */
 const isSuper       = () => APP.profile?.role === 'super_admin';
 const isDistrict    = () => APP.profile?.role === 'admin';
 const isAuditor     = () => APP.profile?.role === 'auditor';
@@ -925,11 +933,15 @@ const isBranchRole  = () => ['manager','cashier','teller','accountant'].includes
 const isCashierRole = () => ['cashier','teller','accountant'].includes(APP.profile?.role);
 
 const canView    = () => isSuper() || isDistrict() || isBranchRole() || isAuditor() || APP.profile?.role === 'loading';
-const canAddTx   = () => isSuper() || isDistrict() || isCashierRole();      // manager excluded
-const canEditTx  = () => isSuper() || isDistrict();
-const canApprove = () => isSuper() || isDistrict() || APP.profile?.role === 'manager';
-const canDelete  = () => isSuper() || isDistrict();
-const canPrint   = () => isSuper() || isDistrict() || isBranchRole();
+const canAddTx   = () => isSuper() || isDistrict() || isCashierRole();   // manager & auditor excluded
+const canEditTx  = () => isSuper() || isDistrict();                       // cashier & manager & auditor excluded
+const canApprove = () => isSuper() || isDistrict() || APP.profile?.role === 'manager'; // auditor excluded
+const canDelete  = () => isSuper() || isDistrict();                       // auditor excluded
+const canPrint   = () => isSuper() || isDistrict() || isBranchRole();     // auditor excluded
+
+/* Withdrawal-type gates */
+const canServiceWithdraw = () => isSuper() || isDistrict();   // admin-only
+const canLeavingWithdraw = () => isSuper() || isDistrict();   // admin-only
 
 function scopeCustomers(){
   if(!APP.profile) return [];
@@ -948,7 +960,7 @@ function customerById(id){ if(!id) return null; return APP.customers.find(c=>c.i
 function districtById(id){ return APP.districts.find(d=>d.id===id)||null; }
 function branchById(id){ return APP.branches.find(b=>b.id===id)||null; }
 
-/* Unified district match — treats districtId, district, and districtCode as equivalent */
+/* Unified district match — treats districtId, district, districtCode as equivalent */
 function customerInDistrict(c, districtId){
   if(!districtId) return true;
   if(!c) return false;
@@ -999,7 +1011,6 @@ const SHARE_TYPES = ['share_buy','share_sell','share_transfer_in','share_transfe
 
 async function getCustomerCapital(customerId){
   try{
-    // Main transaction history — scoped by customerId OR memberId (deduped)
     const [snap1, snap2, sharesSnapC, sharesSnapM, penSnapC, penSnapM] = await Promise.all([
       getDocs(query(collection(db,'transactions'), where('customerId','==',customerId))),
       getDocs(query(collection(db,'transactions'), where('memberId','==',customerId))),
@@ -1009,7 +1020,6 @@ async function getCustomerCapital(customerId){
       getDocs(query(collection(db,'transactions'), where('type','==','penalty'), where('memberId','==',customerId)))
     ]);
 
-    // Deduped main docs
     const docs=[];
     snap1.forEach(d=>docs.push({id:d.id,...d.data()}));
     snap2.forEach(d=>{if(!docs.some(x=>x.id===d.id))docs.push({id:d.id,...d.data()});});
@@ -1028,7 +1038,6 @@ async function getCustomerCapital(customerId){
       else if(type==='leaving_withdrawal') totalLeaving+=amt;
     });
 
-    // Deduped shares
     const shareDocs=[];
     sharesSnapC.forEach(d=>shareDocs.push({id:d.id,...d.data()}));
     sharesSnapM.forEach(d=>{if(!shareDocs.some(x=>x.id===d.id))shareDocs.push({id:d.id,...d.data()});});
@@ -1045,7 +1054,6 @@ async function getCustomerCapital(customerId){
       else if(ty==='share_transfer_out') shareTransferOut+=amt;
     });
 
-    // Deduped penalties
     const penDocs=[];
     penSnapC.forEach(d=>penDocs.push({id:d.id,...d.data()}));
     penSnapM.forEach(d=>{if(!penDocs.some(x=>x.id===d.id))penDocs.push({id:d.id,...d.data()});});
@@ -1747,13 +1755,12 @@ async function approveTx(tx){
     toast(t('approvedOk'),'success');
   }catch(e){
     if(tx.linkedTxId){
-      // Linked side may have been deleted; retry without it
       try{
         await updateDoc(doc(db,'transactions',tx.id), stamp);
         if(String(tx.type||'').toLowerCase()==='service_withdrawal') invalidateSaccoProfitCache();
         toast(t('approvedOk')+' (linked record missing)','warning');
         return;
-      }catch(e2){ /* fall through to error */ }
+      }catch(e2){ /* fall through */ }
     }
     toast(t('errorSave')+(e.code==='permission-denied'?t('noPermission'):e.message),'error');
   }
@@ -1869,7 +1876,6 @@ function openWizard({title,subtitle,finishLabel,steps,initial={},onFinish,succes
 
 function openTxWizard(tx){
   const isEdit=!!tx;
-  // Permission + type guards
   if(isEdit){
     if(!canEditTx()){ toast(t('noPermission'),'error'); return; }
     if(['transfer_out','transfer_in'].includes(String(tx.type||'').toLowerCase())){
@@ -1916,12 +1922,14 @@ function openTxWizard(tx){
       {
         label:t('stepType'), title:t('stepTypeTitle'),
         render:(d)=>{
-          const typeOptions=[
+          /* Admin-only tiles: Service + Leaving. Non-admins see Individual + Transfer. */
+          const allTypeOptions=[
             { code:'individual', icon:'fa-user', title:t('typeIndividual'), desc:t('typeIndividualDesc'), cls:'tag--red' },
-            { code:'service',    icon:'fa-hand-holding-heart', title:t('typeService'), desc:t('typeServiceDesc'), cls:'tag--blue' },
-            { code:'leaving',    icon:'fa-sign-out-alt', title:t('typeLeaving'), desc:t('typeLeavingDesc'), cls:'tag--orange' },
+            { code:'service',    icon:'fa-hand-holding-heart', title:t('typeService'), desc:t('typeServiceDesc'), cls:'tag--blue', adminOnly:true },
+            { code:'leaving',    icon:'fa-sign-out-alt', title:t('typeLeaving'), desc:t('typeLeavingDesc'), cls:'tag--orange', adminOnly:true },
             { code:'transfer',   icon:'fa-exchange-alt', title:'Transfer', desc:t('typeTransferDesc'), cls:'tag--violet' }
           ];
+          const typeOptions = allTypeOptions.filter(o => !o.adminOnly || canServiceWithdraw());
           return `
             <div class="type-picker">
               ${typeOptions.map(o=>`
@@ -1946,7 +1954,12 @@ function openTxWizard(tx){
           const isSvc=d.txType==='service';
           const isLeave=d.txType==='leaving';
           const isTrans=d.txType==='transfer';
+
+          /* --- SACCO Service (admin-only) --- */
           if(isSvc){
+            if(!canServiceWithdraw()){
+              return `<div class="alert alert--error"><i class="fas fa-lock"></i><div>${esc(t('noPermission'))}</div></div>`;
+            }
             const p = d._profit || { totalSaccoCapital:0, totalServiceWithdrawals:0, netProfit:0, totalServices:0 };
             return `
               <div class="capital-display" style="background:linear-gradient(135deg,#f5f0ff,#fff);border-color:#d8c8f5">
@@ -2020,7 +2033,11 @@ function openTxWizard(tx){
             </div>`;
           };
 
+          /* --- Customer Leaving (admin-only) --- */
           if(isLeave){
+            if(!canLeavingWithdraw()){
+              return `<div class="alert alert--error"><i class="fas fa-lock"></i><div>${esc(t('noPermission'))}</div></div>`;
+            }
             return `
               <div class="alert alert--warning"><i class="fas fa-exclamation-triangle"></i><div>${esc(t('markInactiveNotice'))}</div></div>
               <div class="field" style="margin-bottom:10px"><label class="field__required">${esc(t('customer'))}</label>
@@ -2073,6 +2090,7 @@ function openTxWizard(tx){
             `;
           }
 
+          /* --- Transfer --- */
           if(isTrans){
             const fromC=d.fromCustomerId?customerById(d.fromCustomerId):null;
             return `
@@ -2114,6 +2132,7 @@ function openTxWizard(tx){
             `;
           }
 
+          /* --- Individual --- */
           return `
             <div class="field" style="margin-bottom:10px"><label class="field__required">${esc(t('customer'))}</label>
               <input id="wiz-cust-search" type="text" placeholder="${esc(t('customerSearch'))}" value="${esc(searchState.fromQ||'')}">
@@ -2172,6 +2191,7 @@ function openTxWizard(tx){
         },
         validate:(d)=>{
           if(d.txType==='service'){
+            if(!canServiceWithdraw()) return t('noPermission');
             if(!num(d.amount)||num(d.amount)<=0) return t('invalidAmount');
             if(d._profit&&num(d.amount)>num(d._profit.netProfit)+0.01) return t('insufficientProfit');
             return null;
@@ -2183,6 +2203,7 @@ function openTxWizard(tx){
             return null;
           }
           if(d.txType==='leaving'){
+            if(!canLeavingWithdraw()) return t('noPermission');
             if(!d.customerId) return t('chooseCustomer');
             return null;
           }
@@ -2197,9 +2218,15 @@ function openTxWizard(tx){
           return null;
         },
         after:async(root,data,refresh)=>{
-          if(data.txType==='service'&&!data._profit){data._profit=await getSaccoProfit();refresh();return;}
+          if(data.txType==='service'){
+            if(!canServiceWithdraw()) return;
+            if(!data._profit){data._profit=await getSaccoProfit();refresh();return;}
+          }
           if(data.txType==='individual'&&data.customerId&&!data._capital){data._capital=await getCustomerCapital(data.customerId);refresh();return;}
-          if(data.txType==='leaving'&&data.customerId&&!data._capital){data._capital=await getLeavingCapital(data.customerId);refresh();return;}
+          if(data.txType==='leaving'){
+            if(!canLeavingWithdraw()) return;
+            if(data.customerId&&!data._capital){data._capital=await getLeavingCapital(data.customerId);refresh();return;}
+          }
           if(data.txType==='transfer'&&data.fromCustomerId&&!data._capital){data._capital=await getCustomerCapital(data.fromCustomerId);refresh();return;}
           const fromSearch=root.querySelector('#wiz-from-search')||root.querySelector('#wiz-cust-search');
           fromSearch?.addEventListener('input',()=>{searchState.fromQ=fromSearch.value;refresh();});
@@ -2281,6 +2308,7 @@ function openTxWizard(tx){
         base.approvedAt=serverTimestamp();
       }
       if(d.txType==='service'){
+        if(!canServiceWithdraw()) throw new Error(t('noPermission'));
         const p=await getSaccoProfit(true);
         if(base.amount>p.netProfit+0.01) throw new Error(t('insufficientProfit'));
         const payload={...base,customerId:'sacco',customerName:'SACCO (Service)',type:'service_withdrawal',serviceType:d.serviceType||'Other Service',description:d.description||''};
@@ -2299,6 +2327,7 @@ function openTxWizard(tx){
         if(isEdit){await updateDoc(doc(db,'transactions',t0.id),payload);}
         else{payload.createdAt=serverTimestamp();payload.createdBy=APP.profile.id;payload.createdByName=recordedByName2;payload.printCount=0;payload.printStatus='not_printed';await setDoc(doc(collection(db,'transactions')),payload);}
       } else if(d.txType==='leaving'){
+        if(!canLeavingWithdraw()) throw new Error(t('noPermission'));
         const cap=await getLeavingCapital(d.customerId);
         if(cap.capital<=0) throw new Error(t('insufficientCapital'));
         const c=customerById(d.customerId);
@@ -2320,7 +2349,6 @@ function openTxWizard(tx){
         if(!fromC||!toC) throw new Error(t('chooseCustomer'));
         if(isEdit) throw new Error('Editing transfers is not supported. Delete and re-create.');
 
-        // Atomic write — both sides share linkedTxId
         const outRef = doc(collection(db,'transactions'));
         const inRef  = doc(collection(db,'transactions'));
         const outId  = outRef.id;
@@ -2634,10 +2662,8 @@ function scheduleRefresh(){
   _refreshTimer=setTimeout(()=>{
     _refreshTimer=null;
     if(!APP.profile) return;
-    // Don't blow away an active modal or slip overlay
     if(document.getElementById('modal-backdrop')) return;
     if(document.getElementById('slip-overlay')) return;
-    // If the user is typing in search, only re-render the content area
     const ae = document.activeElement;
     if(ae && ae.id === 'fltSearch'){
       renderContent();
@@ -2651,7 +2677,6 @@ function scheduleRefresh(){
    BOOT — instant render from cache, zero-wait loader
 ============================================================ */
 (async function boot(){
-  // Language init
   let saved=null;
   try{saved=localStorage.getItem(LANG_KEY);}catch(e){}
   const b=(navigator.language||'en').slice(0,2);
@@ -2659,7 +2684,6 @@ function scheduleRefresh(){
   document.documentElement.lang=LANG;
   document.body.classList.toggle('lang-am',LANG==='am');
 
-  // Session validity — accept either SESSION_KEY or the loggedIn/uid pair
   const sess=readSession();
   const hasMis = sessionStorage.getItem('loggedIn') === 'true' && sessionStorage.getItem('uid');
   if(!isSessionRecordValid(sess) && !hasMis){
@@ -2668,9 +2692,6 @@ function scheduleRefresh(){
     return;
   }
 
-  // ============================================================
-  // INSTANT RENDER from cache — no spinner, no waiting on network
-  // ============================================================
   const cachedProfile = readCachedProfile();
   let rendered = false;
 
@@ -2707,9 +2728,6 @@ function scheduleRefresh(){
     rendered = true;
   }
 
-  // ============================================================
-  // Auth check (fast, cached session means we've already rendered)
-  // ============================================================
   let user;
   try{
     user = await new Promise((resolve)=>{
@@ -2731,9 +2749,6 @@ function scheduleRefresh(){
   }
   APP.user = user;
 
-  // ============================================================
-  // Fresh profile from Firestore
-  // ============================================================
   try{
     const snap = await getDoc(doc(db,'users',user.uid));
     if(!snap.exists()) throw new Error('no-user-doc');
@@ -2755,10 +2770,6 @@ function scheduleRefresh(){
     return;
   }
 
-  // ============================================================
-  // Load system settings (session timeout, dashboard flags,
-  // currency, SACCO name, penalties)
-  // ============================================================
   await loadSessionTimeout();
 
   try{
@@ -2776,9 +2787,6 @@ function scheduleRefresh(){
     }
   }catch(e){}
 
-  // ============================================================
-  // Re-render only if we rendered from cache OR profile changed
-  // ============================================================
   const profileChanged = !rendered ||
     (cachedProfile && (
       (cachedProfile.name !== (APP.profile.fullName || APP.profile.name)) ||
@@ -2792,12 +2800,11 @@ function scheduleRefresh(){
   }
   hideLoaderNow();
 
-  // Live data — renders again as snapshots arrive
   attachListeners();
   startSessionWatcher();
 })();
 
-console.log('[sacco] withdrawals page ready — RBAC-correct, scoped capital queries, atomic transfers, per-role guards');
+console.log('[sacco] withdrawals ready — auditors view-only; Service & Leaving admin-only');
 </script>
 </body>
 </html>
