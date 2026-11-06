@@ -537,7 +537,7 @@ import { getAuth, signOut, onAuthStateChanged } from "firebase/auth";
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
   collection, onSnapshot, query, orderBy, serverTimestamp,
-  getDocs, limit, where
+  getDocs, limit, where, writeBatch
 } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -680,6 +680,15 @@ function isPenaltyPaidFromSavings(p){
   const m=String(raw).toLowerCase().trim();
   if(!m)return false;
   return ['savings','saving','from_savings','savings_account','member_savings','sacco_savings','from_saving','account'].includes(m);
+}
+
+/* Safe URL guard — prevents javascript:/data:text/html being placed in src */
+function safeUrl(u){
+  if(!u) return null;
+  const s = String(u).trim();
+  if(/^https?:\/\//i.test(s)) return s;
+  if(/^data:image\//i.test(s)) return s;
+  return null;
 }
 
 /* ---------------- I18N ---------------- */
@@ -900,40 +909,61 @@ const ROLE_LABELS = {
   auditor:'role_auditor', member:'role_member', viewer:'role_member'
 };
 const roleLabel = (r) => t(ROLE_LABELS[r]) || (r||'').replace(/_/g,' ');
-const isSuper      = () => APP.profile?.role === 'super_admin';
-const isDistrict   = () => APP.profile?.role === 'admin';
-const isAuditor    = () => APP.profile?.role === 'auditor';
-const isBranchRole = () => ['manager','cashier','teller','accountant'].includes(APP.profile?.role);
-const canView      = () => isSuper() || isDistrict() || isBranchRole() || isAuditor() || APP.profile?.role === 'loading';
-const canManage    = () => isSuper() || isDistrict() || isBranchRole();
-const canApprove   = () => isSuper() || isDistrict() || APP.profile?.role === 'manager';
-const canDelete    = () => isSuper() || isDistrict();
-const canPrint     = () => isSuper() || isDistrict() || isBranchRole();
+
+/* -------- ROLE CHECKS (match the RBAC matrix) --------
+   Super Admin        : add ✅ view ✅ edit ✅ delete ✅ approve ✅ print ✅
+   District Admin     : add ✅ view ✅ edit ✅ delete ✅ approve ✅ print ✅   (own district)
+   Manager            : add ❌ view ✅ edit ❌ delete ❌ approve ✅ print ✅   (own branch)
+   Cashier/Teller/Acc : add ✅ view ✅ edit ❌ delete ❌ approve ❌ print ✅   (own branch)
+   Auditor            : add ❌ view ✅ edit ❌ delete ❌ approve ❌ print ❌   (all districts)
+   Member             : add ❌ view ✅(own) edit ❌ delete ❌ approve ❌ print ❌
+   ------------------------------------------------------- */
+const isSuper       = () => APP.profile?.role === 'super_admin';
+const isDistrict    = () => APP.profile?.role === 'admin';
+const isAuditor     = () => APP.profile?.role === 'auditor';
+const isBranchRole  = () => ['manager','cashier','teller','accountant'].includes(APP.profile?.role);
+const isCashierRole = () => ['cashier','teller','accountant'].includes(APP.profile?.role);
+
+const canView    = () => isSuper() || isDistrict() || isBranchRole() || isAuditor() || APP.profile?.role === 'loading';
+const canAddTx   = () => isSuper() || isDistrict() || isCashierRole();      // manager excluded
+const canEditTx  = () => isSuper() || isDistrict();
+const canApprove = () => isSuper() || isDistrict() || APP.profile?.role === 'manager';
+const canDelete  = () => isSuper() || isDistrict();
+const canPrint   = () => isSuper() || isDistrict() || isBranchRole();
 
 function scopeCustomers(){
   if(!APP.profile) return [];
   const role=APP.profile.role;
-  if(role==='super_admin'||role==='auditor'||role==='loading') return APP.customers.filter(c=>(c.status||'active').toLowerCase()!=='inactive');
-  if(role==='admin') return APP.customers.filter(c=>(c.districtId===APP.profile.districtId||c.district===APP.profile.districtId)&&(c.status||'active').toLowerCase()!=='inactive');
+  if(role==='super_admin'||role==='auditor'||role==='loading')
+    return APP.customers.filter(c=>(c.status||'active').toLowerCase()!=='inactive');
+  if(role==='admin')
+    return APP.customers.filter(c=>customerInDistrict(c, APP.profile.districtId) && (c.status||'active').toLowerCase()!=='inactive');
   if(['manager','cashier','teller','accountant'].includes(role))
-    return APP.customers.filter(c=>c.branchId===APP.profile.branchId&&(c.status||'active').toLowerCase()!=='inactive');
+    return APP.customers.filter(c=>c.branchId===APP.profile.branchId && (c.status||'active').toLowerCase()!=='inactive');
   return [];
 }
 const WITHDRAWAL_TYPES = ['withdrawal','individual_withdrawal','service_withdrawal','leaving_withdrawal','transfer_out','transfer_in'];
 function isWithdrawalTx(tx){ return WITHDRAWAL_TYPES.includes(String(tx.type||'').toLowerCase()); }
+function customerById(id){ if(!id) return null; return APP.customers.find(c=>c.id===id||c.customerId===id)||null; }
+function districtById(id){ return APP.districts.find(d=>d.id===id)||null; }
+function branchById(id){ return APP.branches.find(b=>b.id===id)||null; }
+
+/* Unified district match — treats districtId, district, and districtCode as equivalent */
+function customerInDistrict(c, districtId){
+  if(!districtId) return true;
+  if(!c) return false;
+  const d = districtById(districtId);
+  const keys = d ? [d.id, d.code, d.name].filter(Boolean) : [districtId];
+  return keys.some(k => c.districtId===k || c.district===k || c.districtCode===k);
+}
 function filterWorkareaTxns(list){
   const {districtId,branchId}=APP.workarea;
   if(!districtId&&!branchId) return list;
-  const district=APP.districts.find(d=>d.id===districtId);
   return list.filter(tx=>{
     if(tx.customerId==='sacco'||String(tx.type||'').toLowerCase()==='service_withdrawal') return true;
     const c=customerById(tx.customerId);
     if(c){
-      if(districtId){
-        const keys=district?[district.id,district.code,district.name].filter(Boolean):[districtId];
-        const matches=keys.some(k=>c.districtId===k||c.district===k||c.districtCode===k);
-        if(!matches) return false;
-      }
+      if(districtId && !customerInDistrict(c, districtId)) return false;
       if(branchId&&c.branchId!==branchId) return false;
       return true;
     }
@@ -943,9 +973,6 @@ function filterWorkareaTxns(list){
   });
 }
 function scopeTransactions(){ return APP.transactions.filter(isWithdrawalTx); }
-function customerById(id){ if(!id) return null; return APP.customers.find(c=>c.id===id||c.customerId===id)||null; }
-function districtById(id){ return APP.districts.find(d=>d.id===id)||null; }
-function branchById(id){ return APP.branches.find(b=>b.id===id)||null; }
 function assignableDistricts(){
   if(isSuper()||isAuditor()||APP.profile?.role==='loading') return APP.districts.slice();
   if(isDistrict()||isBranchRole()) return APP.districts.filter(d=>d.id===APP.profile.districtId);
@@ -966,19 +993,27 @@ function initWorkarea(){
 }
 
 /* ============================================================
-   CAPITAL FORMULA
+   CAPITAL FORMULA (scoped queries — no full-collection scans)
    ============================================================ */
+const SHARE_TYPES = ['share_buy','share_sell','share_transfer_in','share_transfer_out'];
+
 async function getCustomerCapital(customerId){
   try{
-    const [snap1, snap2, sharesSnap, penaltiesSnap] = await Promise.all([
+    // Main transaction history — scoped by customerId OR memberId (deduped)
+    const [snap1, snap2, sharesSnapC, sharesSnapM, penSnapC, penSnapM] = await Promise.all([
       getDocs(query(collection(db,'transactions'), where('customerId','==',customerId))),
       getDocs(query(collection(db,'transactions'), where('memberId','==',customerId))),
-      getDocs(query(collection(db,'transactions'), where('type','in',['share_buy','share_sell','share_transfer_in','share_transfer_out']))),
-      getDocs(query(collection(db,'transactions'), where('type','==','penalty')))
+      getDocs(query(collection(db,'transactions'), where('type','in',SHARE_TYPES), where('customerId','==',customerId))),
+      getDocs(query(collection(db,'transactions'), where('type','in',SHARE_TYPES), where('memberId','==',customerId))),
+      getDocs(query(collection(db,'transactions'), where('type','==','penalty'), where('customerId','==',customerId))),
+      getDocs(query(collection(db,'transactions'), where('type','==','penalty'), where('memberId','==',customerId)))
     ]);
+
+    // Deduped main docs
     const docs=[];
     snap1.forEach(d=>docs.push({id:d.id,...d.data()}));
     snap2.forEach(d=>{if(!docs.some(x=>x.id===d.id))docs.push({id:d.id,...d.data()});});
+
     let totalSavings=0,totalDividends=0,totalTransfersIn=0,totalTransfersOut=0,totalWithdrawals=0,totalLeaving=0;
     docs.forEach(data=>{
       const st=String(data.status||'').toLowerCase();
@@ -992,9 +1027,14 @@ async function getCustomerCapital(customerId){
       else if(type==='withdrawal'||type==='individual_withdrawal') totalWithdrawals+=amt;
       else if(type==='leaving_withdrawal') totalLeaving+=amt;
     });
+
+    // Deduped shares
+    const shareDocs=[];
+    sharesSnapC.forEach(d=>shareDocs.push({id:d.id,...d.data()}));
+    sharesSnapM.forEach(d=>{if(!shareDocs.some(x=>x.id===d.id))shareDocs.push({id:d.id,...d.data()});});
     let shareBuy=0,shareSell=0,shareTransferIn=0,shareTransferOut=0;
-    sharesSnap.forEach(d=>{
-      const s=d.data(); const cid=s.customerId||s.memberId;
+    shareDocs.forEach(s=>{
+      const cid=s.customerId||s.memberId;
       if(cid!==customerId) return;
       if(!(dashboardSettings.shareStatuses||[]).includes(String(s.status||''))) return;
       const ty=String(s.type||'').toLowerCase();
@@ -1004,18 +1044,21 @@ async function getCustomerCapital(customerId){
       else if(ty==='share_transfer_in') shareTransferIn+=amt;
       else if(ty==='share_transfer_out') shareTransferOut+=amt;
     });
+
+    // Deduped penalties
+    const penDocs=[];
+    penSnapC.forEach(d=>penDocs.push({id:d.id,...d.data()}));
+    penSnapM.forEach(d=>{if(!penDocs.some(x=>x.id===d.id))penDocs.push({id:d.id,...d.data()});});
     let totalPenaltiesFromSavings=0;
-    const seenPen=new Set();
-    penaltiesSnap.forEach(d=>{
-      if(seenPen.has(d.id)) return;
-      const p=d.data(); const cid=p.customerId||p.memberId;
+    penDocs.forEach(p=>{
+      const cid=p.customerId||p.memberId;
       if(cid!==customerId) return;
       if(!isPenaltyPaid(p)) return;
       if(!isPenaltyPaidFromSavings(p)) return;
-      seenPen.add(d.id);
       totalPenaltiesFromSavings+=num(p.amount);
     });
     totalPenaltiesFromSavings=round2(totalPenaltiesFromSavings);
+
     const totalCredit=totalSavings+totalDividends+totalTransfersIn+shareTransferIn+shareSell;
     const totalDebit=totalTransfersOut+shareTransferOut+shareBuy+totalWithdrawals+totalLeaving+totalPenaltiesFromSavings;
     const capital=round2(totalCredit-totalDebit);
@@ -1041,10 +1084,17 @@ async function getLeavingCapital(customerId){
 }
 
 /* ============================================================
-   SACCO CAPITAL (ALL YEARS) — pool for service withdrawals
-   Available = Σ approved sacco_capital  −  Σ (pending+approved+completed+printed) service_withdrawal
+   SACCO CAPITAL (ALL YEARS) — 30s TTL cache
    ============================================================ */
-async function getSaccoProfit(){
+let _saccoProfitCache = null;
+let _saccoProfitCacheAt = 0;
+const SACCO_PROFIT_TTL = 30_000;
+function invalidateSaccoProfitCache(){ _saccoProfitCache = null; _saccoProfitCacheAt = 0; }
+
+async function getSaccoProfit(force){
+  if(!force && _saccoProfitCache && (Date.now() - _saccoProfitCacheAt) < SACCO_PROFIT_TTL){
+    return _saccoProfitCache;
+  }
   try {
     const [saccoCapSnap, svcSnap] = await Promise.all([
       getDocs(query(collection(db, 'transactions'), where('type', '==', 'sacco_capital'))),
@@ -1075,7 +1125,7 @@ async function getSaccoProfit(){
     totalServiceWithdrawals = round2(totalServiceWithdrawals);
     const available = Math.max(0, round2(totalSaccoCapital - totalServiceWithdrawals));
 
-    return {
+    const result = {
       totalSaccoCapital,
       totalServiceWithdrawals,
       netProfit: available,
@@ -1086,6 +1136,9 @@ async function getSaccoProfit(){
       totalPaidPenalties: 0,
       totalIncome: totalSaccoCapital
     };
+    _saccoProfitCache = result;
+    _saccoProfitCacheAt = Date.now();
+    return result;
   } catch (e) {
     console.error('SACCO capital error:', e);
     return {
@@ -1142,7 +1195,8 @@ function renderShell(){
       </a>`).join('');
   }).join('');
   const p=APP.profile||{};
-  const avatarHtml = p.photoURL ? `<img src="${esc(p.photoURL)}" alt="">` : esc(initials(p.fullName||p.name||p.email||'U'));
+  const pUrl = safeUrl(p.photoURL);
+  const avatarHtml = pUrl ? `<img src="${esc(pUrl)}" alt="">` : esc(initials(p.fullName||p.name||p.email||'U'));
   const rawSacco = (APP.saccoName && String(APP.saccoName).trim()) ? String(APP.saccoName).trim() : DEFAULT_SACCO_NAME;
   APP.saccoName = rawSacco;
   document.getElementById('app').innerHTML = `
@@ -1302,7 +1356,7 @@ function renderMain(){
         <div id="scope-badge"></div>
       </div>
       <div class="page-head__actions">
-        ${canManage()?`<button class="btn btn--primary btn--sm" id="addTxBtn"><i class="fas fa-plus"></i> ${esc(t('addTx'))}</button>`:''}
+        ${canAddTx()?`<button class="btn btn--primary btn--sm" id="addTxBtn"><i class="fas fa-plus"></i> ${esc(t('addTx'))}</button>`:''}
       </div>
     </div>
 
@@ -1466,7 +1520,10 @@ function filteredTransactions(){
     });
   }
   if(APP.filters.districtId){
-    const ids=new Set(scopeCustomers().filter(c=>c.districtId===APP.filters.districtId).map(c=>c.id));
+    const scoped = scopeCustomers();
+    const ids = new Set(
+      scoped.filter(c=>customerInDistrict(c, APP.filters.districtId)).map(c=>c.id)
+    );
     list=list.filter(tx=>!tx.customerId||tx.customerId==='sacco'||ids.has(tx.customerId));
   }
   if(APP.filters.branchId){
@@ -1502,7 +1559,7 @@ function renderContent(){
   else renderTableView(host,pageList,list.length,pages,start);
 }
 function renderTableView(host,pageList,total,pages,start){
-  const canA=canApprove(),canD=canDelete(),canP=canPrint();
+  const canA=canApprove(),canD=canDelete(),canP=canPrint(),canE=canEditTx();
   host.innerHTML=`
     <div class="tbl-wrap">
       <table class="tbl">
@@ -1521,10 +1578,12 @@ function renderTableView(host,pageList,total,pages,start){
             const isSacco=tx.customerId==='sacco'||String(tx.type||'').toLowerCase()==='service_withdrawal';
             const c=isSacco?null:customerById(tx.customerId);
             const name=isSacco?'SACCO':customerName(c);
-            const avatar=c?.photoURL?`<img src="${esc(c.photoURL)}" alt="">`:esc(initials(name));
+            const cUrl = safeUrl(c?.photoURL);
+            const avatar=cUrl?`<img src="${esc(cUrl)}" alt="">`:esc(initials(name));
             const st=String(tx.status||'pending').toLowerCase();
             const isPending=st==='pending';
             const isTransferIn=String(tx.type||'').toLowerCase()==='transfer_in';
+            const isTransferTx=['transfer_out','transfer_in'].includes(String(tx.type||'').toLowerCase());
             return `
               <tr>
                 <td>${esc(fmtDate(tx.createdAt||tx.date))}</td>
@@ -1539,6 +1598,7 @@ function renderTableView(host,pageList,total,pages,start){
                 <td class="num"><div class="row-actions">
                   ${canP?`<button title="${esc(t('rowPrint'))}" data-action="print" data-id="${esc(tx.id)}" class="print"><i class="fas fa-print"></i></button>`:''}
                   <button title="${esc(t('rowView'))}" data-action="view" data-id="${esc(tx.id)}"><i class="fas fa-eye"></i></button>
+                  ${canE&&!isTransferTx?`<button title="${esc(t('rowEdit'))}" data-action="edit" data-id="${esc(tx.id)}"><i class="fas fa-pen"></i></button>`:''}
                   ${canA&&isPending?`<button title="${esc(t('approve'))}" data-action="approve" data-id="${esc(tx.id)}" class="approve"><i class="fas fa-check"></i></button>`:''}
                   ${canA&&isPending?`<button title="${esc(t('reject'))}" data-action="reject" data-id="${esc(tx.id)}" class="danger"><i class="fas fa-times"></i></button>`:''}
                   ${canD?`<button title="${esc(t('rowDelete'))}" data-action="delete" data-id="${esc(tx.id)}" class="danger"><i class="fas fa-trash"></i></button>`:''}
@@ -1552,20 +1612,23 @@ function renderTableView(host,pageList,total,pages,start){
   wireContentEvents(host,pages);
 }
 function renderGridView(host,pageList,total,pages,start){
-  const canA=canApprove(),canD=canDelete(),canP=canPrint();
+  const canA=canApprove(),canD=canDelete(),canP=canPrint(),canE=canEditTx();
   const cards=pageList.map(tx=>{
     const isSacco=tx.customerId==='sacco'||String(tx.type||'').toLowerCase()==='service_withdrawal';
     const c=isSacco?null:customerById(tx.customerId);
     const name=isSacco?'SACCO':customerName(c);
-    const avatar=c?.photoURL?`<img src="${esc(c.photoURL)}" alt="" style="width:100%;height:100%;object-fit:cover">`:esc(initials(name));
+    const cUrl = safeUrl(c?.photoURL);
+    const avatar=cUrl?`<img src="${esc(cUrl)}" alt="" style="width:100%;height:100%;object-fit:cover">`:esc(initials(name));
     const st=String(tx.status||'pending').toLowerCase();
     const stLabel=st==='approved'?t('statusApproved'):st==='rejected'?t('statusRejected'):t('statusPending');
     const stCls=st==='approved'?'approved':st==='rejected'?'rejected':'pending';
     const cardCls=st==='approved'?typeCardClass(tx.type):st==='rejected'?'tx-card--rejected':'tx-card--pending';
     const isTransferIn=String(tx.type||'').toLowerCase()==='transfer_in';
+    const isTransferTx=['transfer_out','transfer_in'].includes(String(tx.type||'').toLowerCase());
     let actions='';
     if(canP) actions+=`<button title="${esc(t('rowPrint'))}" data-action="print" data-id="${esc(tx.id)}" class="print"><i class="fas fa-print"></i></button>`;
     actions+=`<button title="${esc(t('rowView'))}" data-action="view" data-id="${esc(tx.id)}"><i class="fas fa-eye"></i></button>`;
+    if(canE&&!isTransferTx) actions+=`<button title="${esc(t('rowEdit'))}" data-action="edit" data-id="${esc(tx.id)}"><i class="fas fa-pen"></i></button>`;
     if(canA&&st==='pending'){
       actions+=`<button title="${esc(t('approve'))}" data-action="approve" data-id="${esc(tx.id)}" class="approve"><i class="fas fa-check"></i></button>`;
       actions+=`<button title="${esc(t('reject'))}" data-action="reject" data-id="${esc(tx.id)}" class="danger"><i class="fas fa-times"></i></button>`;
@@ -1665,30 +1728,63 @@ function handleRowAction(action,id){
   if(action==='reject') rejectTx(tx);
   if(action==='print') printSlip(tx);
 }
+
+/* Approval — cascades to the linked transfer side, atomically */
 async function approveTx(tx){
   if(!canApprove()){toast(t('noPermission'),'error');return;}
+  const stamp = {
+    status:'approved',
+    approvedAt:serverTimestamp(),
+    approvedBy:APP.profile.id,
+    approvedByName:APP.profile.fullName||APP.profile.name||''
+  };
   try{
-    await updateDoc(doc(db,'transactions',tx.id),{
-      status:'approved',
-      approvedAt:serverTimestamp(),
-      approvedBy:APP.profile.id,
-      approvedByName:APP.profile.fullName||APP.profile.name||''
-    });
+    const batch = writeBatch(db);
+    batch.update(doc(db,'transactions',tx.id), stamp);
+    if(tx.linkedTxId) batch.update(doc(db,'transactions',tx.linkedTxId), stamp);
+    await batch.commit();
+    if(String(tx.type||'').toLowerCase()==='service_withdrawal') invalidateSaccoProfitCache();
     toast(t('approvedOk'),'success');
-  }catch(e){toast(t('errorSave')+(e.code==='permission-denied'?t('noPermission'):e.message),'error');}
+  }catch(e){
+    if(tx.linkedTxId){
+      // Linked side may have been deleted; retry without it
+      try{
+        await updateDoc(doc(db,'transactions',tx.id), stamp);
+        if(String(tx.type||'').toLowerCase()==='service_withdrawal') invalidateSaccoProfitCache();
+        toast(t('approvedOk')+' (linked record missing)','warning');
+        return;
+      }catch(e2){ /* fall through to error */ }
+    }
+    toast(t('errorSave')+(e.code==='permission-denied'?t('noPermission'):e.message),'error');
+  }
 }
 async function rejectTx(tx){
   if(!canApprove()){toast(t('noPermission'),'error');return;}
   if(!confirm(t('reject')+'?')) return;
+  const stamp = {
+    status:'rejected',
+    rejectedAt:serverTimestamp(),
+    rejectedBy:APP.profile.id,
+    rejectedByName:APP.profile.fullName||APP.profile.name||''
+  };
   try{
-    await updateDoc(doc(db,'transactions',tx.id),{
-      status:'rejected',
-      rejectedAt:serverTimestamp(),
-      rejectedBy:APP.profile.id,
-      rejectedByName:APP.profile.fullName||APP.profile.name||''
-    });
+    const batch = writeBatch(db);
+    batch.update(doc(db,'transactions',tx.id), stamp);
+    if(tx.linkedTxId) batch.update(doc(db,'transactions',tx.linkedTxId), stamp);
+    await batch.commit();
+    if(String(tx.type||'').toLowerCase()==='service_withdrawal') invalidateSaccoProfitCache();
     toast(t('rejectedOk'),'success');
-  }catch(e){toast(t('errorSave')+(e.code==='permission-denied'?t('noPermission'):e.message),'error');}
+  }catch(e){
+    if(tx.linkedTxId){
+      try{
+        await updateDoc(doc(db,'transactions',tx.id), stamp);
+        if(String(tx.type||'').toLowerCase()==='service_withdrawal') invalidateSaccoProfitCache();
+        toast(t('rejectedOk')+' (linked record missing)','warning');
+        return;
+      }catch(e2){ /* fall through */ }
+    }
+    toast(t('errorSave')+(e.code==='permission-denied'?t('noPermission'):e.message),'error');
+  }
 }
 
 let escHandler=null;
@@ -1773,6 +1869,17 @@ function openWizard({title,subtitle,finishLabel,steps,initial={},onFinish,succes
 
 function openTxWizard(tx){
   const isEdit=!!tx;
+  // Permission + type guards
+  if(isEdit){
+    if(!canEditTx()){ toast(t('noPermission'),'error'); return; }
+    if(['transfer_out','transfer_in'].includes(String(tx.type||'').toLowerCase())){
+      toast('Transfers cannot be edited. Delete and re-create.','warning');
+      return;
+    }
+  } else {
+    if(!canAddTx()){ toast(t('noPermission'),'error'); return; }
+  }
+
   const t0=tx||{};
   const initial={
     txType:(()=>{
@@ -1882,7 +1989,7 @@ function openTxWizard(tx){
               <div class="field"><label>${esc(t('noteLabel'))}</label>
                 <input data-field="note" value="${esc(d.note||'')}" placeholder="${esc(t('notePlaceholder'))}">
               </div>
-              ${isEdit&&canApprove()?`
+              ${isEdit&&canEditTx()?`
                 <div class="field"><label>${esc(t('statusLabel'))}</label>
                   <select data-field="status">
                     <option value="approved" ${d.status==='approved'?'selected':''}>${esc(t('statusApproved'))}</option>
@@ -1901,7 +2008,8 @@ function openTxWizard(tx){
           const fromList=customersList.filter(x=>{const q=(searchState.fromQ||'').toLowerCase();return !q||customerName(x).toLowerCase().includes(q)||(x.customerId||'').toLowerCase().includes(q);});
           const toList=customersList.filter(x=>{const q=(searchState.toQ||'').toLowerCase();return !q||customerName(x).toLowerCase().includes(q)||(x.customerId||'').toLowerCase().includes(q);});
           const pickRow=(x,active,side)=>{
-            const avatar=x.photoURL?`<img src="${esc(x.photoURL)}" alt="">`:esc(initials(customerName(x)));
+            const xUrl = safeUrl(x.photoURL);
+            const avatar=xUrl?`<img src="${esc(xUrl)}" alt="">`:esc(initials(customerName(x)));
             return `<div class="customer-pick__item ${active?'is-on':''}" data-pick="${side}" data-id="${esc(x.id)}" data-code="${esc(x.customerId||x.id)}">
               <div class="customer-pick__avatar">${avatar}</div>
               <div class="customer-pick__main">
@@ -1953,7 +2061,7 @@ function openTxWizard(tx){
                 </div>
               </div>
               <div class="field"><label>${esc(t('noteLabel'))}</label><input data-field="note" value="${esc(d.note||'')}" placeholder="${esc(t('notePlaceholder'))}"></div>
-              ${isEdit&&canApprove()?`
+              ${isEdit&&canEditTx()?`
                 <div class="field"><label>${esc(t('statusLabel'))}</label>
                   <select data-field="status">
                     <option value="approved" ${d.status==='approved'?'selected':''}>${esc(t('statusApproved'))}</option>
@@ -2002,7 +2110,7 @@ function openTxWizard(tx){
                 </select>
               </div>
               <div class="field"><label>${esc(t('noteLabel'))}</label><input data-field="note" value="${esc(d.note||'')}" placeholder="${esc(t('notePlaceholder'))}"></div>
-              <div class="mini-note"><i class="fas fa-info-circle"></i>Transfer creates 2 records (out + in). Both must be approved.</div>
+              <div class="mini-note"><i class="fas fa-info-circle"></i>Transfer creates 2 linked records (out + in). Approving either side approves both.</div>
             `;
           }
 
@@ -2051,7 +2159,7 @@ function openTxWizard(tx){
               </select>
             </div>
             <div class="field"><label>${esc(t('noteLabel'))}</label><input data-field="note" value="${esc(d.note||'')}" placeholder="${esc(t('notePlaceholder'))}"></div>
-            ${isEdit&&canApprove()?`
+            ${isEdit&&canEditTx()?`
               <div class="field"><label>${esc(t('statusLabel'))}</label>
                 <select data-field="status">
                   <option value="approved" ${d.status==='approved'?'selected':''}>${esc(t('statusApproved'))}</option>
@@ -2122,10 +2230,11 @@ function openTxWizard(tx){
           const amt=num(d.amount);
           const recBy=isEdit?(t0.createdByName||recordedByName):recordedByName;
           const appBy=(d.status==='approved')?(isEdit?(t0.approvedByName||recBy):recBy):'';
+          const heroUrl = safeUrl((c||fromC)?.photoURL);
           return `
             <div style="padding:16px;background:linear-gradient(135deg,#f8fbff,#fff);border:1px solid var(--border);border-radius:14px;margin-bottom:18px;display:flex;align-items:center;gap:16px">
               <div style="width:60px;height:60px;border-radius:50%;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,var(--primary),var(--secondary));display:grid;place-items:center;color:#fff;font-weight:800;font-size:22px">
-                ${c?.photoURL?`<img src="${esc(c.photoURL)}" alt="" style="width:100%;height:100%;object-fit:cover">`:esc(initials(isSvc?'SACCO':customerName(c||fromC)))}
+                ${heroUrl?`<img src="${esc(heroUrl)}" alt="" style="width:100%;height:100%;object-fit:cover">`:esc(initials(isSvc?'SACCO':customerName(c||fromC)))}
               </div>
               <div style="min-width:0">
                 <div style="font-size:16px;font-weight:800">${isSvc?'SACCO Service':esc(customerName(c||fromC))}</div>
@@ -2156,7 +2265,7 @@ function openTxWizard(tx){
     ],
     onFinish:async(d)=>{
       const isEdit=!!t0.id;
-      const status=isEdit&&canApprove()?(d.status||'pending'):'pending';
+      const status=isEdit&&canEditTx()?(d.status||'pending'):'pending';
       const recordedByName2=APP.profile?.fullName||APP.profile?.name||'';
       const base={
         amount:round2(num(d.amount)),
@@ -2166,17 +2275,18 @@ function openTxWizard(tx){
         status,
         updatedAt:serverTimestamp()
       };
-      if(status==='approved'&&isEdit&&canApprove()&&!t0.approvedByName){
+      if(status==='approved'&&isEdit&&canEditTx()&&!t0.approvedByName){
         base.approvedBy=APP.profile.id;
         base.approvedByName=recordedByName2;
         base.approvedAt=serverTimestamp();
       }
       if(d.txType==='service'){
-        const p=await getSaccoProfit();
+        const p=await getSaccoProfit(true);
         if(base.amount>p.netProfit+0.01) throw new Error(t('insufficientProfit'));
         const payload={...base,customerId:'sacco',customerName:'SACCO (Service)',type:'service_withdrawal',serviceType:d.serviceType||'Other Service',description:d.description||''};
         if(isEdit){await updateDoc(doc(db,'transactions',t0.id),payload);}
         else{payload.createdAt=serverTimestamp();payload.createdBy=APP.profile.id;payload.createdByName=recordedByName2;payload.printCount=0;payload.printStatus='not_printed';await setDoc(doc(collection(db,'transactions')),payload);}
+        invalidateSaccoProfitCache();
       } else if(d.txType==='individual'){
         const cap=await getCustomerCapital(d.customerId);
         const maxAllowed=round2(Math.max(0,cap.capital)*0.95);
@@ -2209,14 +2319,26 @@ function openTxWizard(tx){
         const toC=customerById(d.toCustomerId);
         if(!fromC||!toC) throw new Error(t('chooseCustomer'));
         if(isEdit) throw new Error('Editing transfers is not supported. Delete and re-create.');
+
+        // Atomic write — both sides share linkedTxId
+        const outRef = doc(collection(db,'transactions'));
+        const inRef  = doc(collection(db,'transactions'));
+        const outId  = outRef.id;
+        const inId   = inRef.id;
+
         const outPayload={...base,customerId:fromC.customerId||fromC.id,customerDocId:fromC.id,memberId:fromC.customerId||fromC.id,customerName:customerName(fromC),type:'transfer_out',toCustomerId:toC.customerId||toC.id,toCustomerName:customerName(toC),
           districtId:fromC.districtId||null,branchId:fromC.branchId||null,
+          linkedTxId:inId,
           createdAt:serverTimestamp(),createdBy:APP.profile.id,createdByName:recordedByName2,printCount:0,printStatus:'not_printed'};
         const inPayload={...base,customerId:toC.customerId||toC.id,customerDocId:toC.id,memberId:toC.customerId||toC.id,customerName:customerName(toC),type:'transfer_in',fromCustomerId:fromC.customerId||fromC.id,fromCustomerName:customerName(fromC),reason:`Transfer from ${customerName(fromC)}`,note:`Transfer from ${customerName(fromC)}`,
           districtId:toC.districtId||null,branchId:toC.branchId||null,
+          linkedTxId:outId,
           createdAt:serverTimestamp(),createdBy:APP.profile.id,createdByName:recordedByName2,printCount:0,printStatus:'not_printed'};
-        await setDoc(doc(collection(db,'transactions')),outPayload);
-        await setDoc(doc(collection(db,'transactions')),inPayload);
+
+        const batch = writeBatch(db);
+        batch.set(outRef, outPayload);
+        batch.set(inRef, inPayload);
+        await batch.commit();
       }
     }
   });
@@ -2228,6 +2350,8 @@ function openViewModal(tx){
   const c=isSacco?null:customerById(tx.customerId);
   const st=String(tx.status||'pending').toLowerCase();
   const isPending=st==='pending';
+  const isTransferTx=['transfer_out','transfer_in'].includes(String(tx.type||'').toLowerCase());
+  const cUrl = safeUrl(c?.photoURL);
   const root=document.createElement('div');
   root.className='modal-backdrop'; root.id='modal-backdrop';
   root.innerHTML=`
@@ -2239,7 +2363,7 @@ function openViewModal(tx){
       <div class="modal__body">
         <div style="display:flex;align-items:center;gap:18px;padding:18px;background:linear-gradient(135deg,#f8fbff,#fff);border:1px solid var(--border);border-radius:14px;margin-bottom:20px">
           <div style="width:64px;height:64px;border-radius:50%;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,var(--primary),var(--secondary));display:grid;place-items:center;color:#fff;font-weight:800;font-size:22px">
-            ${c?.photoURL?`<img src="${esc(c.photoURL)}" alt="" style="width:100%;height:100%;object-fit:cover">`:esc(initials(isSacco?'SACCO':customerName(c)))}
+            ${cUrl?`<img src="${esc(cUrl)}" alt="" style="width:100%;height:100%;object-fit:cover">`:esc(initials(isSacco?'SACCO':customerName(c)))}
           </div>
           <div style="min-width:0">
             <div style="font-size:17px;font-weight:800">${isSacco?'SACCO Service':esc(customerName(c))}</div>
@@ -2268,6 +2392,7 @@ function openViewModal(tx){
       <div class="modal__foot">
         <button class="btn" data-close>${esc(t('close'))}</button>
         <div class="spacer"></div>
+        ${canEditTx()&&!isTransferTx?`<button class="btn" id="view-edit-btn"><i class="fas fa-pen"></i> ${esc(t('rowEdit'))}</button>`:''}
         ${canApprove()&&isPending?`
           <button class="btn btn--danger" id="view-reject-btn"><i class="fas fa-times"></i> ${esc(t('reject'))}</button>
           <button class="btn btn--success" id="view-approve-btn"><i class="fas fa-check"></i> ${esc(t('approve'))}</button>
@@ -2280,6 +2405,7 @@ function openViewModal(tx){
   document.addEventListener('keydown',escHandler);
   root.addEventListener('click',(e)=>{if(e.target===root)closeModal();});
   root.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',closeModal));
+  document.getElementById('view-edit-btn')?.addEventListener('click',()=>{closeModal();setTimeout(()=>openTxWizard(tx),80);});
   document.getElementById('view-print-btn')?.addEventListener('click',()=>{closeModal();setTimeout(()=>printSlip(tx),120);});
   document.getElementById('view-approve-btn')?.addEventListener('click',async()=>{closeModal();await approveTx(tx);});
   document.getElementById('view-reject-btn')?.addEventListener('click',async()=>{closeModal();await rejectTx(tx);});
@@ -2315,7 +2441,7 @@ function buildSlipHtml(tx,watermarkText){
   const c=isSacco?null:customerById(tx.customerId);
   const cName=isSacco?'SACCO Service':customerName(c);
   const cNameAm=c?([c.firstNameAm,c.middleNameAm,c.lastNameAm].filter(Boolean).join(' ')||''):'';
-  const cPhoto=c?.photoURL||null;
+  const cPhoto=safeUrl(c?.photoURL);
   const initial=initials(cName);
   const amt=num(tx.amount);
   const isCopy=watermarkText==='COPY'||watermarkText===t('copy');
@@ -2441,7 +2567,11 @@ function openDeleteModal(tx){
   document.getElementById('confirm-del').addEventListener('click',async(e)=>{
     const btn=e.currentTarget; const sp=btn.querySelector('.spinner-sm'); const lbl=btn.querySelector('.btn-label');
     btn.disabled=true; sp.classList.remove('hidden'); lbl.textContent=t('loading');
-    try{await deleteDoc(doc(db,'transactions',tx.id));toast(t('deletedOk'),'success');closeModal();}
+    try{
+      await deleteDoc(doc(db,'transactions',tx.id));
+      if(String(tx.type||'').toLowerCase()==='service_withdrawal') invalidateSaccoProfitCache();
+      toast(t('deletedOk'),'success');closeModal();
+    }
     catch(err){toast(t('errorDelete')+(err.code==='permission-denied'?t('noPermission'):err.message),'error');btn.disabled=false;sp.classList.add('hidden');lbl.textContent=t('rowDelete');}
   });
 }
@@ -2479,7 +2609,11 @@ function attachListeners(){
     let ref=collection(db,coll);
     if(orderField) ref=query(ref,orderBy(orderField,'desc'),limit(2000));
     const unsub=onSnapshot(ref,
-      (snap)=>{APP[key]=snap.docs.map(d=>({id:d.id,...d.data()}));scheduleRefresh();},
+      (snap)=>{
+        APP[key]=snap.docs.map(d=>({id:d.id,...d.data()}));
+        if(coll==='transactions') invalidateSaccoProfitCache();
+        scheduleRefresh();
+      },
       (err)=>{console.warn('[listen]',coll,err.code,err.message);scheduleRefresh();}
     );
     APP.unsubs.push(unsub);
@@ -2497,7 +2631,20 @@ function stopListeners(){
 let _refreshTimer=null;
 function scheduleRefresh(){
   if(_refreshTimer) return;
-  _refreshTimer=setTimeout(()=>{_refreshTimer=null; if(APP.profile) renderMain();},250);
+  _refreshTimer=setTimeout(()=>{
+    _refreshTimer=null;
+    if(!APP.profile) return;
+    // Don't blow away an active modal or slip overlay
+    if(document.getElementById('modal-backdrop')) return;
+    if(document.getElementById('slip-overlay')) return;
+    // If the user is typing in search, only re-render the content area
+    const ae = document.activeElement;
+    if(ae && ae.id === 'fltSearch'){
+      renderContent();
+      return;
+    }
+    renderMain();
+  },250);
 }
 
 /* ============================================================
@@ -2610,7 +2757,7 @@ function scheduleRefresh(){
 
   // ============================================================
   // Load system settings (session timeout, dashboard flags,
-  // currency, SACCO name, penalties) — single doc, two reads
+  // currency, SACCO name, penalties)
   // ============================================================
   await loadSessionTimeout();
 
@@ -2650,7 +2797,7 @@ function scheduleRefresh(){
   startSessionWatcher();
 })();
 
-console.log('[sacco] withdrawals page ready — cached render, no spinner, full i18n, session minutes persisted');
+console.log('[sacco] withdrawals page ready — RBAC-correct, scoped capital queries, atomic transfers, per-role guards');
 </script>
 </body>
 </html>
