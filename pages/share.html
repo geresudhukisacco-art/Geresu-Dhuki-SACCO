@@ -584,7 +584,6 @@ function isSessionRecordValid(s){ return !!(s && s.uid); }
 function getSessionMs(){ const s=readSession(); const m=(SESSION_MINUTES!=null&&SESSION_MINUTES>0)?SESSION_MINUTES:((s&&s.minutes)||DEFAULT_SESSION_MINUTES); return Math.max(1,m)*60000; }
 function readCachedProfile(){ try{ const r=sessionStorage.getItem(PROFILE_CACHE_KEY); if(!r) return null; const p=JSON.parse(r); return (p&&p.uid)?p:null; }catch(e){ return null; } }
 
-/* ── FIX: cache customerId/customerCode ── */
 function writeCachedProfile(){
   if(!APP.profile) return;
   try{
@@ -654,7 +653,7 @@ async function loadSessionTimeout(){
   try{ const s=readSession(); if(s){ s.minutes=SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); } }catch(e){}
 }
 
-/* ============ I18N (abbreviated here — same keys as original) ============ */
+/* ============ I18N ============ */
 const I18N = {
   en: {
     brandSub:'SACCO Management', logout:'Sign out', loading:'Loading…',
@@ -745,27 +744,194 @@ const I18N = {
     currentPriceLabel:'current', avgPriceLabel:'avg',
     memberNotLinked:'Account not linked',
     memberNotLinkedText:'Your member account is not linked to a customer record. Please contact your SACCO admin to link your account.',
-    viewOnly:'view only', readOnlyNotice:'You have view-only access to shares. Only Super Admins can create, edit, delete, approve, or print shares.'
+    viewOnly:'view only', readOnlyNotice:'You have view-only access to shares. Only Super Admins can create, edit, delete, approve, or print shares.',
+    memberScopeNotice:'Showing your share records only'
   },
   am: {}, om: {}
 };
 I18N.am = { ...I18N.en,
   brandSub:'የሳኮ አስተዳደር', logout:'ውጣ', loading:'በመጫን ላይ…',
+  navOverview:'አጠቃላይ እይታ', navNetwork:'ኔትወርክ', navOperations:'ክንውኖች',
+  navFinance:'ፋይናንስ', navAdmin:'አስተዳደር',
+  dashboard:'ዳሽቦርድ', districts:'ወረዳዎች', branches:'ቅርንጫፎች', customers:'ደንበኞች',
+  savings:'ቁጠባ', deposits:'ተቀማጭ', loans:'ብድር', repayments:'ክፍያዎች',
+  withdrawals:'ወጪዎች', dividends:'ክፍፍል', shares:'አክሲዮን', reports:'ሪፖርቶች',
+  penalties:'ቅጣቶች', audit:'የምዝግብ ታሪክ', users:'ተጠቃሚዎች', settings:'ቅንብሮች',
+  role_super_admin:'ዋና አስተዳዳሪ', role_admin:'አስተዳዳሪ', role_manager:'ሥራ አስኪያጅ',
+  role_cashier:'ገንዘብ ተቀባይ', role_teller:'ገንዘብ ተቀባይ', role_accountant:'ሒሳብ ባለሙያ',
+  role_auditor:'ኦዲተር', role_member:'አባል', role_viewer:'ተመልካች',
   pageTitle:'አክሲዮን', pageSub:'ለየደንበኛ አንድ ካርድ — አዲስ ግዢዎች በራስ-ሰር ይጨመራሉ',
-  addShare:'አክሲዮን ግዛ / ጨምር',
   breadcrumbHome:'ዳሽቦርድ', breadcrumbShares:'አክሲዮን',
+  addShare:'አክሲዮን ግዛ / ጨምር',
+  statTotalIssued:'ጠቅላላ የተሰጠ አክሲዮን', statTotalValue:'ጠቅላላ የአክሲዮን ዋጋ',
+  statHolders:'አክሲዮን ባለቤቶች', statPending:'በመጠባበቅ ላይ ማጽደቆች',
+  statBuyVolume:'የግዢ መጠን', statSellVolume:'የሽያጭ መጠን',
+  searchPlaceholder:'በደንበኛ፣ በተከታታይ ቁጥር፣ በመታወቂያ፣ በማጣቀሻ ወይም በስልክ ይፈልጉ…',
+  filterAllDistricts:'ሁሉም ወረዳዎች', filterAllBranches:'ሁሉም ቅርንጫፎች',
+  filterAllTypes:'ሁሉም የአክሲዮን ዓይነቶች', filterAllStatus:'ሁሉም ሁኔታዎች',
+  viewGrid:'ፍርግርግ', viewTable:'ሠንጠረዥ',
+  typeBuy:'ግዢ', typeSell:'ሽያጭ',
+  statusPending:'በመጠባበቅ ላይ', statusApproved:'የጸደቀ', statusRejected:'ውድቅ የተደረገ', statusMerged:'ተዋህዷል',
+  tableTitle:'የአክሲዮን ግብይቶች', tableSub:'እያንዳንዱ ረድፍ ደንበኛ ነው — ድምሮች በማጽደቅ ላይ ይዋሃዳሉ',
+  colSerial:'ተከታታይ ቁጥር', colCustomer:'ደንበኛ', colType:'ዓይነት',
+  colShares:'አክሲዮኖች', colPrice:'ዋጋ/አክሲዮን', colAmount:'ጠቅላላ መጠን',
+  colMethod:'ዘዴ', colStatus:'ሁኔታ', colDate:'ቀን', colActions:'ተግባራት',
+  noShares:'እስካሁን የአክሲዮን ግብይቶች የሉም', noSharesText:'"አክሲዮን ግዛ / ጨምር" ን ተጭነው የመጀመሪያውን ይመዝግቡ።',
+  noMatch:'ተመሳሳይ የአክሲዮን ግብይቶች አልተገኙም', noMatchText:'ፍለጋዎን ወይም ማጣሪያዎን ያስተካክሉ።',
+  newShareTitle:'አክሲዮን ግዛ / ጨምር', editShareTitle:'የአክሲዮን ግብይት አስተካክል',
+  newShareSub:'ደንበኛ ይምረጡ እና አክሲዮን ያስገቡ። አዲስ ግዢዎች በማጽደቅ ጊዜ አስቀድመው ወደሚገኙት ካርድ በራስ-ሰር ይዋሃዳሉ።',
+  editShareSub:'ይህን የአክሲዮን ግብይት መዝገብ ያዘምኑ።',
+  chooseCustomer:'እባክዎ ደንበኛ ይምረጡ።',
+  customerSearch:'ደንበኞችን ይፈልጉ…', customerShares:'ያሁኑ የተያዘ አክሲዮን',
+  typeBuyDesc:'አዲስ አክሲዮን ይግዙ (ደንበኛው አስቀድሞ አክሲዮን ካለው በማጽደቅ ጊዜ በራስ-ሰር ይዋሃዳል)',
+  typeSellDesc:'አክሲዮን ወደ ሳኮው ይሽጡ',
+  sharesLabel:'የአክሲዮን ብዛት', priceLabel:'የአንድ አክሲዮን ዋጋ (ብር)',
+  dateLabel:'የግብይት ቀን', methodLabel:'የክፍያ ዘዴ',
+  refLabel:'ማጣቀሻ / ደረሰኝ ቁጥር', notesLabel:'ማስታወሻዎች',
+  notesPlaceholder:'አማራጭ ማስታወሻ…',
+  statusLabel:'ሁኔታ', methodCash:'ጥሬ ገንዘብ', methodBank:'የባንክ ዝውውር',
+  methodMobile:'የሞባይል ገንዘብ', methodCheque:'ቼክ', methodOther:'ሌላ',
+  reviewReference:'ማጣቀሻ', reviewNotes:'ማስታወሻዎች',
+  notApprovedYet:'— እስካሁን አልተጸደቀም —',
+  newBalancePreview:'ከማጽደቅ በኋላ አዲስ ጠቅላላ',
+  existingSharesNotice:'ይህ ደንበኛ በካርድ {serial} ላይ {n} የጸደቀ አክሲዮን አለው። አዲሱ መዝገብ በማጽደቅ ጊዜ በራስ-ሰር ወደዚያ ካርድ ይዋሃዳል።',
+  freshSharesNotice:'ለዚህ ደንበኛ የመጀመሪያ ግዢ — በማጽደቅ ጊዜ አዲስ ካርድ ይፈጠራል።',
+  pendingNotice:'በመጠባበቅ ላይ — ከማጽደቅ በኋላ በካርዱ ላይ ይታያል።',
+  cancel:'ሰርዝ', create:'ለማጽደቅ አስገባ', update:'ለውጦችን አስቀምጥ', close:'ዝጋ',
+  deleteTitle:'የአክሲዮን ግብይት ሰርዝ',
+  deleteText:'ይህ የአክሲዮን ግብይት ከ Firestore እስከመጨረሻ ይወገዳል።',
+  rowDelete:'ሰርዝ', rowEdit:'አስተካክል', rowView:'ተመልከት',
+  rowApprove:'አጽድቅ', rowReject:'ውድቅ አድርግ', rowPrint:'የአክሲዮን ምስክር ወረቀት አትም',
+  reset:'ዳግም አስጀምር',
+  showing:'እያሳየ', of:'ከ', sharesWord:'ካርዶች',
+  savedOk:'የአክሲዮን ግብይቱ በተሳካ ሁኔታ ተዘምኗል!',
+  createdOk:'በተሳካ ሁኔታ ገብቷል — ማጽደቅ በመጠባበቅ ላይ!',
+  deletedOk:'የአክሲዮን ግብይቱ ተሰርዟል።',
+  approvedOk:'ተጸድቆ ወደ ደንበኛው ካርድ ተዋህዷል — ድምሮች ተዘምነዋል!',
+  rejectedOk:'የአክሲዮን ግብይቱ ውድቅ ተደርጓል!',
+  errorSave:'ማስቀመጥ አልተቻለም: ', errorDelete:'መሰረዝ አልተቻለም: ',
+  invalidShares:'የአክሲዮን ብዛት ከዜሮ በላይ መሆን አለበት።',
+  invalidPrice:'የአንድ አክሲዮን ዋጋ ከዜሮ በላይ መሆን አለበት።',
+  insufficientShares:'ደንበኛው ለመሸጥ በቂ አክሲዮን የለውም።',
+  logoutTitle:'የመውጣት ማረጋገጫ', logoutText:'እርግጠኛ ነዎት መውጣት ይፈልጋሉ?',
+  noPermission:'ፈቃድ ተከልክሏል። የ Firestore ደንቦችን ያረጋግጡ።',
+  viewTitle:'የአክሲዮን ግብይት ዝርዝሮች',
+  printSlip:'ምስክር ወረቀት አትም', slipPreview:'የአክሲዮን ምስክር ወረቀት · A4 አግድም',
+  printStatus:'የህትመት ሁኔታ', printCount:'ቅጂዎች', serialNumber:'የምስክር ወረቀት ቁጥር',
+  original:'ዋና', copy:'ቅጂ',
+  firstPrint:'የመጀመሪያ ህትመት — ዋና', reprint:'እንደገና ህትመት — ቅጂ',
+  printedBy:'ያተመው', printedOn:'የታተመበት',
+  printError:'የህትመት ሁኔታን ማዘመን አልተቻለም',
+  docTitle:'የአክሲዮን ምስክር ወረቀት', certSubtitle:'የአክሲዮን ባለቤትነት ምስክር ወረቀት',
+  certBodyIntro:'ይህ ሰነድ ከታች የተጠቀሰው አባል በገረሱ ዱኪ ቁጠባ እና ብድር ህብረት ስራ ማህበር ውስጥ የተጠቀሰው የአክሲዮን ብዛት ህጋዊ ባለቤት መሆኑን በማህበሩ ህጎች እና ደንቦች መሰረት ያረጋግጣል።',
+  holderLabel:'አክሲዮን ባለቤት', sharesHeldLabel:'የተያዘ አክሲዮን', totalValueLabel:'ጠቅላላ ዋጋ',
+  certFooterNote:'ይህ ምስክር ወረቀት በማህበሩ ማህተም ስር የተሰጠ ሲሆን ለተጠቀሰው አክሲዮን ብቻ የሚሰራ ነው።',
+  recordedBy:'የመዘገበው', approvedBy:'ያጸደቀው',
+  transactionLabel:'ግብይት',
+  existingPurchase:'ጠቅላላ የተያዘ አክሲዮን (ካርድ)', newPurchase:'አዲስ ግዢ (በመጠባበቅ)', topupOf:'የሚከተለው ጭማሪ',
+  needsReprint:'እንደገና መታተም አለበት',
+  priceChangedWarning:'ይህ መዝገብ በዋጋ {old} በአንድ አክሲዮን ተመዝግቧል። የአሁኑ ዋጋ {cur} ነው። በማጽደቅ ጊዜ ወደ አሁኑ ዋጋ ይስተካከላል።',
+  adjustedOnApprove:'በማጽደቅ ጊዜ ወደ አሁኑ ዋጋ ({price}/አክሲዮን) ተስተካክሏል።',
+  approveConfirmTitle:'ይህን የአክሲዮን ግብይት ያጽድቁ?',
+  approveConfirmMsg:'ማጽደቅ የደንበኛውን የአክሲዮን ካርድ ከ{sh} አክሲዮኖች ({amt}) ጋር ይፈጥራል/ያዋህዳል።',
+  rejecting:'ይህን የአክሲዮን ግብይት ውድቅ ያድርጉ?',
+  currentPriceLabel:'የአሁኑ', avgPriceLabel:'አማካይ',
   memberNotLinked:'መለያ አልተገናኘም',
   memberNotLinkedText:'የአባል መለያዎ ከደንበኛ መዝገብ ጋር አልተገናኘም። እባክዎ የሳኮ አስተዳዳሪዎን ያግኙ።',
-  viewOnly:'ለንባብ ብቻ', readOnlyNotice:'ለአክሲዮን ለንባብ ብቻ መዳረሻ አለዎት። ዋና አስተዳዳሪዎች ብቻ ማድረግ ይችላሉ።'
+  viewOnly:'ለንባብ ብቻ', readOnlyNotice:'ለአክሲዮን ለንባብ ብቻ መዳረሻ አለዎት። ዋና አስተዳዳሪዎች ብቻ ማድረግ ይችላሉ።',
+  memberScopeNotice:'የእርስዎ የአክሲዮን መዝገቦች ብቻ እየታዩ ነው'
 };
 I18N.om = { ...I18N.en,
   brandSub:'Bulchiinsa SACCO', logout:"Ba'i", loading:"Fe'aa jira…",
+  navOverview:'Aguuggama', navNetwork:'Networkii', navOperations:'Hojimaata',
+  navFinance:'Faayinaansii', navAdmin:'Bulchiinsa',
+  dashboard:'Daashboordii', districts:'Aanaalee', branches:'Dameewwan', customers:'Maamiltoota',
+  savings:'Qusannaa', deposits:'Kaasaa', loans:'Liqii', repayments:'Kaffaltuu',
+  withdrawals:'Baasii', dividends:'Qooda', shares:'Hirmaata', reports:'Gabaasa',
+  penalties:'Adaba', audit:'Seenaa Galmee', users:'Fayyadamtoota', settings:"Qindaa'ina",
+  role_super_admin:"Bulchaa Ol'aanaa", role_admin:'Bulchaa Aanaa', role_manager:'Bulchaa',
+  role_cashier:'Kashierii', role_teller:'Kashierii', role_accountant:'Herregaa',
+  role_auditor:'Ooditera', role_member:'Miseensa', role_viewer:'Ilaalaa',
   pageTitle:'Hirmaata', pageSub:'Maamila tokkoof kaardii tokko — bittaan haaraan ofumaan ni dabalama',
-  addShare:'Hirmaata Bitadhu / Dabali',
   breadcrumbHome:'Daashboordii', breadcrumbShares:'Hirmaata',
+  addShare:'Hirmaata Bitadhu / Dabali',
+  statTotalIssued:'Hirmaata Waliigala Kenname', statTotalValue:'Gatii Hirmaataa Waliigalaa',
+  statHolders:'Abbootii Hirmaataa', statPending:'Mirkaneessaa Eegaa',
+  statBuyVolume:'Baay’ina Bittaa', statSellVolume:'Baay’ina Gurgurtaa',
+  searchPlaceholder:'Maamila, lakk. tartiibaa, ID, wabii yookaan bilbilaan barbaadi…',
+  filterAllDistricts:'Aanaa hunda', filterAllBranches:'Damee hunda',
+  filterAllTypes:'Gosoota hirmaataa hunda', filterAllStatus:'Haalota hunda',
+  viewGrid:'Grid', viewTable:'Gabatee',
+  typeBuy:'Bittaa', typeSell:'Gurgurtaa',
+  statusPending:'Eegaa', statusApproved:"Mirkanaa'e", statusRejected:'Kufe', statusMerged:'Walitti makame',
+  tableTitle:'Sochii Hirmaataa', tableSub:"Tarreen tokkoon tokkoon maamila tokko — waliigalli mirkaneessa irratti walitti makama",
+  colSerial:'Lakk. Tartiibaa', colCustomer:'Maamila', colType:'Gosa',
+  colShares:'Hirmaata', colPrice:'Gatii/Hirmaata', colAmount:'Hamma Waliigalaa',
+  colMethod:'Mala', colStatus:'Haala', colDate:'Guyyaa', colActions:'Gocha',
+  noShares:'Amma ammaatti sochiin hirmaataa hin jiru', noSharesText:'"Hirmaata Bitadhu / Dabali" tuqiitii kan jalqabaa galmeessi.',
+  noMatch:'Sochiin hirmaataa wal simu hin argamne', noMatchText:'Barbaacha yookaan filtarii kee sirreessi.',
+  newShareTitle:'Hirmaata Bitadhu / Dabali', editShareTitle:'Sochii Hirmaataa Gulaali',
+  newShareSub:'Maamila filadhuutii hirmaata galchi. Bittaan haaraan yeroo mirkanaa’u kaardii duraan jiru keessa ofumaan ni makama.',
+  editShareSub:'Galmee sochii hirmaataa kana haaromsi.',
+  chooseCustomer:'Maaloo maamila filadhu.',
+  customerSearch:'Maamiltoota barbaadi…', customerShares:'Hirmaata ammaa qabame',
+  typeBuyDesc:'Hirmaata haaraa bitadhu (maamilli yoo duraan hirmaata qabaate yeroo mirkanaa’u ofumaan ni makama)',
+  typeSellDesc:'Hirmaata gara SACCOtti gurguri',
+  sharesLabel:'Baay’ina Hirmaataa', priceLabel:'Gatii Hirmaataa Tokkoo (ETB)',
+  dateLabel:'Guyyaa Sochii', methodLabel:'Mala Kaffaltii',
+  refLabel:'Wabii / Lakk. Nagahee', notesLabel:'Yaadannoowwan',
+  notesPlaceholder:'Yaadannoo filannoo…',
+  statusLabel:'Haala', methodCash:'Maallaqa harkaa', methodBank:'Dabarsa Baankii',
+  methodMobile:'Maallaqa Moobaayilii', methodCheque:'Cheekii', methodOther:'Kan biraa',
+  reviewReference:'Wabii', reviewNotes:'Yaadannoowwan',
+  notApprovedYet:'— amma ammaatti hin mirkaneeffamne —',
+  newBalancePreview:'Waliigala haaraa erga mirkanaa’e booda',
+  existingSharesNotice:'Maamilli kun kaardii {serial} irratti hirmaata {n} mirkanaa’e qaba. Galmeen haaraan yeroo mirkanaa’u ofumaan kaardii sana keessa ni makama.',
+  freshSharesNotice:'Maamilaa kanaaf bittaa jalqabaa — yeroo mirkanaa’u kaardiin haaraan ni uumama.',
+  pendingNotice:'Eegaa — yeroo mirkanaa’u kaardii irratti ni mul’ata.',
+  cancel:'Haqi', create:'Mirkaneessaaf Galchi', update:'Jijjiirama Olkaasi', close:'Cufi',
+  deleteTitle:'Sochii Hirmaataa Haqi',
+  deleteText:'Kun sochii hirmaataa kana Firestore irraa guutummaatti ni haqa.',
+  rowDelete:'Haqi', rowEdit:'Gulaali', rowView:'Ilaali',
+  rowApprove:'Mirkaneessi', rowReject:'Garfii', rowPrint:'Waraqaa Ragaa Maxxansi',
+  reset:'Deebisi',
+  showing:'Agarsiisaa', of:'keessaa', sharesWord:'kaardii',
+  savedOk:"Sochiin hirmaataa milkaa'inaan haaromfame!",
+  createdOk:'Milkaa’inaan galcheera — mirkaneessa eegaa jira!',
+  deletedOk:'Sochiin hirmaataa haqame.',
+  approvedOk:'Mirkanaa’ee gara kaardii maamilaa makame — waliigalli haaromfame!',
+  rejectedOk:'Sochiin hirmaataa garfame!',
+  errorSave:"Olkaa'uu hin dandeenye: ", errorDelete:'Haquu hin dandeenye: ',
+  invalidShares:"Baay'inni hirmaataa zeeroo caalaa guddaa ta'uu qaba.",
+  invalidPrice:"Gatiin hirmaataa tokkoo zeeroo caalaa guddaa ta'uu qaba.",
+  insufficientShares:'Maamilli gurguruuf hirmaata gahaa hin qabu.',
+  logoutTitle:"Mirkaneessa Ba'uu", logoutText:"Dhuguma ba'uu barbaadda?",
+  noPermission:'Hayyamni dhorkame. Seera Firestore kee ilaali.',
+  viewTitle:"Bal'ina Sochii Hirmaataa",
+  printSlip:'Waraqaa Ragaa Maxxansi', slipPreview:'Waraqaa Ragaa Hirmaataa · A4 Landscape',
+  printStatus:'Haala Maxxansaa', printCount:'Koppiiwwan', serialNumber:'Lakk. Waraqaa Ragaa',
+  original:'JALQABAA', copy:'KOPPII',
+  firstPrint:'Maxxansa jalqabaa — Jalqabaa', reprint:'Maxxansa irra deebii — Koppii',
+  printedBy:'Kan maxxanse', printedOn:'Yeroo maxxanfame',
+  printError:"Haala maxxansaa haaromsuun hin danda'amne",
+  docTitle:'Waraqaa Ragaa Hirmaataa', certSubtitle:'Waraqaa Ragaa Abbummaa Hirmaataa',
+  certBodyIntro:'Waraqaan kun miseensi armaan gadii maqaan ibsame, Waliigaltee Qusannaa fi Liqii Garasuu Dhukii keessatti baay’ina hirmaataa ibsame qabaachuu isaa, seera fi dambii Waliigaltee hordofuudhaan mirkaneessa.',
+  holderLabel:'Abbaa Hirmaataa', sharesHeldLabel:'Hirmaata Qabame', totalValueLabel:'Gatii Waliigalaa',
+  certFooterNote:'Waraqaan ragaa kun chaappaa Waliigaltee jalatti kennamee hirmaata ibsameef qofa tajaajila.',
+  recordedBy:'Kan Galmeesse', approvedBy:'Kan Mirkaneesse',
+  transactionLabel:'Sochii',
+  existingPurchase:'Hirmaata Waliigalaa Qabame (Kaardii)', newPurchase:'Bittaa Haaraa (Eegaa)', topupOf:'Itti dabaluu',
+  needsReprint:'Irra deebi’ii maxxansuu qaba',
+  priceChangedWarning:'Galmeen kun gatii {old} hirmaata tokkoof galmeeffame. Gatiin ammaa {cur} dha. Yeroo mirkaneessu gara gatii ammaatti ni sirreeffama.',
+  adjustedOnApprove:'Yeroo mirkaneessu gara gatii ammaa ({price}/hirmaata) sirreeffame.',
+  approveConfirmTitle:'Sochii hirmaataa kana mirkaneessitaa?',
+  approveConfirmMsg:'Mirkaneessuun kaardii maamilaa hirmaata {sh} ({amt}) waliin uuma/walitti maka.',
+  rejecting:'Sochii hirmaataa kana garfitaa?',
+  currentPriceLabel:'ammaa', avgPriceLabel:'giddu-galeessa',
   memberNotLinked:'Herregni hin hidhamne',
   memberNotLinkedText:'Herregni miseensummaa kee galmee maamilaa waliin hin hidhamne. Maaloo bulchaa SACCO keessan qunnamaa.',
-  viewOnly:'dubbisuu qofa', readOnlyNotice:"Hirmaataaf hayyama dubbisuu qofa qabda. Bulchaan Ol'aanaan qofa uumuu, jijjiiruu, haquu, mirkaneessuu, fi maxxansuu danda'u."
+  viewOnly:'dubbisuu qofa', readOnlyNotice:"Hirmaataaf hayyama dubbisuu qofa qabda. Bulchaan Ol'aanaan qofa uumuu, jijjiiruu, haquu, mirkaneessuu, fi maxxansuu danda'u.",
+  memberScopeNotice:'Galmeewwan hirmaataa kee qofa agarsiisaa jira'
 };
 
 const SUPPORTED = ['en','am','om'];
@@ -837,14 +1003,15 @@ function toast(msg, type='success'){
 const LOGO_FALLBACK = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#5b21b6"/><circle cx="50" cy="47" r="25" fill="none" stroke="#f0c96a" stroke-width="3.5"/><text x="50" y="59" font-family="Georgia,serif" font-size="30" font-weight="900" fill="#f0c96a" text-anchor="middle">G</text></svg>`;
 const LOGO_HTML = `<img src="${LOGO_URL}" alt="${SACCO_NAME}" onerror="this.onerror=null; this.outerHTML=this.dataset.fallback;" data-fallback="${LOGO_FALLBACK.replace(/"/g, '&quot;')}">`;
 
-/* ============ ROLES — Super-Admin-only writes ============ */
+/* ============ ROLES ============ */
 const ROLES = { super_admin:'role_super_admin', admin:'role_admin', manager:'role_manager', cashier:'role_cashier', teller:'role_teller', accountant:'role_accountant', auditor:'role_auditor', member:'role_member', viewer:'role_viewer' };
 const roleLabel = (r) => ROLES[r] ? t(ROLES[r]) : (r || '').replace(/_/g,' ');
 const hasRole = (...roles) => roles.includes(APP.profile?.role);
 
-/* ── FIX: only super_admin can write ── */
 const canView    = () => !!APP.profile?.role || APP.profile?.role === 'loading';
 const isSuperAdmin = () => APP.profile?.role === 'super_admin';
+
+/* ============ SUPER-ADMIN ONLY WRITES ============ */
 const canCreate  = () => isSuperAdmin();
 const canApprove = () => isSuperAdmin();
 const canEdit    = () => isSuperAdmin();
@@ -1009,7 +1176,7 @@ function renderShell(){
     return `<div class="sidebar__section">${esc(g.section)}</div>` +
       items.map(it => {
         const active = it.key === 'shares' ? ' is-active' : '';
-        return `<a class="nav-item${active}" href="${it.href}">
+        return `<a class="nav-item${active}" href="${it.href}" data-tooltip="${esc(it.label)}">
           <i class="fas ${it.icon}"></i><span class="nav-item__label">${esc(it.label)}</span>
         </a>`;
       }).join('');
@@ -1107,7 +1274,6 @@ function renderMain(){
     return;
   }
 
-  /* ── FIX: member without linked customer ── */
   if(APP.profile?.role === 'member' && APP.memberDataLoaded && !APP.customers.length){
     host.innerHTML = `<div class="empty" style="background:#fff;border:1px solid var(--border);border-radius:20px;padding:80px 24px;">
       <i class="fas fa-unlink" style="color:#b8860b"></i>
@@ -1139,6 +1305,7 @@ function renderMain(){
   const sharePrice = num(APP.settings.sharePrice);
   const avgPrice = totalIssued > 0 ? Math.round((totalValue / totalIssued) * 100) / 100 : 0;
   const priceDiverged = avgPrice > 0 && Math.abs(avgPrice - sharePrice) > 0.01;
+  const isMemberView = APP.profile?.role === 'member';
 
   host.innerHTML = `
     <div class="page-head">
@@ -1155,6 +1322,11 @@ function renderMain(){
     ${!isSuperAdmin() ? `<div class="alert alert--info" style="margin-bottom:16px">
       <i class="fas fa-eye"></i>
       <div><strong>${esc(t('viewOnly'))}</strong> — ${esc(t('readOnlyNotice'))}</div>
+    </div>` : ''}
+
+    ${isMemberView ? `<div class="alert alert--success" style="margin-bottom:16px">
+      <i class="fas fa-user"></i>
+      <div>${esc(t('memberScopeNotice'))}</div>
     </div>` : ''}
 
     <div class="breadcrumb">
@@ -1207,14 +1379,14 @@ function renderMain(){
           <i class="fas fa-search"></i>
           <input type="search" id="fltSearch" placeholder="${esc(t('searchPlaceholder'))}" value="${esc(APP.filters.search)}">
         </div>
-        ${!APP.profile?.role || APP.profile.role !== 'member' ? (districtOptions.length ? `<select id="fltDistrict">
+        ${!isMemberView && districtOptions.length ? `<select id="fltDistrict">
           <option value="">${esc(t('filterAllDistricts'))}</option>
           ${districtOptions.map(d => `<option value="${esc(d.id)}" ${APP.filters.districtId===d.id?'selected':''}>${esc(d.name || d.id)}</option>`).join('')}
-        </select>` : '') : ''}
-        ${!APP.profile?.role || APP.profile.role !== 'member' ? (branchOptions.length ? `<select id="fltBranch">
+        </select>` : ''}
+        ${!isMemberView && branchOptions.length ? `<select id="fltBranch">
           <option value="">${esc(t('filterAllBranches'))}</option>
           ${branchOptions.map(b => `<option value="${esc(b.id)}" ${APP.filters.branchId===b.id?'selected':''}>${esc(b.name || b.id)}</option>`).join('')}
-        </select>` : '') : ''}
+        </select>` : ''}
         <select id="fltType">
           <option value="">${esc(t('filterAllTypes'))}</option>
           <option value="buy" ${APP.filters.type==='buy'?'selected':''}>${esc(t('typeBuy'))}</option>
@@ -1363,7 +1535,6 @@ function renderShareCard(sh){
   const isPending = status === 'pending';
   const isApproved = status === 'approved';
   const isMerged = !!sh.isMerged;
-  /* ── FIX: super-admin-only gates ── */
   const canA = canApprove() && isPending;
   const canE = canEdit() && !isMerged;
   const canD = canDelete() && !isMerged;
@@ -2233,7 +2404,7 @@ function showLogoutModal(){
   });
 }
 
-/* ============ MEMBER DATA FETCH ── FIX ============ */
+/* ============ MEMBER DATA FETCH ============ */
 async function fetchMemberShareData(){
   if(!APP.profile?.customerId) return { customer: null, shares: [] };
   let customer = null;
@@ -2481,7 +2652,7 @@ async function loadSettingsOnce(){
   startSessionWatcher();
 })();
 
-console.log('[sacco] shares page ready — super-admin-only writes, member-aware fetch');
+console.log('[sacco] shares page ready — Super Admin only writes, member-aware fetch, full i18n');
 </script>
 </body>
 </html>
