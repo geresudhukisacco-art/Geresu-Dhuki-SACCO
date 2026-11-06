@@ -514,7 +514,6 @@ body.sb-open .overlay-mobile{display:block;}
 .slip__table td{padding:6px 6px;border-bottom:1px solid #999;vertical-align:middle;line-height:1.3;}
 .slip__footer{margin-top:auto;padding-top:8px;border-top:2px solid #0b5cab;text-align:center;font-size:10pt;color:#4a5568;line-height:1.35;}
 .slip__footer strong{color:#0b5cab;font-weight:800;}
-/* A5 landscape slip — repayment receipts */
 .slip--a5{width:210mm;height:148mm;min-height:148mm;max-height:148mm;padding:6mm 8mm;}
 .slip--a5 .slip__head{padding-bottom:3px;margin-bottom:5px;gap:6px;}
 .slip--a5 .slip__logo{width:36px;height:36px;}
@@ -1492,18 +1491,49 @@ const ROLE_LABELS = {
   auditor:'role_auditor', member:'role_member', viewer:'role_member'
 };
 const roleLabel = (r) => t(ROLE_LABELS[r]) || (r||'').replace(/_/g,' ');
+
+/* ═══════════════════════════════════════════════════════════
+   ROLE HELPERS — single source of truth
+   super_admin → all districts, full access
+   admin       → own district,  create + edit + delete + view + approve + repay
+   manager     → own branch,   view + approve only (no create / edit / delete / repay)
+   cashier     → own branch,   add + view + repay only (no edit / delete / approve)
+   auditor     → all districts, view only
+   member      → own loans only, view only
+   ═══════════════════════════════════════════════════════════ */
 const isSuper      = () => APP.profile?.role === 'super_admin';
 const isDistrict   = () => APP.profile?.role === 'admin';
+const isManager    = () => APP.profile?.role === 'manager';
+const isCashier    = () => ['cashier','teller','accountant'].includes(APP.profile?.role);
 const isAuditor    = () => APP.profile?.role === 'auditor';
 const isBranchRole = () => ['manager','cashier','teller','accountant'].includes(APP.profile?.role);
 const isMember     = () => APP.profile?.role === 'member';
-const canView      = () => APP.profile?.role === 'loading' || isSuper() || isDistrict() || isBranchRole() || isAuditor() || isMember();
-const canApply     = () => isSuper() || isDistrict() || isBranchRole();
-const canApprove   = () => isSuper() || isDistrict() || APP.profile?.role === 'manager';
-const canEdit      = () => isSuper() || isDistrict() || isBranchRole();
-const canDelete    = () => isSuper() || isDistrict();
-const canRepay     = () => isSuper() || isDistrict() || isBranchRole();
-const canPrint     = () => isSuper() || isDistrict() || isBranchRole();
+
+const canView    = () => APP.profile?.role === 'loading' || isSuper() || isDistrict() || isBranchRole() || isAuditor() || isMember();
+const canApply   = () => isSuper() || isDistrict() || isCashier();
+const canApprove = () => isSuper() || isDistrict() || isManager();
+const canEdit    = () => isSuper() || isDistrict();
+const canDelete  = () => isSuper() || isDistrict();
+const canRepay   = () => isSuper() || isDistrict() || isCashier();
+const canPrint   = () => isSuper() || isDistrict() || isManager() || isCashier();
+
+/* Row-level scope predicate */
+function inScopeCustomer(c) {
+  if (!c) return isSuper() || isAuditor();
+  if (isSuper() || isAuditor()) return true;
+  if (isDistrict()) return c.districtId === APP.profile.districtId || c.district === APP.profile.districtId;
+  if (isManager() || isCashier()) return c.branchId === APP.profile.branchId;
+  if (isMember()) {
+    const p = APP.profile || {};
+    return c.userId === p.id || c.customerId === p.customerId || c.id === p.customerId;
+  }
+  return false;
+}
+function canActOnLoan(loan) {
+  if (!loan) return false;
+  const c = customerById(loan.customerId || loan.customerDocId);
+  return inScopeCustomer(c);
+}
 
 function scopeCustomers() {
   if (!APP.profile) return [];
@@ -2163,11 +2193,15 @@ function renderLoanCard(l) {
   const progressCls = overdue ? 'is-danger' : ((grace || soon) ? 'is-warn' : '');
   const isActive = status === 'active' || status === 'approved';
   const isPending = status === 'pending';
-  const canR = canRepay() && outstanding > 0 && isActive;
-  const canP = canPrint();
-  const canA = canApprove() && isPending;
-  const canE = canEdit();
-  const canD = canDelete();
+
+  /* ── per-row scope ── */
+  const scoped = canActOnLoan(l);
+  const canR = canRepay()   && scoped && outstanding > 0 && isActive;
+  const canP = canPrint()   && scoped;
+  const canA = canApprove() && scoped && isPending;
+  const canE = canEdit()    && scoped;
+  const canD = canDelete()  && scoped;
+
   const pendingReps = pendingRepaymentsForLoan(l.id).length;
   let scheduleFoot = '';
   if (isActive) {
@@ -2246,6 +2280,7 @@ function renderTableView(host, pageList, total, pages, start) {
       const progressCls = overdue ? 'is-danger' : ((grace || soon) ? 'is-warn' : '');
       const pendingReps = pendingRepaymentsForLoan(l.id).length;
       const sState = isActive ? scheduleStateLabel(l) : null;
+      const scoped = canActOnLoan(l);
       return `<tr>
         <td><div class="code">${esc(l.serialNumber||l.loanNumber||'—')}</div><div class="muted" style="margin-top:4px">${esc(fmtDate(l.disbursementDate||l.createdAt))}</div>${pendingReps>0?`<div style="margin-top:4px"><span class="tag tag--gold" style="font-size:9.5px"><i class="fas fa-hourglass-half"></i> ${pendingReps} ${esc(t('awaitingApproval'))}</span></div>`:''}</td>
         <td><div class="cust-cell"><div class="cust-avatar">${avatar}</div><div><div class="name">${esc(customerName(c))}</div><div class="muted">${c?.customerId?esc(c.customerId):(l.customerId||'—')}</div></div></div></td>
@@ -2260,12 +2295,12 @@ function renderTableView(host, pageList, total, pages, start) {
         <td><span class="tag ${stCls}">${esc(loanStatusLabel(l.status))}</span>${overdue?`<div style="margin-top:4px"><span class="tag tag--red" style="font-size:9.5px"><i class="fas fa-exclamation-triangle"></i> ${esc(t('overduBadge'))}</span></div>`:grace?`<div style="margin-top:4px"><span class="tag tag--gold" style="font-size:9.5px"><i class="fas fa-hourglass-half"></i> ${esc(t('graceBadge'))}</span></div>`:''}</td>
         <td><div style="font-size:12px">${esc(fmtDate(l.maturityDate))}</div>${sState?`<div class="muted" style="color:${overdue?'#b42318':grace?'#b8860b':'#0b5cab'};font-weight:800">● ${esc(sState.text)}</div>`:''}</td>
         <td class="num"><div class="row-actions">
-          ${canR && outstanding>0 && isActive ? `<button title="${esc(t('rowRepay'))}" data-action="repay" data-id="${esc(l.id)}" class="pay"><i class="fas fa-hand-holding-usd"></i></button>`:''}
-          ${canP ? `<button title="${esc(t('rowPrint'))}" data-action="print" data-id="${esc(l.id)}" class="print"><i class="fas fa-print"></i></button>`:''}
+          ${canR && scoped && outstanding>0 && isActive ? `<button title="${esc(t('rowRepay'))}" data-action="repay" data-id="${esc(l.id)}" class="pay"><i class="fas fa-hand-holding-usd"></i></button>`:''}
+          ${canP && scoped ? `<button title="${esc(t('rowPrint'))}" data-action="print" data-id="${esc(l.id)}" class="print"><i class="fas fa-print"></i></button>`:''}
           <button title="${esc(t('rowView'))}" data-action="view" data-id="${esc(l.id)}"><i class="fas fa-eye"></i></button>
-          ${canA && isPending ? `<button title="${esc(t('rowApprove'))}" data-action="approve" data-id="${esc(l.id)}" class="approve"><i class="fas fa-check"></i></button><button title="${esc(t('rowReject'))}" data-action="reject" data-id="${esc(l.id)}" class="danger"><i class="fas fa-times"></i></button>`:''}
-          ${canE ? `<button title="${esc(t('rowEdit'))}" data-action="edit" data-id="${esc(l.id)}"><i class="fas fa-pen"></i></button>`:''}
-          ${canD ? `<button title="${esc(t('rowDelete'))}" data-action="delete" data-id="${esc(l.id)}" class="danger"><i class="fas fa-trash"></i></button>`:''}
+          ${canA && scoped && isPending ? `<button title="${esc(t('rowApprove'))}" data-action="approve" data-id="${esc(l.id)}" class="approve"><i class="fas fa-check"></i></button><button title="${esc(t('rowReject'))}" data-action="reject" data-id="${esc(l.id)}" class="danger"><i class="fas fa-times"></i></button>`:''}
+          ${canE && scoped ? `<button title="${esc(t('rowEdit'))}" data-action="edit" data-id="${esc(l.id)}"><i class="fas fa-pen"></i></button>`:''}
+          ${canD && scoped ? `<button title="${esc(t('rowDelete'))}" data-action="delete" data-id="${esc(l.id)}" class="danger"><i class="fas fa-trash"></i></button>`:''}
         </div></td>
       </tr>`;
     }).join('')}
@@ -2306,27 +2341,58 @@ function wireMainEvents() {
 let _debTimer;
 function debounce(fn, ms) { return function (...args) { clearTimeout(_debTimer); _debTimer = setTimeout(() => fn.apply(this, args), ms); }; }
 
+/* ═══════════════════════════════════════════════════════════
+   ROW ACTION HANDLER — every action re-checks role + scope
+   ═══════════════════════════════════════════════════════════ */
 function handleRowAction(action, id) {
   const l = APP.loans.find(x => x.id === id);
   if (!l) return;
-  if (action === 'view') openViewModal(l);
-  if (action === 'edit') openLoanWizard(l);
-  if (action === 'delete') openDeleteModal(l);
-  if (action === 'approve') approveLoan(l);
-  if (action === 'reject') rejectLoan(l);
-  if (action === 'print') printSlip(l);
-  if (action === 'repay') openRepaymentModal(l);
+  const scoped = canActOnLoan(l);
+
+  if (action === 'view') { openViewModal(l); return; }
+  if (action === 'edit') {
+    if (!canEdit())  { toast(t('noPermission'),'error'); return; }
+    if (!scoped)     { toast(t('noPermission'),'error'); return; }
+    openLoanWizard(l); return;
+  }
+  if (action === 'delete') {
+    if (!canDelete()) { toast(t('noPermission'),'error'); return; }
+    if (!scoped)      { toast(t('noPermission'),'error'); return; }
+    openDeleteModal(l); return;
+  }
+  if (action === 'approve') {
+    if (!canApprove()) { toast(t('noPermission'),'error'); return; }
+    if (!scoped)       { toast(t('noPermission'),'error'); return; }
+    approveLoan(l); return;
+  }
+  if (action === 'reject') {
+    if (!canApprove()) { toast(t('noPermission'),'error'); return; }
+    if (!scoped)       { toast(t('noPermission'),'error'); return; }
+    rejectLoan(l); return;
+  }
+  if (action === 'print') {
+    if (!canPrint()) { toast(t('noPermission'),'error'); return; }
+    if (!scoped)     { toast(t('noPermission'),'error'); return; }
+    printSlip(l); return;
+  }
+  if (action === 'repay') {
+    if (!canRepay()) { toast(t('noPermission'),'error'); return; }
+    if (!scoped)     { toast(t('noPermission'),'error'); return; }
+    openRepaymentModal(l); return;
+  }
 }
 
 async function approveLoan(l) {
-  if (!canApprove()) { toast(t('noPermission'), 'error'); return; }
+  if (!canApprove())    { toast(t('noPermission'), 'error'); return; }
+  if (!canActOnLoan(l)) { toast(t('noPermission'), 'error'); return; }
   try {
     await updateDoc(doc(db,'loans',l.id), { status:'active', approvedAt: serverTimestamp(), approvedBy: APP.profile.id, approvedByName: APP.profile.fullName || APP.profile.name || '' });
     toast(t('approvedOk'), 'success');
   } catch(e) { const msg = e.code === 'permission-denied' ? t('noPermission') : e.message; toast(t('errorSave') + msg, 'error'); }
 }
 async function rejectLoan(l) {
-  if (!canApprove()) { toast(t('noPermission'), 'error'); return; }
+  if (!canApprove())    { toast(t('noPermission'), 'error'); return; }
+  if (!canActOnLoan(l)) { toast(t('noPermission'), 'error'); return; }
   try {
     await updateDoc(doc(db,'loans',l.id), { status:'rejected', rejectedAt: serverTimestamp(), approvedBy: APP.profile.id, approvedByName: APP.profile.fullName || APP.profile.name || '' });
     toast(t('rejectedOk'), 'success');
@@ -2339,6 +2405,7 @@ async function approveRepayment(txId) {
   if (String(tx.status||'pending').toLowerCase() !== 'pending') { toast(t('repAlreadyProcessed'), 'warning'); return; }
   const loan = APP.loans.find(l => l.id === tx.loanId);
   if (!loan) { toast(t('loanNotFoundMsg'), 'error'); return; }
+  if (!canActOnLoan(loan)) { toast(t('noPermission'), 'error'); return; }
   try {
     await updateDoc(doc(db,'transactions',txId), { status:'approved', approvedAt: serverTimestamp(), approvedBy: APP.profile.id, approvedByName: APP.profile.fullName || APP.profile.name || '' });
     const amount = num(tx.amount);
@@ -2355,6 +2422,8 @@ async function rejectRepayment(txId) {
   const tx = APP.repayments.find(r => r.id === txId);
   if (!tx) { toast(t('repNotFound'), 'error'); return; }
   if (String(tx.status||'pending').toLowerCase() !== 'pending') { toast(t('repAlreadyProcessed'), 'warning'); return; }
+  const loan = APP.loans.find(l => l.id === tx.loanId);
+  if (loan && !canActOnLoan(loan)) { toast(t('noPermission'), 'error'); return; }
   try {
     await updateDoc(doc(db,'transactions',txId), { status:'rejected', rejectedAt: serverTimestamp(), rejectedBy: APP.profile.id, rejectedByName: APP.profile.fullName || APP.profile.name || '' });
     toast(t('repRejectedOk'), 'success');
@@ -2426,6 +2495,15 @@ function openWizard({ title, subtitle, finishLabel, steps, initial = {}, onFinis
 function openLoanWizard(loan) {
   const isEdit = !!loan;
   const l0 = loan || {};
+
+  /* Entry guard — role + scope */
+  if (isEdit) {
+    if (!canEdit())          { toast(t('noPermission'), 'error'); return; }
+    if (!canActOnLoan(loan)) { toast(t('noPermission'), 'error'); return; }
+  } else {
+    if (!canApply())         { toast(t('noPermission'), 'error'); return; }
+  }
+
   if (isEdit) {
     const existingCustomer = customerById(l0.customerId || l0.customerDocId);
     if (existingCustomer && String(existingCustomer.status || 'active').toLowerCase() !== 'active') {
@@ -2671,8 +2749,18 @@ function openLoanWizard(loan) {
       }
     ],
     onFinish: async (d) => {
+      /* Defence-in-depth: re-verify role + scope at save time */
+      if (isEdit) {
+        if (!canEdit())         throw new Error(t('noPermission'));
+        if (!canActOnLoan(l0))  throw new Error(t('noPermission'));
+      } else {
+        if (!canApply())        throw new Error(t('noPermission'));
+      }
+
       const c = customerById(d.customerId);
       if (!c) throw new Error(t('customerNoLongerExists'));
+      if (!inScopeCustomer(c)) throw new Error(t('noPermission'));
+
       const status = String(c.status || 'active').toLowerCase();
       if (status !== 'active') throw new Error(t('customerInactiveCreating', { status }));
       const principal = num(d.principal);
@@ -2733,6 +2821,7 @@ function openLoanWizard(loan) {
 function openViewModal(l) {
   closeModal();
   const c = customerById(l.customerId || l.customerDocId);
+  const scoped = canActOnLoan(l);
   const { interest, total, monthly } = calcLoan(l.principal, l.interestRate, l.duration, l.interestType);
   const outstanding = loanOutstanding(l);
   const loanReps = (APP.repayments || []).filter(r => r.loanId === l.id).sort((a,b) => (toDate(b.date)?.getTime()||0) - (toDate(a.date)?.getTime()||0));
@@ -2752,15 +2841,15 @@ function openViewModal(l) {
       const recordedBy = r.createdByName || r.createdBy || '—';
       const approvedBy = r.approvedByName || r.rejectedByName || '—';
       let actions = '';
-      if (rst === 'pending' && canApprove()) {
+      if (rst === 'pending' && canApprove() && scoped) {
         actions += `<button class="approve-btn" data-approve-rep="${esc(r.id)}" title="${esc(t('approve'))}"><i class="fas fa-check"></i></button>`;
         actions += `<button class="reject-btn" data-reject-rep="${esc(r.id)}" title="${esc(t('reject'))}"><i class="fas fa-times"></i></button>`;
       }
       actions += `<button class="print-btn" data-print-rep="${esc(r.id)}" title="${esc(t('printReceipt'))}"><i class="fas fa-print"></i></button>`;
-      if (rst !== 'approved' && canEdit()) {
+      if (rst !== 'approved' && canEdit() && scoped) {
         actions += `<button class="edit-btn" data-edit-rep="${esc(r.id)}" title="${esc(t('rowEdit'))}"><i class="fas fa-pen"></i></button>`;
       }
-      if (rst !== 'approved' && canDelete()) {
+      if (rst !== 'approved' && canDelete() && scoped) {
         actions += `<button class="reject-btn" data-delete-rep="${esc(r.id)}" title="${esc(t('rowDelete'))}"><i class="fas fa-trash"></i></button>`;
       }
       return `<div class="rep-row"><span class="date">${esc(fmtDate(r.date))}</span><span class="amt">${esc(money(r.amount))}</span><span class="pp">${num(r.principalPortion).toLocaleString()}</span><span class="ip">${num(r.interestPortion).toLocaleString()}${r.interestWaived?' ✓':''}</span><span class="by">${esc(recordedBy)}</span><span class="by">${esc(approvedBy)}</span><span class="status-cell ${stCls}">${stLabel}</span><span class="actions">${actions}</span></div>`;
@@ -2804,9 +2893,9 @@ function openViewModal(l) {
       <div class="modal__foot">
         <button class="btn" data-close>${esc(t('close'))}</button>
         <div class="spacer"></div>
-        ${canRepay() && outstanding > 0 && ['active','approved'].includes(st) ? `<button class="btn btn--success" id="view-repay-btn"><i class="fas fa-hand-holding-usd"></i> ${esc(t('rowRepay'))}</button>`:''}
-        ${canPrint() ? `<button class="btn" id="view-print-btn" style="border-color:#f0dcb0;color:#b8860b"><i class="fas fa-print"></i> ${esc(t('printSlip'))}</button>`:''}
-        ${canEdit() ? `<button class="btn btn--primary" id="view-edit-btn"><i class="fas fa-pen"></i> ${esc(t('rowEdit'))}</button>`:''}
+        ${canRepay() && scoped && outstanding > 0 && ['active','approved'].includes(st) ? `<button class="btn btn--success" id="view-repay-btn"><i class="fas fa-hand-holding-usd"></i> ${esc(t('rowRepay'))}</button>`:''}
+        ${canPrint() && scoped ? `<button class="btn" id="view-print-btn" style="border-color:#f0dcb0;color:#b8860b"><i class="fas fa-print"></i> ${esc(t('printSlip'))}</button>`:''}
+        ${canEdit() && scoped ? `<button class="btn btn--primary" id="view-edit-btn"><i class="fas fa-pen"></i> ${esc(t('rowEdit'))}</button>`:''}
       </div>
     </div>`;
   document.body.appendChild(root);
@@ -2866,8 +2955,8 @@ function buildRepaymentReceiptHtml(tx, loan, watermarkText) {
   const loanSerial = loan.serialNumber || loan.loanNumber || (loan.id||'').slice(0,8).toUpperCase();
   const amount = num(tx.amount);
   const amountWords = numberToWords(amount);
-  const methodLabel = { cash:t('methodCash'), bank:t('methodBank'), mobile:t('methodMobile') }[tx.paymentMethod] || tx.paymentMethod || '—';
-  const statusLabel = String(tx.status||'pending').toLowerCase() === 'approved' ? t('repApproved') : String(tx.status||'').toLowerCase() === 'rejected' ? t('repRejected') : t('repPending');
+  const methodLabelStr = { cash:t('methodCash'), bank:t('methodBank'), mobile:t('methodMobile') }[tx.paymentMethod] || tx.paymentMethod || '—';
+  const statusLabelStr = String(tx.status||'pending').toLowerCase() === 'approved' ? t('repApproved') : String(tx.status||'').toLowerCase() === 'rejected' ? t('repRejected') : t('repPending');
   const fmt = (n) => num(n).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
   return `<div class="slip slip--a5">
     <div class="slip__watermark" aria-hidden="true">
@@ -2883,10 +2972,10 @@ function buildRepaymentReceiptHtml(tx, loan, watermarkText) {
       <div class="slip__logo"><img src="${esc(LOGO_URL)}" alt=""></div>
     </div>
     <div class="slip__doc-row">
-      <div><strong>${esc(t('receiptNo'))}:</strong> <span style="font-family:monospace;font-weight:800">${esc(serial)}</span></div>
+      <div><strong>Receipt No:</strong> <span style="font-family:monospace;font-weight:800">${esc(serial)}</span></div>
       <div><strong>${esc(t('agrDate'))}:</strong> ${esc(fmtDate(tx.date))}</div>
       <div><strong>${esc(t('agrSerial'))}:</strong> <span style="font-family:monospace;font-weight:800">${esc(loanSerial)}</span></div>
-      <div><span style="display:inline-block;padding:1px 8px;border-radius:3px;font-size:9pt;font-weight:900;letter-spacing:.12em;text-transform:uppercase;background:${statusLabel===t('repApproved')?'#e7f7f0':'#fdf5e0'};color:${statusLabel===t('repApproved')?'#065f46':'#7a5210'};border:1px solid ${statusLabel===t('repApproved')?'#a7f3d0':'#f0dcb0'}">${esc(statusLabel)}</span></div>
+      <div><span style="display:inline-block;padding:1px 8px;border-radius:3px;font-size:9pt;font-weight:900;letter-spacing:.12em;text-transform:uppercase;background:${statusLabelStr===t('repApproved')?'#e7f7f0':'#fdf5e0'};color:${statusLabelStr===t('repApproved')?'#065f46':'#7a5210'};border:1px solid ${statusLabelStr===t('repApproved')?'#a7f3d0':'#f0dcb0'}">${esc(statusLabelStr)}</span></div>
     </div>
     <div class="slip__title">${esc(t('paymentReceipt'))}</div>
     <div class="slip__body">
@@ -2905,7 +2994,7 @@ function buildRepaymentReceiptHtml(tx, loan, watermarkText) {
         <td>ETB ${esc(fmt(tx.principalPortion))}</td>
         <td>ETB ${esc(fmt(tx.interestPortion))}</td>
         <td><strong>ETB ${esc(fmt(amount))}</strong></td>
-        <td>${esc(methodLabel)}</td>
+        <td>${esc(methodLabelStr)}</td>
       </tr></tbody>
     </table>
     <table class="slip__table">
@@ -2923,7 +3012,7 @@ function buildRepaymentReceiptHtml(tx, loan, watermarkText) {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20mm;margin-top:14px">
       <div style="text-align:center">
         <div style="border-bottom:1px solid #333;height:20px"></div>
-        <div style="font-size:10pt;color:#333;margin-top:4px;font-weight:600;">${esc(t('borrowerSign'))}</div>
+        <div style="font-size:10pt;color:#333;margin-top:4px;font-weight:600;">${esc(t('agrBorrower'))}</div>
       </div>
       <div style="text-align:center">
         <div style="border-bottom:1px solid #333;height:20px"></div>
@@ -2947,6 +3036,7 @@ function setPrintSize(sizeCSS) {
 function printRepaymentReceipt(tx, loan) {
   if (!tx || !loan) return;
   if (!canPrint()) { toast(t('noPermission'), 'error'); return; }
+  if (!canActOnLoan(loan)) { toast(t('noPermission'), 'error'); return; }
   setPrintSize('210mm 148mm');
   const txSt = String(tx.status||'pending').toLowerCase();
   const watermarkText = txSt === 'approved' ? t('original') : (txSt === 'rejected' ? 'REJECTED' : 'PENDING');
@@ -2966,7 +3056,8 @@ function printRepaymentReceipt(tx, loan) {
 
 function openEditRepaymentModal(tx, loan) {
   if (!tx || !loan) return;
-  if (!canEdit()) { toast(t('noPermission'), 'error'); return; }
+  if (!canEdit())          { toast(t('noPermission'), 'error'); return; }
+  if (!canActOnLoan(loan)) { toast(t('noPermission'), 'error'); return; }
   const status = String(tx.status||'pending').toLowerCase();
   if (status === 'approved') { toast(t('cannotEditApprovedAmount'), 'warning'); return; }
   closeModal();
@@ -3041,7 +3132,8 @@ function openEditRepaymentModal(tx, loan) {
 
 function openDeleteRepaymentModal(tx, loan) {
   if (!tx) return;
-  if (!canDelete()) { toast(t('noPermission'), 'error'); return; }
+  if (!canDelete())                     { toast(t('noPermission'), 'error'); return; }
+  if (loan && !canActOnLoan(loan))      { toast(t('noPermission'), 'error'); return; }
   const status = String(tx.status||'pending').toLowerCase();
   if (status === 'approved') { toast(t('cannotDeleteApproved'), 'warning'); return; }
   closeModal();
@@ -3073,8 +3165,9 @@ function openDeleteRepaymentModal(tx, loan) {
 }
 
 function openRepaymentModal(loan) {
-  if (!canRepay()) { toast(t('noPermission'), 'error'); return; }
-  if (!loan) { toast(t('pleaseSelectLoan'), 'warning'); return; }
+  if (!canRepay())      { toast(t('noPermission'), 'error'); return; }
+  if (!loan)            { toast(t('pleaseSelectLoan'), 'warning'); return; }
+  if (!canActOnLoan(loan)) { toast(t('noPermission'), 'error'); return; }
   closeModal();
   const outstanding0 = loanOutstanding(loan);
   if (outstanding0 <= 0) { toast(t('nothingToRepay'), 'info'); return; }
@@ -3387,6 +3480,7 @@ function buildSlipHtml(l, watermarkText) {
 }
 async function printSlip(l) {
   if (!l || !canPrint()) { toast(t('noPermission'), 'error'); return; }
+  if (!canActOnLoan(l)) { toast(t('noPermission'), 'error'); return; }
   setPrintSize('210mm 297mm');
   const prevCount = num(l.printCount);
   const newCount = prevCount + 1;
@@ -3420,7 +3514,8 @@ function closeSlipOverlay() {
 
 function openDeleteModal(l) {
   closeModal();
-  if (!canDelete()) { toast(t('noPermission'), 'error'); return; }
+  if (!canDelete())     { toast(t('noPermission'), 'error'); return; }
+  if (!canActOnLoan(l)) { toast(t('noPermission'), 'error'); return; }
   const c = customerById(l.customerId || l.customerDocId);
   const root = document.createElement('div');
   root.className = 'modal-backdrop'; root.id = 'modal-backdrop';
@@ -3432,6 +3527,9 @@ function openDeleteModal(l) {
   document.addEventListener('keydown', escHandler);
   document.getElementById('confirm-del').addEventListener('click', async (e) => {
     const btn = e.currentTarget;
+    /* Defence-in-depth: re-check role + scope before delete */
+    if (!canDelete())     { toast(t('noPermission'), 'error'); return; }
+    if (!canActOnLoan(l)) { toast(t('noPermission'), 'error'); return; }
     const sp = btn.querySelector('.spinner-sm');
     const lbl = btn.querySelector('.btn-label');
     btn.disabled = true; sp.classList.remove('hidden'); lbl.textContent = t('loading');
@@ -3631,7 +3729,7 @@ window.rejectRepayment = rejectRepayment;
 window.printRepaymentReceipt = printRepaymentReceipt;
 window.printSlip = printSlip;
 
-console.log('[sacco] loans page ready');
+console.log('[sacco] loans page ready — role-based access control applied');
 </script>
 </body>
 </html>
