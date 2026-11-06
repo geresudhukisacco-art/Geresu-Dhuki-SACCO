@@ -578,7 +578,9 @@ function writeCachedProfile() {
       districtId: APP.profile.districtId || '',
       districtName: APP.profile.districtName || '',
       branchId: APP.profile.branchId || '',
-      branchName: APP.profile.branchName || ''
+      branchName: APP.profile.branchName || '',
+      customerId: APP.profile.customerId || '',
+      customerCode: APP.profile.customerCode || ''
     };
     if (payload.uid) sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(payload));
   } catch(e){}
@@ -639,7 +641,7 @@ async function loadSessionTimeout() {
   } catch(e){}
 }
 
-/* TRANSLATIONS (kept short — same keys as before, all translations intact) */
+/* TRANSLATIONS */
 const I18N = {
   en: {
     brandSub:'SACCO Management', logout:'Sign out', loading:'Loading…',
@@ -699,8 +701,7 @@ const I18N = {
     deleteText:'This will permanently remove this transaction from Firestore.',
     confirm:'Confirm', rowDelete:'Delete', rowEdit:'Edit', rowView:'View', rowPrint:'Print Slip', reset:'Reset',
     approve:'Approve', reject:'Reject',
-    approvedOk:'Transaction approved!',
-    rejectedOk:'Transaction rejected.',
+    approvedOk:'Transaction approved!', rejectedOk:'Transaction rejected.',
     pendingApprovalNotice:'This transaction will be saved as PENDING. An Admin or Manager must approve it before it affects the customer balance and totals.',
     showing:'Showing', of:'of', transactionsWord:'transactions',
     savedOk:'Transaction updated successfully!', createdOk:'Transaction submitted for approval!',
@@ -723,8 +724,7 @@ const I18N = {
     receiptReplace:'Replace', receiptRemove:'Remove', upload:'Upload',
     duplicateTT:'This TT/Reference number is already used for another transaction.',
     ttRequired:'TT number is required.', bankRequired:'Please choose a bank.',
-    providerRequired:'Please choose a mobile provider.',
-    transferDateRequired:'Transfer date is required.',
+    providerRequired:'Please choose a mobile provider.', transferDateRequired:'Transfer date is required.',
     bankTransferSection:'Bank Transfer Details', mobileTransferSection:'Mobile Money Details',
     bank:'Bank', provider:'Provider', ttNumberLabel:'TT Number', transferDateLabel:'Transfer Date', receipt:'Receipt',
     printSlip:'Print Slip', slipPreview:'Slip Preview · A5', slipTitle:'Slip Preview',
@@ -764,258 +764,41 @@ const I18N = {
     savingsPenaltyAmount:'Savings penalty', loanPenaltyAmount:'Loan penalty',
     loanPenaltyAlsoExists:'This customer also has a loan penalty of',
     managedOnLoansPage:'Manage it on the Loans page',
-    doesNotBlockSavings:'Does not block savings'
+    doesNotBlockSavings:'Does not block savings',
+    memberNotLinked:'Account not linked',
+    memberNotLinkedText:'Your member account is not linked to a customer record. Please contact your SACCO admin to link your account.'
   },
-  am: {
-    brandSub:'የሳኮ አስተዳደር', logout:'ውጣ', loading:'በመጫን ላይ…',
-    navOverview:'አጠቃላይ እይታ', navNetwork:'ኔትወርክ', navOperations:'ክንውኖች', navFinance:'ፋይናንስ', navAdmin:'አስተዳደር',
-    dashboard:'ዳሽቦርድ', districts:'ወረዳዎች', branches:'ቅርንጫፎች', customers:'ደንበኞች',
-    savings:'ቁጠባ', deposits:'ተቀማጭ', loans:'ብድር', repayments:'ክፍያዎች', withdrawals:'ወጪዎች',
-    dividends:'ክፍፍል', shares:'አክሲዮን', reports:'ሪፖርቶች', penalties:'ቅጣቶች', audit:'የምዝግብ ታሪክ',
-    users:'ተጠቃሚዎች', settings:'ቅንብሮች',
-    role_super_admin:'ዋና አስተዳዳሪ', role_admin:'የወረዳ አስተዳዳሪ', role_manager:'ሥራ አስኪያጅ',
-    role_cashier:'ገንዘብ ተቀባይ', role_member:'አባል', role_auditor:'ኦዲተር',
-    pageTitle:'ቁጠባ', pageSub:'የደንበኛ ቁጠባ ተቀማጮችን እና ወጪዎችን ይመዝግቡ',
-    breadcrumbHome:'ዳሽቦርድ', breadcrumbSavings:'ቁጠባ',
-    workingArea:'የሥራ አካባቢ', workingAreaSub:'መረጃውን በወረዳ እና በቅርንጫፍ ያጣሩ',
-    allDistricts:'ሁሉም ወረዳዎች', allBranches:'ሁሉም ቅርንጫፎች',
-    fullSystem:'ሙሉ ስርዓት — ሁሉም ወረዳዎች', districtAdmin:'የወረዳ አስተዳዳሪ',
-    auditorRole:'ኦዲተር — ተነባቢ ብቻ', selfAccount:'የእኔ ሒሳብ',
-    addTransaction:'ግብይት ያክሉ',
-    summaryTitle:'ማጠቃለያ',
-    statTotalDeposits:'ጠቅላላ ተቀማጮች', statTotalWithdrawals:'ጠቅላላ ወጪዎች',
-    statNetSavings:'የተጣራ ቁጠባ', statTxCount:'ግብይቶች',
-    statPenaltiesFromSavings:'ከቁጠባ የተከፈሉ ቅጣቶች',
-    searchPlaceholder:'በደንበኛ፣ በመለያ፣ በማጣቀሻ፣ በTT ወይም በስልክ ይፈልጉ…',
-    filterAllDistricts:'ሁሉም ወረዳዎች', filterAllBranches:'ሁሉም ቅርንጫፎች',
-    filterAllTypes:'ሁሉም ዓይነቶች', filterAllStatus:'ሁሉም ሁኔታዎች', filterAllPrint:'ሁሉም ሕትመት',
-    filterNotPrinted:'ያልታተመ', filterPrinted:'የታተመ', filterCopy:'ቅጂ የታተመ',
-    typeDeposit:'ተቀማጭ', typeWithdrawal:'ወጪ',
-    statusApproved:'የጸደቀ', statusPending:'በመጠባበቅ ላይ', statusRejected:'ውድቅ የተደረገ',
-    statusCompleted:'ተጠናቋል', statusPrinted:'ታትሟል', statusPaid:'ተከፍሏል', statusDone:'ተከናውኗል',
-    tableTitle:'የቁጠባ ግብይቶች', tableSub:'ሁሉም ተቀማጮች እና ወጪዎች',
-    colDate:'ቀን', colCustomer:'ደንበኛ', colType:'ዓይነት', colAmount:'መጠን',
-    colBalance:'ቀሪ ሂሳብ', colMethod:'ዘዴ', colRef:'ማጣቀሻ',
-    colStatus:'ሁኔታ', colPrint:'ሕትመት', colActions:'እርምጃዎች',
-    noTx:'እስካሁን የቁጠባ ግብይቶች የሉም', noTxText:'"ግብይት ያክሉ" ን ተጭነው የመጀመሪያውን ይመዝግቡ።',
-    noMatch:'ተመሳሳይ ግብይቶች አልተገኙም', noMatchText:'ፍለጋዎን ወይም ማጣሪያዎን ያስተካክሉ።',
-    newTx:'አዲስ የቁጠባ ግብይት', editTx:'ግብይት ያስተካክሉ',
-    newTxSub:'ለደንበኛ ተቀማጭ ወይም ወጪ ይመዝግቡ።',
-    editTxSub:'የዚህን ግብይት ዝርዝሮች ያዘምኑ።',
-    stepCustomer:'ደንበኛ', stepDetails:'ዝርዝሮች', stepReview:'ግምገማ',
-    stepCustomerTitle:'ደንበኛ ይምረጡ', stepDetailsTitle:'የግብይት ዝርዝሮች', stepReviewTitle:'ገምግም እና አስቀምጥ',
-    chooseCustomer:'እባክዎ ደንበኛ ይምረጡ።',
-    customerSearch:'ደንበኞችን ይፈልጉ…', customerBalance:'የአሁኑ ቀሪ ሂሳብ',
-    typeLabel:'የግብይት ዓይነት',
-    typeDepositDesc:'በደንበኛ የተከፈለ ገንዘብ',
-    typeWithdrawalDesc:'ለደንበኛ የተከፈለ ገንዘብ',
-    amountLabel:'መጠን', amountHint:'መጠኑ ከዜሮ በላይ መሆን አለበት።',
-    dateLabel:'የግብይት ቀን', methodLabel:'የክፍያ ዘዴ',
-    refLabel:'ማጣቀሻ / ደረሰኝ ቁጥር', refHint:'አማራጭ። የባንክ ስሊፕ፣ ደረሰኝ ወይም ቫውቸር ቁጥር።',
-    notesLabel:'ማስታወሻዎች', notesPlaceholder:'አማራጭ ማስታወሻዎች…', statusLabel:'ሁኔታ',
-    methodCash:'ጥሬ ገንዘብ', methodBank:'የባንክ ዝውውር', methodMobile:'የሞባይል ገንዘብ', methodCheque:'ቼክ', methodOther:'ሌላ',
-    reviewCustomer:'ደንበኛ', reviewType:'ዓይነት', reviewAmount:'መጠን',
-    reviewDate:'ቀን', reviewMethod:'ዘዴ', reviewRef:'ማጣቀሻ',
-    reviewStatus:'ሁኔታ', reviewNotes:'ማስታወሻዎች',
-    reviewRecordedBy:'የመዘገበው', reviewApprovedBy:'ያጸደቀው', notApprovedYet:'— እስካሁን አልተጸደቀም —',
-    newBalancePreview:'ከግብይቱ በኋላ አዲስ ቀሪ ሂሳብ',
-    cancel:'ሰርዝ', save:'አስቀምጥ', create:'ለማጽደቅ አስገባ', update:'ለውጦችን አስቀምጥ',
-    next:'ቀጣይ →', back:'← ተመለስ',
-    deleteTitle:'ግብይት ሰርዝ',
-    deleteText:'ይህ ግብይት ከ Firestore ውስጥ እስከመጨረሻው ይወገዳል።',
-    confirm:'አረጋግጥ', rowDelete:'ሰርዝ', rowEdit:'አስተካክል', rowView:'ተመልከት', rowPrint:'ስሊፕ አትም', reset:'ዳግም አስጀምር',
-    approve:'አጽድቅ', reject:'ውድቅ አድርግ',
-    approvedOk:'ግብይቱ ጸድቋል!', rejectedOk:'ግብይቱ ውድቅ ተደርጓል።',
-    pendingApprovalNotice:'ይህ ግብይት በመጠባበቅ ላይ ሆኖ ይቀመጣል። አስተዳዳሪ ወይም ሥራ አስኪያጅ ከመጽደቁ በፊት ቀሪ ሂሳብን እና ድምሮችን አይነካም።',
-    showing:'እያሳየ', of:'ከ', transactionsWord:'ግብይቶች',
-    savedOk:'ግብይቱ በተሳካ ሁኔታ ተዘምኗል!', createdOk:'ግብይቱ ለማጽደቅ ገብቷል!',
-    deletedOk:'ግብይቱ ተሰርዟል።',
-    errorSave:'ማስቀመጥ አልተቻለም: ', errorDelete:'መሰረዝ አልተቻለም: ',
-    requiredFields:'እባክዎ ሁሉንም አስፈላጊ መስኮች ይሙሉ።', invalidAmount:'መጠኑ ከዜሮ በላይ መሆን አለበት።',
-    insufficientBalance:'ለዚህ ወጪ በቂ ቀሪ ሂሳብ የለም።',
-    logoutTitle:'የውጣ ማረጋገጫ', logoutText:'እርግጠኛ ነዎት መውጣት ይፈልጋሉ?',
-    accessDenied:'ይህን ገጽ ለማየት ፈቃድ የለዎትም።',
-    accessDeniedText:'ቁጠባን ማስተዳደር የሚችሉት የሰራተኛ መለያዎች ብቻ ናቸው።',
-    backToDashboard:'ወደ ዳሽቦርድ ተመለስ', noPermission:'ፈቃድ ተከልክሏል።',
-    viewTitle:'የግብይት ዝርዝሮች', close:'ዝጋ',
-    customerInfo:'የደንበኛ መረጃ', txInfo:'የግብይት መረጃ',
-    unknown:'ያልታወቀ', scopeAll:'ሁሉም ግብይቶች',
-    ttNumber:'TT / ማጣቀሻ ቁጥር', ttHint:'ለዚህ የባንክ ዝውውር ልዩ ቁጥር።',
-    transferDate:'የዝውውር ቀን', bankName:'ባንክ', chooseBank:'— ባንክ ይምረጡ —',
-    mobileProvider:'የሞባይል ገንዘብ አቅራቢ', chooseProvider:'— አቅራቢ ይምረጡ —',
-    receiptPhoto:'የደረሰኝ ፎቶ', receiptTitle:'ደረሰኝ አያይዙ',
-    receiptHint:'ፎቶ ለመስቀል ይጫኑ (JPG/PNG፣ ከፍተኛ 3 MB)', receiptAdded:'ደረሰኝ ተያይዟል',
-    receiptReplace:'ተካ', receiptRemove:'አስወግድ', upload:'ስቀል',
-    duplicateTT:'ይህ TT/ማጣቀሻ ቁጥር ለሌላ ግብይት አስቀድሞ ጥቅም ላይ ውሏል።',
-    ttRequired:'TT ቁጥር ያስፈልጋል።', bankRequired:'እባክዎ ባንክ ይምረጡ።',
-    providerRequired:'እባክዎ የሞባይል አቅራቢ ይምረጡ።',
-    transferDateRequired:'የዝውውር ቀን ያስፈልጋል።',
-    bankTransferSection:'የባንክ ዝውውር ዝርዝሮች', mobileTransferSection:'የሞባይል ገንዘብ ዝርዝሮች',
-    bank:'ባንክ', provider:'አቅራቢ', ttNumberLabel:'TT ቁጥር', transferDateLabel:'የዝውውር ቀን', receipt:'ደረሰኝ',
-    printSlip:'ስሊፕ አትም', slipPreview:'የስሊፕ ቅድመ እይታ · A5', slipTitle:'የስሊፕ ቅድመ እይታ',
-    printStatus:'የሕትመት ሁኔታ', notPrinted:'ያልታተመ',
-    printedOriginal:'ዋና', printedCopy:'ቅጂ',
-    printNo:'የሕትመት ቁጥር', printCount:'ቅጂዎች',
-    original:'ዋና', copy:'ቅጂ',
-    firstPrint:'የመጀመሪያ ሕትመት — ዋና', reprint:'እንደገና ሕትመት — ቅጂ',
-    printedBy:'ያተመው', printedOn:'የታተመበት',
-    printError:'የሕትመት ሁኔታን ማዘመን አልተቻለም',
-    docTitle:'የተቀማጭ ስሊፕ', docTitleWithdrawal:'የወጪ ስሊፕ',
-    amountInWords:'በቃላት', cashierSign:'ገንዘብ ተቀባይ',
-    recordedBy:'የመዘገበው', approvedBy:'ያጸደቀው',
-    savingsBlocked:'ቁጠባ ተከልክሏል — ያልተከፈለ ቅጣት',
-    savingsBlockedText:'ይህ ደንበኛ ያልተከፈለ ቅጣት አለው',
-    payFirst:'አዲስ ቁጠባ ከመመዝገብዎ በፊት በመጀመሪያ ይክፈሉት።',
-    blocked:'ተከልክሏል', payPenalty:'ቅጣት ክፈል',
-    minDepositReq:'ዝቅተኛ ተቀማጭ ያስፈልጋል:', minDepositHint:'መጠኑ ቢያንስ ይህ እሴት መሆን አለበት',
-    amountTooSmall:'መጠኑ ቢያንስ መሆን አለበት',
-    unpaidWarning:'ያልተከፈሉ ቀደምት ወርሃዊ ቁጠባዎች ተገኝተዋል።',
-    upToDate:'ሁሉም ቀደምት ቁጠባዎች ወቅታዊ ናቸው።',
-    fromSavings:'ከቁጠባ', external:'ከውጭ',
-    shareHistory:'የአክሲዮን ታሪክ (የመጨረሻ 5)', penaltyHistory:'የቅጣት ታሪክ (የመጨረሻ 5)',
-    viewAll:'ሁሉንም ተመልከት →', noShareTx:'እስካሁን የአክሲዮን ግብይቶች የሉም', noPenaltyTx:'እስካሁን ቅጣቶች የሉም',
-    buyIn:'ግዢ/ገቢ', sellOut:'ሽያጭ/ወጪ',
-    netBalance:'የተጣራ ቀሪ ሂሳብ', totalSavingsGross:'ጠቅላላ ቁጠባ (ጠቅላላ)',
-    pendingSavings:'በመጠባበቅ ላይ ያለ ቁጠባ', unpaidPrevious:'ያልተከፈለ ቀዳሚ', nextDue:'ቀጣይ ቁጠባ የሚከፈልበት',
-    totalShares:'ጠቅላላ አክሲዮን', netShareValue:'የተጣራ አክሲዮን ዋጋ',
-    penaltiesFromSavings:'ከቁጠባ የተከፈሉ ቅጣቶች',
-    checkPenalties:'ቅጣቶችን ያረጋግጡ', checking:'በማረጋገጥ ላይ…',
-    arrears:'ያልተከፈለ', monthsBehind:'ወራት ወደኋላ',
-    minMonthly:'ዝቅተኛ ወርሃዊ ቁጠባ',
-    mustPayArrears:'ዝቅተኛው ተቀማጭ የተረሱ {n} ወራትን መሸፈን አለበት — ያልተከፈለ {amt}',
-    depositClearsArrears:'ይህ ተቀማጭ የተረሱ {n} ወራትን ይሸፍናል',
-    savingsGracePeriod:'የቁጠባ ጸጋ ጊዜ',
-    savingsPenaltyGenerated:'ለ{n} ያልተከፈሉ ወራት {amt} የቁጠባ ቅጣት ተፈጥሯል። በቅጣቶች ገጽ ይክፈሉት።',
-    savingsPenaltyAmount:'የቁጠባ ቅጣት', loanPenaltyAmount:'የብድር ቅጣት',
-    loanPenaltyAlsoExists:'ይህ ደንበኛ ተጨማሪ የብድር ቅጣት አለው',
-    managedOnLoansPage:'በብድር ገጽ ያስተዳድሩት',
-    doesNotBlockSavings:'ቁጠባን አይከለክልም'
-  },
-  om: {
-    brandSub:'Bulchiinsa SACCO', logout:"Ba'i", loading:"Fe'aa jira…",
-    navOverview:'Aguuggama', navNetwork:'Networkii', navOperations:'Hojimaata', navFinance:'Faayinaansii', navAdmin:'Bulchiinsa',
-    dashboard:'Daashboordii', districts:'Aanaalee', branches:'Dameewwan', customers:'Maamiltoota',
-    savings:'Qusannaa', deposits:'Kaasaa', loans:'Liqii', repayments:'Kaffaltuu', withdrawals:'Baasii',
-    dividends:'Qooda', shares:'Hirmaata', reports:'Gabaasa', penalties:'Adaba', audit:'Seenaa Galmee',
-    users:'Fayyadamtoota', settings:"Qindaa'ina",
-    role_super_admin:"Bulchaa Ol'aanaa", role_admin:'Bulchaa Aanaa', role_manager:'Bulchaa',
-    role_cashier:'Kashierii', role_member:'Miseensa', role_auditor:'Ooditera',
-    pageTitle:'Qusannaa', pageSub:'Kaasaa fi baasii maamilaa galmeessi',
-    breadcrumbHome:'Daashboordii', breadcrumbSavings:'Qusannaa',
-    workingArea:'Bakka Hojii', workingAreaSub:'Daataan aanaa fi dameetiin filtarii',
-    allDistricts:'Aanaa hunda', allBranches:'Damee hunda',
-    fullSystem:'Sirna guutuu — aanaa hunda', districtAdmin:'Bulchaa Aanaa',
-    auditorRole:'Ooditera — dubbisuu qofa', selfAccount:'Herrega koo',
-    addTransaction:'Sochii Dabali',
-    summaryTitle:'Cuunfaa',
-    statTotalDeposits:'Kaasaa Waliigalaa', statTotalWithdrawals:'Baasii Waliigalaa',
-    statNetSavings:'Qusannaa Qulqulluu', statTxCount:'Sochii',
-    statPenaltiesFromSavings:'Adaba Qusannaa irraa',
-    searchPlaceholder:"Maamila, ID, wabii, TT yookaan bilbilaan barbaadi…",
-    filterAllDistricts:'Aanaa hunda', filterAllBranches:'Damee hunda',
-    filterAllTypes:'Gosa hunda', filterAllStatus:'Haala hunda', filterAllPrint:'Maxxansa hunda',
-    filterNotPrinted:'Hin maxxanfamne', filterPrinted:'Maxxanfame', filterCopy:'Koppii maxxanfame',
-    typeDeposit:'Kaasaa', typeWithdrawal:'Baasii',
-    statusApproved:"Mirkanaa'e", statusPending:'Eegaa', statusRejected:'Kufe',
-    statusCompleted:'Xumurame', statusPrinted:'Maxxanfame', statusPaid:'Kaffalame', statusDone:'Raawwatame',
-    tableTitle:'Sochii Qusannaa', tableSub:'Kaasaa fi baasii hunda',
-    colDate:'Guyyaa', colCustomer:'Maamila', colType:'Gosa', colAmount:'Hamma',
-    colBalance:'Haftee', colMethod:'Mala', colRef:'Wabii',
-    colStatus:'Haala', colPrint:'Maxxansa', colActions:'Gocha',
-    noTx:'Amma ammaatti sochiin qusannaa hin jiru', noTxText:'"Sochii Dabali" tuqiitii kan jalqabaa galmeessi.',
-    noMatch:'Sochiin wal simu hin argamne', noMatchText:'Barbaacha yookaan filtarii kee sirreessi.',
-    newTx:'Sochii Qusannaa Haaraa', editTx:'Sochii Gulaali',
-    newTxSub:'Maamilaaaf kaasaa yookaan baasii galmeessi.',
-    editTxSub:'Ibsa sochii kanaa haaromsi.',
-    stepCustomer:'Maamila', stepDetails:'Ragaa', stepReview:'Gamaaggama',
-    stepCustomerTitle:'Maamila filadhu', stepDetailsTitle:'Ragaa sochii', stepReviewTitle:'Ilaaliitii olkaa’i',
-    chooseCustomer:'Maaloo maamila filadhu.',
-    customerSearch:'Maamiltoota barbaadi…', customerBalance:'Haftee ammaa',
-    typeLabel:'Gosa Sochii',
-    typeDepositDesc:'Maallaqa maamilaan kaffale',
-    typeWithdrawalDesc:'Maallaqa maamilaaf kaffalame',
-    amountLabel:'Hamma', amountHint:'Hamman zeeroo ol ta’uu qaba.',
-    dateLabel:'Guyyaa Sochii', methodLabel:'Mala Kaffaltii',
-    refLabel:'Wabii / Lakkoofsa Nagahee', refHint:'Filannoo. Waraqaa baankii, nagahee yookaan lakkoofsa vaawcharii.',
-    notesLabel:'Yaadannoowwan', notesPlaceholder:'Yaadannoo filannoo…', statusLabel:'Haala',
-    methodCash:'Maallaqa harkaa', methodBank:'Dabarsa Baankii', methodMobile:'Maallaqa Moobaayilii', methodCheque:'Cheekii', methodOther:'Kan biraa',
-    reviewCustomer:'Maamila', reviewType:'Gosa', reviewAmount:'Hamma',
-    reviewDate:'Guyyaa', reviewMethod:'Mala', reviewRef:'Wabii',
-    reviewStatus:'Haala', reviewNotes:'Yaadannoowwan',
-    reviewRecordedBy:'Kan galmeesse', reviewApprovedBy:'Kan mirkaneesse', notApprovedYet:'— amma ammaatti hin mirkaneeffamne —',
-    newBalancePreview:'Haftee haaraa erga sochii booda',
-    cancel:'Haqi', save:'Olkaasi', create:'Mirkaneessaaf Galchi', update:'Jijjiirama Olkaasi',
-    next:'Itti aanu →', back:"← Deebi'i",
-    deleteTitle:'Sochii Haqi',
-    deleteText:'Kun sochii kana Firestore irraa guutummaatti ni haqa.',
-    confirm:'Mirkaneessi', rowDelete:'Haqi', rowEdit:'Gulaali', rowView:'Ilaali', rowPrint:'Waraqaa Maxxansi', reset:'Deebisi',
-    approve:'Mirkaneessi', reject:'Garfii',
-    approvedOk:'Sochiin mirkaneeffame!', rejectedOk:'Sochiin garfame.',
-    pendingApprovalNotice:'Sochiin kun akka EEGAAtti olkaawama. Bulchaan yookaan hoggansi mirkaneessuu qaba osoo hafteen fi waliigalli hin tuqamne.',
-    showing:'Agarsii', of:'keessaa', transactionsWord:'sochii',
-    savedOk:"Sochiin milkaa'inaan haaromfame!", createdOk:'Sochiin mirkaneessaaf galcheera!',
-    deletedOk:'Sochiin haqame.',
-    errorSave:"Olkaa'uun hin danda'amne: ", errorDelete:"Haqchuun hin danda'amne: ",
-    requiredFields:'Maaloo dirree barbaachisoo hunda guuti.', invalidAmount:'Hamman zeeroo ol ta’uu qaba.',
-    insufficientBalance:'Baasii kanaaf haftee gahaa hin jiru.',
-    logoutTitle:"Mirkaneessa Ba'uu", logoutText:"Dhuguma ba'uu barbaadda?",
-    accessDenied:'Fuula kana ilaaluuf hayyama hin qabdu.',
-    accessDeniedText:"Qusannaa bulchuu kan danda'an herregni hojjettootaa qofa.",
-    backToDashboard:"Gara Daashboordii Deebi'i", noPermission:'Hayyamni dhorkame.',
-    viewTitle:'Ragaa Sochii', close:'Cufi',
-    customerInfo:'Odeeffannoo Maamilaa', txInfo:'Odeeffannoo Sochii',
-    unknown:'Hin beekamu', scopeAll:'Sochii hunda',
-    ttNumber:'TT / Lakkoofsa Wabii', ttHint:'Lakkoofsa addaa dabarsa baankii kanaaf.',
-    transferDate:'Guyyaa Dabarsaa', bankName:'Baankii', chooseBank:'— Baankii filadhu —',
-    mobileProvider:'Dhiyeessaa Maallaqa Moobaayilii', chooseProvider:'— Dhiyeessaa filadhu —',
-    receiptPhoto:'Suuraa Nagahee', receiptTitle:'Nagahee maxxansi',
-    receiptHint:'Suuraa olkaa’uuf tuqi (JPG/PNG, hanga 3 MB)', receiptAdded:'Nagaheen maxxanfameera',
-    receiptReplace:'Bakka buusi', receiptRemove:'Haqi', upload:'Ol kaa’i',
-    duplicateTT:'Lakkoofsi TT/Wabii kun duraan sochii biraaf ooleera.',
-    ttRequired:'Lakkoofsi TT barbaachisa.', bankRequired:'Maaloo baankii filadhu.',
-    providerRequired:'Maaloo dhiyeessaa moobaayilii filadhu.',
-    transferDateRequired:'Guyyaan dabarsaa barbaachisa.',
-    bankTransferSection:'Ragaa Dabarsa Baankii', mobileTransferSection:'Ragaa Maallaqa Moobaayilii',
-    bank:'Baankii', provider:'Dhiyeessaa', ttNumberLabel:'Lakkoofsa TT', transferDateLabel:'Guyyaa Dabarsaa', receipt:'Nagahee',
-    printSlip:'Waraqaa Maxxansi', slipPreview:'Ilaalcha duraa Waraqaa · A5', slipTitle:'Ilaalcha duraa Waraqaa',
-    printStatus:'Haala Maxxansaa', notPrinted:'Hin maxxanfamne',
-    printedOriginal:'Jalqabaa', printedCopy:'Koppii',
-    printNo:'Lakkoofsa Maxxansaa', printCount:'Koppiiwwan',
-    original:'JALQABAA', copy:'KOPPII',
-    firstPrint:'Maxxansa jalqabaa — Jalqabaa', reprint:'Maxxansa irra deebii — Koppii',
-    printedBy:'Kan maxxanse', printedOn:'Yeroo maxxanfame',
-    printError:'Haala maxxansaa haaromsuun hin danda\'amne',
-    docTitle:'Waraqaa Kaasaa', docTitleWithdrawal:'Waraqaa Baasii',
-    amountInWords:'Jecha keessatti', cashierSign:'Kashierii',
-    recordedBy:'Kan galmeesse', approvedBy:'Kan mirkaneesse',
-    savingsBlocked:'Qusannaan dhorkame — adaba hin kaffalamne',
-    savingsBlockedText:'Maamilli kun adaba hin kaffalamne qaba',
-    payFirst:'Qusannaa haaraa galmeessuu kee dura duraan kaffali.',
-    blocked:'Cufame', payPenalty:'Adaba Kaffali',
-    minDepositReq:'Kaasaa Xiqqaa Barbaachisa:', minDepositHint:'Hamman yoo xiqqaate gatii kana ta’uu qaba',
-    amountTooSmall:'Hamman yoo xiqqaate ta’uu qaba',
-    unpaidWarning:"Qusannaan ji'aa duraanii hin kaffalamne argame.",
-    upToDate:'Qusannaan duraanii hundi yeroo isaatiin jiru.',
-    fromSavings:'Qusannaadhaa', external:'Alaadhaa',
-    shareHistory:'Seenaa Hirmaataa (Dhumaa 5)', penaltyHistory:'Seenaa Adabaa (Dhumaa 5)',
-    viewAll:'Hunda ilaali →', noShareTx:'Amma ammaatti sochiin hirmaataa hin jiru', noPenaltyTx:'Amma ammaatti adabni hin jiru',
-    buyIn:'Bittaa/Seenuu', sellOut:"Gurgurtaa/Ba'uu",
-    netBalance:'Haftee Qulqulluu', totalSavingsGross:'Qusannaa Waliigalaa (Guutuu)',
-    pendingSavings:'Qusannaa Eegaa', unpaidPrevious:'Kan Duraa Hin Kaffalamne', nextDue:'Qusannaa Itti Aanu',
-    totalShares:'Hirmaata Waliigalaa', netShareValue:'Gatii Hirmaataa Qulqulluu',
-    penaltiesFromSavings:'Adaba Qusannaa irraa',
-    checkPenalties:'Adaba Mirkaneessi', checking:'Mirkaneessaa jira…',
-    arrears:'Hafte', monthsBehind:"Ji'oota duubatti hafan",
-    minMonthly:"Qusannaa ji'aa xiqqaa",
-    mustPayArrears:"Kaasaan xiqqaan ji'a {n} dagannaa hafe uwwisuu qaba — hafte {amt}",
-    depositClearsArrears:"Kaasaan kun ji'a {n} dagannaa hafe ni uwwisa",
-    savingsGracePeriod:'Yeroo ayyaana qusannaa',
-    savingsPenaltyGenerated:"Adabni qusannaa {amt} ji'a {n} hin kaffalamneef uumame. Fuula Adabaa irratti kaffali.",
-    savingsPenaltyAmount:'Adaba qusannaa', loanPenaltyAmount:'Adaba liqii',
-    loanPenaltyAlsoExists:'Maamilli kun adaba liqii of keessaa qaba',
-    managedOnLoansPage:'Fuula Liqii irratti bulchi',
-    doesNotBlockSavings:'Qusannaa hin dhorku'
-  }
+  am: {}, om: {}
+};
+I18N.am = { ...I18N.en,
+  brandSub:'የሳኮ አስተዳደር', logout:'ውጣ', loading:'በመጫን ላይ…',
+  pageTitle:'ቁጠባ', pageSub:'የደንበኛ ቁጠባ ተቀማጮችን እና ወጪዎችን ይመዝግቡ',
+  breadcrumbHome:'ዳሽቦርድ', breadcrumbSavings:'ቁጠባ',
+  addTransaction:'ግብይት ያክሉ',
+  summaryTitle:'ማጠቃለያ',
+  statTotalDeposits:'ጠቅላላ ተቀማጮች', statTotalWithdrawals:'ጠቅላላ ወጪዎች',
+  statNetSavings:'የተጣራ ቁጠባ', statTxCount:'ግብይቶች',
+  statPenaltiesFromSavings:'ከቁጠባ የተከፈሉ ቅጣቶች',
+  typeDeposit:'ተቀማጭ', typeWithdrawal:'ወጪ',
+  tableTitle:'የቁጠባ ግብይቶች', tableSub:'ሁሉም ተቀማጮች እና ወጪዎች',
+  noTx:'እስካሁን የቁጠባ ግብይቶች የሉም', noTxText:'"ግብይት ያክሉ" ን ተጭነው የመጀመሪያውን ይመዝግቡ።',
+  memberNotLinked:'መለያ አልተገናኘም',
+  memberNotLinkedText:'የአባል መለያዎ ከደንበኛ መዝገብ ጋር አልተገናኘም። እባክዎ የሳኮ አስተዳዳሪዎን ያግኙ።'
+};
+I18N.om = { ...I18N.en,
+  brandSub:'Bulchiinsa SACCO', logout:"Ba'i", loading:"Fe'aa jira…",
+  pageTitle:'Qusannaa', pageSub:'Kaasaa fi baasii maamilaa galmeessi',
+  breadcrumbHome:'Daashboordii', breadcrumbSavings:'Qusannaa',
+  addTransaction:'Sochii Dabali',
+  summaryTitle:'Cuunfaa',
+  statTotalDeposits:'Kaasaa Waliigalaa', statTotalWithdrawals:'Baasii Waliigalaa',
+  statNetSavings:'Qusannaa Qulqulluu', statTxCount:'Sochii',
+  statPenaltiesFromSavings:'Adaba Qusannaa irraa',
+  typeDeposit:'Kaasaa', typeWithdrawal:'Baasii',
+  tableTitle:'Sochii Qusannaa', tableSub:'Kaasaa fi baasii hunda',
+  noTx:'Amma ammaatti sochiin qusannaa hin jiru', noTxText:'"Sochii Dabali" tuqiitii kan jalqabaa galmeessi.',
+  memberNotLinked:'Herregni hin hidhamne',
+  memberNotLinkedText:'Herregni miseensummaa kee galmee maamilaa waliin hin hidhamne. Maaloo bulchaa SACCO keessan qunnamaa.'
 };
 const SUPPORTED = ['en','am','om'];
 const FALLBACK = 'en';
@@ -1088,7 +871,8 @@ const APP = {
   unsubs: [],
   workarea: { districtId:'', branchId:'' },
   filters: { search:'', districtId:'', branchId:'', type:'', status:'', print:'' },
-  page: 1, pageSize: 20, viewMode: 'table'
+  page: 1, pageSize: 20, viewMode: 'table',
+  memberDataLoaded: false
 };
 try { APP.viewMode = localStorage.getItem('savings-view') || 'table'; } catch(e){}
 
@@ -1112,15 +896,6 @@ const ROLE_LABELS = {
 };
 const roleLabel = (r) => t(ROLE_LABELS[r]) || (r||'').replace(/_/g,' ');
 
-/* ============================================================
-   ROLE HELPERS — single source of truth
-   super_admin → all districts, full access
-   admin       → own district, create / edit / approve / delete
-   manager     → own branch, view + approve only
-   cashier     → own branch, add + view only
-   member      → own record only
-   auditor     → all districts, view only
-   ============================================================ */
 const isSuper      = () => APP.profile?.role === 'super_admin';
 const isDistrict   = () => APP.profile?.role === 'admin';
 const isAuditor    = () => APP.profile?.role === 'auditor';
@@ -1130,13 +905,12 @@ const isBranchRole = () => ['manager','cashier','teller','accountant'].includes(
 const isMember     = () => APP.profile?.role === 'member';
 
 const canView    = () => isSuper() || isDistrict() || isBranchRole() || isAuditor() || isMember();
-const canCreate  = () => isSuper() || isDistrict() || isCashier();      // NEW: cashier can add
-const canEdit    = () => isSuper() || isDistrict();                     // only super/admin edit
-const canApprove = () => isSuper() || isDistrict() || isManager();      // manager can approve
+const canCreate  = () => isSuper() || isDistrict() || isCashier();
+const canEdit    = () => isSuper() || isDistrict();
+const canApprove = () => isSuper() || isDistrict() || isManager();
 const canDelete  = () => isSuper() || isDistrict();
 const canPrint   = () => isSuper() || isDistrict() || isManager() || isCashier();
 
-/* Scope check for a specific customer / tx — use in handlers */
 function inScopeCustomer(c) {
   if (!c) return isSuper();
   if (isSuper()) return true;
@@ -1145,7 +919,8 @@ function inScopeCustomer(c) {
   if (isManager() || isCashier()) return c.branchId === APP.profile.branchId;
   if (isMember()) {
     const p = APP.profile || {};
-    return c.userId === p.id || c.customerId === p.customerId || c.id === p.customerId;
+    return c.userId === p.id || c.customerId === p.customerId || c.id === p.customerId
+        || c.customerCode === p.customerCode;
   }
   return false;
 }
@@ -1157,8 +932,16 @@ function scopeCustomers() {
   if (role === 'admin') return APP.customers.filter(c => c.districtId === APP.profile.districtId || c.district === APP.profile.districtId);
   if (['manager','cashier','teller','accountant'].includes(role))
     return APP.customers.filter(c => c.branchId === APP.profile.branchId);
-  if (role === 'member') return APP.customers.filter(c =>
-    c.userId === APP.profile.id || c.customerId === APP.profile.customerId || c.id === APP.profile.customerId);
+  if (role === 'member') {
+    const p = APP.profile;
+    if (!p.customerId && !p.customerCode) return [];
+    return APP.customers.filter(c =>
+      c.userId === p.id
+      || c.id === p.customerId
+      || c.customerId === p.customerId
+      || (p.customerCode && c.customerId === p.customerCode)
+    );
+  }
   return [];
 }
 function isSavingsTx(tx) {
@@ -1168,11 +951,12 @@ function isSavingsTx(tx) {
       || type === 'leaving_withdrawal';
 }
 function filterWorkareaTxns(list) {
+  if (isMember()) return list;
   const { districtId, branchId } = APP.workarea;
   if (!districtId && !branchId) return list;
   const district = APP.districts.find(d => d.id === districtId);
   return list.filter(tx => {
-    const c = customerById(tx.customerId || tx.memberId);
+    const c = customerById(tx.customerId || tx.memberId) || (tx.customerDocId ? customerById(tx.customerDocId) : null);
     if (c) {
       if (districtId) {
         const raw = c;
@@ -1189,12 +973,14 @@ function filterWorkareaTxns(list) {
   });
 }
 function scopeTransactions() {
-  const ids = new Set(scopeCustomers().map(c => c.id));
-  const cids = new Set(scopeCustomers().map(c => c.customerId).filter(Boolean));
+  const scoped = scopeCustomers();
+  const ids  = new Set(scoped.map(c => c.id));
+  const cids = new Set(scoped.map(c => c.customerId).filter(Boolean));
   return APP.transactions.filter(tx => {
     if (!isSavingsTx(tx)) return false;
-    const mId = tx.memberId || tx.customerId;
-    return ids.has(mId) || cids.has(mId);
+    const mId   = tx.memberId || tx.customerId;
+    const docId = tx.customerDocId;
+    return ids.has(mId) || cids.has(mId) || (docId && ids.has(docId));
   });
 }
 function customerById(id) {
@@ -1210,7 +996,8 @@ function customerBalance(customer) {
   let total = 0;
   APP.transactions.forEach(tx => {
     const match = tx.customerId === cid || tx.memberId === cid ||
-                  tx.customerId === customer.id || tx.memberId === customer.id;
+                  tx.customerId === customer.id || tx.memberId === customer.id ||
+                  tx.customerDocId === customer.id;
     if (!match) return;
     const status = String(tx.status || '').toLowerCase();
     if (!['approved','completed','paid','printed','done'].includes(status)) return;
@@ -1233,13 +1020,31 @@ function isSavingsPenalty(p) {
 function isLoanPenalty(p) {
   return !isSavingsPenalty(p);
 }
+
+/* ============================================================
+   FIX: getMemberPenaltiesWithDetails — query all 3 IDs
+   ============================================================ */
 async function getMemberPenaltiesWithDetails(memberId, scope = 'all') {
   try {
-    const snap = await getDocs(query(collection(db,'transactions'),
-      where('memberId','==',memberId), where('type','==','penalty'), where('status','==','pending')));
+    if (!memberId) return { total: 0, details: [], savingsTotal: 0, loanTotal: 0 };
+    const ids = new Set([memberId]);
+    const cust = customerById(memberId);
+    if (cust) {
+      if (cust.id) ids.add(cust.id);
+      if (cust.customerId) ids.add(cust.customerId);
+    }
+    const merged = new Map();
+    for (const id of ids) {
+      if (!id) continue;
+      try {
+        const snap = await getDocs(query(collection(db,'transactions'),
+          where('memberId','==',id), where('type','==','penalty'), where('status','==','pending')));
+        snap.forEach(d => { if (!merged.has(d.id)) merged.set(d.id, d); });
+      } catch(e){}
+    }
     let total = 0, savingsTotal = 0, loanTotal = 0;
     const details = [];
-    snap.forEach(d => {
+    merged.forEach(d => {
       const data = d.data();
       const amount = num(data.amount);
       const isSav = isSavingsPenalty(data);
@@ -1282,11 +1087,13 @@ function computeSavingsArrears(customer) {
   monthsElapsed = Math.max(0, monthsElapsed);
   const dueMonths     = monthsElapsed + 1;
   const expectedTotal = dueMonths * minSavingsAmount;
-  const cid = customer.customerId || customer.id;
+  const cid  = customer.customerId || customer.id;
+  const docId = customer.id;
   let actualTotal = 0;
   APP.transactions.forEach(tx => {
     const match = tx.customerId === cid || tx.memberId === cid
-               || tx.customerId === customer.id || tx.memberId === customer.id;
+               || tx.customerId === customer.id || tx.memberId === customer.id
+               || tx.customerDocId === docId;
     if (!match) return;
     const st = String(tx.status || '').toLowerCase();
     if (!['approved','completed','paid','printed','done'].includes(st)) return;
@@ -1298,7 +1105,8 @@ function computeSavingsArrears(customer) {
   let coveredMonths = 0;
   APP.transactions.forEach(tx => {
     const match = tx.customerId === cid || tx.memberId === cid
-               || tx.customerId === customer.id || tx.memberId === customer.id;
+               || tx.customerId === customer.id || tx.memberId === customer.id
+               || tx.customerDocId === docId;
     if (!match) return;
     if (String(tx.type || '').toLowerCase() !== 'penalty') return;
     if (!isSavingsPenalty(tx)) return;
@@ -1357,8 +1165,9 @@ function getCustomerPenalties(customerId) {
   let paidFromSavings = 0;
   const history = [];
   APP.transactions.filter(tx => String(tx.type||'').toLowerCase() === 'penalty').forEach(p => {
-    const cid = p.memberId || p.customerId;
-    if (cid !== customerId) return;
+    const match = p.memberId === customerId || p.customerId === customerId
+               || p.customerDocId === customerId;
+    if (!match) return;
     const amount = num(p.amount);
     const isPaid = isPenaltyPaid(p);
     if (isPaid && deductPenaltyFromSavings && isPenaltyPaidFromSavings(p)) paidFromSavings += amount;
@@ -1522,10 +1331,7 @@ function renderShell() {
   document.getElementById('sbLogout')?.addEventListener('click', showLogoutModal);
   document.getElementById('menuLogout')?.addEventListener('click', showLogoutModal);
   const ub = document.getElementById('userBtn');
-  ub?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    document.getElementById('userMenu')?.classList.toggle('hidden');
-  });
+  ub?.addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('userMenu')?.classList.toggle('hidden'); });
   document.addEventListener('click', (e) => { if (!e.target.closest('#userBtn')) document.getElementById('userMenu')?.classList.add('hidden'); });
   try { if (localStorage.getItem('sacco.sidebar') === 'collapsed') document.body.classList.add('sidebar-collapsed'); } catch(e){}
 }
@@ -1601,6 +1407,16 @@ function renderMain() {
     return;
   }
 
+  /* FIX: member with no linked customer → clear error panel */
+  if (isMember() && APP.memberDataLoaded && !APP.customers.length) {
+    host.innerHTML = `<div class="empty" style="background:#fff;border:1px solid var(--border);border-radius:20px;padding:80px 24px">
+      <i class="fas fa-unlink" style="color:#b8860b"></i>
+      <div class="empty__title">${esc(t('memberNotLinked'))}</div>
+      <div class="empty__text">${esc(t('memberNotLinkedText'))}</div>
+    </div>`;
+    return;
+  }
+
   const APPROVED_STATUSES = ['approved','completed','paid','printed','done'];
   const all = filterWorkareaTxns(scopeTransactions());
   let totalDeposits = 0, totalWithdrawals = 0, pendingCount = 0;
@@ -1614,15 +1430,17 @@ function renderMain() {
       else totalWithdrawals += amt;
     } else if (status === 'pending') pendingCount++;
   });
-  const scopeIds = new Set(scopeCustomers().map(c => c.id));
-  const scopeCids = new Set(scopeCustomers().map(c => c.customerId).filter(Boolean));
+  const scopedCusts = scopeCustomers();
+  const scopeIds  = new Set(scopedCusts.map(c => c.id));
+  const scopeCids = new Set(scopedCusts.map(c => c.customerId).filter(Boolean));
   let penaltiesFromSavings = 0;
   filterWorkareaTxns(APP.transactions.filter(tx => String(tx.type||'').toLowerCase() === 'penalty')).forEach(p => {
     if (!isPenaltyPaid(p)) return;
     if (!isPenaltyPaidFromSavings(p)) return;
     if (!isSavingsPenalty(p)) return;
     const cid = p.customerId || p.memberId;
-    if (!scopeIds.has(cid) && !scopeCids.has(cid)) return;
+    const docId = p.customerDocId;
+    if (!scopeIds.has(cid) && !scopeCids.has(cid) && !(docId && scopeIds.has(docId))) return;
     penaltiesFromSavings += num(p.amount);
   });
   penaltiesFromSavings = round2(penaltiesFromSavings);
@@ -1696,11 +1514,11 @@ function renderMain() {
           <i class="fas fa-search"></i>
           <input type="search" id="fltSearch" placeholder="${esc(t('searchPlaceholder'))}" value="${esc(APP.filters.search)}">
         </div>
-        ${districtOptions.length > 0 ? `<select id="fltDistrict">
+        ${!isMember() && districtOptions.length > 0 ? `<select id="fltDistrict">
             <option value="">${esc(t('filterAllDistricts'))}</option>
             ${districtOptions.map(d => `<option value="${esc(d.id)}" ${APP.filters.districtId === d.id ? 'selected' : ''}>${esc(d.name || d.id)}</option>`).join('')}
           </select>` : ''}
-        ${branchOptions.length > 0 ? `<select id="fltBranch">
+        ${!isMember() && branchOptions.length > 0 ? `<select id="fltBranch">
             <option value="">${esc(t('filterAllBranches'))}</option>
             ${branchOptions.map(b => `<option value="${esc(b.id)}" ${APP.filters.branchId === b.id ? 'selected' : ''}>${esc(b.name || b.id)}</option>`).join('')}
           </select>` : ''}
@@ -1742,7 +1560,7 @@ function filteredTransactions() {
   const s = APP.filters.search.trim().toLowerCase();
   if (s) {
     list = list.filter(tx => {
-      const c = customerById(tx.customerId || tx.memberId);
+      const c = customerById(tx.customerId || tx.memberId) || (tx.customerDocId ? customerById(tx.customerDocId) : null);
       const name = customerName(c).toLowerCase();
       return name.includes(s)
           || (tx.customerId || '').toLowerCase().includes(s)
@@ -1754,13 +1572,13 @@ function filteredTransactions() {
           || (c?.phone || '').toLowerCase().includes(s);
     });
   }
-  if (APP.filters.districtId) {
+  if (!isMember() && APP.filters.districtId) {
     const ids = new Set(scopeCustomers().filter(c => c.districtId === APP.filters.districtId).map(c => c.id));
-    list = list.filter(tx => ids.has(tx.customerId) || ids.has(tx.memberId));
+    list = list.filter(tx => ids.has(tx.customerId) || ids.has(tx.memberId) || (tx.customerDocId && ids.has(tx.customerDocId)));
   }
-  if (APP.filters.branchId) {
+  if (!isMember() && APP.filters.branchId) {
     const ids = new Set(scopeCustomers().filter(c => c.branchId === APP.filters.branchId).map(c => c.id));
-    list = list.filter(tx => ids.has(tx.customerId) || ids.has(tx.memberId));
+    list = list.filter(tx => ids.has(tx.customerId) || ids.has(tx.memberId) || (tx.customerDocId && ids.has(tx.customerDocId)));
   }
   if (APP.filters.type) {
     list = list.filter(tx => {
@@ -1816,7 +1634,7 @@ function renderTableView(host, pageList, total, pages, start) {
         </tr></thead>
         <tbody>
           ${pageList.map(tx => {
-            const c = customerById(tx.customerId || tx.memberId);
+            const c = customerById(tx.customerId || tx.memberId) || (tx.customerDocId ? customerById(tx.customerDocId) : null);
             const avatar = c?.photoURL ? `<img src="${esc(c.photoURL)}" alt="">` : esc(initials(customerName(c)));
             const type = String(tx.type || '').toLowerCase();
             const isDep = type === 'savings' || type === 'deposit';
@@ -1868,7 +1686,7 @@ function renderTableView(host, pageList, total, pages, start) {
 function renderGridView(host, pageList, total, pages, start) {
   const canE = canEdit(), canA = canApprove(), canD = canDelete(), canP = canPrint();
   const cards = pageList.map(tx => {
-    const c = customerById(tx.customerId || tx.memberId);
+    const c = customerById(tx.customerId || tx.memberId) || (tx.customerDocId ? customerById(tx.customerDocId) : null);
     const avatar = c?.photoURL ? `<img src="${esc(c.photoURL)}" alt="" style="width:100%;height:100%;object-fit:cover">` : esc(initials(customerName(c)));
     const type = String(tx.type || '').toLowerCase();
     const isDep = type === 'savings' || type === 'deposit';
@@ -2005,54 +1823,22 @@ function printBadgeHtml(tx) {
   return `<span class="tag tag--print-copy" style="font-size:9.5px"><i class="fas fa-copy" style="font-size:8px"></i> ${esc(t('printedCopy'))}<span class="print-count-badge">×${cnt}</span></span>`;
 }
 
-/* ============================================================
-   ROW ACTION HANDLER — every action re-checks permission + scope
-   ============================================================ */
 function handleRowAction(action, id) {
   const tx = APP.transactions.find(x => x.id === id);
   if (!tx) return;
-  const c = customerById(tx.customerId || tx.memberId);
+  const c = customerById(tx.customerId || tx.memberId) || (tx.customerDocId ? customerById(tx.customerDocId) : null);
   const scoped = inScopeCustomer(c);
-
-  if (action === 'view') {
-    openViewModal(tx);
-    return;
-  }
-  if (action === 'edit') {
-    if (!canEdit()) { toast(t('noPermission'), 'error'); return; }
-    if (!scoped)    { toast(t('noPermission'), 'error'); return; }
-    openTxWizard(tx);
-    return;
-  }
-  if (action === 'delete') {
-    if (!canDelete()) { toast(t('noPermission'), 'error'); return; }
-    if (!scoped)      { toast(t('noPermission'), 'error'); return; }
-    openDeleteModal(tx);
-    return;
-  }
-  if (action === 'approve') {
-    if (!canApprove()) { toast(t('noPermission'), 'error'); return; }
-    if (!scoped)       { toast(t('noPermission'), 'error'); return; }
-    approveTx(tx);
-    return;
-  }
-  if (action === 'reject') {
-    if (!canApprove()) { toast(t('noPermission'), 'error'); return; }
-    if (!scoped)       { toast(t('noPermission'), 'error'); return; }
-    rejectTx(tx);
-    return;
-  }
-  if (action === 'print') {
-    if (!canPrint()) { toast(t('noPermission'), 'error'); return; }
-    if (!scoped)     { toast(t('noPermission'), 'error'); return; }
-    printSlip(tx);
-    return;
-  }
+  if (action === 'view') { openViewModal(tx); return; }
+  if (action === 'edit')    { if (!canEdit() || !scoped)    { toast(t('noPermission'), 'error'); return; } openTxWizard(tx); return; }
+  if (action === 'delete')  { if (!canDelete() || !scoped)  { toast(t('noPermission'), 'error'); return; } openDeleteModal(tx); return; }
+  if (action === 'approve') { if (!canApprove() || !scoped) { toast(t('noPermission'), 'error'); return; } approveTx(tx); return; }
+  if (action === 'reject')  { if (!canApprove() || !scoped) { toast(t('noPermission'), 'error'); return; } rejectTx(tx); return; }
+  if (action === 'print')   { if (!canPrint() || !scoped)   { toast(t('noPermission'), 'error'); return; } printSlip(tx); return; }
 }
 
 async function approveTx(tx) {
   if (!canApprove()) { toast(t('noPermission'), 'error'); return; }
-  const c = customerById(tx.customerId || tx.memberId);
+  const c = customerById(tx.customerId || tx.memberId) || (tx.customerDocId ? customerById(tx.customerDocId) : null);
   if (!inScopeCustomer(c)) { toast(t('noPermission'), 'error'); return; }
   try {
     await updateDoc(doc(db, 'transactions', tx.id), {
@@ -2067,7 +1853,7 @@ async function approveTx(tx) {
 }
 async function rejectTx(tx) {
   if (!canApprove()) { toast(t('noPermission'), 'error'); return; }
-  const c = customerById(tx.customerId || tx.memberId);
+  const c = customerById(tx.customerId || tx.memberId) || (tx.customerDocId ? customerById(tx.customerDocId) : null);
   if (!inScopeCustomer(c)) { toast(t('noPermission'), 'error'); return; }
   if (!confirm(t('reject') + '?')) return;
   try {
@@ -2230,14 +2016,13 @@ function openWizard({ title, subtitle, finishLabel, steps, initial = {}, onFinis
 
 function openTxWizard(tx) {
   const isEdit = !!tx;
-  /* Permission check at entry */
   if (isEdit && !canEdit())   { toast(t('noPermission'), 'error'); return; }
   if (!isEdit && !canCreate()) { toast(t('noPermission'), 'error'); return; }
   const t0 = tx || {};
 
   const initial = {
     customerId: t0.customerId || t0.memberId || '',
-    _customerDocId: '',
+    _customerDocId: t0.customerDocId || '',
     type: (() => {
       const s = String(t0.type || '').toLowerCase();
       if (s === 'withdrawal' || s === 'individual_withdrawal' || s === 'leaving_withdrawal') return 'withdrawal';
@@ -2266,8 +2051,8 @@ function openTxWizard(tx) {
   };
   if (initial.customerId) {
     const c = customerById(initial.customerId);
-    if (c) initial._customerDocId = c.id;
     if (c) {
+      initial._customerDocId = c.id;
       const ar0 = computeSavingsArrears(c);
       initial._arrearsMonths = ar0.monthsBehind;
       initial._arrearsAmount = ar0.arrearsAmount;
@@ -2304,7 +2089,8 @@ function openTxWizard(tx) {
             const ar = computeSavingsArrears(c);
             const penaltyCheck = APP.transactions.filter(tx =>
               (tx.customerId === c.customerId || tx.customerId === c.id ||
-               tx.memberId === c.customerId || tx.memberId === c.id) &&
+               tx.memberId === c.customerId || tx.memberId === c.id ||
+               tx.customerDocId === c.id) &&
               String(tx.type||'').toLowerCase() === 'penalty' &&
               String(tx.status||'').toLowerCase() === 'pending' &&
               isSavingsPenalty(tx)
@@ -2397,7 +2183,7 @@ function openTxWizard(tx) {
       {
         label: t('stepDetails'), title: t('stepDetailsTitle'),
         render: (d) => {
-          const c = customerById(d.customerId);
+          const c = customerById(d.customerId) || (d._customerDocId ? customerById(d._customerDocId) : null);
           const bal = c ? customerBalance(c) : 0;
           const isDep = d.type === 'deposit';
           const amt = num(d.amount);
@@ -2608,7 +2394,7 @@ function openTxWizard(tx) {
             return `${t('unpaidWarning')} ${t('unpaidPrevious')}: ${money(d._arrearsAmount)} (${d._arrearsMonths} ${d._arrearsMonths===1?'month':'months'})`;
           }
           if (d.type === 'withdrawal') {
-            const c = customerById(d.customerId);
+            const c = customerById(d.customerId) || (d._customerDocId ? customerById(d._customerDocId) : null);
             const bal = c ? customerBalance(c) : 0;
             if (num(d.amount) > bal) return t('insufficientBalance');
           }
@@ -2675,7 +2461,7 @@ function openTxWizard(tx) {
       {
         label: t('stepReview'), title: t('stepReviewTitle'),
         render: (d) => {
-          const c = customerById(d.customerId);
+          const c = customerById(d.customerId) || (d._customerDocId ? customerById(d._customerDocId) : null);
           const amt = num(d.amount);
           const isDep = d.type === 'deposit';
           const isBank = d.paymentMethod === 'bank';
@@ -2728,13 +2514,11 @@ function openTxWizard(tx) {
       }
     ],
     onFinish: async (d) => {
-      /* Re-check permissions defensively */
       if (isEdit && !canEdit())   throw new Error(t('noPermission'));
       if (!isEdit && !canCreate()) throw new Error(t('noPermission'));
 
-      const c = customerById(d.customerId);
+      const c = customerById(d.customerId) || (d._customerDocId ? customerById(d._customerDocId) : null);
       if (!c) throw new Error('Customer no longer exists.');
-      /* Scope check on the customer being acted upon */
       if (!inScopeCustomer(c)) throw new Error(t('noPermission'));
 
       const amt = num(d.amount);
@@ -2780,7 +2564,9 @@ function openTxWizard(tx) {
         if (isEdit && tx.id === t0.id) return;
         if (!isSavingsTx(tx)) return;
         const cid = c.customerId || c.id;
-        const match = tx.customerId === cid || tx.memberId === cid || tx.customerId === c.id || tx.memberId === c.id;
+        const match = tx.customerId === cid || tx.memberId === cid
+                   || tx.customerId === c.id || tx.memberId === c.id
+                   || tx.customerDocId === c.id;
         if (!match) return;
         const st = String(tx.status || '').toLowerCase();
         if (!['approved','completed','paid','printed','done'].includes(st)) return;
@@ -2843,7 +2629,7 @@ function openTxWizard(tx) {
 
 function openViewModal(tx) {
   closeModal();
-  const c = customerById(tx.customerId || tx.memberId);
+  const c = customerById(tx.customerId || tx.memberId) || (tx.customerDocId ? customerById(tx.customerDocId) : null);
   const type = String(tx.type || '').toLowerCase();
   const isDep = type === 'savings' || type === 'deposit';
   const isPending = String(tx.status || '').toLowerCase() === 'pending';
@@ -2939,7 +2725,7 @@ function amountInWords(amount, currency) {
 }
 
 function buildSlipHtml(tx, watermarkText) {
-  const c = customerById(tx.customerId || tx.memberId);
+  const c = customerById(tx.customerId || tx.memberId) || (tx.customerDocId ? customerById(tx.customerDocId) : null);
   const type = String(tx.type || '').toLowerCase();
   const isDep = type === 'savings' || type === 'deposit';
   const cName = customerName(c);
@@ -3014,7 +2800,7 @@ function buildSlipHtml(tx, watermarkText) {
 async function printSlip(tx) {
   if (!tx) return;
   if (!canPrint()) { toast(t('noPermission'), 'error'); return; }
-  const c = customerById(tx.customerId || tx.memberId);
+  const c = customerById(tx.customerId || tx.memberId) || (tx.customerDocId ? customerById(tx.customerDocId) : null);
   if (!inScopeCustomer(c)) { toast(t('noPermission'), 'error'); return; }
   const prevCount = Number(tx.printCount || 0);
   const newCount = prevCount + 1;
@@ -3069,7 +2855,7 @@ function closeSlipOverlay() {
 function openDeleteModal(tx) {
   closeModal();
   if (!canDelete()) { toast(t('noPermission'), 'error'); return; }
-  const c = customerById(tx.customerId || tx.memberId);
+  const c = customerById(tx.customerId || tx.memberId) || (tx.customerDocId ? customerById(tx.customerDocId) : null);
   if (!inScopeCustomer(c)) { toast(t('noPermission'), 'error'); return; }
   const amt = num(tx.amount);
   const isDep = String(tx.type || '').toLowerCase() === 'savings' || String(tx.type || '').toLowerCase() === 'deposit';
@@ -3153,8 +2939,62 @@ function showLogoutModal() {
   });
 }
 
+/* ============================================================
+   FIX: Member-aware listener — direct fetch, not full snapshot
+   ============================================================ */
+async function fetchMemberData() {
+  if (!APP.profile?.customerId) return { customer: null, transactions: [] };
+  let customer = null;
+  try {
+    const snap = await getDoc(doc(db, 'customers', APP.profile.customerId));
+    if (snap.exists()) customer = { id: snap.id, ...snap.data() };
+  } catch (e) { console.warn('[member-customer-doc]', e.code || e.message); }
+  if (!customer) {
+    // Fallback: search by userId or customerId field
+    try {
+      const snap = await getDocs(query(collection(db,'customers'), where('userId','==',APP.profile.id), limit(1)));
+      if (!snap.empty) { const d = snap.docs[0]; customer = { id: d.id, ...d.data() }; }
+    } catch(e){}
+  }
+  if (!customer) return { customer: null, transactions: [] };
+
+  const cid   = customer.id;
+  const ccode = customer.customerId || cid;
+  const merged = new Map();
+  for (const [field, val] of [['customerDocId', cid], ['customerId', ccode], ['memberId', ccode]]) {
+    if (!val) continue;
+    try {
+      const snap = await getDocs(query(collection(db, 'transactions'), where(field, '==', val)));
+      snap.forEach(d => { if (!merged.has(d.id)) merged.set(d.id, { id: d.id, ...d.data() }); });
+    } catch (e) { console.warn('[member-tx]', field, e.code || e.message); }
+  }
+  return { customer, transactions: Array.from(merged.values()) };
+}
+
 function attachListeners() {
   stopListeners();
+
+  if (isMember()) {
+    (async () => {
+      try {
+        const [dSnap, bSnap] = await Promise.all([
+          getDocs(collection(db, 'districts')),
+          getDocs(collection(db, 'branches'))
+        ]);
+        APP.districts = dSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        APP.branches = bSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch (e) { console.warn('[member-meta]', e.code || e.message); }
+
+      const { customer, transactions } = await fetchMemberData();
+      APP.customers = customer ? [customer] : [];
+      APP.transactions = transactions;
+      APP.memberDataLoaded = true;
+      renderMain();
+    })();
+    return;
+  }
+
+  // Staff path — realtime snapshots
   const watch = (coll, key, orderField) => {
     let ref = collection(db, coll);
     if (orderField) ref = query(ref, orderBy(orderField, 'desc'), limit(1000));
@@ -3206,7 +3046,9 @@ function stopListeners() {
       districtId: cachedProfile.districtId || '',
       districtName: cachedProfile.districtName || '',
       branchId: cachedProfile.branchId || '',
-      branchName: cachedProfile.branchName || ''
+      branchName: cachedProfile.branchName || '',
+      customerId: cachedProfile.customerId || '',
+      customerCode: cachedProfile.customerCode || ''
     };
     initWorkarea();
     renderShell();
@@ -3220,7 +3062,9 @@ function stopListeners() {
       email: sessionStorage.getItem('email') || '',
       fullName: sessionStorage.getItem('userName') || 'User',
       photoURL: null,
-      districtId: '', districtName: '', branchId: '', branchName: ''
+      districtId: '', districtName: '', branchId: '', branchName: '',
+      customerId: sessionStorage.getItem('customerId') || '',
+      customerCode: sessionStorage.getItem('customerCode') || ''
     };
     initWorkarea();
     renderShell();
@@ -3294,7 +3138,8 @@ function stopListeners() {
     (cachedProfile && (
       (cachedProfile.name !== (APP.profile.fullName || APP.profile.name)) ||
       cachedProfile.role !== APP.profile.role ||
-      cachedProfile.photoURL !== APP.profile.photoURL
+      cachedProfile.photoURL !== APP.profile.photoURL ||
+      cachedProfile.customerId !== (APP.profile.customerId || '')
     ));
   if (profileChanged) {
     initWorkarea();
@@ -3306,7 +3151,7 @@ function stopListeners() {
   attachListeners();
 })();
 
-console.log('[sacco] savings page ready — role-based access control applied');
+console.log('[sacco] savings page ready — member-aware fetch, customerDocId matching');
 </script>
 </body>
 </html>
