@@ -426,6 +426,11 @@ html.theme-dark .modal__foot{border-top-color:#1e293b;}
 .toast i{font-size:16px;flex-shrink:0;}
 .overlay-mobile{display:none;position:fixed;inset:0;background:rgba(13,21,32,.45);z-index:25;}
 body.sb-open .overlay-mobile{display:block;}
+.basis-sum-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;
+  background:#ecfdf3;color:#067647;font-size:11.5px;font-weight:800;
+  font-family:ui-monospace,Menlo,monospace;margin:-4px 0 16px;}
+.basis-sum-badge.is-bad{background:#fef3f2;color:#b42318;}
+.basis-sum-badge i{font-size:10px;}
 @media (max-width:992px){
   .settings-layout{grid-template-columns:1fr;}
   .settings-nav{position:static;display:flex;overflow-x:auto;gap:4px;padding:8px;white-space:nowrap;}
@@ -599,6 +604,12 @@ async function loadSessionTimeout() {
 /* ============================================================
    SETTINGS DEFAULTS
 ============================================================ */
+const DEFAULT_BASIS_WEIGHTS = Object.freeze({
+  savings_shares: [50, 50],
+  shares_loans:   [50, 50],
+  savings_loans:  [50, 50],
+  all:            [33.34, 33.33, 33.33]
+});
 const DEFAULT_SETTINGS = {
   saccoName:'GERESU DHUKI SACCO', saccoShortName:'GD SACCO',
   saccoEmail:'', saccoPhone:'', saccoAddress:'',
@@ -624,7 +635,8 @@ const DEFAULT_SETTINGS = {
   defaultPrintOrientation:'portrait', showSidebarCollapsed:false, showDashboardAnimations:true,
   enableAuditLog:true, enableDuplicateCheck:true,
   autoApproveSmallTransactions:false, autoApproveThreshold:1000, dataRetentionDays:3650,
-  autoBackupEnabled:false, backupFrequency:'weekly', backupEmail:''
+  autoBackupEnabled:false, backupFrequency:'weekly', backupEmail:'',
+  basisWeights: { ...DEFAULT_BASIS_WEIGHTS }
 };
 
 const SECTION_FIELDS = {
@@ -638,7 +650,13 @@ const SECTION_FIELDS = {
   notifications: ['enableEmailNotifications','enableSmsNotifications','notifyLoanDue','notifyPenalty','notifyDividend','notifyLargeTransaction','largeTransactionThreshold','notificationEmail'],
   appearance: ['theme','itemsPerPage','dateFormat','defaultPrintOrientation','showSidebarCollapsed','showDashboardAnimations'],
   advanced: ['enableAuditLog','enableDuplicateCheck','autoApproveSmallTransactions','autoApproveThreshold','dataRetentionDays'],
-  backup: ['autoBackupEnabled','backupFrequency','backupEmail']
+  backup: ['autoBackupEnabled','backupFrequency','backupEmail'],
+  dividendBasis: [
+    'bwSavingsSharesSavings','bwSavingsSharesShares',
+    'bwSharesLoansShares','bwSharesLoansLoans',
+    'bwSavingsLoansSavings','bwSavingsLoansLoans',
+    'bwAllSavings','bwAllShares','bwAllLoans'
+  ]
 };
 const USER_EDITABLE_SECTIONS = ['appearance','notifications'];
 
@@ -733,7 +751,7 @@ function renderBrandTitle(name){
 }
 
 /* ============================================================
-   TRANSLATIONS — full AM + OM (no more spread fallback)
+   TRANSLATIONS — full AM + OM
 ============================================================ */
 const I18N = {
   en: {
@@ -752,7 +770,7 @@ const I18N = {
     reloadSettings:'Reload', saveAllChanges:'Save All Changes',
     navCategoryGeneral:'General', navCategorySystem:'System', navCategoryData:'Data',
     navGeneral:'Organization', navProfile:'Personal Profile',
-    navFinancial:'Financial', navLoan:'Loan Defaults', navPenaltiesSettings:'Penalties',
+    navFinancial:'Financial', navDividendBasis:'Dividend Basis', navLoan:'Loan Defaults', navPenaltiesSettings:'Penalties',
     navSecurity:'Session & Security', navNotifications:'Notifications', navAppearance:'Appearance',
     navAdvanced:'Advanced', navBackup:'Backup & Data', navDanger:'Danger Zone',
     organizationInfo:'Organization Information', organizationInfoDesc:'Basic details about your SACCO (admin only)',
@@ -902,7 +920,17 @@ const I18N = {
     recalcSharesBtn:'Recalculate Now',
     recalcSharesSectionTitle:'Recalculate Existing Shares',
     recalcSharesSectionDesc:'Recalculate all approved share records to match the current share value. Total monetary value is preserved.',
-    recalcSharesInvalidPrice:'Please enter a valid share value first.'
+    recalcSharesInvalidPrice:'Please enter a valid share value first.',
+    dividendBasisTitle:'Dividend Distribution Weights',
+    dividendBasisDesc:'How annual profit is split across member commitment bases. All pair weights always sum to 100%.',
+    savingsSharesPair:'Savings + Shares',
+    sharesLoansPair:'Shares + Loans',
+    savingsLoansPair:'Savings + Loans',
+    allCommitmentsPair:'All Commitments (Savings + Shares + Loans)',
+    savingsPct:'Savings %', sharesPct:'Shares %', loansPct:'Loans %',
+    pairSumLabel:'Total',
+    autoBalanced:'auto-balanced',
+    allRebalanceHint:'Edit any field — the other two adjust automatically to keep the total at 100%.'
   },
   am: {
     brandSub:'የሳኮ አስተዳደር',
@@ -920,7 +948,7 @@ const I18N = {
     reloadSettings:'እንደገና ጫን', saveAllChanges:'ሁሉንም ለውጦች አስቀምጥ',
     navCategoryGeneral:'አጠቃላይ', navCategorySystem:'ስርዓት', navCategoryData:'ውሂብ',
     navGeneral:'ድርጅት', navProfile:'የግል መገለጫ',
-    navFinancial:'ፋይናንሺያል', navLoan:'የብድር ነባሪዎች', navPenaltiesSettings:'ቅጣቶች',
+    navFinancial:'ፋይናንሺያል', navDividendBasis:'የክፍፍል መሠረት', navLoan:'የብድር ነባሪዎች', navPenaltiesSettings:'ቅጣቶች',
     navSecurity:'ክፍለ-ጊዜ እና ደህንነት', navNotifications:'ማሳወቂያዎች', navAppearance:'አቀራረብ',
     navAdvanced:'የላቀ', navBackup:'ምትኬ እና ውሂብ', navDanger:'አደገኛ ክልል',
     organizationInfo:'የድርጅት መረጃ', organizationInfoDesc:'ስለ ሳኮዎ መሰረታዊ ዝርዝሮች (ለአስተዳዳሪ ብቻ)',
@@ -1070,7 +1098,17 @@ const I18N = {
     recalcSharesBtn:'አሁን እንደገና አስላ',
     recalcSharesSectionTitle:'ያሉትን አክሲዮኖች እንደገና አስላ',
     recalcSharesSectionDesc:'ሁሉንም የጸደቁ የአክሲዮን መዝገቦች ከአሁኑ የአክሲዮን ዋጋ ጋር እንዲገጥሙ እንደገና አስላ። ጠቅላላ የገንዘብ ዋጋ ይጠበቃል።',
-    recalcSharesInvalidPrice:'እባክዎ መጀመሪያ ትክክለኛ የአክሲዮን ዋጋ ያስገቡ።'
+    recalcSharesInvalidPrice:'እባክዎ መጀመሪያ ትክክለኛ የአክሲዮን ዋጋ ያስገቡ።',
+    dividendBasisTitle:'የክፍፍል ስርጭት ክብደቶች',
+    dividendBasisDesc:'ዓመታዊ ትርፍ በአባላት ቁርጠኝነት መሠረቶች መካከል እንዴት እንደሚከፋፈል። ሁሉም የጥንድ ክብደቶች ሁልጊዜ ወደ 100% ይደመራሉ።',
+    savingsSharesPair:'ቁጠባ + አክሲዮን',
+    sharesLoansPair:'አክሲዮን + ብድር',
+    savingsLoansPair:'ቁጠባ + ብድር',
+    allCommitmentsPair:'ሁሉም ቁርጠኝነቶች (ቁጠባ + አክሲዮን + ብድር)',
+    savingsPct:'ቁጠባ %', sharesPct:'አክሲዮን %', loansPct:'ብድር %',
+    pairSumLabel:'ድምር',
+    autoBalanced:'በራስ-ሰር የተመሳሰለ',
+    allRebalanceHint:'ማንኛውንም መስክ ያስተካክሉ — ሌሎቹ ሁለቱ ድምሩን ወደ 100% ለማቆየት በራስ-ሰር ይስተካከላሉ።'
   },
   om: {
     brandSub:'Bulchiinsa SACCO',
@@ -1088,7 +1126,7 @@ const I18N = {
     reloadSettings:'Irra deebi\'ii fe\'i', saveAllChanges:'Jijjiirama hunda olkaa\'i',
     navCategoryGeneral:'Waliigala', navCategorySystem:'Sirna', navCategoryData:'Daataa',
     navGeneral:'Dhaabbata', navProfile:'Profaayilii Dhuunfaa',
-    navFinancial:'Faayinaansii', navLoan:'Liqii Idilee', navPenaltiesSettings:'Adaba',
+    navFinancial:'Faayinaansii', navDividendBasis:"Bu'uura Qooda", navLoan:'Liqii Idilee', navPenaltiesSettings:'Adaba',
     navSecurity:'Yeroo Sessii fi Nageenya', navNotifications:'Beeksisa', navAppearance:'Bifa',
     navAdvanced:'Ol\'aanaa', navBackup:'Kuusaa fi Daataa', navDanger:'Naannoo Balaa',
     organizationInfo:'Odeeffannoo Dhaabbataa', organizationInfoDesc:'Ibsa bu\'uuraa waa\'ee SACCO kee (bulchaa qofa)',
@@ -1238,7 +1276,17 @@ const I18N = {
     recalcSharesBtn:'Amma Irra Deebi\'ii Shallagi',
     recalcSharesSectionTitle:'Hirmaata Jiru Irra Deebi\'ii Shallagi',
     recalcSharesSectionDesc:'Galmee hirmaataa mirkanaa\'e hunda gatii hirmaataa ammaa waliin akka walsimuuf irra deebi\'ii shallagi. Gatii maallaqaa waliigalaa ni tursiifama.',
-    recalcSharesInvalidPrice:'Maaloo dura gatii hirmaataa sirrii galchi.'
+    recalcSharesInvalidPrice:'Maaloo dura gatii hirmaataa sirrii galchi.',
+    dividendBasisTitle:'Ulfaatina Raabsa Qoodaa',
+    dividendBasisDesc:"Bu'aan waggaa bu'uura boqonnaa miseensotaa gidduutti akkamitti akka qoodamu. Ulfaatinni cimdiin hundi yeroo hunda 100% ta'a.",
+    savingsSharesPair:'Qusannaa + Hirmaata',
+    sharesLoansPair:'Hirmaata + Liqii',
+    savingsLoansPair:'Qusannaa + Liqii',
+    allCommitmentsPair:"Boqonnaa Hunda (Qusannaa + Hirmaata + Liqii)",
+    savingsPct:'Qusannaa %', sharesPct:'Hirmaata %', loansPct:'Liqii %',
+    pairSumLabel:'Waliigala',
+    autoBalanced:'ofumaan wal qixa',
+    allRebalanceHint:"Dirree kamiyyuu gulaali — lamaan biraa waliigala 100% tursiisuuf ofumaan ni sirreeffamu."
   }
 };
 
@@ -1385,6 +1433,7 @@ function renderMain(){
           <li><button class="active" data-panel="organization" data-section="general"><i class="fas fa-building"></i> <span>${esc(t('navGeneral'))}</span><i class="fas fa-lock nav-lock"></i></button></li>
           <li><button data-panel="profile" data-section="profile" class="personal-allowed"><i class="fas fa-user-circle"></i> <span>${esc(t('navProfile'))}</span></button></li>
           <li><button data-panel="financial" data-section="financial"><i class="fas fa-coins"></i> <span>${esc(t('navFinancial'))}</span><i class="fas fa-lock nav-lock"></i></button></li>
+          <li><button data-panel="dividendBasis" data-section="dividendBasis"><i class="fas fa-gift"></i> <span>${esc(t('navDividendBasis'))}</span><i class="fas fa-lock nav-lock"></i></button></li>
           <li><button data-panel="loan" data-section="loan"><i class="fas fa-hand-holding-usd"></i> <span>${esc(t('navLoan'))}</span><i class="fas fa-lock nav-lock"></i></button></li>
           <li><button data-panel="penalties" data-section="penalties"><i class="fas fa-exclamation-triangle" style="color:#e67e22;"></i> <span>${esc(t('navPenaltiesSettings'))}</span><i class="fas fa-lock nav-lock"></i></button></li>
         </ul>
@@ -1406,6 +1455,7 @@ function renderMain(){
         ${renderOrganizationPanel()}
         ${renderProfilePanel()}
         ${renderFinancialPanel()}
+        ${renderDividendBasisPanel()}
         ${renderLoanPanel()}
         ${renderPenaltiesPanel()}
         ${renderSecurityPanel()}
@@ -1686,6 +1736,70 @@ function renderFinancialPanel(){
   `;
   return panelShell({ id:'financial', section:'financial', icon:'fa-coins',
     title:t('financialSettings'), desc:t('financialSettingsDesc'), body });
+}
+
+/* ===== NEW: DIVIDEND BASIS PANEL ===== */
+function renderDividendBasisPanel(){
+  const body = `
+    <div class="personal-banner">
+      <i class="fas fa-info-circle"></i>
+      <div>${esc(t('allRebalanceHint'))}</div>
+    </div>
+
+    <h4 style="font-size:14px;font-weight:800;margin:18px 0 12px;color:var(--text);display:flex;align-items:center;gap:8px;">
+      <i class="fas fa-piggy-bank" style="color:var(--primary);"></i> ${esc(t('savingsSharesPair'))}
+    </h4>
+    <div class="settings-form-row">
+      ${basisWeightField('bwSavingsSharesSavings','savings_shares',0,t('savingsPct'),false)}
+      ${basisWeightField('bwSavingsSharesShares','savings_shares',1,t('sharesPct'),true)}
+    </div>
+    <div class="basis-sum-badge" id="bwSum-savings_shares"><i class="fas fa-check-circle"></i><span>${esc(t('pairSumLabel'))}: 100.0%</span></div>
+
+    <h4 style="font-size:14px;font-weight:800;margin:22px 0 12px;color:var(--text);display:flex;align-items:center;gap:8px;">
+      <i class="fas fa-chart-pie" style="color:var(--primary);"></i> ${esc(t('sharesLoansPair'))}
+    </h4>
+    <div class="settings-form-row">
+      ${basisWeightField('bwSharesLoansShares','shares_loans',0,t('sharesPct'),false)}
+      ${basisWeightField('bwSharesLoansLoans','shares_loans',1,t('loansPct'),true)}
+    </div>
+    <div class="basis-sum-badge" id="bwSum-shares_loans"><i class="fas fa-check-circle"></i><span>${esc(t('pairSumLabel'))}: 100.0%</span></div>
+
+    <h4 style="font-size:14px;font-weight:800;margin:22px 0 12px;color:var(--text);display:flex;align-items:center;gap:8px;">
+      <i class="fas fa-hand-holding-usd" style="color:var(--primary);"></i> ${esc(t('savingsLoansPair'))}
+    </h4>
+    <div class="settings-form-row">
+      ${basisWeightField('bwSavingsLoansSavings','savings_loans',0,t('savingsPct'),false)}
+      ${basisWeightField('bwSavingsLoansLoans','savings_loans',1,t('loansPct'),true)}
+    </div>
+    <div class="basis-sum-badge" id="bwSum-savings_loans"><i class="fas fa-check-circle"></i><span>${esc(t('pairSumLabel'))}: 100.0%</span></div>
+
+    <h4 style="font-size:14px;font-weight:800;margin:22px 0 12px;color:var(--text);display:flex;align-items:center;gap:8px;">
+      <i class="fas fa-layer-group" style="color:var(--primary);"></i> ${esc(t('allCommitmentsPair'))}
+    </h4>
+    <div class="settings-form-row three">
+      ${basisWeightField('bwAllSavings','all',0,t('savingsPct'),false)}
+      ${basisWeightField('bwAllShares','all',1,t('sharesPct'),false)}
+      ${basisWeightField('bwAllLoans','all',2,t('loansPct'),false)}
+    </div>
+    <div class="basis-sum-badge" id="bwSum-all"><i class="fas fa-check-circle"></i><span>${esc(t('pairSumLabel'))}: 100.0%</span></div>
+  `;
+  return panelShell({ id:'dividendBasis', section:'dividendBasis', icon:'fa-gift',
+    title:t('dividendBasisTitle'), desc:t('dividendBasisDesc'), body });
+}
+
+function basisWeightField(id, pairKey, idx, label, readonly){
+  const bw = currentSettings.basisWeights || DEFAULT_BASIS_WEIGHTS;
+  const val = pairKey === 'all' ? (bw.all?.[idx] ?? 0) : (bw[pairKey]?.[idx] ?? 0);
+  const ro = readonly ? 'readonly style="background:var(--bg-soft);" ' : '';
+  const lockIcon = readonly ? ' <i class="fas fa-link" style="font-size:9px;color:var(--muted);"></i>' : '';
+  return `<div class="settings-form-group">
+    <label>${esc(label)}${lockIcon}</label>
+    <div class="input-with-unit">
+      <input type="number" id="${id}" data-pair="${pairKey}" data-idx="${idx}"
+             min="0" max="100" step="0.1" value="${val}" ${ro}/>
+      <span class="unit">%</span>
+    </div>
+  </div>`;
 }
 
 function renderLoanPanel(){
@@ -2014,6 +2128,23 @@ function wireMainEvents(){
     if (title) title.innerHTML = renderBrandTitle(this.value);
   });
 
+  // Basis-weight auto-rebalance
+  document.querySelectorAll('[data-pair]').forEach(inp => {
+    if (inp.hasAttribute('readonly')) return;
+    inp.addEventListener('input', function(){
+      const pairKey = this.dataset.pair;
+      const idx = Number(this.dataset.idx);
+      if (pairKey === 'all') rebalanceBasisAll(idx);
+      else rebalanceBasisPair(pairKey, idx);
+      updateDirtyIndicators();
+    });
+    inp.addEventListener('blur', function(){
+      const pairKey = this.dataset.pair;
+      if (pairKey === 'all') rebalanceBasisAll(Number(this.dataset.idx));
+      else rebalanceBasisPair(pairKey, Number(this.dataset.idx));
+    });
+  });
+
   document.getElementById('recalcSharesBtn')?.addEventListener('click', async function(){
     if (!isAdmin) { toast(t('unauthorized'), 'error'); return; }
     const formPrice = Number(document.getElementById('shareValue')?.value) || 0;
@@ -2214,7 +2345,7 @@ async function saveUserProfile(){
    PERMISSIONS
 ============================================================ */
 function applyPermissions(){
-  const adminOnlySections = ['financial','loan','penalties','security','advanced','backup','danger'];
+  const adminOnlySections = ['financial','dividendBasis','loan','penalties','security','advanced','backup','danger'];
   Object.keys(SECTION_FIELDS).forEach(section => {
     const fields = SECTION_FIELDS[section] || [];
     const locked = adminOnlySections.includes(section) && !isAdmin;
@@ -2367,8 +2498,114 @@ function loadSettingsToForm(settings){
   updateShareETBDisplays();
   updateRepaymentRulesPreview();
   applySessionTimeoutFromSettings();
+  loadBasisWeightsToForm(settings.basisWeights || DEFAULT_BASIS_WEIGHTS);
   updateDirtyIndicators();
 }
+
+function mergeBasisWeights(src){
+  const s = src || {};
+  const pair = (v) => Array.isArray(v) && v.length === 2 && (Number(v[0]) + Number(v[1])) > 0
+    ? [Number(v[0]), Number(v[1])] : [50, 50];
+  const triple = (v) => Array.isArray(v) && v.length === 3 && (Number(v[0])+Number(v[1])+Number(v[2])) > 0
+    ? [Number(v[0]), Number(v[1]), Number(v[2])] : [33.34, 33.33, 33.33];
+  return {
+    savings_shares: pair(s.savings_shares),
+    shares_loans:   pair(s.shares_loans),
+    savings_loans:  pair(s.savings_loans),
+    all:            triple(s.all)
+  };
+}
+
+function loadBasisWeightsToForm(bw){
+  const safe = mergeBasisWeights(bw);
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  set('bwSavingsSharesSavings', safe.savings_shares[0]);
+  set('bwSavingsSharesShares',  safe.savings_shares[1]);
+  set('bwSharesLoansShares',    safe.shares_loans[0]);
+  set('bwSharesLoansLoans',     safe.shares_loans[1]);
+  set('bwSavingsLoansSavings',  safe.savings_loans[0]);
+  set('bwSavingsLoansLoans',    safe.savings_loans[1]);
+  set('bwAllSavings',           safe.all[0]);
+  set('bwAllShares',            safe.all[1]);
+  set('bwAllLoans',             safe.all[2]);
+  ['savings_shares','shares_loans','savings_loans','all'].forEach(updateBasisSum);
+}
+
+function readBasisWeightsFromForm(){
+  const g = (id) => parseFloat(document.getElementById(id)?.value) || 0;
+  return {
+    savings_shares: [g('bwSavingsSharesSavings'), g('bwSavingsSharesShares')],
+    shares_loans:   [g('bwSharesLoansShares'),    g('bwSharesLoansLoans')],
+    savings_loans:  [g('bwSavingsLoansSavings'),  g('bwSavingsLoansLoans')],
+    all:            [g('bwAllSavings'),           g('bwAllShares'), g('bwAllLoans')]
+  };
+}
+
+function rebalanceBasisPair(pairKey, changedIdx){
+  if (pairKey === 'all') return;
+  const a = document.getElementById(
+    pairKey === 'savings_shares' ? 'bwSavingsSharesSavings' :
+    pairKey === 'shares_loans'   ? 'bwSharesLoansShares' :
+                                   'bwSavingsLoansSavings'
+  );
+  const b = document.getElementById(
+    pairKey === 'savings_shares' ? 'bwSavingsSharesShares' :
+    pairKey === 'shares_loans'   ? 'bwSharesLoansLoans' :
+                                   'bwSavingsLoansLoans'
+  );
+  if (!a || !b) return;
+  const src = changedIdx === 0 ? a : b;
+  const dst = changedIdx === 0 ? b : a;
+  let v = Math.max(0, Math.min(100, parseFloat(src.value) || 0));
+  src.value = v.toFixed(1);
+  dst.value = (100 - v).toFixed(1);
+  updateBasisSum(pairKey);
+}
+
+function rebalanceBasisAll(changedIdx){
+  const ids = ['bwAllSavings','bwAllShares','bwAllLoans'];
+  const inputs = ids.map(id => document.getElementById(id));
+  if (inputs.some(x => !x)) return;
+  const oldVals = inputs.map(inp => parseFloat(inp.value) || 0);
+  let v = Math.max(0, Math.min(100, oldVals[changedIdx]));
+  inputs[changedIdx].value = v.toFixed(1);
+
+  const others = [0,1,2].filter(i => i !== changedIdx);
+  const otherSum = others.reduce((s,i) => s + oldVals[i], 0);
+  const remaining = 100 - v;
+  others.forEach(i => {
+    const newVal = otherSum > 0
+      ? (oldVals[i] / otherSum) * remaining
+      : remaining / others.length;
+    inputs[i].value = newVal.toFixed(1);
+  });
+
+  // Correct rounding drift on the changed field
+  const sum = inputs.reduce((s,inp) => s + (parseFloat(inp.value) || 0), 0);
+  const drift = Math.round((100 - sum) * 10) / 10;
+  if (Math.abs(drift) >= 0.1) {
+    v = Math.max(0, Math.min(100, v + drift));
+    inputs[changedIdx].value = v.toFixed(1);
+  }
+  updateBasisSum('all');
+}
+
+function updateBasisSum(pairKey){
+  const el = document.getElementById('bwSum-' + pairKey);
+  if (!el) return;
+  const ids = pairKey === 'all'
+    ? ['bwAllSavings','bwAllShares','bwAllLoans']
+    : pairKey === 'savings_shares' ? ['bwSavingsSharesSavings','bwSavingsSharesShares']
+    : pairKey === 'shares_loans'   ? ['bwSharesLoansShares','bwSharesLoansLoans']
+                                   : ['bwSavingsLoansSavings','bwSavingsLoansLoans'];
+  const sum = ids.reduce((s,id) => s + (parseFloat(document.getElementById(id)?.value) || 0), 0);
+  const rounded = Math.round(sum * 10) / 10;
+  const ok = Math.abs(rounded - 100) < 0.15;
+  el.classList.toggle('is-bad', !ok);
+  el.querySelector('i').className = ok ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle';
+  el.querySelector('span').textContent = `${t('pairSumLabel')}: ${rounded.toFixed(1)}%`;
+}
+
 function collectFormData(){
   const g = (id) => document.getElementById(id);
   const v = (id) => g(id)?.value ?? '';
@@ -2449,12 +2686,24 @@ function collectFormData(){
   data.autoBackupEnabled = c('autoBackupEnabled');
   data.backupFrequency = v('backupFrequency');
   data.backupEmail = v('backupEmail').trim();
+  data.dividends = { basisWeights: readBasisWeightsFromForm() };
   return data;
 }
 
 function isFieldDirty(fieldId){
   const el = document.getElementById(fieldId);
   if (!el) return false;
+
+  // Special case: basis weight inputs (bw*)
+  if (fieldId.startsWith('bw')) {
+    const pair = el.dataset.pair;
+    const idx  = Number(el.dataset.idx);
+    const bw   = currentSettings.basisWeights || DEFAULT_BASIS_WEIGHTS;
+    const expected = pair === 'all' ? (bw.all?.[idx] ?? 0) : (bw[pair]?.[idx] ?? 0);
+    const val = parseFloat(el.value) || 0;
+    return Math.abs(val - expected) > 0.01;
+  }
+
   const cur = currentSettings[fieldId];
   const val = el.type === 'checkbox' ? el.checked :
               el.type === 'number' ? (parseFloat(el.value) || 0) : el.value;
@@ -2650,6 +2899,9 @@ async function saveSection(section){
     await setDoc(doc(db, 'settings', 'system'), data, { merge: true });
     await logAudit('updated', 'settings', 'system', { section, changes: data }, `Settings updated (${section})`);
     currentSettings = { ...currentSettings, ...data };
+    if (data.dividends && data.dividends.basisWeights) {
+      currentSettings.basisWeights = data.dividends.basisWeights;
+    }
     savedSettings = { ...currentSettings };
     if (section === 'appearance') applyTheme(currentSettings.theme);
     if (section === 'security') applySessionTimeoutFromSettings();
@@ -2689,6 +2941,9 @@ async function saveAll(){
       await logAudit('updated', 'settings', 'system', { changes: userData, userOnly: true }, 'User preferences saved');
     }
     currentSettings = { ...currentSettings, ...data };
+    if (data.dividends && data.dividends.basisWeights) {
+      currentSettings.basisWeights = data.dividends.basisWeights;
+    }
     savedSettings = { ...currentSettings };
     applyTheme(currentSettings.theme);
     applySessionTimeoutFromSettings();
@@ -2707,14 +2962,18 @@ async function saveAll(){
 function resetSection(section){
   if (!canEditSection(section) && section !== 'general') { toast(t('unauthorized'), 'error'); return; }
   showConfirmModal(t('confirmResetTitle'), t('confirmResetMsg'), 'warning', () => {
-    const fields = SECTION_FIELDS[section] || [];
-    fields.forEach(fid => {
-      const dv = DEFAULT_SETTINGS[fid];
-      const el = document.getElementById(fid);
-      if (!el) return;
-      if (el.type === 'checkbox') el.checked = !!dv;
-      else el.value = dv ?? '';
-    });
+    if (section === 'dividendBasis') {
+      loadBasisWeightsToForm(DEFAULT_BASIS_WEIGHTS);
+    } else {
+      const fields = SECTION_FIELDS[section] || [];
+      fields.forEach(fid => {
+        const dv = DEFAULT_SETTINGS[fid];
+        const el = document.getElementById(fid);
+        if (!el) return;
+        if (el.type === 'checkbox') el.checked = !!dv;
+        else el.value = dv ?? '';
+      });
+    }
     if (section === 'appearance') {
       document.querySelectorAll('.theme-option').forEach(opt => opt.classList.toggle('selected', opt.dataset.theme === 'light'));
     }
@@ -2939,7 +3198,7 @@ async function resetAllSettings(){
     try {
       await setDoc(doc(db, 'settings', 'system'), DEFAULT_SETTINGS, { merge: true });
       await logAudit('reset', 'settings', 'system', {}, 'All settings reset');
-      currentSettings = { ...DEFAULT_SETTINGS };
+      currentSettings = { ...DEFAULT_SETTINGS, basisWeights: { ...DEFAULT_BASIS_WEIGHTS } };
       savedSettings = { ...currentSettings };
       renderShell(); renderMain();
       toast(t('resetDone'), 'success');
@@ -3108,7 +3367,7 @@ async function handleImportSettings(e){
     if (typeof data !== 'object' || !data) throw new Error('Not an object');
     const merged = { ...DEFAULT_SETTINGS, ...data };
     await setDoc(doc(db, 'settings', 'system'), merged, { merge: true });
-    currentSettings = { ...merged };
+    currentSettings = { ...merged, basisWeights: mergeBasisWeights(merged.basisWeights) };
     savedSettings = { ...currentSettings };
     renderShell(); renderMain();
     await logAudit('imported', 'settings', 'system', {}, 'Settings imported');
@@ -3225,11 +3484,13 @@ async function loadSettings(){
       if ((data.shareValue === undefined || data.shareValue === null) && data.sharePrice !== undefined && data.sharePrice !== null) {
         merged.shareValue = Number(data.sharePrice);
       }
+      const bwSrc = (data.dividends && data.dividends.basisWeights) || data.basisWeights;
+      merged.basisWeights = mergeBasisWeights(bwSrc);
       currentSettings = merged;
       savedSettings = { ...merged };
     } else {
       await setDoc(doc(db, 'settings', 'system'), DEFAULT_SETTINGS);
-      currentSettings = { ...DEFAULT_SETTINGS };
+      currentSettings = { ...DEFAULT_SETTINGS, basisWeights: { ...DEFAULT_BASIS_WEIGHTS } };
       savedSettings = { ...currentSettings };
     }
     applyTheme(currentSettings.theme);
@@ -3361,7 +3622,7 @@ function attachFloatingSaveBar(){
   setTimeout(() => document.getElementById('loader')?.classList.add('hide'), 100);
 })();
 
-console.log('[sacco] settings page ready — full AM/OM translations, cached render, no spinner');
+console.log('[sacco] settings page ready — dividend basis weights panel, full AM/OM translations, cached render');
 </script>
 
 <div class="floating-save-bar" id="floatingSaveBar">
