@@ -401,7 +401,8 @@ body.sidebar-collapsed .sidebar__logout span{display:none;}
   padding:14px;background:linear-gradient(135deg,#faf7ff,#fff);
   border:1px dashed #ddd2fb;border-radius:12px;margin-bottom:14px;
 }
-@media (max-width:560px){ .basis-mix-panel{grid-template-columns:1fr;} }
+.basis-mix-panel.is-all{grid-template-columns:1fr 1fr 1fr;}
+@media (max-width:560px){ .basis-mix-panel, .basis-mix-panel.is-all{grid-template-columns:1fr;} }
 .basis-mix-cell{padding:10px 12px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;}
 .basis-mix-cell label{
   font-size:10.5px;font-weight:800;color:var(--muted);
@@ -709,7 +710,7 @@ function writeCachedProfile(){
 function clearCachedProfile(){try{sessionStorage.removeItem(PROFILE_CACHE_KEY);}catch(e){}}
 function hideLoaderNow(){const el=document.getElementById('loader');if(el) el.classList.add('hide');}
 
-/* ===== DEFAULT SETTINGS — includes basisWeights ===== */
+/* ===== DEFAULT SETTINGS — includes basisWeights (with `all` 3-way) ===== */
 const DEFAULT_DASHBOARD = Object.freeze({
   includeRegistrationFee: true, includeOtherIncome: true, includePaidInterest: true,
   includePaidPenalties: true, includeServiceWithdrawals: true,
@@ -721,7 +722,8 @@ const DEFAULT_DASHBOARD = Object.freeze({
   basisWeights: {
     savings_shares: [50, 50],
     shares_loans:   [50, 50],
-    savings_loans:  [50, 50]
+    savings_loans:  [50, 50],
+    all:            [33.34, 33.33, 33.33]
   }
 });
 const ALWAYS_COUNTED_DEPOSIT  = ['approved','printed','completed','done','paid'];
@@ -750,7 +752,8 @@ const APP = {
   basisMix: {
     savings_shares: [50, 50],
     shares_loans:   [50, 50],
-    savings_loans:  [50, 50]
+    savings_loans:  [50, 50],
+    all:            [33.34, 33.33, 33.33]
   }
 };
 let LANG = 'en';
@@ -895,8 +898,187 @@ const I18N = {
     savingsRecordsLabel:'records'
   }
 };
-I18N.am = { ...I18N.en };
-I18N.om = { ...I18N.en };
+
+I18N.am = { ...I18N.en,
+  brandSub:'የሳኮ አስተዳደር', logout:'ውጣ', loading:'በመጫን ላይ…',
+  pageTitle:'ክፍፍል', pageSub:'ዓመታዊ ትርፍን በአባላትና በሳኮ ካፒታል መካከል ያሰራጩ',
+  year:'ዓመት', status:'ሁኔታ', statusOpen:'ክፍት', statusClosed:'ተዘግቷል',
+  netProfit:'የተጣራ ትርፍ', customersPaid:'የተከፈሉ ደንበኞች', avgDividend:'አማካይ ክፍፍል',
+  perShare:'በአክሲዮን', totalShares:'ጠቅላላ አክሲዮኖች',
+  profitBreakdown:'የተጣራ ትርፍ ትንተና', totalIncome:'ጠቅላላ ገቢ', netAmount:'የተጣራ ክፍያ',
+  grossAmount:'ጠቅላላ መጠን', taxAmount:'ታክስ', taxRate:'የታክስ መጠን (%)',
+  distributeBtn:'ክፍፍል አሰራጭ', distributeConfirm:'ስርጭቱን ያረጋግጡ',
+  distributeConfirmText:'ይህ ለሁሉም ብቁ አባላት የክፍፍል መዝገቦችን ይፈጥራል፣ የተቀረውን ትርፍ ደግሞ ለሳኮ ካፒታል ይመድባል።',
+  autoApprove:'ሁሉንም መዝገቦች በራስ-ሰር አጽድቅ (ለአስተዳዳሪዎች ይመከራል)',
+  memberSharePct:'የአባላት ድርሻ (%)', saccoSharePct:'የሳኮ ካፒታል (%)',
+  splitMembers:'ለአባላት', splitSacco:'ለሳኮ ካፒታል', splitTotal:'ጠቅላላ ትርፍ',
+  memberAmount:'የአባላት መጠን', saccoAmount:'የሳኮ ካፒታል መጠን',
+  taxApplied:'ታክስ ተተግብሯል', netAfterTax:'ከታክስ በኋላ የተጣራ',
+  batchTitle:'የስርጭት ባች', batchRef:'የባች ማጣቀሻ', batchCreated:'የተፈጠረ',
+  batchPaid:'ተከፍሏል', batchClosed:'ተዘግቷል', batchPrintYearly:'ዓመታዊ ሪፖርት አትም',
+  closeYear:'ዓመቱን ዝጋ', closeYearText:'ይህን ዓመት ይዘጋ? ተጨማሪ ለውጦች አይፈቀዱም።',
+  childrenTitle:'የክፍፍል መዝገቦች', childrenSub:'ከዚህ ስርጭት የግለሰብ ክፍያዎች',
+  searchPlaceholder:'በደንበኛ፣ በመታወቂያ፣ በተከታታይ ቁጥር ይፈልጉ…',
+  colHash:'#', colCustomer:'ደንበኛ', colSerial:'ተከታታይ ቁጥር', colType:'የክፍያ ቅርጽ',
+  colShares:'አክሲዮኖች', colPercent:'ድርሻ %', colRate:'መጠን', colGross:'ጠቅላላ',
+  colTax:'ታክስ', colNet:'የተጣራ ክፍያ', colStatus:'ሁኔታ', colDate:'ቀን', colActions:'ተግባራት',
+  typeCash:'ወደ ቁጠባ ተከፍሏል', typeShares:'የቦነስ አክሲዮን',
+  statusPending:'በመጠባበቅ ላይ', statusPaid:'ተከፍሏል', statusRejected:'ውድቅ ተደርጓል',
+  view:'ተመልከት', edit:'አስተካክል', reject:'ውድቅ አድርግ', approve:'ተከፍሏል ብለህ ምልክት አድርግ',
+  del:'ሰርዝ', print:'ስነ-ጽሁፍ አትም',
+  noChildren:'እስካሁን የክፍፍል መዝገቦች የሉም',
+  noChildrenText:'ለዚህ ዓመት መዝገቦችን ለማመንጨት ክፍፍል ያሰራጩ።',
+  noProfit:'ለዚህ ዓመት የተጣራ ትርፍ የለም',
+  noProfitText:'ለማሰራጨት የተጣራ ትርፍ የለም። መጀመሪያ ገቢና ወጪን ይገምግሙ።',
+  yearClosed:'ይህ ዓመት ተዘግቷል', yearClosedText:'ሁሉም መዝገቦች ተቆልፈዋል። ለመገምገም ወይም ለማተም ዓመታዊ ሪፖርቱን ይጠቀሙ።',
+  save:'አስቀምጥ', cancel:'ሰርዝ', close:'ዝጋ', delete:'ሰርዝ',
+  savedOk:'በተሳካ ሁኔታ ተቀምጧል', createdOk:'ስርጭቱ ተፈጥሯል',
+  approvedOk:'ተከፍሏል ተብሎ ምልክት ተደርጓል', rejectedOk:'ውድቅ ተደርጓል',
+  deletedOk:'ተሰርዟል', closedOk:'ዓመቱ ተዘግቷል',
+  errorSave:'ማስቀመጥ አልተቻለም፦ ', errorDelete:'መሰረዝ አልተቻለም፦ ',
+  noPermission:'ለዚህ ተግባር ፈቃድ የለዎትም።',
+  accessDenied:'መዳረሻ ተከልክሏል', accessDeniedText:'ይህን ገጽ ማየት አይችሉም።',
+  backToDashboard:'ወደ ዳሽቦርድ ተመለስ',
+  logoutTitle:'የመውጣት ማረጋገጫ', logoutText:'እርግጠኛ ነዎት መውጣት ይፈልጋሉ?',
+  newManual:'አዲስ በእጅ ክፍፍል', editRecord:'የክፍፍል መዝገብ አስተካክል',
+  overrideReason:'የመተካት ምክንያት', rejectionReason:'የውድቅ ምክንያት',
+  rejectTitle:'ክፍፍል ውድቅ አድርግ', deleteTitle:'የክፍፍል መዝገብ ሰርዝ',
+  customer:'ደንበኛ', fiscalYear:'የበጀት ዓመት', paymentType:'የክፍያ ዓይነት',
+  sharesHeld:'የተያዙ አክሲዮኖች', ratePerShare:'መጠን/አክሲዮን',
+  amountOverride:'ቀጥታ የመጠን መተኪያ', date:'የክፍያ ቀን', reference:'ማጣቀሻ', notes:'ማስታወሻዎች',
+  statusLbl:'ሁኔታ', pickCustomer:'ደንበኛ ይምረጡ', searchCustomers:'ደንበኞችን ይፈልጉ…',
+  voucher:'የክፍፍል ስነ-ጽሁፍ', voucherSub:'ዓመታዊ የክፍፍል ስርጭት',
+  printOriginal:'ዋና', printCopy:'ቅጂ',
+  yearlyReport:'ዓመታዊ የክፍፍል ሪፖርት', printBtn:'አትም', closeBtn:'ዝጋ',
+  showing:'እያሳየ', of:'ከ', records:'መዝገቦች',
+  amountInWords:'መጠን በቃላት', memberSignature:'የአባል ፊርማ', officialStamp:'ኦፊሴላዊ ማህተም',
+  distributionHistory:'የስርጭት ታሪክ', distributionHistorySub:'ሁሉም የክፍፍል ባቾች በሁሉም ዓመታት',
+  saccoCapitalHistory:'የሳኮ ካፒታል ድልድሎች', saccoCapitalHistorySub:'ከሁሉም ክፍፍል ስርጭቶች የተያዘ ትርፍ',
+  colYear:'ዓመት', colBatchRef:'የባች ማጣቀሻ', colRecipients:'ተቀባዮች',
+  colMemberGross:'የአባላት ጠቅላላ', colMemberTax:'የተቀነሰ ታክስ', colMemberNet:'የተጣራ ክፍያ',
+  colTotalProfit:'ጠቅላላ ትርፍ', colSaccoPct:'የሳኮ %', colSaccoAmt:'የሳኮ መጠን',
+  colPaidDate:'የተከፈለበት ቀን', colBasis:'መሠረት',
+  noMemberDiv:'እስካሁን የአባል ክፍፍል መዝገቦች የሉም', noSaccoCap:'የሳኮ ካፒታል ድልድሎች የሉም',
+  closeWindow:'የመዝጊያ ጊዜ', closeWindowOpen:'አሁን ክፍት ነው (ታህሳስ 30 ወይም 31)',
+  closeWindowNotYet:'ዓመት {year} ዛሬ ሊዘጋ አይችልም',
+  diagTitle:'የማዋቀሪያ ምርመራ',
+  readOnlyBanner:'የንባብ-ብቻ ሁነታ፦ ሚናዎ የክፍፍል ሪፖርቶችን ማየትና ማተም ይችላል፣ ነገር ግን ማሰራጨት፣ ማስተካከል ወይም መሰረዝ አይችልም።',
+  invalidSplit:'የአባል ድርሻ በ0% እና 100% መካከል መሆን አለበት።',
+
+  basisLabel:'የስርጭት መሠረት',
+  basisSelectLabel:'ትርፍ በአባላት መካከል እንዴት እንደሚከፋፈል ይምረጡ',
+  basisShares:'በአክሲዮን', basisSavings:'በቁጠባ', basisLoans:'በብድር ቁርጠኝነት',
+  basisSavingsShares:'ቁጠባ + አክሲዮን', basisSharesLoans:'አክሲዮን + ብድር', basisSavingsLoans:'ቁጠባ + ብድር',
+  basisAll:'ሁሉም ቁርጠኝነቶች',
+  basisAllSuperAdminOnly:'ለዋና አስተዳዳሪ ብቻ',
+  basisAllRestricted:'ይህ መሠረት በሁሉም ሚናዎች ሊታይ ይችላል፣ ነገር ግን ዋና አስተዳዳሪ ብቻ ማሰራጨት ይችላል።',
+  basisNoData:'ለዚህ መሠረት መረጃ የለም',
+  basisNoDataText:'ለዚህ ዓመት ብቁ የሆነ የቁርጠኝነት ዋጋ አልተገኘም። ሌላ መሠረት ይሞክሩ።',
+  savingsBalance:'የቁጠባ ቀሪ ሂሳብ', loanCommitment:'የብድር ቁርጠኝነት',
+  totalSavings:'ጠቅላላ ቁጠባ', totalLoans:'ጠቅላላ የብድር ቁርጠኝነት',
+  allWeight:'የተዋሃደ ክብደት', rate:'መጠን', weightPercent:'የክብደት %',
+  noSavingsData:'ለዚህ ዓመት የቁጠባ ቀሪ ሂሳብ የለም', noLoansData:'ንቁ የብድር ቁርጠኝነት የለም',
+
+  mixPanel:'የአካላት ክብደቶች', mixSum:'ድምር', mixInvalid:'መቶኛዎች ወደ 100% መደመር አለባቸው',
+  mixSavingsPct:'ቁጠባ %', mixSharesPct:'አክሲዮን %', mixLoansPct:'ብድር %',
+  mixWeightsSaved:'ክብደቶች ወደ ቅንብሮች ተቀምጠዋል',
+
+  savingsDiagTitle:'የቁጠባ ውሂብ ዜሮ ያነባል',
+  savingsDiagBody:'የቁጠባ ቀሪ ሂሳብ አልተገኘም። ተፈትሿል፦',
+  savingsDiagHint:'ውሂብዎ በአንዱ ውስጥ መሆኑን ያረጋግጡ፦ savings, savings_accounts, transactions (type savings_deposit / savings_withdrawal), ወይም deposits — እና እንደ balance, netSavings, currentBalance, totalBalance, ወይም amount ያሉ የመስክ ስሞችን ይጠቀሙ።',
+  savingsSourceLabel:'ምንጭ', savingsErrorsLabel:'ስህተቶች', savingsRecordsLabel:'መዝገቦች'
+};
+
+I18N.om = { ...I18N.en,
+  brandSub:'Bulchiinsa SACCO', logout:"Ba'i", loading:"Fe'aa jira…",
+  pageTitle:'Qooda', pageSub:"Bu'aa waggaa miseensota fi kaappitaala SACCO gidduutti raabsaa",
+  year:'Waggaa', status:'Haala', statusOpen:'Banaa', statusClosed:'Cufame',
+  netProfit:"Bu'aa Qulqulluu", customersPaid:'Maamiltoota Kaffalaman', avgDividend:'Qooda Giddu-galeessa',
+  perShare:'Hirmaata Tokkoof', totalShares:'Hirmaata Waliigalaa',
+  profitBreakdown:"Xinxala Bu'aa Qulqulluu", totalIncome:'Galii Waliigalaa', netAmount:'Kaffaltii Qulqulluu',
+  grossAmount:'Hamma Waliigalaa', taxAmount:'Taaksii', taxRate:'Saffisa Taaksii (%)',
+  distributeBtn:'Qooda Raabsi', distributeConfirm:'Raabsa Mirkaneessi',
+  distributeConfirmText:"Kun miseensota mijaawaa hundaaf galmee qooda ni uuma, bu'aa hafe immoo kaappitaala SACCOf ni ramada.",
+  autoApprove:"Galmee hunda ofumaan mirkaneessi (bulchtootaaf ni gorfama)",
+  memberSharePct:'Qooda Miseensotaa (%)', saccoSharePct:'Kaappitaala SACCO (%)',
+  splitMembers:'Miseensotaaf', splitSacco:'Kaappitaala SACCOf', splitTotal:"Bu'aa Waliigalaa",
+  memberAmount:'Hamma Miseensotaa', saccoAmount:'Hamma Kaappitaala SACCO',
+  taxApplied:'Taaksiin hojiirra oole', netAfterTax:'taaksii booda qulqulluu',
+  batchTitle:'Baachii Raabsaa', batchRef:'Wabii Baachii', batchCreated:'Uumame',
+  batchPaid:'Kaffalame', batchClosed:'Cufame', batchPrintYearly:'Gabaasa Waggaa Maxxansi',
+  closeYear:'Waggaa Cufi', closeYearText:'Waggaa kana cufuu barbaadda? Jijjiiramni biraa hin hayyamamu.',
+  childrenTitle:'Galmee Qooda', childrenSub:'Kaffaltii dhuunfaa raabsa kana irraa',
+  searchPlaceholder:'Maamila, ID, lakk. tartiibaan barbaadi…',
+  colHash:'#', colCustomer:'Maamila', colSerial:'Lakk. Tartiibaa', colType:'Boca Kaffaltii',
+  colShares:'Hirmaata', colPercent:'Qooda %', colRate:'Saffisa', colGross:'Waliigala',
+  colTax:'Taaksii', colNet:'Kaffaltii Qulqulluu', colStatus:'Haala', colDate:'Guyyaa', colActions:'Gocha',
+  typeCash:'Qusannaatti galmeeffame', typeShares:'Hirmaata Boonasii',
+  statusPending:'Eegaa', statusPaid:'Kaffalame', statusRejected:'Kufe',
+  view:'Ilaali', edit:'Gulaali', reject:'Garfii', approve:'Kaffalame jedhii mallattoo godhi',
+  del:'Haqi', print:'Waraqaa Ragaa Maxxansi',
+  noChildren:'Amma ammaatti galmeen qooda hin jiru',
+  noChildrenText:'Galmee waggaa kanaaf uumuuf qooda raabsi.',
+  noProfit:"Waggaa kanaaf bu'aan qulqulluun hin jiru",
+  noProfitText:"Raabsuuf bu'aan qulqulluun hin jiru. Dura galii fi baasii gamaaggami.",
+  yearClosed:'Waggaan kun cufameera', yearClosedText:'Galmeen hundi cufameera. Gamaaggamuu yookaan maxxansuuf gabaasa waggaa fayyadami.',
+  save:"Olkaa'i", cancel:'Haqi', close:'Cufi', delete:'Haqi',
+  savedOk:"Milkaa'inaan olkaa'ame", createdOk:'Raabsaan uumame',
+  approvedOk:'Kaffalame jedhii mallattoo godhame', rejectedOk:'Kufe',
+  deletedOk:'Haqame', closedOk:'Waggaan cufame',
+  errorSave:"Olkaa'uu hin dandeenye: ", errorDelete:'Haquu hin dandeenye: ',
+  noPermission:'Gocha kanaaf hayyamni hin jiru.',
+  accessDenied:'Hayyamni dhorkame', accessDeniedText:'Fuula kana ilaaluu hin dandeessu.',
+  backToDashboard:"Gara Daashboordii Deebi'i",
+  logoutTitle:"Mirkaneessa Ba'uu", logoutText:"Dhuguma ba'uu barbaadda?",
+  newManual:'Qooda Harkaan Haaraa', editRecord:'Galmee Qooda Gulaali',
+  overrideReason:'Sababa Jijjiiramaa', rejectionReason:'Sababa Kufaatii',
+  rejectTitle:'Qooda Garfii', deleteTitle:'Galmee Qooda Haqi',
+  customer:'Maamila', fiscalYear:'Waggaa Baajataa', paymentType:'Gosa Kaffaltii',
+  sharesHeld:'Hirmaata Qabame', ratePerShare:'Saffisa/Hirmaata',
+  amountOverride:'Jijjiirama Hamma Kallattii', date:'Guyyaa Kaffaltii', reference:'Wabii', notes:'Yaadannoo',
+  statusLbl:'Haala', pickCustomer:'Maamila filadhu', searchCustomers:'Maamiltoota barbaadi…',
+  voucher:'Waraqaa Ragaa Qoodaa', voucherSub:'Raabsa Qooda Waggaa',
+  printOriginal:'JALQABAA', printCopy:'KOPPII',
+  yearlyReport:'Gabaasa Qooda Waggaa', printBtn:'Maxxansi', closeBtn:'Cufi',
+  showing:'Agarsiisaa', of:'keessaa', records:'galmee',
+  amountInWords:'Hamma jechaan', memberSignature:'Mallattoo Miseensaa', officialStamp:'Chaappaa Ofiisaa',
+  distributionHistory:'Seenaa Raabsaa', distributionHistorySub:'Baachiiwwan qooda waggaa hunda keessatti',
+  saccoCapitalHistory:'Ramaddii Kaappitaala SACCO', saccoCapitalHistorySub:"Bu'aa hafaa raabsa qooda hunda irraa",
+  colYear:'Waggaa', colBatchRef:'Wabii Baachii', colRecipients:'Fudhattoota',
+  colMemberGross:'Waliigala Miseensotaa', colMemberTax:'Taaksii Qabame', colMemberNet:'Kaffaltii Qulqulluu',
+  colTotalProfit:"Bu'aa Waliigalaa", colSaccoPct:'SACCO %', colSaccoAmt:'Hamma SACCO',
+  colPaidDate:'Guyyaa Kaffalame', colBasis:"Bu'uura",
+  noMemberDiv:'Amma ammaatti galmeen qooda miseensaa hin jiru', noSaccoCap:'Ramaddiin kaappitaala SACCO hin jiru',
+  closeWindow:'Yeroo Cufiinsaa', closeWindowOpen:'Amma banaa (Muddee 30 yookaan 31)',
+  closeWindowNotYet:"Waggaa {year} har'a cufamuu hin danda'u",
+  diagTitle:"Sakatta'ina Qindaa'inaa",
+  readOnlyBanner:"Haala dubbisuu-qofa: miilni kee gabaasa qooda ilaaluu fi maxxansuu danda'a, garuu raabsuu, gulaaluu, yookaan haquu hin danda'u.",
+  invalidSplit:"Qoodni miseensaa 0% fi 100% gidduu ta'uu qaba.",
+
+  basisLabel:"Bu'uura Raabsaa",
+  basisSelectLabel:"Bu'aan akkamitti miseensota gidduutti akka qoodamu filadhu",
+  basisShares:'Hirmaataan', basisSavings:'Qusannaadhaan', basisLoans:'Boqonnaa Liqiidhaan',
+  basisSavingsShares:'Qusannaa + Hirmaata', basisSharesLoans:'Hirmaata + Liqii', basisSavingsLoans:'Qusannaa + Liqii',
+  basisAll:'Boqonnaa Hunda',
+  basisAllSuperAdminOnly:"Bulchaa Ol'aanaaf qofa",
+  basisAllRestricted:"Bu'aan kun miiltoota hundaaf mul'achuu danda'a, garuu Bulchaan Ol'aanaa qofa raabsuu danda'a.",
+  basisNoData:"Bu'aa kanaaf daataan hin jiru",
+  basisNoDataText:"Waggaa kanaaf gatii boqonnaa mijataa hin argamne. Bu'aa biraa yaali.",
+  savingsBalance:'Hafteewwan Qusannaa', loanCommitment:'Boqonnaa Liqii',
+  totalSavings:'Qusannaa Waliigalaa', totalLoans:'Boqonnaa Liqii Waliigalaa',
+  allWeight:'Ulfaatina Walitti Makame', rate:'Saffisa', weightPercent:'Ulfaatina %',
+  noSavingsData:'Waggaa kanaaf hafteewwan qusannaa hin jiran', noLoansData:'Boqonnaan liqii sochii hin jiru',
+
+  mixPanel:'Ulfaatina Qooda', mixSum:'Waliigala', mixInvalid:"Persentiin 100% ta'uu qaba",
+  mixSavingsPct:'Qusannaa %', mixSharesPct:'Hirmaata %', mixLoansPct:'Liqii %',
+  mixWeightsSaved:"Ulfaatinni qindaa'ina keessa galameera",
+
+  savingsDiagTitle:'Daataan qusannaa zeeroo dubbisa',
+  savingsDiagBody:"Hafteen qusannaa hin argamne. Sakatta'ameera:",
+  savingsDiagHint:"Daataan keessan tokko keessa jiraachuu mirkaneessi: savings, savings_accounts, transactions (type savings_deposit / savings_withdrawal), yookaan deposits — akkasumas maqaa dirree akka balance, netSavings, currentBalance, totalBalance, yookaan amount fayyadami.",
+  savingsSourceLabel:'Madda', savingsErrorsLabel:'Dogoggora', savingsRecordsLabel:'galmee'
+};
+
 const SUPPORTED_LANGS = ['en','am','om'];
 const FALLBACK_LANG = 'en';
 const LANG_KEY = 'sacco.lang';
@@ -1182,14 +1364,40 @@ function getBasisMix(basis) {
     const v = APP.basisMix[basis] || [BASIS_MIX_DEFAULT_PCT, 100 - BASIS_MIX_DEFAULT_PCT];
     return [num(v[0]), num(v[1])];
   }
-  if (basis === 'all') return [100/3, 100/3, 100/3];
+  if (basis === 'all') {
+    const v = APP.basisMix.all || [33.34, 33.33, 33.33];
+    return [num(v[0]), num(v[1]), num(v[2])];
+  }
   return [100];
 }
 function setBasisMix(basis, pcts) {
   if (MIXED_BASES.includes(basis) && Array.isArray(pcts) && pcts.length === 2) {
     const a = Math.max(0, Math.min(100, num(pcts[0])));
     APP.basisMix[basis] = [round2(a), round2(100 - a)];
+  } else if (basis === 'all' && Array.isArray(pcts) && pcts.length === 3) {
+    const a = Math.max(0, Math.min(100, num(pcts[0])));
+    const b = Math.max(0, Math.min(100, num(pcts[1])));
+    const c = Math.max(0, Math.min(100, num(pcts[2])));
+    APP.basisMix.all = [round2(a), round2(b), round2(c)];
   }
+}
+/* Rebalance 3-way mix when user edits one value (proportional) */
+function rebalanceAll(oldMix, changedIdx, newVal) {
+  const v = Math.max(0, Math.min(100, num(newVal)));
+  const remaining = round2(100 - v);
+  const others = [0,1,2].filter(i => i !== changedIdx);
+  const otherSum = others.reduce((s,i) => s + num(oldMix[i]), 0);
+  const out = [...oldMix];
+  out[changedIdx] = v;
+  if (otherSum > 0) {
+    others.forEach(i => { out[i] = round2(num(oldMix[i]) / otherSum * remaining); });
+  } else {
+    others.forEach(i => { out[i] = round2(remaining / others.length); });
+  }
+  const total = out.reduce((s,x) => s + x, 0);
+  const drift = round2(100 - total);
+  if (Math.abs(drift) > 0.001) out[changedIdx] = round2(out[changedIdx] + drift);
+  return out;
 }
 function isBasisSuperAdminOnly(basis) {
   return SUPER_ADMIN_ONLY_BASES.includes(basis);
@@ -1233,14 +1441,12 @@ async function loadSavingsBalancesForBasis(year){
         if (!cid) return;
         const st = String(x.status || 'active').toLowerCase();
         if (['closed','cancelled','canceled','inactive','archived'].includes(st)) return;
-        // Year filter if doc carries year info
         if (year) {
           const docYear = num(x.year || x.fiscalYear || 0);
           if (docYear && docYear > year) return;
           const docDate = toDate(x.date || x.createdAt || x.updatedAt);
           if (docDate && docDate.getFullYear() > year) return;
         }
-        // Net first, then various balance fields
         const bal = num(
           x.netSavings ?? x.net_savings ?? x.netBalance ?? x.net_balance ??
           x.savingsBalance ?? x.balanceAmount ?? x.totalSavings ??
@@ -1421,16 +1627,13 @@ function _normWeights(byCust, total){
   return out;
 }
 
-/* ===== PREVIEW BUILDER (single + mixed) ===== */
+/* ===== PREVIEW BUILDER (single + mixed, uses stored `all`) ===== */
 function buildPreviewForBasis({ profit, basisData, basis = 'shares', customers, taxRate = 0, memberPercent = 100 }){
   if (!basisData) return [];
   if (!profit || num(profit.netProfit) <= 0) return [];
 
   const comps = getBasisComponents(basis);
-  let pcts;
-  if (comps.length === 1) pcts = [100];
-  else if (basis === 'all') pcts = [100/3, 100/3, 100/3];
-  else pcts = getBasisMix(basis);
+  const pcts = comps.length === 1 ? [100] : getBasisMix(basis);
 
   const sumPct = pcts.reduce((s, p) => s + num(p), 0);
   if (sumPct <= 0) return [];
@@ -1476,7 +1679,6 @@ function buildPreviewForBasis({ profit, basisData, basis = 'shares', customers, 
   }
   rows.sort((a,b) => b.weight - a.weight);
 
-  // Reconcile rounding
   if (rows.length) {
     const sumGross = round2(rows.reduce((s, r) => s + r.grossAmount, 0));
     const diff = round2(memberPool - sumGross);
@@ -1493,7 +1695,7 @@ function getBasisTotal(basisData, basis){
   if (!basisData) return 0;
   const comps = getBasisComponents(basis);
   if (comps.length === 1) return num(basisData[comps[0].key]?.total);
-  return 1; // mixed
+  return 1;
 }
 
 /* ===== PROFIT ===== */
@@ -2126,7 +2328,6 @@ function renderOverview(ov) {
   const dps = ov.ledger.totals.closing > 0 ? num(batch?.dividendPerShare) || (memberPortionShown / ov.ledger.totals.closing) : 0;
   const diag = ov.ledger?.diag || null;
 
-  // KPI label & value depends on selected basis
   const basis = APP.selectedBasis || 'shares';
   const comps = getBasisComponents(basis);
   let kpiLabel = t('totalShares'), kpiValue = num(ov.ledger.totals.closing).toLocaleString(), kpiHint = esc(basisLabel(basis));
@@ -2276,7 +2477,7 @@ function renderBatchCard(batch) {
     </div>`;
 }
 
-/* ===== PREVIEW CARD (with dropdown + mix panel) ===== */
+/* ===== PREVIEW CARD (with dropdown + mix panel + 3-way support) ===== */
 function renderPreviewCard(ov) {
   const basis = ov.basis || 'shares';
   const comps = getBasisComponents(basis);
@@ -2298,7 +2499,6 @@ function renderPreviewCard(ov) {
   const showSavingsDiag = usesSavings && savingsEmpty && ov.savingsDiag;
   const showLoansDiag = usesLoans && loansEmpty;
 
-  // basis KPI summary
   const single = comps.length === 1;
   let basisKpi = { label: '', value: '', rateLabel: '' };
   if (single) {
@@ -2386,7 +2586,6 @@ function renderPreviewCard(ov) {
         </tr></tfoot>
       </table></div>`;
   } else {
-    // Mixed — show breakdown columns
     const body = rows.map((r, i) => {
       totalWeight += r.weight; totalNet += r.netAmount;
       return `<tr>
@@ -2421,28 +2620,27 @@ function renderPreviewCard(ov) {
       </table></div>`;
   }
 
-  // Build dropdown
+  // Dropdown — all options selectable for all roles
   const dropdownOptions = BASIS_ORDER.map(b => {
-    const disabled = isBasisSuperAdminOnly(b) && !isSuperAdmin;
-    const label = basisLabel(b) + (isBasisSuperAdminOnly(b) ? ` (${t('basisAllSuperAdminOnly')})` : '');
-    return `<option value="${b}" ${basis === b ? 'selected' : ''} ${disabled ? 'disabled' : ''}>${esc(label)}</option>`;
+    const label = basisLabel(b) + (isBasisSuperAdminOnly(b) && !isSuperAdmin ? ` — ${t('basisAllSuperAdminOnly')}` : '');
+    return `<option value="${b}" ${basis === b ? 'selected' : ''}>${esc(label)}</option>`;
   }).join('');
 
-  // Mix panel (only for mixed bases)
+  // Mix panel — for 2-component mixed AND for 'all' (3-component)
   let mixPanelHtml = '';
-  if (MIXED_BASES.includes(basis)) {
-    const [a, b2] = pcts;
+  if (MIXED_BASES.includes(basis) || basis === 'all') {
+    const n = comps.length;
+    const total = pcts.reduce((s,p) => s + num(p), 0);
+    const sumBad = Math.abs(total - 100) > 0.01;
+    const cells = comps.map((c, i) => `
+      <div class="basis-mix-cell">
+        <label>${esc(t(c.label))} %</label>
+        <input type="number" min="0" max="100" step="0.1" value="${num(pcts[i])}" data-mix-idx="${i}">
+      </div>`).join('');
     mixPanelHtml = `
-      <div class="basis-mix-panel" id="basisMixPanel">
-        <div class="basis-mix-cell">
-          <label>${esc(t(comps[0].label))} %</label>
-          <input type="number" min="0" max="100" step="0.1" value="${a}" data-mix-idx="0">
-        </div>
-        <div class="basis-mix-cell">
-          <label>${esc(t(comps[1].label))} %</label>
-          <input type="number" min="0" max="100" step="0.1" value="${b2}" data-mix-idx="1" readonly>
-        </div>
-        <div class="basis-mix-sum" id="basisMixSum">${esc(t('mixSum'))}: ${(a + b2).toFixed(1)}%</div>
+      <div class="basis-mix-panel ${n === 3 ? 'is-all' : ''}" id="basisMixPanel">
+        ${cells}
+        <div class="basis-mix-sum ${sumBad ? 'is-bad' : ''}" id="basisMixSum">${esc(t('mixSum'))}: ${total.toFixed(1)}%</div>
       </div>`;
   }
 
@@ -2843,11 +3041,9 @@ function wireOverviewEvents(ov) {
   document.getElementById('closeYearBtn')?.addEventListener('click', () => openCloseYearModal(ov2));
   document.getElementById('batchPrintBtn')?.addEventListener('click', () => printYearlyReport());
 
-  // Basis dropdown
   document.getElementById('basisSelect')?.addEventListener('change', (e) => {
     const b = e.target.value;
     if (!BASIS_ORDER.includes(b)) return;
-    if (isBasisSuperAdminOnly(b) && APP.profile?.role !== 'super_admin') return;
     APP.selectedBasis = b;
     if (APP.overview) {
       APP.overview.basis = b;
@@ -2860,19 +3056,27 @@ function wireOverviewEvents(ov) {
     }
   });
 
-  // Mix panel inputs
+  // Mix panel inputs (2-component or 3-component)
   document.querySelectorAll('#basisMixPanel input[data-mix-idx]').forEach(inp => {
     inp.addEventListener('input', () => {
       const idx = Number(inp.dataset.mixIdx);
       const basis = APP.selectedBasis;
-      if (!MIXED_BASES.includes(basis)) return;
-      let v = Math.max(0, Math.min(100, num(inp.value)));
-      const partner = idx === 0 ? 1 : 0;
-      const mix = [0, 0];
-      mix[idx] = round2(v);
-      mix[partner] = round2(100 - v);
+      const is2 = MIXED_BASES.includes(basis);
+      const is3 = basis === 'all';
+      if (!is2 && !is3) return;
+
+      let mix;
+      if (is2) {
+        const v = Math.max(0, Math.min(100, num(inp.value)));
+        const partner = idx === 0 ? 1 : 0;
+        mix = [0, 0];
+        mix[idx] = round2(v);
+        mix[partner] = round2(100 - v);
+      } else {
+        mix = rebalanceAll(APP.basisMix.all, idx, num(inp.value));
+      }
       APP.basisMix[basis] = mix;
-      // Update sibling input + sum
+
       const panel = document.getElementById('basisMixPanel');
       if (panel) {
         panel.querySelectorAll('input[data-mix-idx]').forEach(x => {
@@ -2881,12 +3085,11 @@ function wireOverviewEvents(ov) {
         });
         const sumEl = document.getElementById('basisMixSum');
         if (sumEl) {
-          const sum = mix[0] + mix[1];
+          const sum = mix.reduce((s,v) => s + num(v), 0);
           sumEl.textContent = `${t('mixSum')}: ${sum.toFixed(1)}%`;
           sumEl.className = 'basis-mix-sum' + (Math.abs(sum - 100) > 0.01 ? ' is-bad' : '');
         }
       }
-      // Debounced save + rebuild preview
       saveWeightsDebounced();
       rebuildPreviewFromMix();
     });
@@ -2932,10 +3135,12 @@ const saveWeightsDebounced = debounce(async () => {
         basisWeights: {
           savings_shares: APP.basisMix.savings_shares,
           shares_loans:   APP.basisMix.shares_loans,
-          savings_loans:  APP.basisMix.savings_loans
+          savings_loans:  APP.basisMix.savings_loans,
+          all:            APP.basisMix.all
         }
       }
     }, { merge: true });
+    toast(t('mixWeightsSaved'), 'success');
   } catch (e) { console.warn('[save weights]', e.code || e.message); }
 }, 800);
 
@@ -3622,11 +3827,15 @@ async function loadSettings() {
       if (d.shortName) APP.shortName = d.shortName;
       APP.settings = mergeDashboard(d.dashboard || d);
       if (d.dividends && typeof d.dividends === 'object') APP.settings = { ...APP.settings, ...d.dividends };
-      // Load basisWeights into APP.basisMix
+      // Load basisWeights into APP.basisMix (2-comp + all 3-comp)
       if (APP.settings.basisWeights && typeof APP.settings.basisWeights === 'object') {
         Object.keys(APP.basisMix).forEach(k => {
           const arr = APP.settings.basisWeights[k];
-          if (Array.isArray(arr) && arr.length === 2) {
+          if (k === 'all') {
+            if (Array.isArray(arr) && arr.length === 3) {
+              APP.basisMix.all = [num(arr[0]), num(arr[1]), num(arr[2])];
+            }
+          } else if (Array.isArray(arr) && arr.length === 2) {
             APP.basisMix[k] = [num(arr[0]), num(arr[1])];
           }
         });
