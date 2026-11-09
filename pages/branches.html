@@ -443,12 +443,15 @@ const LOGIN_URL = "../index.html";
 const LOGO_URL  = "../images/logo.png";
 const DEFAULT_SACCO_NAME = 'GERESU DHUKI SACCO';
 const PROFILE_CACHE_KEY = 'sacco.profile';
+const BRANCHES_CACHE_KEY = 'sacco.branches.cache';
+const BRANCHES_CACHE_VERSION = 1;
 
 /* SESSION */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
 let SESSION_MINUTES = null;
 let awayStartedAt = null, awayCheckInterval = null;
+let _bootDone = false;
 
 function readSession() { try { const r = sessionStorage.getItem(SESSION_KEY); if (!r) return null; const s = JSON.parse(r); return (s && s.uid) ? s : null; } catch (e) { return null; } }
 function clearSession() { try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {} }
@@ -479,6 +482,45 @@ function writeCachedProfile() {
   } catch (e) {}
 }
 function clearCachedProfile() { try { sessionStorage.removeItem(PROFILE_CACHE_KEY); } catch (e) {} }
+
+/* Branches page cache — per-uid, versioned */
+function readBranchesCache(uid) {
+  if (!uid) return null;
+  try {
+    const raw = localStorage.getItem(BRANCHES_CACHE_KEY + '.' + uid);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj || obj.v !== BRANCHES_CACHE_VERSION) return null;
+    return {
+      districts:    Array.isArray(obj.districts)    ? obj.districts    : [],
+      branches:     Array.isArray(obj.branches)     ? obj.branches     : [],
+      customers:    Array.isArray(obj.customers)    ? obj.customers    : [],
+      transactions: Array.isArray(obj.transactions) ? obj.transactions : []
+    };
+  } catch (e) { return null; }
+}
+function writeBranchesCache(uid, data) {
+  if (!uid) return;
+  try {
+    localStorage.setItem(BRANCHES_CACHE_KEY + '.' + uid, JSON.stringify({
+      v: BRANCHES_CACHE_VERSION,
+      ts: Date.now(),
+      districts:    data.districts    || [],
+      branches:     data.branches     || [],
+      customers:    data.customers    || [],
+      transactions: data.transactions || []
+    }));
+  } catch (e) {
+    if (e && e.name === 'QuotaExceededError') {
+      try { localStorage.removeItem(BRANCHES_CACHE_KEY + '.' + uid); } catch(_) {}
+    }
+  }
+}
+function clearBranchesCache(uid) {
+  if (!uid) return;
+  try { localStorage.removeItem(BRANCHES_CACHE_KEY + '.' + uid); } catch(e) {}
+}
+
 function hideLoaderNow() { const el = document.getElementById('loader'); if (el) el.classList.add('hide'); }
 function forceLogout(reason) {
   if (awayCheckInterval) { clearInterval(awayCheckInterval); awayCheckInterval = null; }
@@ -510,28 +552,6 @@ function startSessionWatcher() {
   window.addEventListener('focus', evaluateActivity);
   window.addEventListener('blur', evaluateActivity);
   evaluateActivity();
-}
-async function loadSessionTimeout() {
-  try {
-    const snap = await getDoc(doc(db, 'settings', 'system'));
-    if (snap.exists()) {
-      const data = snap.data();
-      let mins = DEFAULT_SESSION_MINUTES;
-      if (data.sessionTimeout != null) mins = Number(data.sessionTimeout);
-      else if (data.sessionTimeoutMinutes != null) mins = Number(data.sessionTimeoutMinutes);
-      if (!isFinite(mins) || mins < 1) mins = DEFAULT_SESSION_MINUTES;
-      if (mins > 1440) mins = 1440;
-      SESSION_MINUTES = Math.round(mins);
-    } else {
-      SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
-    }
-  } catch (e) {
-    if (SESSION_MINUTES == null) SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
-  }
-  try {
-    const s = readSession();
-    if (s) { s.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); }
-  } catch (e) {}
 }
 
 /* TRANSLATIONS */
@@ -744,12 +764,6 @@ function renderBrandTitle(name){
 
 /* ============================================================
    ROLE HELPERS — single source of truth
-   super_admin → all districts, full access
-   admin       → own district, create / edit / delete / view
-   manager     → own branch, view only (no CRUD)
-   cashier     → own branch, view only (no CRUD)
-   auditor     → all districts, view only
-   member      → no access (redirected)
    ============================================================ */
 const ROLES = { super_admin:'role_super_admin', admin:'role_admin', manager:'role_manager', cashier:'role_cashier', auditor:'role_auditor', member:'role_member' };
 const roleLabel = (r) => ROLES[r] ? t(ROLES[r]) : (r || '').replace(/_/g,' ');
@@ -761,13 +775,9 @@ const isCashier  = () => ['cashier','teller','accountant'].includes(APP.profile?
 const isAuditor  = () => APP.profile?.role === 'auditor';
 const isMember   = () => APP.profile?.role === 'member';
 
-/* Page access (member is not allowed on this page) */
-const canView    = () => isSuper() || isAdmin() || isAuditor() || isManager() || isCashier();
-
-/* Role-level permission: only super + admin can create / edit / delete */
+const canView       = () => isSuper() || isAdmin() || isAuditor() || isManager() || isCashier();
 const canCreateRole = () => isSuper() || isAdmin();
 
-/* Branch-level scope check — is this specific branch in the user's reach? */
 function inScopeBranch(b) {
   if (!b || !APP.profile) return false;
   if (isSuper() || isAuditor()) return true;
@@ -787,7 +797,6 @@ function inScopeBranch(b) {
   return false;
 }
 
-/* Per-branch edit/delete — super all, admin own district, others NO */
 function canEditBranch(b) {
   if (!b) return false;
   if (isSuper()) return true;
@@ -820,9 +829,7 @@ function assignableDistricts() {
     const p = APP.profile || {};
     const target = p.districtId || p.districtCode || p.districtName;
     if (!target) return [];
-    return APP.districts.filter(d =>
-      d.id === target || d.code === target || d.name === target
-    );
+    return APP.districts.filter(d => d.id === target || d.code === target || d.name === target);
   }
   return [];
 }
@@ -847,9 +854,7 @@ function scopeBranches() {
     const p = APP.profile || {};
     const target = p.branchId || p.branchCode || p.branchName;
     if (!target) return [];
-    return APP.branches.filter(b =>
-      b.id === target || b.code === target || b.name === target
-    );
+    return APP.branches.filter(b => b.id === target || b.code === target || b.name === target);
   }
   return [];
 }
@@ -1197,7 +1202,6 @@ function renderGridView(host, list) {
 function renderBranchCard(b) {
   const cc = customerCount(b);
   const savings = branchSavings(b);
-  /* Per-branch permission — NOT global canEdit */
   const canE = canEditBranch(b);
   const dName = liveDistrictName(b);
 
@@ -1244,7 +1248,6 @@ function renderTableView(host, list) {
   if (APP.page > pages) APP.page = pages;
   const start = (APP.page - 1) * APP.pageSize;
   const pageList = list.slice(start, start + APP.pageSize);
-  /* Column presence: only show Actions column if at least one row is editable */
   const anyEditable = pageList.some(b => canEditBranch(b));
 
   host.innerHTML = `
@@ -1343,7 +1346,6 @@ function debounce(fn, ms) {
   };
 }
 
-/* Every row action re-checks role AND scope */
 function handleRowAction(action, id) {
   const b = APP.branches.find(x => x.id === id);
   if (!b) return;
@@ -1375,7 +1377,6 @@ function attachEscape() {
 function openBranchModal(branch) {
   closeModal('branchModal');
   const isEdit = !!branch;
-  /* Guard at entry: role + scope */
   if (isEdit && !canEditBranch(branch)) { toast(t('noPermission'), 'error'); return; }
   if (!isEdit && !canCreateRole())      { toast(t('noPermission'), 'error'); return; }
 
@@ -1455,7 +1456,6 @@ async function saveBranch() {
   const code = $('bCode').value.trim().toUpperCase();
   const notes = $('bNotes').value.trim();
 
-  /* Role check */
   const isEdit = !!APP.editingId;
   if (!isEdit && !canCreateRole())   { toast(t('noPermission'),'error'); return; }
   if (isEdit) {
@@ -1466,7 +1466,6 @@ async function saveBranch() {
   if (!districtId) { toast(t('noDistrictSelected'), 'warning'); return; }
   if (!name || !code) { toast(t('requiredFields'), 'warning'); return; }
 
-  /* Admin scope guard: districtId must match their own district */
   if (isAdmin()) {
     const p = APP.profile || {};
     const target = p.districtId || p.districtCode || p.districtName;
@@ -1573,7 +1572,6 @@ function openDeleteModal(branch) {
 
   btn?.addEventListener('click', async () => {
     if (hasRefs && !check?.checked) return;
-    /* Defence in depth: re-check scope and role before deleting */
     const original = APP.branches.find(x => x.id === APP.deletingId);
     if (!canDeleteBranch(original)) { toast(t('noPermission'),'error'); return; }
     btn.disabled = true;
@@ -1631,34 +1629,80 @@ function setLang(lang) {
   renderMain();
 }
 
-function attachListeners() {
+/* Write current state to cache (safe even if called often) */
+function persistCache() {
+  const uid = APP.user?.uid;
+  if (!uid) return;
+  writeBranchesCache(uid, {
+    districts: APP.districts,
+    branches: APP.branches,
+    customers: APP.customers,
+    transactions: APP.transactions
+  });
+}
+
+/* Debounced post-boot re-render (preserves search focus) */
+let _renderTimer = null;
+function scheduleRender() {
+  clearTimeout(_renderTimer);
+  _renderTimer = setTimeout(() => {
+    const active = document.activeElement;
+    const wasSearch = active?.id === 'fltSearch';
+    const selStart = wasSearch ? active.selectionStart : 0;
+    const selEnd   = wasSearch ? active.selectionEnd   : 0;
+    renderMain();
+    if (wasSearch) {
+      const inp = document.getElementById('fltSearch');
+      if (inp) { inp.focus(); try { inp.setSelectionRange(selStart, selEnd); } catch(e){} }
+    }
+    persistCache();
+  }, 150);
+}
+
+/* attachListeners — resolves after first snapshot each */
+async function attachListeners() {
   stopListeners();
-  const watch = (coll, key, orderField) => {
+
+  const setup = (coll, orderField) => new Promise((resolve) => {
     let ref = collection(db, coll);
     if (orderField) ref = query(ref, orderBy(orderField, 'desc'), limit(500));
+    let first = true;
     const unsub = onSnapshot(ref,
       (snap) => {
-        APP[key] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        if (key === 'customers' || key === 'branches' || key === 'transactions') {
+        APP[coll] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (coll === 'customers' || coll === 'branches' || coll === 'transactions') {
           _branchStatsCache = null;
         }
-        renderMain();
+        if (first) { first = false; resolve(); }
+        else if (_bootDone) { scheduleRender(); }
       },
-      (err) => { console.warn('[listen]', coll, err.code, err.message); renderMain(); }
+      (err) => {
+        console.warn('[listen]', coll, err.code, err.message);
+        if (first) { first = false; resolve(); }
+      }
     );
     APP.unsubs.push(unsub);
-  };
-  watch('districts',    'districts');
-  watch('branches',     'branches');
-  watch('customers',    'customers');
-  watch('transactions', 'transactions', 'createdAt');
+  });
+
+  const timeout = new Promise((resolve) => setTimeout(resolve, 3000));
+  await Promise.race([
+    Promise.all([
+      setup('districts'),
+      setup('branches'),
+      setup('customers'),
+      setup('transactions', 'createdAt')
+    ]),
+    timeout
+  ]);
 }
 function stopListeners() {
   APP.unsubs.forEach(u => { try { u(); } catch(e){} });
   APP.unsubs = [];
 }
 
-/* BOOT */
+/* ============================================================
+   BOOT — cache-first, parallel fire, one render on data arrival
+============================================================ */
 (async function boot() {
   let saved = null;
   try { saved = localStorage.getItem(LANG_KEY); } catch(e){}
@@ -1675,9 +1719,22 @@ function stopListeners() {
     return;
   }
 
+  /* ---- T=0: read caches, fire network in parallel ---- */
   const cachedProfile = readCachedProfile();
+  const cachedData    = cachedProfile ? readBranchesCache(cachedProfile.uid) : null;
+
+  const authPromise     = new Promise(r => onAuthStateChanged(auth, u => r(u)));
+  const settingsPromise = getDoc(doc(db, 'settings', 'system')).catch(() => null);
+
+  /* ---- T=0: instant cache render ---- */
   let rendered = false;
-  if (cachedProfile && cachedProfile.uid) {
+  if (cachedProfile) {
+    // Early redirect if cached role can't see this page
+    if (cachedProfile.role === 'member') {
+      window.location.replace('dashboard.html');
+      return;
+    }
+
     APP.profile = {
       id: cachedProfile.uid,
       role: cachedProfile.role || 'viewer',
@@ -1689,6 +1746,15 @@ function stopListeners() {
       branchId: cachedProfile.branchId || '',
       branchName: cachedProfile.branchName || ''
     };
+
+    if (cachedData) {
+      APP.districts    = cachedData.districts;
+      APP.branches     = cachedData.branches;
+      APP.customers    = cachedData.customers;
+      APP.transactions = cachedData.transactions;
+      _branchStatsCache = null;
+    }
+
     renderShell();
     renderMain();
     hideLoaderNow();
@@ -1705,11 +1771,11 @@ function stopListeners() {
     renderShell();
     renderMain();
     hideLoaderNow();
+    rendered = true;
   }
 
-  const user = await new Promise((resolve) => {
-    const unsub = onAuthStateChanged(auth, (u) => { unsub(); resolve(u); });
-  });
+  /* ---- T=~150ms: await auth ---- */
+  const user = await authPromise;
   if (!user) {
     try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
     clearSession(); clearCachedProfile();
@@ -1724,49 +1790,98 @@ function stopListeners() {
   }
   APP.user = user;
 
+  /* ---- T=~350ms: await user doc ---- */
+  let userSnap;
   try {
-    const snap = await getDoc(doc(db, 'users', user.uid));
-    if (!snap.exists()) throw new Error('no-user-doc');
-    const d = snap.data();
-    if (d.status === 'inactive') throw new Error('inactive');
-    APP.profile = { id: snap.id, ...d, email: user.email || '' };
-    writeCachedProfile();
+    userSnap = await getDoc(doc(db, 'users', user.uid));
   } catch (e) {
-    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e2){}
+    console.error('[boot] user doc', e);
     clearSession(); clearCachedProfile();
     try { await signOut(auth); } catch(e2){}
     window.location.replace(LOGIN_URL);
     return;
   }
+  if (!userSnap.exists()) {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    clearSession(); clearCachedProfile();
+    try { await signOut(auth); } catch(e){}
+    window.location.replace(LOGIN_URL);
+    return;
+  }
+  const d = userSnap.data();
+  if (d.status === 'inactive') {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    clearSession(); clearCachedProfile();
+    try { await signOut(auth); } catch(e){}
+    window.location.replace(LOGIN_URL);
+    return;
+  }
 
-  /* Members are not allowed on this page */
-  if (isMember()) { window.location.replace('dashboard.html'); return; }
+  /* ---- T=~350ms: apply fresh profile; detect changes ---- */
+  const prevRole      = APP.profile?.role;
+  const prevDistrict  = APP.profile?.districtId;
+  const prevBranch    = APP.profile?.branchId;
 
-  const profileChanged = !rendered ||
-    (cachedProfile && (
-      (cachedProfile.name !== (APP.profile.fullName || APP.profile.name)) ||
-      cachedProfile.role !== APP.profile.role ||
-      cachedProfile.photoURL !== APP.profile.photoURL
-    ));
-  if (profileChanged) { renderShell(); renderMain(); }
-  hideLoaderNow();
+  APP.profile = { id: userSnap.id, ...d, email: user.email || '' };
+  writeCachedProfile();
 
-  await loadSessionTimeout();
-  startSessionWatcher();
+  /* Hard redirect for roles without access */
+  if (isMember()) {
+    window.location.replace('dashboard.html');
+    return;
+  }
 
+  /* If scope changed vs cache → wipe stale data */
+  const roleChanged     = prevRole !== APP.profile.role;
+  const districtChanged = prevDistrict !== APP.profile.districtId;
+  const branchChanged   = prevBranch !== APP.profile.branchId;
+  if (roleChanged || districtChanged || branchChanged) {
+    clearBranchesCache(user.uid);
+    APP.districts    = [];
+    APP.branches     = [];
+    APP.customers    = [];
+    APP.transactions = [];
+    _branchStatsCache = null;
+  }
+
+  /* ---- T=~350ms: attach listeners → await first snapshot each ---- */
+  await attachListeners();
+  _bootDone = true;
+
+  /* ---- T=~800ms: await settings (already resolved by now) ---- */
+  const settingsSnap = await settingsPromise;
+  if (settingsSnap && settingsSnap.exists()) {
+    const sd = settingsSnap.data();
+    let m = sd.sessionTimeout != null ? Number(sd.sessionTimeout)
+          : sd.sessionTimeoutMinutes != null ? Number(sd.sessionTimeoutMinutes)
+          : DEFAULT_SESSION_MINUTES;
+    if (!isFinite(m) || m < 1) m = DEFAULT_SESSION_MINUTES;
+    if (m > 1440) m = 1440;
+    SESSION_MINUTES = Math.round(m);
+    if (sd.saccoName && String(sd.saccoName).trim()) APP.saccoName = String(sd.saccoName).trim();
+    if (sd.shortName && String(sd.shortName).trim()) APP.shortName = String(sd.shortName).trim();
+  } else {
+    SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
+  }
   try {
-    const cfg = await getDoc(doc(db, 'settings', 'system'));
-    if (cfg.exists()) {
-      const dd = cfg.data();
-      if (dd.saccoName && String(dd.saccoName).trim()) APP.saccoName = String(dd.saccoName).trim();
-      if (dd.shortName && String(dd.shortName).trim()) APP.shortName = String(dd.shortName).trim();
-    }
+    const ss = readSession();
+    if (ss) { ss.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(ss)); }
   } catch(e){}
 
-  attachListeners();
+  /* ---- Write fresh data to cache ---- */
+  persistCache();
+
+  /* ---- Final render (single shot with fresh data) ---- */
+  if (!rendered || roleChanged || districtChanged || branchChanged) {
+    renderShell();
+  }
+  renderMain();
+  hideLoaderNow();
+
+  startSessionWatcher();
 })();
 
-console.log('[sacco] branches page ready — role-based access control applied');
+console.log('[sacco] branches page ready — cache-first, parallel boot, role logic unchanged');
 </script>
 
 </body>
