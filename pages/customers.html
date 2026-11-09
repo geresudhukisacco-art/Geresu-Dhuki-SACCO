@@ -542,6 +542,8 @@ const db    = getFirestore(fbApp);
 const LOGIN_URL = "../index.html";
 const LOGO_URL  = "../images/logo.png";
 const PROFILE_CACHE_KEY = 'sacco.profile';
+const CUSTOMERS_CACHE_KEY = 'sacco.customers.cache';
+const CUSTOMERS_CACHE_VERSION = 1;
 
 /* SESSION */
 const SESSION_KEY = "sacco.session";
@@ -549,6 +551,7 @@ const DEFAULT_SESSION_MINUTES = 30;
 let SESSION_MINUTES = null;
 let awayStartedAt = null;
 let awayCheckInterval = null;
+let _bootDone = false;
 
 function readSession() { try { const raw = sessionStorage.getItem(SESSION_KEY); if (!raw) return null; const s = JSON.parse(raw); return (s && s.uid) ? s : null; } catch (e) { return null; } }
 function clearSession() { try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {} }
@@ -579,6 +582,47 @@ function writeCachedProfile() {
   } catch (e) {}
 }
 function clearCachedProfile() { try { sessionStorage.removeItem(PROFILE_CACHE_KEY); } catch (e) {} }
+
+/* Customers page cache — per-uid, versioned */
+function readCustomersCache(uid) {
+  if (!uid) return null;
+  try {
+    const raw = localStorage.getItem(CUSTOMERS_CACHE_KEY + '.' + uid);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj || obj.v !== CUSTOMERS_CACHE_VERSION) return null;
+    return {
+      customers:    Array.isArray(obj.customers)    ? obj.customers    : [],
+      districts:    Array.isArray(obj.districts)    ? obj.districts    : [],
+      branches:     Array.isArray(obj.branches)     ? obj.branches     : [],
+      transactions: Array.isArray(obj.transactions) ? obj.transactions : [],
+      shareRecords: Array.isArray(obj.shareRecords) ? obj.shareRecords : []
+    };
+  } catch (e) { return null; }
+}
+function writeCustomersCache(uid, data) {
+  if (!uid) return;
+  try {
+    localStorage.setItem(CUSTOMERS_CACHE_KEY + '.' + uid, JSON.stringify({
+      v: CUSTOMERS_CACHE_VERSION,
+      ts: Date.now(),
+      customers:    data.customers    || [],
+      districts:    data.districts    || [],
+      branches:     data.branches     || [],
+      transactions: data.transactions || [],
+      shareRecords: data.shareRecords || []
+    }));
+  } catch (e) {
+    if (e && e.name === 'QuotaExceededError') {
+      try { localStorage.removeItem(CUSTOMERS_CACHE_KEY + '.' + uid); } catch(_) {}
+    }
+  }
+}
+function clearCustomersCache(uid) {
+  if (!uid) return;
+  try { localStorage.removeItem(CUSTOMERS_CACHE_KEY + '.' + uid); } catch(e){}
+}
+
 function hideLoaderNow() { const el = document.getElementById('loader'); if (el) el.classList.add('hide'); }
 function forceLogout(reason) {
   if (awayCheckInterval) { clearInterval(awayCheckInterval); awayCheckInterval = null; }
@@ -610,28 +654,6 @@ function startSessionWatcher() {
   window.addEventListener('focus', evaluateActivity);
   window.addEventListener('blur', evaluateActivity);
   evaluateActivity();
-}
-async function loadSessionTimeout() {
-  try {
-    const snap = await getDoc(doc(db, 'settings', 'system'));
-    if (snap.exists()) {
-      const data = snap.data();
-      let mins = DEFAULT_SESSION_MINUTES;
-      if (data.sessionTimeout != null) mins = Number(data.sessionTimeout);
-      else if (data.sessionTimeoutMinutes != null) mins = Number(data.sessionTimeoutMinutes);
-      if (!isFinite(mins) || mins < 1) mins = DEFAULT_SESSION_MINUTES;
-      if (mins > 1440) mins = 1440;
-      SESSION_MINUTES = Math.round(mins);
-    } else {
-      SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
-    }
-  } catch (e) {
-    if (SESSION_MINUTES == null) SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
-  }
-  try {
-    const s = readSession();
-    if (s) { s.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); }
-  } catch (e) {}
 }
 
 /* REGION → ZONES + CITIES */
@@ -1017,7 +1039,7 @@ const LOGO_FALLBACK = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/
 const LOGO_HTML = `<img src="${LOGO_URL}" alt="Geresu Dhuki SACCO" onerror="this.onerror=null; this.outerHTML=this.dataset.fallback;" data-fallback="${LOGO_FALLBACK.replace(/"/g, '&quot;')}">`;
 
 /* ═══════════════════════════════════════════════════════════
-   ROLE / PERMISSION HELPERS
+   ROLE / PERMISSION HELPERS (unchanged)
    ═══════════════════════════════════════════════════════════ */
 const ROLES = { super_admin:'role_super_admin', admin:'role_admin', manager:'role_manager', cashier:'role_cashier', auditor:'role_auditor', member:'role_member' };
 const roleLabel = (r) => ROLES[r] ? t(ROLES[r]) : (r || '').replace(/_/g,' ');
@@ -1032,10 +1054,8 @@ const isBranchStaff = () => isManager() || isCashier();
 
 const canView = () => isSuper() || isAdmin() || isManager() || isCashier() || isAuditor() || isMember();
 
-/* CREATE — super_admin (all), admin (own district), cashier (own branch) */
 const canCreateCustomer = () => isSuper() || isAdmin() || isCashier();
 
-/* EDIT — super_admin (all), admin (own district). Others = NO. */
 function canEditCustomer(c) {
   if (!c || !APP.profile) return false;
   const r = APP.profile.role;
@@ -1044,7 +1064,6 @@ function canEditCustomer(c) {
   return false;
 }
 
-/* DELETE — super_admin (all), admin (own district). Others = NO. */
 function canDeleteCustomer(c) {
   if (!c || !APP.profile) return false;
   const r = APP.profile.role;
@@ -1053,7 +1072,6 @@ function canDeleteCustomer(c) {
   return false;
 }
 
-/* Approve helper — use on transaction pages (savings, deposits, loans, withdrawals, penalties) */
 function canApproveTransaction(tx) {
   if (!tx || !APP.profile) return false;
   const r = APP.profile.role;
@@ -1063,14 +1081,6 @@ function canApproveTransaction(tx) {
   return false;
 }
 
-/* SCOPE — every page/list must go through this.
-   super_admin → all
-   admin       → own district only
-   manager     → own branch only
-   cashier     → own branch only
-   auditor     → ALL districts (view only)
-   member      → own record only
-*/
 function scopeCustomers() {
   const all = APP.customers.slice();
   if (!APP.profile) return [];
@@ -1638,7 +1648,6 @@ function renderMain() {
   const totalSavings = all.reduce((s, c) => s + customerSavings(c), 0);
   const totalShares = all.reduce((s, c) => s + customerShares(c), 0);
 
-  /* ── Scope the district / branch filter dropdowns ── */
   const fullAccess = isSuper() || isAuditor();
   const districtOptions = fullAccess
     ? APP.districts.slice().sort((a,b) => (a.name||'').localeCompare(b.name||''))
@@ -2059,7 +2068,6 @@ function openCustomerWizard(customer) {
   };
   if (isEdit) { initial._idPreview = c.customerId || ''; initial._acctPreview = c.accountNumber || ''; }
 
-  /* Pre-fill + lock scope for non-super-admins */
   if (!isSuper()) {
     if (isBranchStaff() && APP.profile?.branchId) {
       const b = branchById(APP.profile.branchId);
@@ -2402,7 +2410,6 @@ async function loadCustomersFallback() {
   _customerFallbackUsed = true;
   APP.diag.primaryFallback = true;
 
-  /* Members must never fall back to an unscoped read */
   if (isMember()) {
     APP.customers = [];
     renderMain();
@@ -2420,6 +2427,7 @@ async function loadCustomersFallback() {
       toast('No customer records returned. Check Firestore rules on /customers for role "' + (APP.profile?.role || '?') + '".', 'warning');
     }
     renderMain();
+    persistCustomersCache();
   } catch (e2) {
     APP.diag.customersError = (e2.code || e2.message || 'unknown');
     console.error('[customers] fallback also failed:', e2.code || e2.message);
@@ -2429,11 +2437,43 @@ async function loadCustomersFallback() {
   }
 }
 
-function attachListeners() {
+/* Persist all list data to localStorage for next visit */
+function persistCustomersCache() {
+  const uid = APP.user?.uid;
+  if (!uid) return;
+  writeCustomersCache(uid, {
+    customers:    APP.customers,
+    districts:    APP.districts,
+    branches:     APP.branches,
+    transactions: APP.transactions,
+    shareRecords: APP.shareRecords
+  });
+}
+
+/* Debounced post-boot re-render preserving search focus */
+let _renderTimer = null;
+function scheduleRender() {
+  clearTimeout(_renderTimer);
+  _renderTimer = setTimeout(() => {
+    const active = document.activeElement;
+    const wasSearch = active?.id === 'fltSearch';
+    const selStart = wasSearch ? active.selectionStart : 0;
+    const selEnd   = wasSearch ? active.selectionEnd   : 0;
+    renderMain();
+    if (wasSearch) {
+      const inp = document.getElementById('fltSearch');
+      if (inp) { inp.focus(); try { inp.setSelectionRange(selStart, selEnd); } catch(e){} }
+    }
+    persistCustomersCache();
+  }, 150);
+}
+
+/* attachListeners — resolves after first snapshot from each collection */
+async function attachListeners() {
   stopListeners();
   _customerFallbackUsed = false;
 
-  const watch = (coll, key, orderField, customQueryBuilder = null) => {
+  const setup = (coll, key, orderField, customQueryBuilder = null) => new Promise((resolve) => {
     let ref;
     try {
       ref = customQueryBuilder ? customQueryBuilder() : (
@@ -2443,9 +2483,11 @@ function attachListeners() {
       );
     } catch (e) {
       console.warn('[listen]', coll, 'query build failed:', e.message);
+      resolve();
       return;
     }
 
+    let first = true;
     const unsub = onSnapshot(ref,
       (snap) => {
         APP[key] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -2453,34 +2495,38 @@ function attachListeners() {
           APP.diag.customersLoaded = APP[key].length;
           APP.diag.customersError = '';
         }
-        console.log('[listen]', coll, 'loaded:', APP[key].length);
-        if (key === 'customers' && APP[key].length === 0) {
-          console.warn('[listen] customers returned 0 — check rules or filters');
-        }
-        renderMain();
+        if (first) { first = false; resolve(); }
+        else if (_bootDone) { scheduleRender(); }
       },
       (err) => {
         console.error('[listen]', coll, 'failed:', err.code, err.message);
         if (coll === 'customers') {
           APP.diag.customersError = (err.code || err.message || 'unknown');
           loadCustomersFallback();
-        } else {
-          renderMain();
         }
+        if (first) { first = false; resolve(); }
       }
     );
     APP.unsubs.push(unsub);
-  };
+  });
 
-  watch('customers',    'customers', null, buildCustomersQuery);
-  watch('districts',    'districts');
-  watch('branches',     'branches');
-  watch('transactions', 'transactions', 'createdAt');
-  watch('shares',       'shareRecords');
+  const timeout = new Promise((resolve) => setTimeout(resolve, 3000));
+  await Promise.race([
+    Promise.all([
+      setup('customers', 'customers', null, buildCustomersQuery),
+      setup('districts', 'districts'),
+      setup('branches', 'branches'),
+      setup('transactions', 'transactions', 'createdAt'),
+      setup('shares', 'shareRecords')
+    ]),
+    timeout
+  ]);
 }
 function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} }); APP.unsubs = []; }
 
-/* BOOT */
+/* ════════════════════════════════════════════════════════════
+   BOOT — cache-first, parallel fire, single render on arrival
+════════════════════════════════════════════════════════════ */
 (async function boot() {
   let saved = null;
   try { saved = localStorage.getItem(LANG_KEY); } catch(e){}
@@ -2497,8 +2543,15 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
     return;
   }
 
+  /* ---- T=0: read caches + fire network ---- */
   const cachedProfile = readCachedProfile();
-  let renderedWithProfile = false;
+  const cachedData = cachedProfile ? readCustomersCache(cachedProfile.uid) : null;
+
+  const authPromise     = new Promise(r => onAuthStateChanged(auth, u => r(u)));
+  const settingsPromise = getDoc(doc(db, 'settings', 'system')).catch(() => null);
+
+  /* ---- T=0: instant cache render ---- */
+  let rendered = false;
   if (cachedProfile && cachedProfile.uid) {
     APP.profile = {
       id: cachedProfile.uid,
@@ -2511,10 +2564,19 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
       branchId: cachedProfile.branchId || '',
       branchName: cachedProfile.branchName || ''
     };
+
+    if (cachedData) {
+      APP.customers    = cachedData.customers;
+      APP.districts    = cachedData.districts;
+      APP.branches     = cachedData.branches;
+      APP.transactions = cachedData.transactions;
+      APP.shareRecords = cachedData.shareRecords;
+    }
+
     renderShell();
     renderMain();
     hideLoaderNow();
-    renderedWithProfile = true;
+    rendered = true;
   } else if (hasMis) {
     APP.profile = {
       id: sessionStorage.getItem('uid'),
@@ -2527,9 +2589,11 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
     renderShell();
     renderMain();
     hideLoaderNow();
+    rendered = true;
   }
 
-  const user = await new Promise((resolve) => { const unsub = onAuthStateChanged(auth, (u) => { unsub(); resolve(u); }); });
+  /* ---- T=~150ms: await auth ---- */
+  const user = await authPromise;
   if (!user) {
     try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
     clearSession(); clearCachedProfile();
@@ -2544,81 +2608,96 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
   }
   APP.user = user;
 
+  /* ---- T=~350ms: await user doc ---- */
+  let userSnap;
   try {
-    const snap = await getDoc(doc(db, 'users', user.uid));
-    if (!snap.exists()) throw new Error('no-user-doc');
-    const d = snap.data();
-    if (d.status === 'inactive') throw new Error('inactive');
-    APP.profile = { id: snap.id, ...d, email: user.email || '' };
-    writeCachedProfile();
+    userSnap = await getDoc(doc(db, 'users', user.uid));
   } catch (e) {
-    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e2){}
+    console.error('[boot] user doc', e);
     clearSession(); clearCachedProfile();
     try { await signOut(auth); } catch(e2){}
     window.location.replace(LOGIN_URL);
     return;
   }
-
-  const profileChanged = !renderedWithProfile ||
-    (cachedProfile && (
-      (cachedProfile.name !== (APP.profile.fullName || APP.profile.name)) ||
-      cachedProfile.role !== APP.profile.role ||
-      cachedProfile.photoURL !== APP.profile.photoURL
-    ));
-  if (profileChanged) { renderShell(); renderMain(); }
-  hideLoaderNow();
-
-  await loadSessionTimeout();
-  startSessionWatcher();
-
-  try {
-    const cfg = await getDoc(doc(db, 'settings', 'system'));
-    if (cfg.exists()) {
-      const dd = cfg.data();
-      if (dd.currency) APP.currency = dd.currency;
-      if (dd.saccoName && String(dd.saccoName).trim()) APP.saccoName = String(dd.saccoName).trim();
-      if (dd.shortName && String(dd.shortName).trim()) APP.shortName = String(dd.shortName).trim();
-      if (Array.isArray(dd.penaltyPaymentSources) && dd.penaltyPaymentSources.length) {
-        APP.penaltySettings.penaltyPaymentSources = dd.penaltyPaymentSources.map(x => String(x).toLowerCase().trim());
-      }
-    }
-  } catch(e){}
-
-  try {
-    const custQuery = buildCustomersQuery();
-    const custSnap = await getDocs(custQuery);
-    APP.customers = custSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    APP.diag.preload = 'scoped (' + APP.customers.length + ')';
-    console.log('[boot] customers preloaded (scoped):', APP.customers.length);
-    if (APP.customers.length === 0 && !isMember()) {
-      const s2 = await getDocs(query(collection(db, 'customers'), limit(3000)));
-      APP.customers = s2.docs.map(d => ({ id: d.id, ...d.data() }));
-      APP.diag.preload = 'unscoped (' + APP.customers.length + ')';
-      console.log('[boot] customers preloaded (unscoped):', APP.customers.length);
-    }
-    renderMain();
-  } catch (e) {
-    console.error('[boot] customer preload failed:', e.code || e.message);
-    try {
-      if (isMember()) { APP.customers = []; }
-      else {
-        const s2 = await getDocs(query(collection(db, 'customers'), limit(3000)));
-        APP.customers = s2.docs.map(d => ({ id: d.id, ...d.data() }));
-        APP.diag.preload = 'unscoped-after-error (' + APP.customers.length + ')';
-      }
-    } catch (e2) {
-      APP.diag.preload = 'failed';
-      APP.diag.customersError = (e2.code || e2.message || 'unknown');
-      if (!isMember()) toast('Cannot load customers: ' + (e2.code || e2.message), 'error');
-      APP.customers = [];
-    }
-    renderMain();
+  if (!userSnap.exists()) {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    clearSession(); clearCachedProfile();
+    try { await signOut(auth); } catch(e){}
+    window.location.replace(LOGIN_URL);
+    return;
+  }
+  const d = userSnap.data();
+  if (d.status === 'inactive') {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    clearSession(); clearCachedProfile();
+    try { await signOut(auth); } catch(e){}
+    window.location.replace(LOGIN_URL);
+    return;
   }
 
-  attachListeners();
+  /* ---- T=~350ms: apply fresh profile; detect changes ---- */
+  const prevRole      = APP.profile?.role;
+  const prevDistrict  = APP.profile?.districtId;
+  const prevBranch    = APP.profile?.branchId;
+
+  APP.profile = { id: userSnap.id, ...d, email: user.email || '' };
+  writeCachedProfile();
+
+  /* If scope changed vs cache → wipe stale data */
+  const roleChanged     = prevRole !== APP.profile.role;
+  const districtChanged = prevDistrict !== APP.profile.districtId;
+  const branchChanged   = prevBranch !== APP.profile.branchId;
+  if (roleChanged || districtChanged || branchChanged) {
+    clearCustomersCache(user.uid);
+    APP.customers = [];
+    APP.districts = [];
+    APP.branches = [];
+    APP.transactions = [];
+    APP.shareRecords = [];
+  }
+
+  /* ---- T=~350ms: attach listeners → await first snapshot each ---- */
+  await attachListeners();
+  _bootDone = true;
+
+  /* ---- T=~800ms: await settings (already resolved by now) ---- */
+  const settingsSnap = await settingsPromise;
+  if (settingsSnap && settingsSnap.exists()) {
+    const sd = settingsSnap.data();
+    let m = sd.sessionTimeout != null ? Number(sd.sessionTimeout)
+          : sd.sessionTimeoutMinutes != null ? Number(sd.sessionTimeoutMinutes)
+          : DEFAULT_SESSION_MINUTES;
+    if (!isFinite(m) || m < 1) m = DEFAULT_SESSION_MINUTES;
+    if (m > 1440) m = 1440;
+    SESSION_MINUTES = Math.round(m);
+    if (sd.currency) APP.currency = sd.currency;
+    if (sd.saccoName && String(sd.saccoName).trim()) APP.saccoName = String(sd.saccoName).trim();
+    if (sd.shortName && String(sd.shortName).trim()) APP.shortName = String(sd.shortName).trim();
+    if (Array.isArray(sd.penaltyPaymentSources) && sd.penaltyPaymentSources.length) {
+      APP.penaltySettings.penaltyPaymentSources = sd.penaltyPaymentSources.map(x => String(x).toLowerCase().trim());
+    }
+  } else {
+    SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
+  }
+  try {
+    const ss = readSession();
+    if (ss) { ss.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(ss)); }
+  } catch(e){}
+
+  /* ---- Write fresh data to cache ---- */
+  persistCustomersCache();
+
+  /* ---- Final render (single shot) ---- */
+  if (!rendered || roleChanged || districtChanged || branchChanged) {
+    renderShell();
+  }
+  renderMain();
+  hideLoaderNow();
+
+  startSessionWatcher();
 })();
 
-console.log('[sacco] customers page ready — role-based access control enabled');
+console.log('[sacco] customers page ready — cache-first, parallel boot, role logic unchanged');
 </script>
 
 </body>
