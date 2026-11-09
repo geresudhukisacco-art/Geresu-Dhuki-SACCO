@@ -20,7 +20,6 @@
 }}
 </script>
 <style>
-/* ... SAME CSS AS YOUR ORIGINAL dashboard.html — UNCHANGED ... */
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
 :root{
   --primary:#0b5cab;--primary-dark:#073d75;--secondary:#0e7490;
@@ -389,6 +388,8 @@ const LOGIN_URL = "../index.html";
 const LOGO_URL  = "../images/logo.png";
 const DEFAULT_SACCO_NAME = 'GERESU DHUKI SACCO';
 const PROFILE_CACHE_KEY = 'sacco.profile';
+const DASHBOARD_CACHE_KEY = 'sacco.dashboard.cache';
+const DASHBOARD_CACHE_VERSION = 1;
 let S = null;
 
 /* SESSION */
@@ -418,6 +419,40 @@ function readCachedProfile() {
 }
 function writeCachedProfile() { if (!S) return; try { sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(S)); } catch(e){} }
 function clearCachedProfile() { try { sessionStorage.removeItem(PROFILE_CACHE_KEY); } catch(e){} }
+
+/* Dashboard data cache */
+function readDashboardCache() {
+  try {
+    const raw = localStorage.getItem(DASHBOARD_CACHE_KEY);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj || obj.v !== DASHBOARD_CACHE_VERSION) return null;
+    if (!Array.isArray(obj.districts) || !Array.isArray(obj.transactions)) return null;
+    return obj;
+  } catch (e) { return null; }
+}
+function writeDashboardCache(payload) {
+  try {
+    const data = {
+      v: DASHBOARD_CACHE_VERSION, ts: Date.now(),
+      districts: payload.districts || [],
+      branches: payload.branches || [],
+      customers: payload.customers || [],
+      transactions: payload.transactions || [],
+      loans: payload.loans || [],
+      shares: payload.shares || []
+    };
+    localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify(data));
+  } catch (e) {
+    if (e && e.name === 'QuotaExceededError') {
+      console.warn('[cache] quota exceeded — cache disabled');
+      try { localStorage.removeItem(DASHBOARD_CACHE_KEY); } catch(_) {}
+    } else {
+      console.warn('[cache] write failed', e && e.message);
+    }
+  }
+}
+
 function hideLoaderNow() { const el = document.getElementById('loader'); if (el) el.classList.add('hide'); }
 function forceLogout(reason) {
   if (awayCheckInterval) { clearInterval(awayCheckInterval); awayCheckInterval = null; }
@@ -445,30 +480,10 @@ function startSessionWatcher() {
   window.addEventListener('blur', evaluateActivity);
   evaluateActivity();
 }
-async function loadSessionTimeout() {
-  try {
-    const snap = await getDoc(doc(db, 'settings', 'system'));
-    if (snap.exists()) {
-      const d = snap.data();
-      let m = DEFAULT_SESSION_MINUTES;
-      if (d.sessionTimeout != null)              m = Number(d.sessionTimeout);
-      else if (d.sessionTimeoutMinutes != null)  m = Number(d.sessionTimeoutMinutes);
-      if (!isFinite(m) || m < 1) m = DEFAULT_SESSION_MINUTES;
-      if (m > 1440) m = 1440;
-      SESSION_MINUTES = Math.round(m);
-    } else {
-      SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
-    }
-  } catch (e) {
-    if (SESSION_MINUTES == null) SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
-  }
-  try {
-    const s = readSession();
-    if (s) { s.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); }
-  } catch (e) {}
-}
 
-/* I18N — same as your original */
+/* ============================================================
+   I18N
+============================================================ */
 const I18N = {
   en: {
     brandSub:'SACCO Management',
@@ -824,7 +839,6 @@ const APP = {
 const CUSTOMER_MAP = new Map();
 const LOANS_BY_ID = new Map();
 
-/* Scope constraints (NON-MEMBER only — member path handled by fetchMemberCollection) */
 function scopeConstraints() {
   if (!S) return [];
   if (isSuper() || isAuditor()) return [];
@@ -833,7 +847,6 @@ function scopeConstraints() {
   return [];
 }
 
-/* Member-aware collection fetch — unions across customerId / memberId / customerDocId */
 async function fetchMemberCollection(coll, fields) {
   if (!S || !S.customerId) return [];
   const fs = fields || ['customerId', 'memberId', 'customerDocId'];
@@ -847,7 +860,6 @@ async function fetchMemberCollection(coll, fields) {
   return Array.from(merged.values());
 }
 
-/* Member customer doc — direct lookup with fallback */
 async function fetchMemberCustomers() {
   if (!S || !S.customerId) return [];
   try {
@@ -865,9 +877,7 @@ async function fetchMemberCustomers() {
 }
 
 async function scopedFetchAll(coll, extra = []) {
-  if (isMember()) {
-    return fetchMemberCollection(coll);
-  }
+  if (isMember()) return fetchMemberCollection(coll);
   try {
     const base = collection(db, coll);
     const cs = [...scopeConstraints(), ...extra];
@@ -1852,7 +1862,6 @@ function renderStatsValues() {
   const A = computeAllYearNumbers();
   const wc = applyWorkareaToAllCustomers();
   if (isMember()) {
-    // Prefer user-doc snapshot if present; otherwise use computed values from transactions
     const savingsVal = num(S.savingsBalance) || A.netSavingWithDivAll || 0;
     const sharesVal  = num(S.shares) || A.shareCountAll || 0;
     setStat('s-m-savings', moneyFull(savingsVal));
@@ -2362,6 +2371,7 @@ function renderPenaltyBreakdown() {
     </div>`;
 }
 function renderAll() {
+  populateYearSelect();
   const wc = document.getElementById('wa-count');
   if (wc) wc.innerHTML = `<i class="fas fa-users"></i> ${applyWorkareaToAllCustomers().length} ${esc(t('customers'))}`;
   renderStatsValues();
@@ -2391,30 +2401,17 @@ function wireMainEvents() {
   });
 }
 
-async function loadAllData() {
-  APP.dataLoading = true;
-
-  // Member: direct customer doc + member-scoped shares (avoids permission-denied on unscoped fetches)
-  const customersPromise = isMember() ? fetchMemberCustomers() : fetchAllNoScope('customers');
-  const sharesPromise    = isMember()
-    ? fetchMemberCollection('shares', ['customerId', 'memberId'])
-    : fetchAllNoScope('shares');
-
-  const [districts, branches, customers, txns, loansRaw, shareRecords] = await Promise.all([
-    fetchAllNoScope('districts'),
-    fetchAllNoScope('branches'),
-    customersPromise,
-    scopedFetchAll('transactions', [limit(3000)]),
-    scopedFetchAll('loans'),
-    sharesPromise
-  ]);
-  APP.districts = districts;
-  APP.branches = branches;
-  APP.customers = customers;
-  APP.shareRecords = shareRecords;
+/* ============================================================
+   DATA APPLICATION (shared by fresh fetch + cache hydration)
+============================================================ */
+function applyDashboardData({ districts, branches, customers, txns, loansRaw, shareRecords }) {
+  APP.districts = districts || [];
+  APP.branches = branches || [];
+  APP.customers = customers || [];
+  APP.shareRecords = shareRecords || [];
 
   CUSTOMER_MAP.clear();
-  customers.forEach(c => {
+  APP.customers.forEach(c => {
     const name = c.fullName || c.name || [c.firstName, c.lastName].filter(Boolean).join(' ') || c.customerName || null;
     const rec = { name, districtId: c.districtId || c.district || c.districtCode || '', branchId: c.branchId || '', raw: c };
     if (c.id)          CUSTOMER_MAP.set(c.id, rec);
@@ -2424,9 +2421,10 @@ async function loadAllData() {
     if (c.customerCode)CUSTOMER_MAP.set(c.customerCode, rec);
   });
 
-  APP.txn.allTxns = txns;
+  const allTxns = txns || [];
+  APP.txn.allTxns = allTxns;
 
-  const normalizedLoans = loansRaw.map(l => {
+  const normalizedLoans = (loansRaw || []).map(l => {
     const principal = num(l.principal) || num(l.amount);
     const duration  = num(l.duration)  || num(l.repaymentPeriod);
     const intType   = l.interestType || l.loanType || 'simple';
@@ -2436,7 +2434,7 @@ async function loadAllData() {
       createdAt: l.createdAt || l.disbursementDate || l.date };
   });
 
-  const byType = (names) => txns.filter(t => names.includes(String(t.type || '').toLowerCase()));
+  const byType = (names) => allTxns.filter(t => names.includes(String(t.type || '').toLowerCase()));
 
   APP.txn.savings           = byType(['savings','saving','deposit']);
   APP.txn.loans             = [...byType(['loan']), ...normalizedLoans];
@@ -2452,10 +2450,10 @@ async function loadAllData() {
   APP.txn.shares            = byType([...BUY_SHARE_TYPES, ...SELL_SHARE_TYPES, ...IN_SHARE_TYPES, ...OUT_SHARE_TYPES]);
 
   APP.txn.pendingLoans = [
-    ...txns.filter(t => String(t.type || '').toLowerCase() === 'loan' && String(t.status || '').toLowerCase() === 'pending'),
+    ...allTxns.filter(t => String(t.type || '').toLowerCase() === 'loan' && String(t.status || '').toLowerCase() === 'pending'),
     ...normalizedLoans.filter(l => String(l.status || '').toLowerCase() === 'pending')
   ];
-  APP.txn.recent = txns.slice().sort((a, b) => {
+  APP.txn.recent = allTxns.slice().sort((a, b) => {
     const ta = toDateSafe(b.createdAt || b.date)?.getTime() || 0;
     const tb = toDateSafe(a.createdAt || a.date)?.getTime() || 0;
     return ta - tb;
@@ -2490,7 +2488,9 @@ async function loadAllData() {
   APP.dataLoading = false;
 }
 
-/* BOOT */
+/* ============================================================
+   BOOT — everything parallel, cache-first, renderAll on refresh
+============================================================ */
 (async function boot() {
   let saved = null;
   try { saved = localStorage.getItem(LANG_KEY); } catch(e){}
@@ -2508,8 +2508,19 @@ async function loadAllData() {
   }
 
   const cachedProfile = readCachedProfile();
-  let renderedWithProfile = false;
-  if (cachedProfile && cachedProfile.uid) {
+  const dashCache = readDashboardCache();
+  let rendered = false;
+
+  /* ---- T=0: FIRE ALL NON-SCOPED NETWORK CALLS IN PARALLEL ---- */
+  const authPromise        = new Promise(r => onAuthStateChanged(auth, u => r(u)));
+  const settingsPromise    = getDoc(doc(db, 'settings', 'system')).catch(() => null);
+  const districtsPromise   = fetchAllNoScope('districts').catch(() => []);
+  const branchesPromise    = fetchAllNoScope('branches').catch(() => []);
+
+  /* ---- INSTANT RENDER from cache + fire scoped calls (if we have S) ---- */
+  let userDocPromise = null, custPromise = null, sharPromise = null, txnPromise = null, loanPromise = null;
+
+  if (cachedProfile) {
     S = {
       uid: cachedProfile.uid,
       role: cachedProfile.role || 'viewer',
@@ -2526,29 +2537,60 @@ async function loadAllData() {
       shares: num(cachedProfile.shares)
     };
     initWorkarea();
+
+    // Fire scoped fetches NOW using cached scope
+    userDocPromise = getDoc(doc(db, 'users', S.uid)).catch(() => null);
+    custPromise = (isMember() ? fetchMemberCustomers() : fetchAllNoScope('customers')).catch(() => []);
+    sharPromise = (isMember() ? fetchMemberCollection('shares', ['customerId','memberId']) : fetchAllNoScope('shares')).catch(() => []);
+    txnPromise  = scopedFetchAll('transactions', [limit(3000)]).catch(() => []);
+    loanPromise = scopedFetchAll('loans').catch(() => []);
+
+    // Instant render from cache
+    if (dashCache) {
+      try {
+        applyDashboardData({
+          districts: dashCache.districts,
+          branches: dashCache.branches,
+          customers: dashCache.customers,
+          txns: dashCache.transactions,
+          loansRaw: dashCache.loans,
+          shareRecords: dashCache.shares
+        });
+      } catch (e) { console.warn('[cache] hydrate', e); }
+    }
     renderShell();
     renderMain();
     hideLoaderNow();
-    renderedWithProfile = true;
+    rendered = true;
+
   } else if (hasMis) {
-    S = { uid: sessionStorage.getItem('uid'), role: sessionStorage.getItem('role') || 'viewer', email: sessionStorage.getItem('email') || '', name: sessionStorage.getItem('userName') || 'User', photoURL: null, districtId:'', districtName:'', branchId:'', branchName:'', customerId:'', customerCode:'', savingsBalance:0, shares:0 };
+    S = {
+      uid: sessionStorage.getItem('uid'),
+      role: sessionStorage.getItem('role') || 'viewer',
+      email: sessionStorage.getItem('email') || '',
+      name: sessionStorage.getItem('userName') || 'User',
+      photoURL: null,
+      districtId:'', districtName:'', branchId:'', branchName:'',
+      customerId:'', customerCode:'', savingsBalance:0, shares:0
+    };
     initWorkarea();
+    // No scope available yet — wait for user doc
+    userDocPromise = getDoc(doc(db, 'users', S.uid)).catch(() => null);
     renderShell();
     renderMain();
     hideLoaderNow();
+    rendered = true;
   }
 
-  const user = await new Promise(resolve => {
-    const unsub = onAuthStateChanged(auth, u => { unsub(); resolve(u); });
-  });
-
+  /* ---- T=~150ms: AWAIT AUTH ---- */
+  const user = await authPromise;
   if (!user) {
     try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
     clearSession(); clearCachedProfile();
     window.location.replace(LOGIN_URL);
     return;
   }
-  if (sess && user.uid !== sess.uid) {
+  if (S?.uid && user.uid !== S.uid) {
     try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
     clearSession(); clearCachedProfile();
     window.location.replace(LOGIN_URL);
@@ -2556,65 +2598,133 @@ async function loadAllData() {
   }
   APP.user = user;
 
-  try {
-    const snap = await getDoc(doc(db, 'users', user.uid));
-    if (!snap.exists()) throw new Error('no-user-doc');
-    const d = snap.data();
-    if (d.status === 'inactive') throw new Error('inactive');
-    S = {
-      uid: user.uid, role: d.role || 'viewer', email: user.email || '',
-      name: d.fullName || d.name || user.email?.split('@')[0] || 'User',
-      photoURL: d.photoURL || null,
-      districtId: d.districtId || '', districtName: d.districtName || '',
-      branchId: d.branchId || '', branchName: d.branchName || '',
-      customerId: d.customerId || d.memberId || '',
-      customerCode: d.customerCode || d.memberCode || '',
-      savingsBalance: num(d.savingsBalance), shares: num(d.shares)
-    };
-    writeCachedProfile();
-  } catch (e) {
-    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e2){}
+  // If no cache at all — fire user doc now
+  if (!userDocPromise) {
+    userDocPromise = getDoc(doc(db, 'users', user.uid)).catch(() => null);
+  }
+
+  /* ---- T=~400ms: AWAIT USER DOC ---- */
+  const userSnap = await userDocPromise;
+  if (!userSnap || !userSnap.exists()) {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
     clearSession(); clearCachedProfile();
-    try { await signOut(auth); } catch(e2){}
+    try { await signOut(auth); } catch(e){}
+    window.location.replace(LOGIN_URL);
+    return;
+  }
+  const d = userSnap.data();
+  if (d.status === 'inactive') {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    clearSession(); clearCachedProfile();
+    try { await signOut(auth); } catch(e){}
     window.location.replace(LOGIN_URL);
     return;
   }
 
-  const profileChanged = !renderedWithProfile ||
-    (cachedProfile && (cachedProfile.name !== S.name || cachedProfile.role !== S.role || cachedProfile.photoURL !== S.photoURL));
-  if (profileChanged) {
+  /* ---- Update S with fresh user doc ---- */
+  const prevRole   = S?.role;
+  const prevName   = S?.name;
+  const prevPhoto  = S?.photoURL;
+  const prevDist   = S?.districtId;
+  const prevBranch = S?.branchId;
+
+  S = {
+    uid: user.uid, role: d.role || 'viewer', email: user.email || '',
+    name: d.fullName || d.name || user.email?.split('@')[0] || 'User',
+    photoURL: d.photoURL || null,
+    districtId: d.districtId || '', districtName: d.districtName || '',
+    branchId: d.branchId || '', branchName: d.branchName || '',
+    customerId: d.customerId || d.memberId || '',
+    customerCode: d.customerCode || d.memberCode || '',
+    savingsBalance: num(d.savingsBalance), shares: num(d.shares)
+  };
+  writeCachedProfile();
+
+  /* ---- Fire scoped fetches if we didn't yet (hasMis case) ---- */
+  const scopeChanged = (prevRole !== S.role) || (prevDist !== S.districtId) || (prevBranch !== S.branchId);
+  if (!custPromise) {
+    custPromise = (isMember() ? fetchMemberCustomers() : fetchAllNoScope('customers')).catch(() => []);
+    sharPromise = (isMember() ? fetchMemberCollection('shares', ['customerId','memberId']) : fetchAllNoScope('shares')).catch(() => []);
+    txnPromise  = scopedFetchAll('transactions', [limit(3000)]).catch(() => []);
+    loanPromise = scopedFetchAll('loans').catch(() => []);
+
+    // Skeleton render now — layout visible, values still loading
     initWorkarea();
     renderShell();
     renderMain();
+    hideLoaderNow();
+    rendered = true;
   }
-  hideLoaderNow();
 
-  await loadSessionTimeout();
+  /* ---- T=~800ms: AWAIT EVERYTHING IN PARALLEL ---- */
+  const [settingsSnap, districts, branches, customers, shares, txns, loansRaw] = await Promise.all([
+    settingsPromise,
+    districtsPromise,
+    branchesPromise,
+    custPromise,
+    sharPromise,
+    txnPromise,
+    loanPromise
+  ]);
+
+  /* ---- Apply settings (session timeout + sacco name) from the single fetch ---- */
+  if (settingsSnap && settingsSnap.exists()) {
+    const sd = settingsSnap.data();
+    let m = sd.sessionTimeout != null ? Number(sd.sessionTimeout)
+          : sd.sessionTimeoutMinutes != null ? Number(sd.sessionTimeoutMinutes)
+          : DEFAULT_SESSION_MINUTES;
+    if (!isFinite(m) || m < 1) m = DEFAULT_SESSION_MINUTES;
+    if (m > 1440) m = 1440;
+    SESSION_MINUTES = Math.round(m);
+    if (sd.saccoName && String(sd.saccoName).trim()) APP.saccoName = String(sd.saccoName).trim();
+  } else {
+    SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
+  }
+  try {
+    const ss = readSession();
+    if (ss) { ss.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(ss)); }
+  } catch(e){}
   startSessionWatcher();
 
-  try {
-    const cfg = await getDoc(doc(db, 'settings', 'system'));
-    if (cfg.exists()) {
-      const dd = cfg.data();
-      if (dd.saccoName && String(dd.saccoName).trim()) APP.saccoName = String(dd.saccoName).trim();
-    }
-  } catch(e){}
+  /* ---- If scope changed AND we prefetched with wrong scope, refetch ---- */
+  let finalCust = customers, finalShar = shares, finalTxn = txns, finalLoan = loansRaw;
+  if (scopeChanged && rendered) {
+    try {
+      [finalCust, finalShar, finalTxn, finalLoan] = await Promise.all([
+        isMember() ? fetchMemberCustomers() : fetchAllNoScope('customers'),
+        isMember() ? fetchMemberCollection('shares', ['customerId','memberId']) : fetchAllNoScope('shares'),
+        scopedFetchAll('transactions', [limit(3000)]),
+        scopedFetchAll('loans')
+      ]);
+    } catch (e) { console.warn('[boot] scope refetch', e); }
+  }
 
-  try {
-    await loadAllData();
+  /* ---- Apply data ---- */
+  applyDashboardData({
+    districts, branches,
+    customers: finalCust, txns: finalTxn,
+    loansRaw: finalLoan, shareRecords: finalShar
+  });
+  writeDashboardCache({
+    districts, branches, customers: finalCust,
+    transactions: finalTxn, loans: finalLoan, shares: finalShar
+  });
+
+  /* ---- Re-render ---- */
+  const profileChanged = !rendered || prevRole !== S.role || prevName !== S.name || prevPhoto !== S.photoURL;
+
+  if (!rendered) {
     initWorkarea();
+    renderShell();
     renderMain();
-  } catch (e) {
-    console.error('[boot] data load failed:', e);
-    const host = document.getElementById('mainContent');
-    if (host && !host.querySelector('.page-head')) {
-      host.innerHTML = `
-        <div class="empty" style="background:#fff;border:1px solid var(--border);border-radius:20px;padding:80px 24px;">
-          <i class="fas fa-exclamation-triangle" style="color:#b8860b"></i>
-          <div class="empty__title">Failed to load data</div>
-          <div class="empty__text">${esc(e.message || 'Unknown error')}</div>
-        </div>`;
-    }
+    hideLoaderNow();
+  } else if (profileChanged || scopeChanged) {
+    initWorkarea();
+    renderShell();
+    renderMain();
+  } else {
+    // Fast path: refresh data in place, no DOM rebuild
+    renderAll();
   }
 })();
 </script>
