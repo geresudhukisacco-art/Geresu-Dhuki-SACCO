@@ -448,12 +448,15 @@ const LOGIN_URL = "../index.html";
 const LOGO_URL  = "../images/logo.png";
 const DEFAULT_SACCO_NAME = 'GERESU DHUKI SACCO';
 const PROFILE_CACHE_KEY = 'sacco.profile';
+const DISTRICTS_CACHE_KEY = 'sacco.districts.cache';
+const DISTRICTS_CACHE_VERSION = 1;
 
 /* SESSION */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
 let SESSION_MINUTES = null;
 let awayStartedAt = null, awayCheckInterval = null;
+let _bootDone = false;
 
 function readSession() {
   try {
@@ -499,6 +502,43 @@ function writeCachedProfile() {
   } catch (e) {}
 }
 function clearCachedProfile() { try { sessionStorage.removeItem(PROFILE_CACHE_KEY); } catch (e) {} }
+
+/* Districts/branches/customers cache — per-uid, versioned */
+function readDistrictsCache(uid) {
+  if (!uid) return null;
+  try {
+    const raw = localStorage.getItem(DISTRICTS_CACHE_KEY + '.' + uid);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj || obj.v !== DISTRICTS_CACHE_VERSION) return null;
+    return {
+      districts: Array.isArray(obj.districts) ? obj.districts : [],
+      branches: Array.isArray(obj.branches) ? obj.branches : [],
+      customers: Array.isArray(obj.customers) ? obj.customers : []
+    };
+  } catch (e) { return null; }
+}
+function writeDistrictsCache(uid, data) {
+  if (!uid) return;
+  try {
+    localStorage.setItem(DISTRICTS_CACHE_KEY + '.' + uid, JSON.stringify({
+      v: DISTRICTS_CACHE_VERSION,
+      ts: Date.now(),
+      districts: data.districts || [],
+      branches: data.branches || [],
+      customers: data.customers || []
+    }));
+  } catch (e) {
+    if (e && e.name === 'QuotaExceededError') {
+      try { localStorage.removeItem(DISTRICTS_CACHE_KEY + '.' + uid); } catch(_) {}
+    }
+  }
+}
+function clearDistrictsCache(uid) {
+  if (!uid) return;
+  try { localStorage.removeItem(DISTRICTS_CACHE_KEY + '.' + uid); } catch(e) {}
+}
+
 function hideLoaderNow() { const el = document.getElementById('loader'); if (el) el.classList.add('hide'); }
 function forceLogout(reason) {
   if (awayCheckInterval) { clearInterval(awayCheckInterval); awayCheckInterval = null; }
@@ -530,28 +570,6 @@ function startSessionWatcher() {
   window.addEventListener('focus', evaluateActivity);
   window.addEventListener('blur', evaluateActivity);
   evaluateActivity();
-}
-async function loadSessionTimeout() {
-  try {
-    const snap = await getDoc(doc(db, 'settings', 'system'));
-    if (snap.exists()) {
-      const data = snap.data();
-      let mins = DEFAULT_SESSION_MINUTES;
-      if (data.sessionTimeout != null) mins = Number(data.sessionTimeout);
-      else if (data.sessionTimeoutMinutes != null) mins = Number(data.sessionTimeoutMinutes);
-      if (!isFinite(mins) || mins < 1) mins = DEFAULT_SESSION_MINUTES;
-      if (mins > 1440) mins = 1440;
-      SESSION_MINUTES = Math.round(mins);
-    } else {
-      SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
-    }
-  } catch (e) {
-    if (SESSION_MINUTES == null) SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
-  }
-  try {
-    const s = readSession();
-    if (s) { s.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); }
-  } catch (e) {}
 }
 
 /* TRANSLATIONS */
@@ -809,13 +827,7 @@ function renderBrandTitle(name){
 }
 
 /* ============================================================
-   ROLE HELPERS — single source of truth
-   super_admin  → all districts, create + edit + delete + view
-   admin        → own district only, edit + view (NO create / delete)
-   auditor      → all districts, view only
-   manager      → NO access to this page (branch-level only)
-   cashier      → NO access to this page (branch-level only)
-   member       → NO access to this page
+   ROLE HELPERS — single source of truth (unchanged)
    ============================================================ */
 const ROLES = {
   super_admin: 'role_super_admin', admin: 'role_admin', manager: 'role_manager',
@@ -830,16 +842,10 @@ const isManager = () => APP.profile?.role === 'manager';
 const isCashier = () => ['cashier','teller','accountant'].includes(APP.profile?.role);
 const isMember  = () => APP.profile?.role === 'member';
 
-/* Page access — only super / admin / auditor */
 const canView = () => isSuper() || isAdmin() || isAuditor();
-
-/* Only super can create */
 const canCreateDistrict = () => isSuper();
-
-/* Only super can delete */
 const canDeleteDistrict = () => isSuper();
 
-/* Scope predicate — does this specific district belong to the current user? */
 function inScopeDistrict(d) {
   if (!d || !APP.profile) return false;
   if (isSuper() || isAuditor()) return true;
@@ -852,7 +858,6 @@ function inScopeDistrict(d) {
   return false;
 }
 
-/* Per-district permission — super (any) / admin (own district only) */
 function canEditDistrict(d) {
   if (!d) return false;
   if (isSuper()) return true;
@@ -874,7 +879,8 @@ const APP = {
   page: 1,
   pageSize: 12,
   editingId: null,
-  deletingId: null
+  deletingId: null,
+  dataLoaded: false
 };
 
 function _matchesDistrict(record, district) {
@@ -886,7 +892,6 @@ function _matchesDistrict(record, district) {
       || keys.includes(record.district);
 }
 
-/* Scope districts list — super/auditor see all, admin sees own only */
 function scopeDistricts() {
   if (isSuper() || isAuditor()) return APP.districts.slice();
   if (!isAdmin()) return [];
@@ -1408,7 +1413,6 @@ function debounce(fn, ms) {
   };
 }
 
-/* Every row action re-checks role AND scope on the specific district */
 function handleRowAction(action, id) {
   const d = APP.districts.find(x => x.id === id);
   if (!d) return;
@@ -1437,12 +1441,10 @@ function attachEscape() {
   document.addEventListener('keydown', escHandler);
 }
 
-/* ── District modal ───────────────────────────────────── */
 function openDistrictModal(district) {
   closeModal('districtModal');
   const isEdit = !!district;
 
-  /* Guard at entry: role + scope */
   if (isEdit && !canEditDistrict(district)) { toast(t('noPermission'), 'error'); return; }
   if (!isEdit && !canCreateDistrict())      { toast(t('noPermission'), 'error'); return; }
 
@@ -1523,7 +1525,6 @@ async function saveDistrict() {
 
   if (!name || !code) { toast(t('requiredFields'), 'warning'); return; }
 
-  /* Role check — edit vs create */
   if (APP.editingId) {
     const target = APP.districts.find(x => x.id === APP.editingId);
     if (!canEditDistrict(target)) { toast(t('noPermission'), 'error'); return; }
@@ -1573,7 +1574,6 @@ async function saveDistrict() {
   }
 }
 
-/* ── Delete modal ─────────────────────────────────────── */
 function openDeleteModal(district) {
   closeModal('deleteModal');
   if (!canDeleteDistrict(district)) { toast(t('noPermission'), 'error'); return; }
@@ -1635,7 +1635,6 @@ function openDeleteModal(district) {
 
   btn?.addEventListener('click', async () => {
     if (hasRefs && !check?.checked) return;
-    /* Defence in depth — re-verify before delete */
     const original = APP.districts.find(x => x.id === APP.deletingId);
     if (!canDeleteDistrict(original)) { toast(t('noPermission'), 'error'); return; }
     btn.disabled = true;
@@ -1654,7 +1653,6 @@ function openDeleteModal(district) {
   });
 }
 
-/* ── Logout modal ─────────────────────────────────────── */
 function showLogoutModal() {
   closeModal('logoutModal');
   const root = document.createElement('div');
@@ -1706,34 +1704,43 @@ function scopedListenQuery(coll) {
   }
   return base;
 }
-function attachListeners() {
+
+/* attachListeners — resolves after each collection's first snapshot */
+async function attachListeners() {
   stopListeners();
-  const watch = (coll, key, orderField, scoped = false) => {
-    let ref = scoped ? scopedListenQuery(coll) : collection(db, coll);
-    if (orderField) ref = query(ref, orderBy(orderField, 'desc'), limit(500));
+
+  const setup = (coll, scoped) => new Promise((resolve) => {
+    const ref = scoped ? scopedListenQuery(coll) : collection(db, coll);
+    let first = true;
     const unsub = onSnapshot(ref,
       (snap) => {
-        APP[key] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        renderMain();
+        APP[coll] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (first) {
+          first = false;
+          resolve();
+        } else if (_bootDone) {
+          renderMain();
+        }
       },
       (err) => {
         console.warn('[listen]', coll, err.code, err.message);
-        if (scoped) {
-          const ref2 = collection(db, coll);
-          getDocs(ref2).then(s2 => {
-            APP[key] = s2.docs.map(d => ({ id: d.id, ...d.data() }));
-            renderMain();
-          }).catch(() => {});
-        }
-        renderMain();
+        if (first) { first = false; resolve(); }
       }
     );
     APP.unsubs.push(unsub);
-  };
-  watch('districts', 'districts');
+  });
+
   const scopeRef = !isSuper() && !isAuditor();
-  watch('branches',  'branches', null, scopeRef);
-  watch('customers', 'customers', null, scopeRef);
+
+  const timeout = new Promise((resolve) => setTimeout(resolve, 3000));
+  await Promise.race([
+    Promise.all([
+      setup('districts', false),
+      setup('branches',  scopeRef),
+      setup('customers', scopeRef)
+    ]),
+    timeout
+  ]);
 }
 function stopListeners() {
   APP.unsubs.forEach(u => { try { u(); } catch(e){} });
@@ -1741,7 +1748,7 @@ function stopListeners() {
 }
 
 /* ════════════════════════════════════════════════════════════
-   BOOT — instant render from cache, then auth + background load
+   BOOT — cache-first, parallel fire, one render on data arrival
 ════════════════════════════════════════════════════════════ */
 (async function boot() {
   let saved = null;
@@ -1759,9 +1766,23 @@ function stopListeners() {
     return;
   }
 
+  /* ---- T=0: read caches ---- */
   const cachedProfile = readCachedProfile();
+  const cachedData    = cachedProfile ? readDistrictsCache(cachedProfile.uid) : null;
+
+  /* ---- T=0: fire auth + settings in parallel (before user doc) ---- */
+  const authPromise     = new Promise(r => onAuthStateChanged(auth, u => r(u)));
+  const settingsPromise = getDoc(doc(db, 'settings', 'system')).catch(() => null);
+
+  /* ---- T=0: instant cache render ---- */
   let rendered = false;
-  if (cachedProfile && cachedProfile.uid) {
+  if (cachedProfile) {
+    // Early redirect if cached role can't see this page
+    if (['member','manager','cashier','teller','accountant'].includes(cachedProfile.role)) {
+      window.location.replace('dashboard.html');
+      return;
+    }
+
     APP.profile = {
       id: cachedProfile.uid,
       role: cachedProfile.role || 'viewer',
@@ -1774,6 +1795,14 @@ function stopListeners() {
       branchId: cachedProfile.branchId || '',
       branchName: cachedProfile.branchName || ''
     };
+
+    if (cachedData) {
+      APP.districts = cachedData.districts || [];
+      APP.branches  = cachedData.branches  || [];
+      APP.customers = cachedData.customers || [];
+      APP.dataLoaded = true;
+    }
+
     renderShell();
     renderMain();
     hideLoaderNow();
@@ -1785,16 +1814,17 @@ function stopListeners() {
       email: sessionStorage.getItem('email') || '',
       fullName: sessionStorage.getItem('userName') || 'User',
       photoURL: null,
-      districtId: '', districtName: '', districtCode: '', branchId: '', branchName: ''
+      districtId: '', districtName: '', districtCode: '',
+      branchId: '', branchName: ''
     };
     renderShell();
     renderMain();
     hideLoaderNow();
+    rendered = true;
   }
 
-  const user = await new Promise((resolve) => {
-    const unsub = onAuthStateChanged(auth, (u) => { unsub(); resolve(u); });
-  });
+  /* ---- T=~150ms: await auth ---- */
+  const user = await authPromise;
   if (!user) {
     try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
     clearSession(); clearCachedProfile();
@@ -1809,54 +1839,99 @@ function stopListeners() {
   }
   APP.user = user;
 
+  /* ---- T=~350ms: await user doc ---- */
+  let userSnap;
   try {
-    const snap = await getDoc(doc(db, 'users', user.uid));
-    if (!snap.exists()) throw new Error('no-user-doc');
-    const d = snap.data();
-    if (d.status === 'inactive') throw new Error('inactive');
-    APP.profile = { id: snap.id, ...d, email: user.email || '' };
-    writeCachedProfile();
+    userSnap = await getDoc(doc(db, 'users', user.uid));
   } catch (e) {
-    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e2){}
+    console.error('[boot] user doc', e);
     clearSession(); clearCachedProfile();
     try { await signOut(auth); } catch(e2){}
     window.location.replace(LOGIN_URL);
     return;
   }
+  if (!userSnap.exists()) {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    clearSession(); clearCachedProfile();
+    try { await signOut(auth); } catch(e){}
+    window.location.replace(LOGIN_URL);
+    return;
+  }
+  const d = userSnap.data();
+  if (d.status === 'inactive') {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    clearSession(); clearCachedProfile();
+    try { await signOut(auth); } catch(e){}
+    window.location.replace(LOGIN_URL);
+    return;
+  }
 
-  /* Members, managers and cashiers do NOT have access to districts page */
+  /* ---- T=~350ms: apply fresh profile; detect changes ---- */
+  const prevRole     = APP.profile?.role;
+  const prevDistrict = APP.profile?.districtId;
+
+  APP.profile = { id: userSnap.id, ...d, email: user.email || '' };
+  writeCachedProfile();
+
+  /* Hard redirect for roles without access */
   if (isMember() || isManager() || isCashier()) {
     window.location.replace('dashboard.html');
     return;
   }
 
-  const profileChanged = !rendered ||
-    (cachedProfile && (
-      (cachedProfile.name !== (APP.profile.fullName || APP.profile.name)) ||
-      cachedProfile.role !== APP.profile.role ||
-      cachedProfile.photoURL !== APP.profile.photoURL ||
-      cachedProfile.districtId !== APP.profile.districtId ||
-      cachedProfile.districtCode !== APP.profile.districtCode
-    ));
-  if (profileChanged) { renderShell(); renderMain(); }
-  hideLoaderNow();
+  /* If scope changed vs cache → wipe stale data */
+  const roleChanged     = prevRole !== APP.profile.role;
+  const districtChanged = prevDistrict !== APP.profile.districtId;
+  if (roleChanged || districtChanged) {
+    clearDistrictsCache(user.uid);
+    APP.districts = [];
+    APP.branches = [];
+    APP.customers = [];
+  }
 
-  await loadSessionTimeout();
-  startSessionWatcher();
+  /* ---- T=~350ms: attach listeners → await first snapshot from each ---- */
+  await attachListeners();
+  _bootDone = true;
 
+  /* ---- T=~800ms: await settings (already resolved by now) ---- */
+  const settingsSnap = await settingsPromise;
+  if (settingsSnap && settingsSnap.exists()) {
+    const sd = settingsSnap.data();
+    let m = sd.sessionTimeout != null ? Number(sd.sessionTimeout)
+          : sd.sessionTimeoutMinutes != null ? Number(sd.sessionTimeoutMinutes)
+          : DEFAULT_SESSION_MINUTES;
+    if (!isFinite(m) || m < 1) m = DEFAULT_SESSION_MINUTES;
+    if (m > 1440) m = 1440;
+    SESSION_MINUTES = Math.round(m);
+    if (sd.saccoName && String(sd.saccoName).trim()) APP.saccoName = String(sd.saccoName).trim();
+    if (sd.shortName && String(sd.shortName).trim()) APP.shortName = String(sd.shortName).trim();
+  } else {
+    SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
+  }
   try {
-    const cfg = await getDoc(doc(db, 'settings', 'system'));
-    if (cfg.exists()) {
-      const dd = cfg.data();
-      if (dd.saccoName && String(dd.saccoName).trim()) APP.saccoName = String(dd.saccoName).trim();
-      if (dd.shortName && String(dd.shortName).trim()) APP.shortName = String(dd.shortName).trim();
-    }
+    const ss = readSession();
+    if (ss) { ss.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(ss)); }
   } catch(e){}
 
-  attachListeners();
+  /* ---- Write fresh data to cache ---- */
+  APP.dataLoaded = true;
+  writeDistrictsCache(user.uid, {
+    districts: APP.districts,
+    branches:  APP.branches,
+    customers: APP.customers
+  });
+
+  /* ---- Final render (single shot with fresh data) ---- */
+  if (!rendered || roleChanged || districtChanged) {
+    renderShell();
+  }
+  renderMain();
+  hideLoaderNow();
+
+  startSessionWatcher();
 })();
 
-console.log('[sacco] districts page ready — role-based access control applied');
+console.log('[sacco] districts page ready — cache-first, parallel boot, role logic unchanged');
 </script>
 
 </body>
