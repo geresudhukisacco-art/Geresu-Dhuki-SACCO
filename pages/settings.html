@@ -512,6 +512,8 @@ const LOGIN_URL = "../index.html";
 const LOGO_URL  = "../images/logo.png";
 const DEFAULT_SACCO_NAME = 'GERESU DHUKI SACCO';
 const PROFILE_CACHE_KEY = 'sacco.profile';
+const SETTINGS_CACHE_KEY = 'sacco.settings.cache';
+const SETTINGS_CACHE_VERSION = 1;
 
 /* ============================================================
    SESSION
@@ -540,12 +542,31 @@ function writeCachedProfile() {
       email: currentUserEmail || '',
       name: currentUserDisplayName || 'User',
       photoURL: currentUserPhoto || null,
-      districtId: '', districtName: '', branchId: '', branchName: ''
+      districtId: '', districtName: '', branchId: '', branchName: '',
+      profile: { ...currentUserProfile }
     };
     if (payload.uid) sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(payload));
   } catch (e) {}
 }
 function clearCachedProfile() { try { sessionStorage.removeItem(PROFILE_CACHE_KEY); } catch (e) {} }
+
+/* --- settings cache (localStorage, shared across sessions) --- */
+function readCachedSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_CACHE_KEY);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj || obj.__v !== SETTINGS_CACHE_VERSION) return null;
+    return obj.data || null;
+  } catch (e) { return null; }
+}
+function writeCachedSettings(s) {
+  try {
+    localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify({ __v: SETTINGS_CACHE_VERSION, data: s }));
+  } catch (e) {}
+}
+function clearCachedSettings() { try { localStorage.removeItem(SETTINGS_CACHE_KEY); } catch (e) {} }
+
 function hideLoaderNow() { const el = document.getElementById('loader'); if (el) el.classList.add('hide'); }
 function forceLogout(reason) {
   if (awayCheckInterval) { clearInterval(awayCheckInterval); awayCheckInterval = null; }
@@ -578,7 +599,19 @@ function startSessionWatcher() {
   window.addEventListener('blur', evaluateActivity);
   evaluateActivity();
 }
+/* Cache-first session-timeout helper. If settings already loaded, no extra read. */
 async function loadSessionTimeout() {
+  if (currentSettings && currentSettings.sessionTimeout != null) {
+    let mins = Number(currentSettings.sessionTimeout);
+    if (!isFinite(mins) || mins < 1) mins = DEFAULT_SESSION_MINUTES;
+    if (mins > 1440) mins = 1440;
+    SESSION_MINUTES = Math.round(mins);
+    try {
+      const s = readSession();
+      if (s) { s.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); }
+    } catch (e) {}
+    return;
+  }
   try {
     const snap = await getDoc(doc(db, 'settings', 'system'));
     if (snap.exists()) {
@@ -666,7 +699,7 @@ let currentUserRole = 'loading';
 let currentUserDisplayName = 'User';
 let currentUserEmail = '';
 let currentUserPhoto = '';
-let isAdmin = false;
+let isAdmin = false; // super_admin only
 let LANG = 'en';
 const LANG_KEY = 'sacco.lang';
 const SUPPORTED = ['en','am','om'];
@@ -1738,7 +1771,7 @@ function renderFinancialPanel(){
     title:t('financialSettings'), desc:t('financialSettingsDesc'), body });
 }
 
-/* ===== NEW: DIVIDEND BASIS PANEL ===== */
+/* ===== DIVIDEND BASIS PANEL ===== */
 function renderDividendBasisPanel(){
   const body = `
     <div class="personal-banner">
@@ -2161,6 +2194,7 @@ function wireMainEvents(){
           { shareValue: formPrice, sharePrice: formPrice }, 'Share value updated via recalculation');
         currentSettings = { ...currentSettings, shareValue: formPrice, sharePrice: formPrice };
         savedSettings   = { ...currentSettings };
+        writeCachedSettings(currentSettings);
         loadSettingsToForm(currentSettings);
         updateDirtyIndicators();
       } catch (e) {
@@ -2178,6 +2212,8 @@ function wireMainEvents(){
 /* ============================================================
    PROFILE
 ============================================================ */
+/* Kept as a manual refresh helper (not called during boot — boot already
+   fetches the user doc in parallel with settings). */
 async function loadUserProfile(){
   if (!auth.currentUser) return;
   try {
@@ -2330,6 +2366,7 @@ async function saveUserProfile(){
 
     await logAudit('updated', 'users', u.uid, { fields: Object.keys(payload) }, 'User updated own profile');
 
+    writeCachedProfile();
     renderShell();
     renderMain();
     toast('Profile updated successfully!', 'success');
@@ -2343,9 +2380,10 @@ async function saveUserProfile(){
 
 /* ============================================================
    PERMISSIONS
+   -- shared settings are restricted to super_admin only.
 ============================================================ */
 function applyPermissions(){
-  const adminOnlySections = ['financial','dividendBasis','loan','penalties','security','advanced','backup','danger'];
+  const adminOnlySections = ['general','financial','dividendBasis','loan','penalties','security','advanced','backup','danger'];
   Object.keys(SECTION_FIELDS).forEach(section => {
     const fields = SECTION_FIELDS[section] || [];
     const locked = adminOnlySections.includes(section) && !isAdmin;
@@ -2408,6 +2446,22 @@ function updateRepaymentRulesPreview(){
     if (waiverChk.checked) { waiverEl.textContent = 'will be waived'; waiverEl.style.color = 'var(--success)'; }
     else { waiverEl.textContent = 'will still be charged'; waiverEl.style.color = 'var(--muted)'; }
   }
+}
+
+/* Shared merge helper — used by loadSettings, saveSection, saveAll, imports */
+function mergeSettingsData(data) {
+  const merged = { ...DEFAULT_SETTINGS };
+  Object.keys(DEFAULT_SETTINGS).forEach(k => {
+    if (data[k] !== undefined && data[k] !== null) merged[k] = data[k];
+  });
+  if (data.penaltyRate !== undefined && data.loansPenaltyRate === undefined) merged.loansPenaltyRate = Number(data.penaltyRate);
+  if (data.sessionTimeoutMinutes !== undefined && data.sessionTimeout === undefined) merged.sessionTimeout = Number(data.sessionTimeoutMinutes);
+  if ((data.shareValue === undefined || data.shareValue === null) && data.sharePrice !== undefined && data.sharePrice !== null) {
+    merged.shareValue = Number(data.sharePrice);
+  }
+  const bwSrc = (data.dividends && data.dividends.basisWeights) || data.basisWeights;
+  merged.basisWeights = mergeBasisWeights(bwSrc);
+  return merged;
 }
 
 function loadSettingsToForm(settings){
@@ -2580,7 +2634,6 @@ function rebalanceBasisAll(changedIdx){
     inputs[i].value = newVal.toFixed(1);
   });
 
-  // Correct rounding drift on the changed field
   const sum = inputs.reduce((s,inp) => s + (parseFloat(inp.value) || 0), 0);
   const drift = Math.round((100 - sum) * 10) / 10;
   if (Math.abs(drift) >= 0.1) {
@@ -2694,7 +2747,6 @@ function isFieldDirty(fieldId){
   const el = document.getElementById(fieldId);
   if (!el) return false;
 
-  // Special case: basis weight inputs (bw*)
   if (fieldId.startsWith('bw')) {
     const pair = el.dataset.pair;
     const idx  = Number(el.dataset.idx);
@@ -2882,7 +2934,7 @@ async function promptRecalcShares(oldPrice, newPrice, force = false){
    SAVE / RESET
 ============================================================ */
 async function saveSection(section){
-  if (!canEditSection(section) && section !== 'general') { toast(t('unauthorized'), 'error'); return; }
+  if (!canEditSection(section)) { toast(t('unauthorized'), 'error'); return; }
   const data = collectFormData();
   if (section === 'general') {
     const name = String(data.saccoName || '').trim();
@@ -2903,6 +2955,7 @@ async function saveSection(section){
       currentSettings.basisWeights = data.dividends.basisWeights;
     }
     savedSettings = { ...currentSettings };
+    writeCachedSettings(currentSettings);
     if (section === 'appearance') applyTheme(currentSettings.theme);
     if (section === 'security') applySessionTimeoutFromSettings();
     toast(t('settingsSaved'), 'success');
@@ -2945,6 +2998,7 @@ async function saveAll(){
       currentSettings.basisWeights = data.dividends.basisWeights;
     }
     savedSettings = { ...currentSettings };
+    writeCachedSettings(currentSettings);
     applyTheme(currentSettings.theme);
     applySessionTimeoutFromSettings();
     renderShell();
@@ -2960,7 +3014,7 @@ async function saveAll(){
   }
 }
 function resetSection(section){
-  if (!canEditSection(section) && section !== 'general') { toast(t('unauthorized'), 'error'); return; }
+  if (!canEditSection(section)) { toast(t('unauthorized'), 'error'); return; }
   showConfirmModal(t('confirmResetTitle'), t('confirmResetMsg'), 'warning', () => {
     if (section === 'dividendBasis') {
       loadBasisWeightsToForm(DEFAULT_BASIS_WEIGHTS);
@@ -3200,6 +3254,7 @@ async function resetAllSettings(){
       await logAudit('reset', 'settings', 'system', {}, 'All settings reset');
       currentSettings = { ...DEFAULT_SETTINGS, basisWeights: { ...DEFAULT_BASIS_WEIGHTS } };
       savedSettings = { ...currentSettings };
+      writeCachedSettings(currentSettings);
       renderShell(); renderMain();
       toast(t('resetDone'), 'success');
     } catch (e) { toast('Error: ' + e.message, 'error'); }
@@ -3369,6 +3424,7 @@ async function handleImportSettings(e){
     await setDoc(doc(db, 'settings', 'system'), merged, { merge: true });
     currentSettings = { ...merged, basisWeights: mergeBasisWeights(merged.basisWeights) };
     savedSettings = { ...currentSettings };
+    writeCachedSettings(currentSettings);
     renderShell(); renderMain();
     await logAudit('imported', 'settings', 'system', {}, 'Settings imported');
     toast(t('settingsImported'), 'success');
@@ -3473,26 +3529,16 @@ async function loadSettings(){
   if (overlay) overlay.classList.remove('hide');
   try {
     const snap = await getDoc(doc(db, 'settings', 'system'));
+    let merged;
     if (snap.exists()) {
-      const data = snap.data();
-      const merged = { ...DEFAULT_SETTINGS };
-      Object.keys(DEFAULT_SETTINGS).forEach(k => {
-        if (data[k] !== undefined && data[k] !== null) merged[k] = data[k];
-      });
-      if (data.penaltyRate !== undefined && data.loansPenaltyRate === undefined) merged.loansPenaltyRate = Number(data.penaltyRate);
-      if (data.sessionTimeoutMinutes !== undefined && data.sessionTimeout === undefined) merged.sessionTimeout = Number(data.sessionTimeoutMinutes);
-      if ((data.shareValue === undefined || data.shareValue === null) && data.sharePrice !== undefined && data.sharePrice !== null) {
-        merged.shareValue = Number(data.sharePrice);
-      }
-      const bwSrc = (data.dividends && data.dividends.basisWeights) || data.basisWeights;
-      merged.basisWeights = mergeBasisWeights(bwSrc);
-      currentSettings = merged;
-      savedSettings = { ...merged };
+      merged = mergeSettingsData(snap.data());
     } else {
       await setDoc(doc(db, 'settings', 'system'), DEFAULT_SETTINGS);
-      currentSettings = { ...DEFAULT_SETTINGS, basisWeights: { ...DEFAULT_BASIS_WEIGHTS } };
-      savedSettings = { ...currentSettings };
+      merged = { ...DEFAULT_SETTINGS, basisWeights: { ...DEFAULT_BASIS_WEIGHTS } };
     }
+    currentSettings = merged;
+    savedSettings = { ...merged };
+    writeCachedSettings(merged);
     applyTheme(currentSettings.theme);
   } catch (e) {
     console.error('Load settings error:', e);
@@ -3516,7 +3562,8 @@ function attachFloatingSaveBar(){
 }
 
 /* ============================================================
-   BOOT
+   BOOT — cache-first, parallel fetch, smart re-render.
+   isAdmin = super_admin ONLY.
 ============================================================ */
 (async function boot(){
   let saved = null;
@@ -3534,31 +3581,55 @@ function attachFloatingSaveBar(){
     return;
   }
 
-  const cachedProfile = readCachedProfile();
-  let rendered = false;
-  if (cachedProfile && cachedProfile.uid) {
-    currentUserRole = cachedProfile.role || 'loading';
+  /* ---- 1. Apply caches instantly (0ms perceived load on warm path) ---- */
+  const cachedProfile  = readCachedProfile();
+  const cachedSettings = readCachedSettings();
+  const hasProfileCache = !!(cachedProfile && cachedProfile.uid);
+
+  if (hasProfileCache) {
+    currentUserRole        = cachedProfile.role || 'loading';
     currentUserDisplayName = cachedProfile.name || 'User';
-    currentUserEmail = cachedProfile.email || '';
-    currentUserPhoto = cachedProfile.photoURL || '';
-    isAdmin = currentUserRole === 'admin' || currentUserRole === 'super_admin';
-    renderShell();
-    renderMain();
-    attachFloatingSaveBar();
-    hideLoaderNow();
-    rendered = true;
+    currentUserEmail       = cachedProfile.email || '';
+    currentUserPhoto       = cachedProfile.photoURL || '';
+    isAdmin = currentUserRole === 'super_admin';
+    if (cachedProfile.profile) {
+      currentUserProfile = { ...currentUserProfile, ...cachedProfile.profile };
+    }
   } else if (hasMis) {
-    currentUserRole = sessionStorage.getItem('role') || 'loading';
+    currentUserRole        = sessionStorage.getItem('role') || 'loading';
     currentUserDisplayName = sessionStorage.getItem('userName') || 'User';
-    currentUserEmail = sessionStorage.getItem('email') || '';
-    currentUserPhoto = '';
-    isAdmin = currentUserRole === 'admin' || currentUserRole === 'super_admin';
-    renderShell();
-    renderMain();
-    attachFloatingSaveBar();
-    hideLoaderNow();
+    currentUserEmail       = sessionStorage.getItem('email') || '';
+    currentUserPhoto       = '';
+    isAdmin = currentUserRole === 'super_admin';
   }
 
+  if (cachedSettings) {
+    currentSettings = cachedSettings;
+    savedSettings = { ...cachedSettings };
+    applyTheme(cachedSettings.theme || 'light');
+    if (cachedSettings.sessionTimeout != null) {
+      let m = Number(cachedSettings.sessionTimeout);
+      if (!isFinite(m) || m < 1) m = DEFAULT_SESSION_MINUTES;
+      if (m > 1440) m = 1440;
+      SESSION_MINUTES = Math.round(m);
+      try {
+        const ss = readSession();
+        if (ss) { ss.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(ss)); }
+      } catch(e){}
+    }
+  }
+
+  /* ---- 2. Early render from cache ---- */
+  let earlyRendered = false;
+  if (hasProfileCache || hasMis) {
+    renderShell();
+    renderMain();
+    attachFloatingSaveBar();
+    hideLoaderNow();
+    earlyRendered = true;
+  }
+
+  /* ---- 3. Auth check ---- */
   const user = await new Promise((resolve) => {
     const unsub = onAuthStateChanged(auth, (u) => { unsub(); resolve(u); });
   });
@@ -3576,53 +3647,112 @@ function attachFloatingSaveBar(){
   }
 
   currentUserEmail = user.email || '';
+
+  /* ---- 4. Parallel fetch: users/{uid} + settings/system in one roundtrip ---- */
+  let userDoc = null, settingsSnap = null;
   try {
-    const snap = await getDoc(doc(db, 'users', user.uid));
-    if (!snap.exists()) throw new Error('no-user-doc');
-    const d = snap.data();
-    if (d.status === 'inactive') throw new Error('inactive');
-    currentUserRole = d.role || 'viewer';
-    currentUserDisplayName = d.fullName || d.name || d.displayName || user.email?.split('@')[0] || 'User';
-    currentUserPhoto = d.photoURL || '';
-    isAdmin = currentUserRole === 'admin' || currentUserRole === 'super_admin';
-    writeCachedProfile();
+    const [uS, sS] = await Promise.all([
+      getDoc(doc(db, 'users', user.uid)),
+      getDoc(doc(db, 'settings', 'system'))
+    ]);
+    if (uS.exists()) userDoc = uS.data();
+    settingsSnap = sS;
   } catch (e) {
-    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e2){}
+    console.warn('[boot] parallel fetch failed', e.message);
+  }
+
+  /* ---- 5. Validate user ---- */
+  if (!userDoc) {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
     clearSession(); clearCachedProfile();
-    try { await signOut(auth); } catch(e2){}
+    try { await signOut(auth); } catch(e){}
+    window.location.replace(LOGIN_URL);
+    return;
+  }
+  if (userDoc.status === 'inactive') {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    clearSession(); clearCachedProfile();
+    try { await signOut(auth); } catch(e){}
     window.location.replace(LOGIN_URL);
     return;
   }
 
-  const profileChanged = !rendered ||
-    (cachedProfile && (
-      (cachedProfile.name !== currentUserDisplayName) ||
-      cachedProfile.role !== currentUserRole ||
-      cachedProfile.photoURL !== currentUserPhoto
-    ));
-  if (profileChanged) {
+  /* ---- 6. Apply user state; detect changes for re-render ---- */
+  const prevRole = currentUserRole;
+  const prevName = currentUserDisplayName;
+  const prevPhoto = currentUserPhoto;
+  const prevProfileJSON = JSON.stringify(currentUserProfile);
+
+  currentUserRole        = userDoc.role || 'viewer';
+  currentUserDisplayName = userDoc.fullName || userDoc.name || userDoc.displayName || user.email?.split('@')[0] || 'User';
+  currentUserPhoto       = userDoc.photoURL || '';
+  isAdmin = currentUserRole === 'super_admin';           // <-- super_admin ONLY
+  currentUserProfile = {
+    fullName:     userDoc.fullName || userDoc.name || userDoc.displayName || '',
+    displayName:  userDoc.displayName || userDoc.fullName || userDoc.name || '',
+    phone:        userDoc.phone || '',
+    position:     userDoc.position || userDoc.title || '',
+    department:   userDoc.department || '',
+    employeeId:   userDoc.employeeId || '',
+    bio:          userDoc.bio || '',
+    photoURL:     userDoc.photoURL || ''
+  };
+
+  const roleChanged    = prevRole !== currentUserRole;
+  const nameChanged    = prevName !== currentUserDisplayName;
+  const photoChanged   = prevPhoto !== currentUserPhoto;
+  const profileChanged = prevProfileJSON !== JSON.stringify(currentUserProfile);
+
+  writeCachedProfile();
+
+  /* ---- 7. Apply settings state ---- */
+  let settingsChanged = false;
+  if (settingsSnap && settingsSnap.exists()) {
+    const merged = mergeSettingsData(settingsSnap.data());
+    if (cachedSettings) {
+      settingsChanged = ['saccoName','saccoShortName','currency','defaultLanguage','theme'].some(
+        k => String(merged[k] ?? '') !== String(cachedSettings[k] ?? '')
+      );
+    } else {
+      settingsChanged = true;
+    }
+    currentSettings = merged;
+    savedSettings = { ...merged };
+    writeCachedSettings(merged);
+    applyTheme(merged.theme || 'light');
+  } else if (!cachedSettings) {
+    try {
+      await setDoc(doc(db, 'settings', 'system'), DEFAULT_SETTINGS);
+      currentSettings = { ...DEFAULT_SETTINGS, basisWeights: { ...DEFAULT_BASIS_WEIGHTS } };
+      savedSettings = { ...currentSettings };
+      writeCachedSettings(currentSettings);
+    } catch (e) { console.warn('[boot] create defaults failed', e.message); }
+  }
+
+  /* ---- 8. Ensure session timeout is set, then start watcher ---- */
+  if (SESSION_MINUTES == null) {
+    let m = Number(currentSettings.sessionTimeout) || DEFAULT_SESSION_MINUTES;
+    if (!isFinite(m) || m < 1) m = DEFAULT_SESSION_MINUTES;
+    if (m > 1440) m = 1440;
+    SESSION_MINUTES = Math.round(m);
+    try {
+      const ss = readSession();
+      if (ss) { ss.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(ss)); }
+    } catch(e){}
+  }
+  startSessionWatcher();
+
+  /* ---- 9. Re-render only when something actually changed ---- */
+  const needsRerender = !earlyRendered || roleChanged || nameChanged || photoChanged || profileChanged || settingsChanged;
+  if (needsRerender) {
     renderShell();
     renderMain();
     attachFloatingSaveBar();
   }
   hideLoaderNow();
-
-  await loadSessionTimeout();
-  startSessionWatcher();
-
-  await loadUserProfile();
-  await loadSettings();
-
-  if (rendered || profileChanged) {
-    renderShell();
-    renderMain();
-    attachFloatingSaveBar();
-  }
-
-  setTimeout(() => document.getElementById('loader')?.classList.add('hide'), 100);
 })();
 
-console.log('[sacco] settings page ready — dividend basis weights panel, full AM/OM translations, cached render');
+console.log('[sacco] settings page ready — super_admin-only shared settings, cache-first loading, full AM/OM translations');
 </script>
 
 <div class="floating-save-bar" id="floatingSaveBar">
