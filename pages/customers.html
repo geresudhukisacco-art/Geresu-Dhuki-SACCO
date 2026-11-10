@@ -525,7 +525,7 @@ body.sb-open .overlay-mobile{display:block;}
 import { initializeApp } from "firebase/app";
 import { getAuth, signOut, onAuthStateChanged } from "firebase/auth";
 import {
-  getFirestore,
+  initializeFirestore,
   doc, getDoc, setDoc, updateDoc, deleteDoc,
   collection, onSnapshot, query, orderBy, serverTimestamp,
   getDocs, getDocsFromServer, limit, where, runTransaction
@@ -543,8 +543,11 @@ const firebaseConfig = {
 const fbApp = initializeApp(firebaseConfig);
 const auth  = getAuth(fbApp);
 
-/* ── Plain Firestore — no deprecated flags, no 30s detection ── */
-const db = getFirestore(fbApp);
+/* ── Long-polling transport — bypasses the broken Listen WebSocket ── */
+const db = initializeFirestore(fbApp, {
+  experimentalForceLongPolling: true,
+  experimentalLongPollingOptions: { timeoutSeconds: 30 }
+});
 
 const LOGIN_URL = "../index.html";
 const LOGO_URL  = "../images/logo.png";
@@ -561,7 +564,6 @@ let awayStartedAt = null;
 let awayCheckInterval = null;
 let _bootDone = false;
 
-/* Hard timeout — never waits longer than ms */
 function withTimeout(promise, ms, fallback = null) {
   return Promise.race([
     promise,
@@ -712,7 +714,7 @@ const APP = {
 };
 let LANG = 'en';
 
-/* I18N — full EN / AM / OM */
+/* I18N */
 const I18N = {
   en: {
     brandSub:'SACCO Management', navOverview:'Overview', navNetwork:'Network', navOperations:'Operations',
@@ -801,13 +803,20 @@ const I18N = {
     savingTx:'Savings', noPermissionsToEdit:'You do not have permission to edit this customer.',
     lastDepositLabel:'Last deposit',
     printStatement:'Print Statement', printRange:'Statement range',
+    diagTitle:'Could not load data',
+    diagHint:'Verify that /users/{uid} exists in Firestore and that the updated Firestore rules have been deployed.',
+    diagYourUid:'Your UID', diagYourRole:'Your role',
+    diagFailedCollections:'Failed collections', diagRetry:'Retry',
+    profileMissingTitle:'User profile missing',
+    profileMissingBody:'No document at /users/{uid}. Create it in Firestore Console with: { role: "super_admin", status: "active" }.',
     loadingData:'Loading customers…',
     loadingWait:'First load may take a few seconds. Data appears automatically.',
     slowNetwork:'Still loading… your network may be slow. Data will appear automatically.'
   },
   am: {
     brandSub:'የሳኮ አስተዳደር',
-    navOverview:'አጠቃላይ እይታ', navNetwork:'ኔትወርክ', navOperations:'ክንውኖች', navFinance:'ፋይናንስ', navAdmin:'አስተዳደር',
+    navOverview:'አጠቃላይ እይታ', navNetwork:'ኔትወርክ', navOperations:'ክንውኖች',
+    navFinance:'ፋይናንስ', navAdmin:'አስተዳደር',
     dashboard:'ዳሽቦርድ', districts:'ወረዳዎች', branches:'ቅርንጫፎች', customers:'ደንበኞች',
     savings:'ቁጠባ', deposits:'ተቀማጭ', loans:'ብድር', repayments:'ክፍያዎች', withdrawals:'መውጫዎች',
     dividends:'ክፍፍል', shares:'አክሲዮን', reports:'ሪፖርቶች', penalties:'ቅጣቶች', audit:'የምዝግብ ታሪክ',
@@ -892,17 +901,24 @@ const I18N = {
     savingTx:'ቁጠባ', noPermissionsToEdit:'ይህን ደንበኛ ለማስተካከል ፈቃድ የለዎትም።',
     lastDepositLabel:'የመጨረሻ ተቀማጭ',
     printStatement:'መግለጫ አትም', printRange:'የመግለጫ ክልል',
+    diagTitle:'ውሂብ መጫን አልተቻለም',
+    diagHint:'እባክዎ በ Firestore /users/{uid} ሰነዱ መኖሩን እና አዲሱ የ Firestore ደንቦች መለቀቃቸውን ያረጋግጡ።',
+    diagYourUid:'የእርስዎ UID', diagYourRole:'የእርስዎ ሚና',
+    diagFailedCollections:'ያልተሳኩ ስብስቦች', diagRetry:'እንደገና ሞክር',
+    profileMissingTitle:'የተጠቃሚ መገለጫ አልተገኘም',
+    profileMissingBody:'በ /users/{uid} ሰነድ የለም። በ Firestore Console ውስጥ ይፍጠሩት፦ { role: "super_admin", status: "active" }።',
     loadingData:'ደንበኞችን በመጫን ላይ…',
     loadingWait:'የመጀመሪያ ጭነት ጥቂት ሰከንዶች ሊወስድ ይችላል። ውሂብ በራሱ ይታያል።',
     slowNetwork:'አሁንም በመጫን ላይ… ኔትወርክዎ ቀርፋፋ ሊሆን ይችላል። ውሂብ በራሱ ይታያል።'
   },
   om: {
     brandSub:'Bulchiinsa SACCO',
-    navOverview:'Aguuggama', navNetwork:'Networkii', navOperations:'Hojimaata', navFinance:'Faayinaansii', navAdmin:'Bulchiinsa',
+    navOverview:'Aguuggama', navNetwork:'Networkii', navOperations:'Hojimaata',
+    navFinance:'Faayinaansii', navAdmin:'Bulchiinsa',
     dashboard:'Daashboordii', districts:'Aanaalee', branches:'Dameewwan', customers:'Maamiltoota',
-    savings:'Qusannaa', deposits:'Kaasaa', loans:'Liqii', repayments:'Kaffaltuu',
-    withdrawals:'Baasii', dividends:'Qooda', shares:'Hirmaata', reports:'Gabaasa',
-    penalties:'Adaba', audit:'Seenaa Galmee', users:'Fayyadamtoota', settings:"Qindaa'ina",
+    savings:'Qusannaa', deposits:'Kaasaa', loans:'Liqii', repayments:'Kaffaltuu', withdrawals:'Baasii',
+    dividends:'Qooda', shares:'Hirmaata', reports:'Gabaasa', penalties:'Adaba', audit:'Seenaa Galmee',
+    users:'Fayyadamtoota', settings:"Qindaa'ina",
     role_super_admin:"Bulchaa Ol'aanaa", role_admin:'Bulchaa Aanaa', role_manager:'Bulchaa',
     role_cashier:'Kashierii', role_member:'Miseensa', role_auditor:'Ooditera', logout:"Ba'i",
     pageTitle:'Maamiltoota', pageSub:'Herrega miseensotaa SACCO bulchi',
@@ -983,6 +999,12 @@ const I18N = {
     savingTx:'Qusannaa', noPermissionsToEdit:'Maamila kana gulaaluuf hayyama hin qabdu.',
     lastDepositLabel:'Kaasaa dhumaa',
     printStatement:'Ibsa Maxxansi', printRange:'Daangaa ibsaa',
+    diagTitle:'Daataan fe\'amuu hin dandeenye',
+    diagHint:'Mirkaneessi /users/{uid} Firestore keessa jiraachuu fi seerotni Firestore haaraan maxxanfamanii jiraachuu.',
+    diagYourUid:'UID keessan', diagYourRole:'Gahee keessan',
+    diagFailedCollections:'Walitti qabaa\'ina kufe', diagRetry:'Irra deebi\'i',
+    profileMissingTitle:'Profaayilii fayyadamaa hin argamne',
+    profileMissingBody:'/users/{uid} irratti galmeen hin jiru. Firestore Console keessatti uumi: { role: "super_admin", status: "active" }.',
     loadingData:'Maamiltoota fe\'aa jira…',
     loadingWait:'Fe\'amni jalqabaa sekondoota muraasa fudhachuu danda\'a. Daataan ofiin mul\'ata.',
     slowNetwork:'Ammas fe\'aa jira… networkiin keessan laafaa ta\'uu danda\'a. Daataan ofiin mul\'ata.'
@@ -1649,18 +1671,34 @@ function renderMain() {
       <div class="stat stat--gold"><div class="stat__head"><div class="stat__label">${esc(t('statTotalSavings'))}</div><div class="stat__icon"><i class="fas fa-piggy-bank"></i></div></div><div class="stat__value" style="font-size:20px;">${esc(moneyShort(totalSavings))}</div><div class="stat__hint">${esc(t('colSavings'))} (net)</div></div>
       <div class="stat stat--violet"><div class="stat__head"><div class="stat__label">${esc(t('statTotalShares'))}</div><div class="stat__icon"><i class="fas fa-chart-pie"></i></div></div><div class="stat__value">${fmtNum(totalShares)}</div><div class="stat__hint">${esc(t('statInactive'))}: ${all.length - active}</div></div>
     </section>
-    ${failedCollections.length > 0 ? `
+    ${failedCollections.filter(k => k !== '__timeout').length > 0 ? `
       <div class="card" style="margin-bottom:22px;border-color:#fecdca;background:#fef3f2">
         <div style="padding:16px 22px;display:flex;align-items:flex-start;gap:12px;color:#b42318">
           <i class="fas fa-exclamation-circle" style="font-size:20px;margin-top:2px"></i>
           <div style="flex:1">
             <div style="font-weight:800;margin-bottom:4px">${esc(t('diagTitle') || 'Could not load data')}</div>
             <div style="font-size:13px;line-height:1.55">
-              ${failedCollections.filter(k => k !== '__timeout').join(', ') || '—'}
+              ${esc(t('diagFailedCollections') || 'Failed collections')}: <strong>${esc(failedCollections.filter(k => k !== '__timeout').join(', '))}</strong>.
+              ${esc(t('diagHint') || '')}
             </div>
           </div>
           <button class="btn btn--sm" onclick="location.reload()" style="background:#fff;border-color:#fecdca;color:#b42318">
-            <i class="fas fa-redo"></i> Retry
+            <i class="fas fa-redo"></i> ${esc(t('diagRetry') || 'Retry')}
+          </button>
+        </div>
+      </div>` : ''}
+    ${failedCollections.includes('__timeout') && APP.customers.length === 0 ? `
+      <div class="card" style="margin-bottom:22px;border-color:#fecdca;background:#fef3f2">
+        <div style="padding:16px 22px;display:flex;align-items:flex-start;gap:12px;color:#b42318">
+          <i class="fas fa-exclamation-circle" style="font-size:20px;margin-top:2px"></i>
+          <div style="flex:1">
+            <div style="font-weight:800;margin-bottom:4px">${esc(t('diagTitle') || 'Could not load data')}</div>
+            <div style="font-size:13px;line-height:1.55">
+              Firestore did not respond. Check your network connection or VPN/proxy settings.
+            </div>
+          </div>
+          <button class="btn btn--sm" onclick="location.reload()" style="background:#fff;border-color:#fecdca;color:#b42318">
+            <i class="fas fa-redo"></i> ${esc(t('diagRetry') || 'Retry')}
           </button>
         </div>
       </div>` : ''}
@@ -1700,7 +1738,6 @@ function renderContent() {
   const host = document.getElementById('contentHost');
   if (!host) return;
 
-  /* Loading spinner — no blocking, content area only */
   if (APP._loading && APP.customers.length === 0) {
     host.innerHTML = `
       <div class="loading-inline">
@@ -1725,6 +1762,18 @@ function renderContent() {
             — verify <code>/users/${esc(APP.user?.uid || '?')}</code> exists with a valid role.
           </div>
           <div style="margin-top:22px"><button class="btn btn--primary" onclick="location.reload()"><i class="fas fa-redo"></i> Retry</button></div>
+        </div>`;
+      return;
+    }
+    if (APP._errors.__timeout && !isFiltered) {
+      host.innerHTML = `
+        <div class="empty">
+          <i class="fas fa-exclamation-triangle" style="color:var(--danger)"></i>
+          <div class="empty__title">${esc(t('diagTitle') || 'Could not load data')}</div>
+          <div class="empty__text">
+            Firestore did not respond after 8 seconds. Check your network, VPN, or firewall — Google APIs may be blocked.
+          </div>
+          <div style="margin-top:22px"><button class="btn btn--primary" onclick="location.reload()"><i class="fas fa-redo"></i> ${esc(t('diagRetry') || 'Retry')}</button></div>
         </div>`;
       return;
     }
@@ -2464,10 +2513,6 @@ function scheduleRender() {
   }, 150);
 }
 
-/* ============================================================
-   attachListeners — fires all 5 onSnapshot immediately, returns
-   nothing that blocks. First customers snapshot flips _loading.
-   ============================================================ */
 function attachListeners() {
   stopListeners();
   _customerFallbackUsed = false;
@@ -2503,7 +2548,6 @@ function attachListeners() {
 
         if (_bootDone) scheduleRender();
         else if (key === 'customers' && document.getElementById('contentHost')) {
-          /* First render already done; refresh once we have data */
           try { renderContent(); } catch (e) {}
         }
       },
@@ -2540,9 +2584,6 @@ function stopListeners() {
   APP.unsubs = [];
 }
 
-/* ════════════════════════════════════════════════════════════
-   BOOT — renders shell in <100ms, listeners fill data.
-════════════════════════════════════════════════════════════ */
 (async function boot() {
   let saved = null;
   try { saved = localStorage.getItem(LANG_KEY); } catch(e){}
@@ -2564,7 +2605,6 @@ function stopListeners() {
     return;
   }
 
-  /* ── Cache-first render ── */
   const cachedProfile = readCachedProfile();
   const cachedData = cachedProfile ? readCustomersCache(cachedProfile.uid) : null;
   let rendered = false;
@@ -2596,7 +2636,6 @@ function stopListeners() {
     startSessionWatcher();
   }
 
-  /* ── Auth ── */
   const authPromise = auth.currentUser
     ? Promise.resolve(auth.currentUser)
     : new Promise(r => { const un = onAuthStateChanged(auth, u => { un(); r(u); }); });
@@ -2615,7 +2654,6 @@ function stopListeners() {
   }
   APP.user = user;
 
-  /* ── If still no shell, render NOW with loading state ── */
   if (!rendered) {
     APP.profile = APP.profile || {
       id: user.uid, role: 'viewer', email: user.email || '',
@@ -2628,22 +2666,43 @@ function stopListeners() {
     startSessionWatcher();
   }
 
-  /* ── Fire listeners (don't await) ── */
   attachListeners();
 
-  /* ── Watchdog timers ── */
-  setTimeout(() => {
-    if (APP._loading) { APP._slow = true; try { renderContent(); } catch(e){} }
-  }, 4000);
+  /* ── Watchdog at 2s: onSnapshot slow → getDocs fallback ── */
+  setTimeout(async () => {
+    if (!APP._loading) return;
+    console.log('[boot] onSnapshot slow — trying getDocs fallback…');
+    try {
+      const [custSnap, distSnap, brSnap, txSnap, shSnap] = await Promise.all([
+        withTimeout(getDocs(buildCustomersQuery()),                                                              5000, null),
+        withTimeout(getDocs(collection(db, 'districts')),                                                        5000, null),
+        withTimeout(getDocs(collection(db, 'branches')),                                                         5000, null),
+        withTimeout(getDocs(query(collection(db, 'transactions'), orderBy('createdAt','desc'), limit(2000))),  5000, null),
+        withTimeout(getDocs(collection(db, 'shares')),                                                           5000, null)
+      ]);
+      if (custSnap) APP.customers    = custSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (distSnap) APP.districts    = distSnap.docs.map(d =>   ({ id: d.id, ...d.data() }));
+      if (brSnap)   APP.branches     = brSnap.docs.map(d =>     ({ id: d.id, ...d.data() }));
+      if (txSnap)   APP.transactions = txSnap.docs.map(d =>     ({ id: d.id, ...d.data() }));
+      if (shSnap)   APP.shareRecords = shSnap.docs.map(d =>     ({ id: d.id, ...d.data() }));
+      APP._loading = false;
+      console.log('[boot] getDocs fallback loaded — customers:', APP.customers.length);
+      renderMain();
+      persistCustomersCache();
+    } catch (e) {
+      console.warn('[boot] getDocs fallback failed:', e.code, e.message);
+    }
+  }, 2000);
+
+  /* ── Watchdog at 8s: force diagnostic if still empty ── */
   setTimeout(() => {
     if (APP._loading && APP.customers.length === 0) {
       APP._loading = false;
       if (!Object.keys(APP._errors).length) APP._errors.__timeout = 'timeout';
       try { renderContent(); } catch(e){}
     }
-  }, 5000);
+  }, 8000);
 
-  /* ── User doc (parallel, 3s) ── */
   let userSnap = null;
   try { userSnap = await withTimeout(getDoc(doc(db, 'users', user.uid)), 3000); } catch(e) {}
 
@@ -2672,7 +2731,6 @@ function stopListeners() {
     }
   }
 
-  /* ── Settings (parallel, 3s) ── */
   try {
     const settingsSnap = await withTimeout(getDoc(doc(db, 'settings', 'system')), 3000);
     if (settingsSnap && settingsSnap.exists()) {
@@ -2707,7 +2765,7 @@ function stopListeners() {
   startSessionWatcher();
 })();
 
-console.log('[sacco] customers ready — shell renders in <100ms, data streams via onSnapshot, no blocking');
+console.log('[sacco] customers ready — long-polling + getDocs fallback');
 </script>
 
 </body>
