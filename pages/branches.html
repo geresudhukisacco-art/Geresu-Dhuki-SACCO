@@ -426,7 +426,8 @@ body.sb-open .overlay-mobile{display:block;}
 import { initializeApp } from "firebase/app";
 import { getAuth, signOut, onAuthStateChanged } from "firebase/auth";
 import {
-  getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
+  initializeFirestore,
+  doc, getDoc, setDoc, updateDoc, deleteDoc,
   collection, onSnapshot, query, orderBy, serverTimestamp,
   getDocs, limit
 } from "firebase/firestore";
@@ -442,8 +443,11 @@ const firebaseConfig = {
 const fbApp = initializeApp(firebaseConfig);
 const auth  = getAuth(fbApp);
 
-/* ── Just use the default Firestore. No deprecated flags. ── */
-const db = getFirestore(fbApp);
+/* ── Long-polling transport — bypasses the broken Listen WebSocket ── */
+const db = initializeFirestore(fbApp, {
+  experimentalForceLongPolling: true,
+  experimentalLongPollingOptions: { timeoutSeconds: 30 }
+});
 
 const LOGIN_URL = "../index.html";
 const LOGO_URL  = "../images/logo.png";
@@ -460,7 +464,6 @@ let SESSION_MINUTES = null;
 let awayStartedAt = null, awayCheckInterval = null;
 let _bootDone = false;
 
-/* Hard timeout helper — never blocks longer than `ms` */
 function withTimeout(promise, ms, fallback = null) {
   return Promise.race([
     promise,
@@ -857,8 +860,8 @@ const APP = {
   view: 'grid', page: 1, pageSize: 12,
   editingId: null, deletingId: null,
   _errors: {},
-  _loading: true,     /* ← true until first snapshot arrives */
-  _slow: false        /* ← true if > 4s elapsed */
+  _loading: true,
+  _slow: false
 };
 
 function _matchesDistrict(rec, district) {
@@ -1081,7 +1084,9 @@ function renderShell() {
 
 function renderDiagnosticPanel(host, options) {
   const { failed, uid, role } = options;
-  const failedList = failed.length ? failed.join(', ') : '—';
+  const failedList = failed.filter(k => k !== '__timeout').length
+    ? failed.filter(k => k !== '__timeout').join(', ')
+    : 'Request timed out (no response from server)';
   host.innerHTML = `
     <div class="card" style="margin:0 0 24px">
       <div class="empty" style="padding:48px 24px">
@@ -1177,14 +1182,30 @@ function renderMain() {
       </div>
     </section>
 
-    ${failedCollections.length > 0 ? `
+    ${failedCollections.length > 0 && failedCollections.includes('__timeout') && APP.branches.length === 0 ? `
       <div class="card" style="margin-bottom:22px;border-color:#fecdca;background:#fef3f2">
         <div style="padding:16px 22px;display:flex;align-items:flex-start;gap:12px;color:#b42318">
           <i class="fas fa-exclamation-circle" style="font-size:20px;margin-top:2px"></i>
           <div style="flex:1">
             <div style="font-weight:800;margin-bottom:4px">${esc(t('diagTitle'))}</div>
             <div style="font-size:13px;line-height:1.55">
-              ${esc(t('diagFailedCollections'))}: <strong>${esc(failedCollections.join(', '))}</strong>.
+              Firestore did not respond. Check your network connection or VPN/proxy settings.
+            </div>
+          </div>
+          <button class="btn btn--sm" onclick="location.reload()" style="background:#fff;border-color:#fecdca;color:#b42318">
+            <i class="fas fa-redo"></i> ${esc(t('diagRetry'))}
+          </button>
+        </div>
+      </div>` : ''}
+
+    ${failedCollections.length > 0 && failedCollections.filter(k => k !== '__timeout').length > 0 ? `
+      <div class="card" style="margin-bottom:22px;border-color:#fecdca;background:#fef3f2">
+        <div style="padding:16px 22px;display:flex;align-items:flex-start;gap:12px;color:#b42318">
+          <i class="fas fa-exclamation-circle" style="font-size:20px;margin-top:2px"></i>
+          <div style="flex:1">
+            <div style="font-weight:800;margin-bottom:4px">${esc(t('diagTitle'))}</div>
+            <div style="font-size:13px;line-height:1.55">
+              ${esc(t('diagFailedCollections'))}: <strong>${esc(failedCollections.filter(k => k !== '__timeout').join(', '))}</strong>.
               ${esc(t('diagHint'))}
             </div>
           </div>
@@ -1253,7 +1274,6 @@ function filteredBranches() {
 function renderContent() {
   const host = document.getElementById('contentHost'); if (!host) return;
 
-  /* If still loading AND we have no data yet → show loading spinner */
   if (APP._loading && APP.branches.length === 0) {
     host.innerHTML = `
       <div class="loading-inline">
@@ -1267,10 +1287,18 @@ function renderContent() {
   const list = filteredBranches();
   if (!list.length) {
     const isFiltered = APP.filters.search || APP.filters.district;
-    const hasErrors = Object.keys(APP._errors || {}).length > 0;
-    if (hasErrors && !isFiltered) {
+    const hasRealErrors = Object.keys(APP._errors || {}).filter(k => k !== '__timeout').length > 0;
+    if (hasRealErrors && !isFiltered) {
       renderDiagnosticPanel(host, {
         failed: Object.keys(APP._errors),
+        uid: APP.user?.uid || '',
+        role: APP.profile?.role || ''
+      });
+      return;
+    }
+    if (APP._errors.__timeout && !isFiltered) {
+      renderDiagnosticPanel(host, {
+        failed: ['__timeout'],
         uid: APP.user?.uid || '',
         role: APP.profile?.role || ''
       });
@@ -1767,73 +1795,50 @@ function scheduleRender() {
 }
 
 /* ============================================================
-   attachListeners — fire all 4 onSnapshot immediately.
-   NO blocking. First arrival flips APP._loading and re-renders.
+   attachListeners
    ============================================================ */
 function attachListeners() {
   stopListeners();
   _branchStatsCache = null;
 
-  const ready = {};
-
   const make = (coll, orderField, retried = false) => {
-    ready[coll] = new Promise((resolve) => {
-      let ref = collection(db, coll);
-      if (orderField) ref = query(ref, orderBy(orderField, 'desc'), limit(500));
+    let ref = collection(db, coll);
+    if (orderField) ref = query(ref, orderBy(orderField, 'desc'), limit(500));
 
-      let first = true;
-      const unsub = onSnapshot(
-        ref,
-        (snap) => {
-          const incoming = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-          /* Guard: broken stream can produce empty server snapshot.
-             Don't wipe preloaded data. */
-          if (incoming.length === 0 && APP[coll].length > 0 && !snap.metadata.fromCache) {
-            console.warn(`[snapshot] ${coll}: empty server snapshot ignored`);
-            if (first) { first = false; resolve(); }
-            return;
-          }
-
-          APP[coll] = incoming;
-          delete APP._errors[coll];
-          console.log(`[snapshot] ${coll}: ${APP[coll].length} docs (fromCache=${snap.metadata.fromCache})`);
-
-          if (coll === 'customers' || coll === 'branches' || coll === 'transactions') {
-            _branchStatsCache = null;
-          }
-
-          /* First snapshot arrived — flip off the loading state */
-          if (coll === 'branches') {
-            APP._loading = false;
-          }
-
-          if (first) { first = false; resolve(); }
-          if (_bootDone) scheduleRender();
-        },
-        (err) => {
-          console.error(`[listen] ${coll} →`, err.code, err.message);
-          APP._errors[coll] = err.code || err.message;
-          if (coll === 'branches') APP._loading = false;
-
-          if (!retried && (err.code === 'unavailable' || /stream|network/i.test(err.message || ''))) {
-            console.warn(`[listen] retrying ${coll} in 2s…`);
-            setTimeout(() => { try { make(coll, orderField, true); } catch (e) {} }, 2000);
-          }
-
-          if (first) { first = false; resolve(); }
+    const unsub = onSnapshot(
+      ref,
+      (snap) => {
+        const incoming = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (incoming.length === 0 && APP[coll].length > 0 && !snap.metadata.fromCache) {
+          console.warn(`[snapshot] ${coll}: empty server snapshot ignored`);
+          return;
         }
-      );
-      APP.unsubs.push(unsub);
-    });
+        APP[coll] = incoming;
+        delete APP._errors[coll];
+        console.log(`[snapshot] ${coll}: ${APP[coll].length} docs`);
+
+        if (coll === 'branches') APP._loading = false;
+        if (coll === 'customers' || coll === 'branches' || coll === 'transactions') {
+          _branchStatsCache = null;
+        }
+        if (_bootDone) scheduleRender();
+      },
+      (err) => {
+        console.error(`[listen] ${coll} →`, err.code, err.message);
+        APP._errors[coll] = err.code || err.message;
+        if (coll === 'branches') APP._loading = false;
+        if (!retried && (err.code === 'unavailable' || /stream|network/i.test(err.message || ''))) {
+          setTimeout(() => { try { make(coll, orderField, true); } catch (e) {} }, 2000);
+        }
+      }
+    );
+    APP.unsubs.push(unsub);
   };
 
   make('districts');
   make('branches');
   make('customers');
   make('transactions', 'createdAt');
-
-  return ready;
 }
 function stopListeners() {
   APP.unsubs.forEach(u => { try { u(); } catch(e){} });
@@ -1841,8 +1846,7 @@ function stopListeners() {
 }
 
 /* ════════════════════════════════════════════════════════════
-   BOOT — renders shell in < 100ms, data fills in via onSnapshot.
-   Nothing blocks on Firestore. Hard 5s watchdog shows retry.
+   BOOT
 ════════════════════════════════════════════════════════════ */
 (async function boot() {
   let saved = null;
@@ -1865,12 +1869,9 @@ function stopListeners() {
     return;
   }
 
-  /* ── T=0ms: read caches (instant, synchronous) ── */
   const cachedProfile = readCachedProfile();
   const cachedData    = cachedProfile ? readBranchesCache(cachedProfile.uid) : null;
-  const hasCachedData = !!(cachedData && (cachedData.branches?.length || cachedData.districts?.length));
 
-  /* ── Render shell + cache IMMEDIATELY if profile cached ── */
   if (cachedProfile && cachedProfile.uid) {
     APP.profile = {
       id: cachedProfile.uid,
@@ -1893,11 +1894,10 @@ function stopListeners() {
     }
     renderShell();
     renderMain();
-    hideLoaderNow();   /* ← page is visible at ~T=50ms */
+    hideLoaderNow();
     startSessionWatcher();
   }
 
-  /* ── Auth (non-blocking wait, 3s timeout) ── */
   const authPromise = auth.currentUser
     ? Promise.resolve(auth.currentUser)
     : new Promise((r) => { const un = onAuthStateChanged(auth, (u) => { un(); r(u); }); });
@@ -1917,7 +1917,6 @@ function stopListeners() {
   }
   APP.user = user;
 
-  /* ── If we haven't rendered yet, render shell NOW with loading state ── */
   if (!document.querySelector('.app')) {
     APP.profile = APP.profile || {
       id: user.uid, role: 'viewer', email: user.email || '',
@@ -1926,28 +1925,51 @@ function stopListeners() {
     };
     renderShell();
     renderMain();
-    hideLoaderNow();   /* ← page visible at ~T=200ms even without cache */
+    hideLoaderNow();
     startSessionWatcher();
   }
 
-  /* ── Fire listeners IMMEDIATELY — don't await ── */
-  const listenersReady = attachListeners();
+  /* Fire listeners — don't await */
+  attachListeners();
 
-  /* ── Watchdog: after 4s, show "slow network" hint ── */
-  setTimeout(() => {
-    if (APP._loading) {
-      APP._slow = true;
-      if (APP.branches.length === 0) renderContent();
+  /* ── Watchdog at 2s: onSnapshot slow → try getDocs (different endpoint) ── */
+  setTimeout(async () => {
+    if (!APP._loading) return;
+    console.log('[boot] onSnapshot slow — trying getDocs fallback…');
+    try {
+      const [distSnap, brSnap, custSnap, txSnap] = await Promise.all([
+        withTimeout(getDocs(collection(db, 'districts')),           5000, null),
+        withTimeout(getDocs(collection(db, 'branches')),            5000, null),
+        withTimeout(getDocs(query(collection(db, 'customers'), limit(2000))), 5000, null),
+        withTimeout(getDocs(query(collection(db, 'transactions'), orderBy('createdAt','desc'), limit(500))), 5000, null)
+      ]);
+      if (distSnap) APP.districts    = distSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (brSnap)   APP.branches     = brSnap.docs.map(d =>   ({ id: d.id, ...d.data() }));
+      if (custSnap) APP.customers    = custSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (txSnap)   APP.transactions = txSnap.docs.map(d =>   ({ id: d.id, ...d.data() }));
+      _branchStatsCache = null;
+      APP._loading = false;
+      console.log('[boot] getDocs fallback loaded — branches:', APP.branches.length, 'customers:', APP.customers.length);
+      renderMain();
+      persistCache();
+    } catch (e) {
+      console.warn('[boot] getDocs fallback failed:', e.code, e.message);
     }
-  }, 4000);
+  }, 2000);
 
-  /* ── User doc (parallel, 3s timeout) ── */
+  /* ── Watchdog at 8s: force diagnostic if still empty ── */
+  setTimeout(() => {
+    if (APP._loading && APP.branches.length === 0) {
+      APP._loading = false;
+      if (!Object.keys(APP._errors).length) {
+        APP._errors.__timeout = 'timeout';
+      }
+      renderMain();
+    }
+  }, 8000);
+
   let userSnap = null;
-  try {
-    userSnap = await withTimeout(getDoc(doc(db, 'users', user.uid)), 3000);
-  } catch (e) {
-    console.warn('[boot] user doc failed:', e.code, e.message);
-  }
+  try { userSnap = await withTimeout(getDoc(doc(db, 'users', user.uid)), 3000); } catch (e) {}
 
   if (userSnap && userSnap.exists()) {
     const d = userSnap.data();
@@ -1958,31 +1980,23 @@ function stopListeners() {
       window.location.replace(LOGIN_URL);
       return;
     }
-
     const prevRole     = APP.profile?.role;
     const prevDistrict = APP.profile?.districtId;
     const prevBranch   = APP.profile?.branchId;
-
     APP.profile = { id: userSnap.id, ...d, email: user.email || '' };
     writeCachedProfile();
-
     if (isMember()) { window.location.replace('dashboard.html'); return; }
-
     const scopeChanged = prevRole     !== APP.profile.role
                       || prevDistrict !== APP.profile.districtId
                       || prevBranch   !== APP.profile.branchId;
-
     if (scopeChanged) {
       clearBranchesCache(user.uid);
-      APP.districts = []; APP.branches = [];
-      APP.customers = []; APP.transactions = [];
+      APP.districts = []; APP.branches = []; APP.customers = []; APP.transactions = [];
       _branchStatsCache = null;
-      renderShell();
-      renderMain();
+      renderShell(); renderMain();
     }
   }
 
-  /* ── Settings (parallel, 3s timeout) ── */
   try {
     const settingsSnap = await withTimeout(getDoc(doc(db, 'settings', 'system')), 3000);
     if (settingsSnap && settingsSnap.exists()) {
@@ -2000,7 +2014,6 @@ function stopListeners() {
       SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
     }
   } catch (e) {
-    console.warn('[boot] settings failed:', e.message);
     if (SESSION_MINUTES == null) SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
   }
 
@@ -2010,22 +2023,10 @@ function stopListeners() {
   } catch (e) {}
 
   _bootDone = true;
-
-  /* ── Watchdog: after 5s, if still loading, force diagnostic ── */
-  setTimeout(() => {
-    if (APP._loading && APP.branches.length === 0) {
-      APP._loading = false;
-      if (!Object.keys(APP._errors).length) {
-        APP._errors.__timeout = 'timeout';
-      }
-      renderContent();
-    }
-  }, 5000);
-
   startSessionWatcher();
 })();
 
-console.log('[sacco] branches ready — shell renders in <100ms, data via onSnapshot, no blocking calls');
+console.log('[sacco] branches ready — long-polling + getDocs fallback');
 </script>
 
 </body>
