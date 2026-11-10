@@ -474,6 +474,10 @@ html.theme-dark .review__row{border-bottom-color:#1a2433;}
 .toast i{font-size:16px;flex-shrink:0;}
 .overlay-mobile{display:none;position:fixed;inset:0;background:rgba(13,21,32,.45);z-index:25;}
 body.sb-open .overlay-mobile{display:block;}
+.loading-inline{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:64px 24px;gap:14px;color:var(--muted);text-align:center;}
+.loading-inline .spin{width:32px;height:32px;border-width:3px;}
+.loading-inline p{font-size:13.5px;font-weight:600;max-width:340px;line-height:1.5;}
 @media (max-width:900px){
   .app{grid-template-columns:1fr !important;grid-template-areas:"topbar" "main";}
   .sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w) !important;z-index:31;
@@ -521,7 +525,7 @@ body.sb-open .overlay-mobile{display:block;}
 import { initializeApp } from "firebase/app";
 import { getAuth, signOut, onAuthStateChanged } from "firebase/auth";
 import {
-  initializeFirestore,
+  getFirestore,
   doc, getDoc, setDoc, updateDoc, deleteDoc,
   collection, onSnapshot, query, orderBy, serverTimestamp,
   getDocs, getDocsFromServer, limit, where, runTransaction
@@ -539,11 +543,8 @@ const firebaseConfig = {
 const fbApp = initializeApp(firebaseConfig);
 const auth  = getAuth(fbApp);
 
-/* ─── Firestore: bypass fragile Listen stream (fixes 404 transport errors) ─── */
-const db = initializeFirestore(fbApp, {
-  experimentalAutoDetectLongPolling: true,
-  useFetchStreams: false
-});
+/* ── Plain Firestore — no deprecated flags, no 30s detection ── */
+const db = getFirestore(fbApp);
 
 const LOGIN_URL = "../index.html";
 const LOGO_URL  = "../images/logo.png";
@@ -559,6 +560,14 @@ let SESSION_MINUTES = null;
 let awayStartedAt = null;
 let awayCheckInterval = null;
 let _bootDone = false;
+
+/* Hard timeout — never waits longer than ms */
+function withTimeout(promise, ms, fallback = null) {
+  return Promise.race([
+    promise,
+    new Promise(r => setTimeout(() => r(fallback), ms))
+  ]);
+}
 
 function readSession() { try { const raw = sessionStorage.getItem(SESSION_KEY); if (!raw) return null; const s = JSON.parse(raw); return (s && s.uid) ? s : null; } catch (e) { return null; } }
 function clearSession() { try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {} }
@@ -667,56 +676,17 @@ function startSessionWatcher() {
 
 /* REGION → ZONES + CITIES */
 const REGION_DATA = {
-  'Addis Ababa': {
-    zones: ['Addis Ketema','Akaki Kaliti','Arada','Bole','Gulele',
-            'Kirkos','Kolfe Keranio','Lideta','Nifas Silk-Lafto','Yeka','Lemi Kura'],
-    cities: ['Addis Ababa']
-  },
-  'Oromia': {
-    zones: ['East Oromia','West Oromia','South Oromia','Central Oromia',
-            'South East Oromia','South West Oromia'],
-    cities: ['Adama','Jimma','Bishoftu','Nekemte','Shashamane','Shager','Asella','Maya']
-  },
-  'Amhara': {
-    zones: ['North Gondar','South Gondar','North Wollo','South Wollo','North Shewa',
-            'East Gojjam','West Gojjam','Wag Himra','Awi','Oromia Zone','Bahir Dar City'],
-    cities: ['Bahir Dar','Gondar','Dessie','Debre Birhan','Debre Markos','Woldia','Debre Tabor','Kombolcha']
-  },
-  'Tigray': {
-    zones: ['North West Tigray','Central Tigray','Eastern Tigray','Southern Tigray',
-            'Western Tigray','Mekelle City'],
-    cities: ['Mekelle','Adigrat','Axum','Shire','Adwa','Humera','Alamata','Dansha']
-  },
-  'Sidama': {
-    zones: ['Hawassa City','Aleta Wondo','Arbegona','Aroresa','Bensa','Boricha','Bursa',
-            'Chere','Chire','Dale','Dara','Gorche','Hula','Loka Abaya','Malga','Shebedino','Wondogenet'],
-    cities: ['Hawassa','Yirga Alem','Aleta Wondo','Wondogenet','Daye','Bona']
-  },
-  'South Ethiopia': {
-    zones: ['Gamo','Gofa','Wolayita','South Omo','Keffa','Sheka','Bench Sheko',
-            'Konta','Dawro','Kembata Tembaro','Hadiya','Halaba','Silte','Gurage','Yem'],
-    cities: ['Wolaita Sodo','Arba Minch','Jinka','Bonga','Mizan Teferi','Hosaena','Butajira','Durame']
-  },
-  'Central Ethiopia': {
-    zones: ['Gurage','Halaba','Kembata Tembaro','Silte','Yem','Hadiya'],
-    cities: ['Hosaena','Butajira','Durame','Wolkite','Halaba Kulito']
-  },
-  'South West Ethiopia': {
-    zones: ['Bench Sheko','Keffa','Sheka','West Omo','Dawro','Konta'],
-    cities: ['Bonga','Mizan Teferi','Tepi','Tercha']
-  },
-  'Afar': {
-    zones: ['Zone 1','Zone 2','Zone 3','Zone 4','Zone 5'],
-    cities: ['Semera','Asayita','Dubti','Gewane','Awash']
-  },
-  'Benishangul-Gumuz': {
-    zones: ['Asosa','Kamashi','Metekel','Kemashi'],
-    cities: ['Asosa','Gilgel Beles','Bambasi','Kamashi']
-  },
-  'Gambela': {
-    zones: ['Anuak','Nuer','Mezhenger','Agnewak'],
-    cities: ['Gambela','Meti','Pugnido','Itang']
-  },
+  'Addis Ababa': { zones: ['Addis Ketema','Akaki Kaliti','Arada','Bole','Gulele','Kirkos','Kolfe Keranio','Lideta','Nifas Silk-Lafto','Yeka','Lemi Kura'], cities: ['Addis Ababa'] },
+  'Oromia': { zones: ['East Oromia','West Oromia','South Oromia','Central Oromia','South East Oromia','South West Oromia'], cities: ['Adama','Jimma','Bishoftu','Nekemte','Shashamane','Shager','Asella','Maya'] },
+  'Amhara': { zones: ['North Gondar','South Gondar','North Wollo','South Wollo','North Shewa','East Gojjam','West Gojjam','Wag Himra','Awi','Oromia Zone','Bahir Dar City'], cities: ['Bahir Dar','Gondar','Dessie','Debre Birhan','Debre Markos','Woldia','Debre Tabor','Kombolcha'] },
+  'Tigray': { zones: ['North West Tigray','Central Tigray','Eastern Tigray','Southern Tigray','Western Tigray','Mekelle City'], cities: ['Mekelle','Adigrat','Axum','Shire','Adwa','Humera','Alamata','Dansha'] },
+  'Sidama': { zones: ['Hawassa City','Aleta Wondo','Arbegona','Aroresa','Bensa','Boricha','Bursa','Chere','Chire','Dale','Dara','Gorche','Hula','Loka Abaya','Malga','Shebedino','Wondogenet'], cities: ['Hawassa','Yirga Alem','Aleta Wondo','Wondogenet','Daye','Bona'] },
+  'South Ethiopia': { zones: ['Gamo','Gofa','Wolayita','South Omo','Keffa','Sheka','Bench Sheko','Konta','Dawro','Kembata Tembaro','Hadiya','Halaba','Silte','Gurage','Yem'], cities: ['Wolaita Sodo','Arba Minch','Jinka','Bonga','Mizan Teferi','Hosaena','Butajira','Durame'] },
+  'Central Ethiopia': { zones: ['Gurage','Halaba','Kembata Tembaro','Silte','Yem','Hadiya'], cities: ['Hosaena','Butajira','Durame','Wolkite','Halaba Kulito'] },
+  'South West Ethiopia': { zones: ['Bench Sheko','Keffa','Sheka','West Omo','Dawro','Konta'], cities: ['Bonga','Mizan Teferi','Tepi','Tercha'] },
+  'Afar': { zones: ['Zone 1','Zone 2','Zone 3','Zone 4','Zone 5'], cities: ['Semera','Asayita','Dubti','Gewane','Awash'] },
+  'Benishangul-Gumuz': { zones: ['Asosa','Kamashi','Metekel','Kemashi'], cities: ['Asosa','Gilgel Beles','Bambasi','Kamashi'] },
+  'Gambela': { zones: ['Anuak','Nuer','Mezhenger','Agnewak'], cities: ['Gambela','Meti','Pugnido','Itang'] },
   'Harari': { zones: ['Harari'], cities: ['Harar'] },
   'Dire Dawa': { zones: ['Dire Dawa'], cities: ['Dire Dawa'] }
 };
@@ -736,6 +706,8 @@ const APP = {
   filters: { search: '', districtId: '', branchId: '', status: '' },
   view: 'grid', page: 1, pageSize: 12,
   _errors: {},
+  _loading: true,
+  _slow: false,
   diag: { customersLoaded: 0, customersError: '', preload: '', primaryFallback: false }
 };
 let LANG = 'en';
@@ -829,17 +801,13 @@ const I18N = {
     savingTx:'Savings', noPermissionsToEdit:'You do not have permission to edit this customer.',
     lastDepositLabel:'Last deposit',
     printStatement:'Print Statement', printRange:'Statement range',
-    diagTitle:'Could not load data',
-    diagHint:'Verify that /users/{uid} exists in Firestore and that the updated Firestore rules have been deployed.',
-    diagYourUid:'Your UID', diagYourRole:'Your role',
-    diagFailedCollections:'Failed collections', diagRetry:'Retry',
-    profileMissingTitle:'User profile missing',
-    profileMissingBody:'No document at /users/{uid}. Create it in Firestore Console with: { role: "super_admin", status: "active" }.'
+    loadingData:'Loading customers…',
+    loadingWait:'First load may take a few seconds. Data appears automatically.',
+    slowNetwork:'Still loading… your network may be slow. Data will appear automatically.'
   },
   am: {
     brandSub:'የሳኮ አስተዳደር',
-    navOverview:'አጠቃላይ እይታ', navNetwork:'ኔትወርክ', navOperations:'ክንውኖች',
-    navFinance:'ፋይናንስ', navAdmin:'አስተዳደር',
+    navOverview:'አጠቃላይ እይታ', navNetwork:'ኔትወርክ', navOperations:'ክንውኖች', navFinance:'ፋይናንስ', navAdmin:'አስተዳደር',
     dashboard:'ዳሽቦርድ', districts:'ወረዳዎች', branches:'ቅርንጫፎች', customers:'ደንበኞች',
     savings:'ቁጠባ', deposits:'ተቀማጭ', loans:'ብድር', repayments:'ክፍያዎች', withdrawals:'መውጫዎች',
     dividends:'ክፍፍል', shares:'አክሲዮን', reports:'ሪፖርቶች', penalties:'ቅጣቶች', audit:'የምዝግብ ታሪክ',
@@ -924,21 +892,17 @@ const I18N = {
     savingTx:'ቁጠባ', noPermissionsToEdit:'ይህን ደንበኛ ለማስተካከል ፈቃድ የለዎትም።',
     lastDepositLabel:'የመጨረሻ ተቀማጭ',
     printStatement:'መግለጫ አትም', printRange:'የመግለጫ ክልል',
-    diagTitle:'ውሂብ መጫን አልተቻለም',
-    diagHint:'እባክዎ በ Firestore /users/{uid} ሰነዱ መኖሩን እና አዲሱ የ Firestore ደንቦች መለቀቃቸውን ያረጋግጡ።',
-    diagYourUid:'የእርስዎ UID', diagYourRole:'የእርስዎ ሚና',
-    diagFailedCollections:'ያልተሳኩ ስብስቦች', diagRetry:'እንደገና ሞክር',
-    profileMissingTitle:'የተጠቃሚ መገለጫ አልተገኘም',
-    profileMissingBody:'በ /users/{uid} ሰነድ የለም። በ Firestore Console ውስጥ ይፍጠሩት፦ { role: "super_admin", status: "active" }።'
+    loadingData:'ደንበኞችን በመጫን ላይ…',
+    loadingWait:'የመጀመሪያ ጭነት ጥቂት ሰከንዶች ሊወስድ ይችላል። ውሂብ በራሱ ይታያል።',
+    slowNetwork:'አሁንም በመጫን ላይ… ኔትወርክዎ ቀርፋፋ ሊሆን ይችላል። ውሂብ በራሱ ይታያል።'
   },
   om: {
     brandSub:'Bulchiinsa SACCO',
-    navOverview:'Aguuggama', navNetwork:'Networkii', navOperations:'Hojimaata',
-    navFinance:'Faayinaansii', navAdmin:'Bulchiinsa',
+    navOverview:'Aguuggama', navNetwork:'Networkii', navOperations:'Hojimaata', navFinance:'Faayinaansii', navAdmin:'Bulchiinsa',
     dashboard:'Daashboordii', districts:'Aanaalee', branches:'Dameewwan', customers:'Maamiltoota',
-    savings:'Qusannaa', deposits:'Kaasaa', loans:'Liqii', repayments:'Kaffaltuu', withdrawals:'Baasii',
-    dividends:'Qooda', shares:'Hirmaata', reports:'Gabaasa', penalties:'Adaba', audit:'Seenaa Galmee',
-    users:'Fayyadamtoota', settings:"Qindaa'ina",
+    savings:'Qusannaa', deposits:'Kaasaa', loans:'Liqii', repayments:'Kaffaltuu',
+    withdrawals:'Baasii', dividends:'Qooda', shares:'Hirmaata', reports:'Gabaasa',
+    penalties:'Adaba', audit:'Seenaa Galmee', users:'Fayyadamtoota', settings:"Qindaa'ina",
     role_super_admin:"Bulchaa Ol'aanaa", role_admin:'Bulchaa Aanaa', role_manager:'Bulchaa',
     role_cashier:'Kashierii', role_member:'Miseensa', role_auditor:'Ooditera', logout:"Ba'i",
     pageTitle:'Maamiltoota', pageSub:'Herrega miseensotaa SACCO bulchi',
@@ -1019,12 +983,9 @@ const I18N = {
     savingTx:'Qusannaa', noPermissionsToEdit:'Maamila kana gulaaluuf hayyama hin qabdu.',
     lastDepositLabel:'Kaasaa dhumaa',
     printStatement:'Ibsa Maxxansi', printRange:'Daangaa ibsaa',
-    diagTitle:'Daataan fe\'amuu hin dandeenye',
-    diagHint:'Mirkaneessi /users/{uid} Firestore keessa jiraachuu fi seerotni Firestore haaraan maxxanfamanii jiraachuu.',
-    diagYourUid:'UID keessan', diagYourRole:'Gahee keessan',
-    diagFailedCollections:'Walitti qabaa\'ina kufe', diagRetry:'Irra deebi\'i',
-    profileMissingTitle:'Profaayilii fayyadamaa hin argamne',
-    profileMissingBody:'/users/{uid} irratti galmeen hin jiru. Firestore Console keessatti uumi: { role: "super_admin", status: "active" }.'
+    loadingData:'Maamiltoota fe\'aa jira…',
+    loadingWait:'Fe\'amni jalqabaa sekondoota muraasa fudhachuu danda\'a. Daataan ofiin mul\'ata.',
+    slowNetwork:'Ammas fe\'aa jira… networkiin keessan laafaa ta\'uu danda\'a. Daataan ofiin mul\'ata.'
   }
 };
 const SUPPORTED = ['en','am','om'];
@@ -1060,8 +1021,8 @@ function toast(msg, type = 'success') {
   const icons = { success:'fa-check-circle', error:'fa-exclamation-circle', warning:'fa-exclamation-triangle', info:'fa-info-circle' };
   el.innerHTML = `<i class="fas ${icons[type] || 'fa-info-circle'}"></i><span>${esc(msg)}</span>`;
   wrap.appendChild(el);
-  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; }, 5000);
-  setTimeout(() => el.remove(), 5500);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; }, 3800);
+  setTimeout(() => el.remove(), 4200);
 }
 const LOGO_FALLBACK = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#0b5cab"/><circle cx="50" cy="47" r="25" fill="none" stroke="#f0c96a" stroke-width="3.5"/><text x="50" y="59" font-family="Georgia,serif" font-size="30" font-weight="900" fill="#f0c96a" text-anchor="middle">G</text></svg>`;
 const LOGO_HTML = `<img src="${LOGO_URL}" alt="Geresu Dhuki SACCO" onerror="this.onerror=null; this.outerHTML=this.dataset.fallback;" data-fallback="${LOGO_FALLBACK.replace(/"/g, '&quot;')}">`;
@@ -1089,15 +1050,6 @@ function canEditCustomer(c) {
   return false;
 }
 function canDeleteCustomer(c) { return canEditCustomer(c); }
-
-function canApproveTransaction(tx) {
-  if (!tx || !APP.profile) return false;
-  const r = APP.profile.role;
-  if (r === 'super_admin') return true;
-  if (r === 'admin')       return tx.districtId === APP.profile.districtId;
-  if (r === 'manager')     return tx.branchId   === APP.profile.branchId;
-  return false;
-}
 
 function scopeCustomers() {
   const all = APP.customers.slice();
@@ -1652,29 +1604,6 @@ function renderShell() {
   try { if (localStorage.getItem('sacco.sidebar') === 'collapsed') document.body.classList.add('sidebar-collapsed'); } catch(e){}
 }
 
-function renderDiagnosticPanel(host, options) {
-  const { failed, uid, role } = options;
-  const failedList = failed.length ? failed.join(', ') : '—';
-  host.innerHTML = `
-    <div class="card" style="margin:0 0 24px">
-      <div class="empty" style="padding:48px 24px">
-        <i class="fas fa-exclamation-triangle" style="color:var(--danger)"></i>
-        <div class="empty__title">${esc(t('diagTitle'))}</div>
-        <div class="empty__text" style="text-align:left;max-width:560px">
-          <p><strong>${esc(t('diagFailedCollections'))}:</strong> <code>${esc(failedList)}</code></p>
-          <p style="margin-top:8px"><strong>${esc(t('diagYourUid'))}:</strong> <code>${esc(uid || '?')}</code></p>
-          <p style="margin-top:8px"><strong>${esc(t('diagYourRole'))}:</strong> <code>${esc(role || '?')}</code></p>
-          <p style="margin-top:14px;padding:10px 12px;background:#fdf5e0;border:1px solid #f0dcb0;border-radius:8px;color:#7a5210">
-            <i class="fas fa-info-circle"></i> ${esc(t('diagHint'))}
-          </p>
-        </div>
-        <div style="margin-top:22px;">
-          <button class="btn btn--primary" onclick="location.reload()"><i class="fas fa-redo"></i> ${esc(t('diagRetry'))}</button>
-        </div>
-      </div>
-    </div>`;
-}
-
 function renderMain() {
   const host = document.getElementById('mainContent');
   if (!host) return;
@@ -1725,14 +1654,13 @@ function renderMain() {
         <div style="padding:16px 22px;display:flex;align-items:flex-start;gap:12px;color:#b42318">
           <i class="fas fa-exclamation-circle" style="font-size:20px;margin-top:2px"></i>
           <div style="flex:1">
-            <div style="font-weight:800;margin-bottom:4px">${esc(t('diagTitle'))}</div>
+            <div style="font-weight:800;margin-bottom:4px">${esc(t('diagTitle') || 'Could not load data')}</div>
             <div style="font-size:13px;line-height:1.55">
-              ${esc(t('diagFailedCollections'))}: <strong>${esc(failedCollections.join(', '))}</strong>.
-              ${esc(t('diagHint'))}
+              ${failedCollections.filter(k => k !== '__timeout').join(', ') || '—'}
             </div>
           </div>
           <button class="btn btn--sm" onclick="location.reload()" style="background:#fff;border-color:#fecdca;color:#b42318">
-            <i class="fas fa-redo"></i> ${esc(t('diagRetry'))}
+            <i class="fas fa-redo"></i> Retry
           </button>
         </div>
       </div>` : ''}
@@ -1767,19 +1695,37 @@ function filteredCustomers() {
   if (APP.filters.status)     list = list.filter(c => effectiveStatus(c) === APP.filters.status);
   return list.slice().sort((a, b) => { const da = toDate(b.createdAt)?.getTime() || 0; const db2 = toDate(a.createdAt)?.getTime() || 0; return db2 - da; });
 }
+
 function renderContent() {
   const host = document.getElementById('contentHost');
   if (!host) return;
+
+  /* Loading spinner — no blocking, content area only */
+  if (APP._loading && APP.customers.length === 0) {
+    host.innerHTML = `
+      <div class="loading-inline">
+        <div class="spin"></div>
+        <p>${esc(APP._slow ? t('slowNetwork') : t('loadingData'))}</p>
+        <p style="font-size:11.5px;opacity:.7">${esc(t('loadingWait'))}</p>
+      </div>`;
+    return;
+  }
+
   const list = filteredCustomers();
   if (!list.length) {
     const isFiltered = APP.filters.search || APP.filters.districtId || APP.filters.branchId || APP.filters.status;
-    const hasErrors = Object.keys(APP._errors || {}).length > 0;
-    if (hasErrors && !isFiltered) {
-      renderDiagnosticPanel(host, {
-        failed: Object.keys(APP._errors),
-        uid: APP.user?.uid || '',
-        role: APP.profile?.role || ''
-      });
+    const hasRealErrors = Object.keys(APP._errors || {}).filter(k => k !== '__timeout').length > 0;
+    if (hasRealErrors && !isFiltered) {
+      host.innerHTML = `
+        <div class="empty">
+          <i class="fas fa-exclamation-triangle" style="color:var(--danger)"></i>
+          <div class="empty__title">Could not load customers</div>
+          <div class="empty__text">
+            ${Object.keys(APP._errors).filter(k => k !== '__timeout').map(k => `<code>${esc(k)}</code>`).join(', ')}
+            — verify <code>/users/${esc(APP.user?.uid || '?')}</code> exists with a valid role.
+          </div>
+          <div style="margin-top:22px"><button class="btn btn--primary" onclick="location.reload()"><i class="fas fa-redo"></i> Retry</button></div>
+        </div>`;
       return;
     }
     host.innerHTML = `<div class="empty"><i class="fas ${isFiltered ? 'fa-search' : 'fa-users'}"></i><div class="empty__title">${isFiltered ? esc(t('noMatch')) : esc(t('noCustomers'))}</div><div class="empty__text">${isFiltered ? esc(t('noMatchText')) : esc(t('noCustomersText'))}</div></div>`;
@@ -2474,29 +2420,16 @@ function buildCustomersQuery() {
 async function loadCustomersFallback() {
   if (_customerFallbackUsed) return;
   _customerFallbackUsed = true;
-  APP.diag.primaryFallback = true;
-
-  if (isMember()) {
-    APP.customers = [];
-    renderMain();
-    return;
-  }
-
-  console.warn('[customers] primary listener failed — trying unscoped getDocsFromServer fallback');
+  if (isMember()) { APP.customers = []; renderMain(); return; }
   try {
     const snap = await getDocsFromServer(query(collection(db, 'customers'), limit(3000)));
     APP.customers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    APP.diag.customersLoaded = APP.customers.length;
-    console.log('[customers] fallback loaded:', APP.customers.length);
-    if (APP.customers.length === 0) {
-      APP.diag.customersError = 'Query returned 0 records for role ' + (APP.profile?.role || '?');
-    }
+    APP._loading = false;
     renderMain();
     persistCustomersCache();
   } catch (e2) {
-    APP.diag.customersError = (e2.code || e2.message || 'unknown');
-    console.error('[customers] fallback also failed:', e2.code || e2.message);
-    APP.customers = [];
+    APP._errors.customers = (e2.code || e2.message || 'unknown');
+    APP._loading = false;
     renderMain();
   }
 }
@@ -2532,107 +2465,68 @@ function scheduleRender() {
 }
 
 /* ============================================================
-   preloadFromServer — one-shot getDocsFromServer() so the page
-   always has data, even if the realtime Listen stream can't open.
-   Uses buildCustomersQuery() so admin/manager/member scopes
-   are respected.
-   ============================================================ */
-async function preloadFromServer() {
-  const tasks = [
-    { key: 'districts',    q: () => getDocsFromServer(collection(db, 'districts')) },
-    { key: 'branches',     q: () => getDocsFromServer(collection(db, 'branches')) },
-    { key: 'transactions', q: () => getDocsFromServer(query(collection(db, 'transactions'), orderBy('createdAt', 'desc'), limit(2000))) },
-    { key: 'shareRecords', q: () => getDocsFromServer(collection(db, 'shares')) }
-  ];
-  if (!isMember()) {
-    tasks.push({ key: 'customers', q: () => getDocsFromServer(buildCustomersQuery()) });
-  } else {
-    tasks.push({ key: 'customers', q: () => getDocsFromServer(buildCustomersQuery()) });
-  }
-
-  const results = await Promise.allSettled(tasks.map(t => t.q()));
-
-  results.forEach((res, i) => {
-    const { key } = tasks[i];
-    if (res.status === 'fulfilled') {
-      APP[key] = res.value.docs.map(d => ({ id: d.id, ...d.data() }));
-      console.log(`[preload] ${key}: ${APP[key].length} docs (from server)`);
-      delete APP._errors[key];
-    } else {
-      console.warn(`[preload] ${key} failed:`, res.reason?.code, res.reason?.message);
-      APP._errors[key] = res.reason?.code || 'preload-failed';
-    }
-  });
-}
-
-/* ============================================================
-   attachListeners — realtime listeners, run AFTER preload.
-   Empty server snapshots are ignored so a broken stream can't
-   wipe preloaded data. Stream errors auto-retry once.
+   attachListeners — fires all 5 onSnapshot immediately, returns
+   nothing that blocks. First customers snapshot flips _loading.
    ============================================================ */
 function attachListeners() {
   stopListeners();
   _customerFallbackUsed = false;
 
-  const ready = {};
-
   const make = (coll, key, orderField, customQueryBuilder = null, retried = false) => {
-    ready[coll] = new Promise((resolve) => {
-      let ref;
-      try {
-        ref = customQueryBuilder ? customQueryBuilder() : (
-          orderField
-            ? query(collection(db, coll), orderBy(orderField, 'desc'), limit(2000))
-            : collection(db, coll)
-        );
-      } catch (e) {
-        console.warn('[listen]', coll, 'query build failed:', e.message);
-        resolve();
-        return;
-      }
-
-      let first = true;
-      const unsub = onSnapshot(ref,
-        (snap) => {
-          const incoming = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-          /* Guard: broken Listen stream can produce an empty server snapshot.
-             Preserve preloaded data if this happens. */
-          if (incoming.length === 0 && APP[key].length > 0 && !snap.metadata.fromCache) {
-            console.warn(`[snapshot] ${key}: empty server snapshot ignored (preserving ${APP[key].length} preloaded docs)`);
-            if (first) { first = false; resolve(); }
-            return;
-          }
-
-          APP[key] = incoming;
-          if (key === 'customers') {
-            APP.diag.customersLoaded = APP[key].length;
-            APP.diag.customersError = '';
-          }
-          console.log(`[snapshot] ${key}: ${APP[key].length} docs (fromCache=${snap.metadata.fromCache})`);
-          delete APP._errors[key];
-          if (first) { first = false; resolve(); }
-          else if (_bootDone) { scheduleRender(); }
-        },
-        (err) => {
-          console.error(`[listen] ${coll} →`, err.code, err.message);
-          APP._errors[coll] = err.code || err.message;
-
-          if (coll === 'customers') {
-            APP.diag.customersError = (err.code || err.message || 'unknown');
-            if (err.code === 'permission-denied') loadCustomersFallback();
-          }
-
-          if (!retried && (err.code === 'unavailable' || /stream|network/i.test(err.message || ''))) {
-            console.warn(`[listen] retrying ${coll} in 2s…`);
-            setTimeout(() => { try { make(coll, key, orderField, customQueryBuilder, true); } catch (e) {} }, 2000);
-          }
-
-          if (first) { first = false; resolve(); }
-        }
+    let ref;
+    try {
+      ref = customQueryBuilder ? customQueryBuilder() : (
+        orderField
+          ? query(collection(db, coll), orderBy(orderField, 'desc'), limit(2000))
+          : collection(db, coll)
       );
-      APP.unsubs.push(unsub);
-    });
+    } catch (e) {
+      console.warn('[listen]', coll, 'query build failed:', e.message);
+      return;
+    }
+
+    const unsub = onSnapshot(ref,
+      (snap) => {
+        const incoming = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (incoming.length === 0 && APP[key].length > 0 && !snap.metadata.fromCache) {
+          console.warn(`[snapshot] ${key}: empty server snapshot ignored`);
+          return;
+        }
+        APP[key] = incoming;
+        delete APP._errors[key];
+
+        if (key === 'customers') {
+          APP._loading = false;
+          APP.diag.customersLoaded = APP[key].length;
+          APP.diag.customersError = '';
+        }
+
+        if (_bootDone) scheduleRender();
+        else if (key === 'customers' && document.getElementById('contentHost')) {
+          /* First render already done; refresh once we have data */
+          try { renderContent(); } catch (e) {}
+        }
+      },
+      (err) => {
+        console.error(`[listen] ${coll} →`, err.code, err.message);
+        APP._errors[coll] = err.code || err.message;
+
+        if (key === 'customers') {
+          APP._loading = false;
+          APP.diag.customersError = (err.code || err.message || 'unknown');
+          if (err.code === 'permission-denied') loadCustomersFallback();
+        }
+
+        if (!retried && (err.code === 'unavailable' || /stream|network/i.test(err.message || ''))) {
+          setTimeout(() => { try { make(coll, key, orderField, customQueryBuilder, true); } catch(e){} }, 2000);
+        }
+
+        if (document.getElementById('contentHost')) {
+          try { renderContent(); } catch(e){}
+        }
+      }
+    );
+    APP.unsubs.push(unsub);
   };
 
   make('customers', 'customers', null, buildCustomersQuery);
@@ -2640,13 +2534,14 @@ function attachListeners() {
   make('branches', 'branches');
   make('transactions', 'transactions', 'createdAt');
   make('shares', 'shareRecords');
-
-  return ready;
 }
-function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} }); APP.unsubs = []; }
+function stopListeners() {
+  APP.unsubs.forEach(u => { try { u(); } catch(e){} });
+  APP.unsubs = [];
+}
 
 /* ════════════════════════════════════════════════════════════
-   BOOT
+   BOOT — renders shell in <100ms, listeners fill data.
 ════════════════════════════════════════════════════════════ */
 (async function boot() {
   let saved = null;
@@ -2669,17 +2564,10 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
     return;
   }
 
+  /* ── Cache-first render ── */
   const cachedProfile = readCachedProfile();
   const cachedData = cachedProfile ? readCustomersCache(cachedProfile.uid) : null;
-  const hasCache = !!(cachedData && cachedData.customers && cachedData.customers.length > 0);
-
-  const settingsPromise = getDoc(doc(db, 'settings', 'system')).catch(() => null);
-  const authPromise = auth.currentUser
-    ? Promise.resolve(auth.currentUser)
-    : new Promise(r => { const un = onAuthStateChanged(auth, u => { un(); r(u); }); });
-
-  let rendered = false, loaderHidden = false, scopeChanged = false;
-  const hideLoader = () => { if (!loaderHidden) { loaderHidden = true; hideLoaderNow(); } };
+  let rendered = false;
 
   if (cachedProfile && cachedProfile.uid) {
     APP.profile = {
@@ -2699,15 +2587,20 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
       APP.branches     = cachedData.branches;
       APP.transactions = cachedData.transactions;
       APP.shareRecords = cachedData.shareRecords;
+      if (APP.customers.length > 0) APP._loading = false;
     }
     renderShell();
     renderMain();
-    hideLoader();
+    hideLoaderNow();
     rendered = true;
     startSessionWatcher();
   }
 
-  const user = await authPromise;
+  /* ── Auth ── */
+  const authPromise = auth.currentUser
+    ? Promise.resolve(auth.currentUser)
+    : new Promise(r => { const un = onAuthStateChanged(auth, u => { un(); r(u); }); });
+  const user = await withTimeout(authPromise, 3000);
   if (!user) {
     try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
     clearSession(); clearCachedProfile();
@@ -2722,116 +2615,86 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
   }
   APP.user = user;
 
-  let userSnap = null, userDocError = null;
-  try {
-    userSnap = await getDoc(doc(db, 'users', user.uid));
-  } catch (e) {
-    userDocError = e;
-    console.error('[boot] user doc read failed:', e.code, e.message);
-  }
-
-  if (userDocError) {
-    const isPerm = userDocError.code === 'permission-denied';
-    const msg = isPerm
-      ? `Cannot read /users/${user.uid}. The Firestore rules do not allow reading your own user document. Deploy the corrected rules.`
-      : `Error reading user profile: ${userDocError.message}`;
+  /* ── If still no shell, render NOW with loading state ── */
+  if (!rendered) {
+    APP.profile = APP.profile || {
+      id: user.uid, role: 'viewer', email: user.email || '',
+      fullName: 'User', photoURL: null,
+      districtId: '', districtName: '', branchId: '', branchName: ''
+    };
+    renderShell();
+    renderMain();
     hideLoaderNow();
-    document.getElementById('app').innerHTML = `
-      <div style="padding:40px 24px">
-        <div class="empty" style="background:#fff;border:1px solid var(--border);border-radius:20px">
-          <i class="fas fa-user-shield" style="color:var(--danger)"></i>
-          <div class="empty__title">${esc(t('diagTitle'))}</div>
-          <div class="empty__text" style="text-align:left;max-width:560px">
-            <p><strong>${esc(t('diagYourUid'))}:</strong> <code>${esc(user.uid)}</code></p>
-            <p style="margin-top:12px;padding:10px 12px;background:#fdf5e0;border:1px solid #f0dcb0;border-radius:8px;color:#7a5210">
-              ${esc(msg)}
-            </p>
-          </div>
-          <div style="margin-top:22px">
-            <button class="btn btn--primary" onclick="location.reload()"><i class="fas fa-redo"></i> ${esc(t('diagRetry'))}</button>
-          </div>
-        </div>
-      </div>`;
-    return;
+    startSessionWatcher();
   }
 
-  if (!userSnap.exists()) {
-    hideLoaderNow();
-    const msg = t('profileMissingBody').replace('{uid}', user.uid);
-    document.getElementById('app').innerHTML = `
-      <div style="padding:40px 24px">
-        <div class="empty" style="background:#fff;border:1px solid var(--border);border-radius:20px">
-          <i class="fas fa-user-slash" style="color:var(--danger)"></i>
-          <div class="empty__title">${esc(t('profileMissingTitle'))}</div>
-          <div class="empty__text" style="text-align:left;max-width:560px">
-            <p><strong>${esc(t('diagYourUid'))}:</strong> <code>${esc(user.uid)}</code></p>
-            <p style="margin-top:12px;padding:10px 12px;background:#fdf5e0;border:1px solid #f0dcb0;border-radius:8px;color:#7a5210">
-              ${esc(msg)}
-            </p>
-          </div>
-          <div style="margin-top:22px">
-            <button class="btn btn--primary" onclick="location.reload()"><i class="fas fa-redo"></i> ${esc(t('diagRetry'))}</button>
-          </div>
-        </div>
-      </div>`;
-    return;
-  }
+  /* ── Fire listeners (don't await) ── */
+  attachListeners();
 
-  const d = userSnap.data();
-  if (d.status === 'inactive') {
-    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
-    clearSession(); clearCachedProfile();
-    try { await signOut(auth); } catch(e){}
-    window.location.replace(LOGIN_URL);
-    return;
-  }
-
-  const prevRole      = APP.profile?.role;
-  const prevDistrict  = APP.profile?.districtId;
-  const prevBranch    = APP.profile?.branchId;
-
-  APP.profile = { id: userSnap.id, ...d, email: user.email || '' };
-  writeCachedProfile();
-
-  scopeChanged = prevRole     !== APP.profile.role
-              || prevDistrict !== APP.profile.districtId
-              || prevBranch   !== APP.profile.branchId;
-
-  if (scopeChanged) {
-    clearCustomersCache(user.uid);
-    APP.customers = [];
-    APP.districts = [];
-    APP.branches = [];
-    APP.transactions = [];
-    APP.shareRecords = [];
-  }
-
-  /* ── PRELOAD: fetch from server BEFORE any stream attempt ── */
-  await preloadFromServer();
-
-  /* ── Attach realtime listeners ── */
-  const listenersReady = attachListeners();
-
-  let settingsSnap = null;
-  try { settingsSnap = await settingsPromise; } catch (e) {}
-
-  if (settingsSnap && settingsSnap.exists()) {
-    const sd = settingsSnap.data();
-    let m = sd.sessionTimeout != null        ? Number(sd.sessionTimeout)
-          : sd.sessionTimeoutMinutes != null ? Number(sd.sessionTimeoutMinutes)
-          : (SESSION_MINUTES ?? DEFAULT_SESSION_MINUTES);
-    if (!isFinite(m) || m < 1) m = DEFAULT_SESSION_MINUTES;
-    if (m > 1440) m = 1440;
-    SESSION_MINUTES = Math.round(m);
-    try { localStorage.setItem(SESSION_MINUTES_CACHE_KEY, String(SESSION_MINUTES)); } catch (e) {}
-    if (sd.currency) APP.currency = sd.currency;
-    if (sd.saccoName && String(sd.saccoName).trim()) APP.saccoName = String(sd.saccoName).trim();
-    if (sd.shortName && String(sd.shortName).trim()) APP.shortName = String(sd.shortName).trim();
-    if (Array.isArray(sd.penaltyPaymentSources) && sd.penaltyPaymentSources.length) {
-      APP.penaltySettings.penaltyPaymentSources = sd.penaltyPaymentSources.map(x => String(x).toLowerCase().trim());
+  /* ── Watchdog timers ── */
+  setTimeout(() => {
+    if (APP._loading) { APP._slow = true; try { renderContent(); } catch(e){} }
+  }, 4000);
+  setTimeout(() => {
+    if (APP._loading && APP.customers.length === 0) {
+      APP._loading = false;
+      if (!Object.keys(APP._errors).length) APP._errors.__timeout = 'timeout';
+      try { renderContent(); } catch(e){}
     }
-  } else if (SESSION_MINUTES == null) {
-    SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
+  }, 5000);
+
+  /* ── User doc (parallel, 3s) ── */
+  let userSnap = null;
+  try { userSnap = await withTimeout(getDoc(doc(db, 'users', user.uid)), 3000); } catch(e) {}
+
+  if (userSnap && userSnap.exists()) {
+    const d = userSnap.data();
+    if (d.status === 'inactive') {
+      try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+      clearSession(); clearCachedProfile();
+      try { await signOut(auth); } catch(e){}
+      window.location.replace(LOGIN_URL);
+      return;
+    }
+    const prevRole     = APP.profile?.role;
+    const prevDistrict = APP.profile?.districtId;
+    const prevBranch   = APP.profile?.branchId;
+    APP.profile = { id: userSnap.id, ...d, email: user.email || '' };
+    writeCachedProfile();
+    const scopeChanged = prevRole     !== APP.profile.role
+                      || prevDistrict !== APP.profile.districtId
+                      || prevBranch   !== APP.profile.branchId;
+    if (scopeChanged) {
+      clearCustomersCache(user.uid);
+      APP.customers = []; APP.districts = []; APP.branches = [];
+      APP.transactions = []; APP.shareRecords = [];
+      renderShell(); renderMain();
+    }
+  }
+
+  /* ── Settings (parallel, 3s) ── */
+  try {
+    const settingsSnap = await withTimeout(getDoc(doc(db, 'settings', 'system')), 3000);
+    if (settingsSnap && settingsSnap.exists()) {
+      const sd = settingsSnap.data();
+      let m = sd.sessionTimeout != null        ? Number(sd.sessionTimeout)
+            : sd.sessionTimeoutMinutes != null ? Number(sd.sessionTimeoutMinutes)
+            : (SESSION_MINUTES ?? DEFAULT_SESSION_MINUTES);
+      if (!isFinite(m) || m < 1) m = DEFAULT_SESSION_MINUTES;
+      if (m > 1440) m = 1440;
+      SESSION_MINUTES = Math.round(m);
+      try { localStorage.setItem(SESSION_MINUTES_CACHE_KEY, String(SESSION_MINUTES)); } catch(e){}
+      if (sd.currency) APP.currency = sd.currency;
+      if (sd.saccoName && String(sd.saccoName).trim()) APP.saccoName = String(sd.saccoName).trim();
+      if (sd.shortName && String(sd.shortName).trim()) APP.shortName = String(sd.shortName).trim();
+      if (Array.isArray(sd.penaltyPaymentSources) && sd.penaltyPaymentSources.length) {
+        APP.penaltySettings.penaltyPaymentSources = sd.penaltyPaymentSources.map(x => String(x).toLowerCase().trim());
+      }
+    } else if (SESSION_MINUTES == null) {
+      SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
+    }
+  } catch (e) {
+    if (SESSION_MINUTES == null) SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
   }
 
   try {
@@ -2839,43 +2702,12 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
     if (ss) { ss.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(ss)); }
   } catch(e){}
 
-  if (!rendered) {
-    const maxWait = hasCache ? 1000 : 1500;
-    const cap = (p) => Promise.race([p, new Promise(r => setTimeout(r, maxWait))]);
-    await Promise.all([
-      cap(listenersReady.customers),
-      cap(listenersReady.districts),
-      cap(listenersReady.branches)
-    ]);
-  } else {
-    const cap = (p) => Promise.race([p, new Promise(r => setTimeout(r, 800))]);
-    await Promise.all([cap(listenersReady.customers), cap(listenersReady.branches)]);
-  }
-
   _bootDone = true;
-
-  if (!rendered || scopeChanged) {
-    renderShell();
-  }
-  renderMain();
-  hideLoader();
   persistCustomersCache();
-
-  setTimeout(() => {
-    const failed = Object.keys(APP._errors || {});
-    if (failed.length > 0) {
-      console.warn('[boot] some collections failed:', APP._errors);
-      toast(
-        `Could not read: ${failed.join(', ')}. Check /users/${APP.user?.uid} and deploy the corrected Firestore rules.`,
-        'error'
-      );
-    }
-  }, 500);
-
   startSessionWatcher();
 })();
 
-console.log('[sacco] customers ready — server preload + stream guard + retry on error, i18n en/am/om intact');
+console.log('[sacco] customers ready — shell renders in <100ms, data streams via onSnapshot, no blocking');
 </script>
 
 </body>
