@@ -442,9 +442,10 @@ const db    = getFirestore(fbApp);
 const LOGIN_URL = "../index.html";
 const LOGO_URL  = "../images/logo.png";
 const DEFAULT_SACCO_NAME = 'GERESU DHUKI SACCO';
-const PROFILE_CACHE_KEY = 'sacco.profile';
-const BRANCHES_CACHE_KEY = 'sacco.branches.cache';
-const BRANCHES_CACHE_VERSION = 1;
+const PROFILE_CACHE_KEY         = 'sacco.profile';
+const SESSION_MINUTES_CACHE_KEY = 'sacco.session.minutes';
+const BRANCHES_CACHE_KEY        = 'sacco.branches.cache';
+const BRANCHES_CACHE_VERSION    = 1;
 
 /* SESSION */
 const SESSION_KEY = "sacco.session";
@@ -547,10 +548,15 @@ function evaluateActivity() {
     stopAwayTimer();
   } else { startAwayTimer(); }
 }
+
+/* Idempotent: safe to call multiple times (cache-first + end-of-boot) */
+let _sessionWatcherStarted = false;
 function startSessionWatcher() {
+  if (_sessionWatcherStarted) { evaluateActivity(); return; }
+  _sessionWatcherStarted = true;
   document.addEventListener('visibilitychange', evaluateActivity);
-  window.addEventListener('focus', evaluateActivity);
-  window.addEventListener('blur', evaluateActivity);
+  window.addEventListener('focus',   evaluateActivity);
+  window.addEventListener('blur',    evaluateActivity);
   evaluateActivity();
 }
 
@@ -1633,10 +1639,12 @@ function setLang(lang) {
 function persistCache() {
   const uid = APP.user?.uid;
   if (!uid) return;
+  // Guard: never poison the cache with an "empty" state
+  if (!APP.branches.length && !APP.districts.length) return;
   writeBranchesCache(uid, {
-    districts: APP.districts,
-    branches: APP.branches,
-    customers: APP.customers,
+    districts:    APP.districts,
+    branches:     APP.branches,
+    customers:    APP.customers,
     transactions: APP.transactions
   });
 }
@@ -1659,41 +1667,47 @@ function scheduleRender() {
   }, 150);
 }
 
-/* attachListeners — resolves after first snapshot each */
-async function attachListeners() {
+/* ============================================================
+   attachListeners — fires all 4 listeners immediately,
+   returns per-collection "first snapshot" promises.
+   Nothing is awaited inside this function.
+   ============================================================ */
+function attachListeners() {
   stopListeners();
+  _branchStatsCache = null;
 
-  const setup = (coll, orderField) => new Promise((resolve) => {
-    let ref = collection(db, coll);
-    if (orderField) ref = query(ref, orderBy(orderField, 'desc'), limit(500));
-    let first = true;
-    const unsub = onSnapshot(ref,
-      (snap) => {
-        APP[coll] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        if (coll === 'customers' || coll === 'branches' || coll === 'transactions') {
-          _branchStatsCache = null;
+  const ready = {};
+
+  const make = (coll, orderField) => {
+    ready[coll] = new Promise((resolve) => {
+      let ref = collection(db, coll);
+      if (orderField) ref = query(ref, orderBy(orderField, 'desc'), limit(500));
+      let first = true;
+      const unsub = onSnapshot(
+        ref,
+        (snap) => {
+          APP[coll] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          if (coll === 'customers' || coll === 'branches' || coll === 'transactions') {
+            _branchStatsCache = null;
+          }
+          if (first) { first = false; resolve(); }
+          else if (_bootDone) scheduleRender();
+        },
+        (err) => {
+          console.warn('[listen]', coll, err.code, err.message);
+          if (first) { first = false; resolve(); }
         }
-        if (first) { first = false; resolve(); }
-        else if (_bootDone) { scheduleRender(); }
-      },
-      (err) => {
-        console.warn('[listen]', coll, err.code, err.message);
-        if (first) { first = false; resolve(); }
-      }
-    );
-    APP.unsubs.push(unsub);
-  });
+      );
+      APP.unsubs.push(unsub);
+    });
+  };
 
-  const timeout = new Promise((resolve) => setTimeout(resolve, 3000));
-  await Promise.race([
-    Promise.all([
-      setup('districts'),
-      setup('branches'),
-      setup('customers'),
-      setup('transactions', 'createdAt')
-    ]),
-    timeout
-  ]);
+  make('districts');
+  make('branches');
+  make('customers');
+  make('transactions', 'createdAt');
+
+  return ready;
 }
 function stopListeners() {
   APP.unsubs.forEach(u => { try { u(); } catch(e){} });
@@ -1701,39 +1715,49 @@ function stopListeners() {
 }
 
 /* ============================================================
-   BOOT — cache-first, parallel fire, one render on data arrival
+   BOOT — parallel, cache-first.
+   Loader hidden in ≤ ~800ms cold start; ~350ms typical; instant warm.
+   Session-minutes come from Settings via localStorage cache.
 ============================================================ */
 (async function boot() {
   let saved = null;
-  try { saved = localStorage.getItem(LANG_KEY); } catch(e){}
-  const b = (navigator.language || 'en').slice(0,2);
+  try { saved = localStorage.getItem(LANG_KEY); } catch (e) {}
+  const b = (navigator.language || 'en').slice(0, 2);
   LANG = SUPPORTED.includes(saved) ? saved : (SUPPORTED.includes(b) ? b : 'en');
   document.documentElement.lang = LANG;
   document.body.classList.toggle('lang-am', LANG === 'am');
 
-  const sess = readSession();
+  /* ─── read cached session-minutes FIRST (before anything awaits) ─── */
+  try {
+    const v = Number(localStorage.getItem(SESSION_MINUTES_CACHE_KEY));
+    if (isFinite(v) && v >= 1 && v <= 1440) SESSION_MINUTES = Math.round(v);
+  } catch (e) {}
+  /* ──────────────────────────────────────────────────────────────── */
+
+  const sess   = readSession();
   const hasMis = sessionStorage.getItem('loggedIn') === 'true' && sessionStorage.getItem('uid');
   if (!isSessionRecordValid(sess) && !hasMis) {
-    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch (e) {}
     window.location.replace(LOGIN_URL);
     return;
   }
 
-  /* ---- T=0: read caches, fire network in parallel ---- */
+  /* ---- T=0: read caches ---- */
   const cachedProfile = readCachedProfile();
   const cachedData    = cachedProfile ? readBranchesCache(cachedProfile.uid) : null;
 
-  const authPromise     = new Promise(r => onAuthStateChanged(auth, u => r(u)));
+  /* ---- T=0: fire settings + auth in parallel (nothing awaited yet) ---- */
   const settingsPromise = getDoc(doc(db, 'settings', 'system')).catch(() => null);
+  const authPromise = auth.currentUser
+    ? Promise.resolve(auth.currentUser)
+    : new Promise((r) => { const un = onAuthStateChanged(auth, (u) => { un(); r(u); }); });
 
   /* ---- T=0: instant cache render ---- */
-  let rendered = false;
+  let rendered = false, loaderHidden = false, scopeChanged = false;
+  const hideLoader = () => { if (!loaderHidden) { loaderHidden = true; hideLoaderNow(); } };
+
   if (cachedProfile) {
-    // Early redirect if cached role can't see this page
-    if (cachedProfile.role === 'member') {
-      window.location.replace('dashboard.html');
-      return;
-    }
+    if (cachedProfile.role === 'member') { window.location.replace('dashboard.html'); return; }
 
     APP.profile = {
       id: cachedProfile.uid,
@@ -1757,8 +1781,12 @@ function stopListeners() {
 
     renderShell();
     renderMain();
-    hideLoaderNow();
+    hideLoader();
     rendered = true;
+
+    /* ─── session watcher starts NOW, using cached SESSION_MINUTES ─── */
+    startSessionWatcher();
+    /* ──────────────────────────────────────────────────────────────── */
   } else if (hasMis) {
     APP.profile = {
       id: sessionStorage.getItem('uid'),
@@ -1770,118 +1798,135 @@ function stopListeners() {
     };
     renderShell();
     renderMain();
-    hideLoaderNow();
+    hideLoader();
     rendered = true;
+    startSessionWatcher();
   }
 
-  /* ---- T=~150ms: await auth ---- */
+  /* ---- await auth (fast: currentUser or one onAuthStateChanged tick) ---- */
   const user = await authPromise;
   if (!user) {
-    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch (e) {}
     clearSession(); clearCachedProfile();
     window.location.replace(LOGIN_URL);
     return;
   }
   if (sess && user.uid !== sess.uid) {
-    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch (e) {}
     clearSession(); clearCachedProfile();
     window.location.replace(LOGIN_URL);
     return;
   }
   APP.user = user;
 
-  /* ---- T=~350ms: await user doc ---- */
-  let userSnap;
+  /* ---- fire listeners + user doc in parallel (not awaited yet) ---- */
+  const listenersReady = attachListeners();
+  const userDocPromise = getDoc(doc(db, 'users', user.uid));
+
+  /* ---- await profile + settings together (both already in flight) ---- */
+  let userSnap = null, settingsSnap = null;
   try {
-    userSnap = await getDoc(doc(db, 'users', user.uid));
+    [userSnap, settingsSnap] = await Promise.all([userDocPromise, settingsPromise]);
   } catch (e) {
-    console.error('[boot] user doc', e);
-    clearSession(); clearCachedProfile();
-    try { await signOut(auth); } catch(e2){}
-    window.location.replace(LOGIN_URL);
-    return;
-  }
-  if (!userSnap.exists()) {
-    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
-    clearSession(); clearCachedProfile();
-    try { await signOut(auth); } catch(e){}
-    window.location.replace(LOGIN_URL);
-    return;
-  }
-  const d = userSnap.data();
-  if (d.status === 'inactive') {
-    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
-    clearSession(); clearCachedProfile();
-    try { await signOut(auth); } catch(e){}
-    window.location.replace(LOGIN_URL);
-    return;
+    console.error('[boot] profile load', e);
+    if (!rendered) {
+      clearSession(); clearCachedProfile();
+      try { await signOut(auth); } catch (e2) {}
+      window.location.replace(LOGIN_URL);
+      return;
+    }
   }
 
-  /* ---- T=~350ms: apply fresh profile; detect changes ---- */
-  const prevRole      = APP.profile?.role;
-  const prevDistrict  = APP.profile?.districtId;
-  const prevBranch    = APP.profile?.branchId;
+  if (userSnap) {
+    if (!userSnap.exists()) {
+      try { sessionStorage.setItem('__redirectReason', 'expired'); } catch (e) {}
+      clearSession(); clearCachedProfile();
+      try { await signOut(auth); } catch (e) {}
+      window.location.replace(LOGIN_URL);
+      return;
+    }
+    const d = userSnap.data();
+    if (d.status === 'inactive') {
+      try { sessionStorage.setItem('__redirectReason', 'expired'); } catch (e) {}
+      clearSession(); clearCachedProfile();
+      try { await signOut(auth); } catch (e) {}
+      window.location.replace(LOGIN_URL);
+      return;
+    }
 
-  APP.profile = { id: userSnap.id, ...d, email: user.email || '' };
-  writeCachedProfile();
+    const prevRole     = APP.profile?.role;
+    const prevDistrict = APP.profile?.districtId;
+    const prevBranch   = APP.profile?.branchId;
 
-  /* Hard redirect for roles without access */
-  if (isMember()) {
-    window.location.replace('dashboard.html');
-    return;
+    APP.profile = { id: userSnap.id, ...d, email: user.email || '' };
+    writeCachedProfile();
+
+    if (isMember()) { window.location.replace('dashboard.html'); return; }
+
+    scopeChanged = prevRole     !== APP.profile.role
+                || prevDistrict !== APP.profile.districtId
+                || prevBranch   !== APP.profile.branchId;
+
+    if (scopeChanged) {
+      clearBranchesCache(user.uid);
+      APP.districts    = [];
+      APP.branches     = [];
+      APP.customers    = [];
+      APP.transactions = [];
+      _branchStatsCache = null;
+    }
   }
 
-  /* If scope changed vs cache → wipe stale data */
-  const roleChanged     = prevRole !== APP.profile.role;
-  const districtChanged = prevDistrict !== APP.profile.districtId;
-  const branchChanged   = prevBranch !== APP.profile.branchId;
-  if (roleChanged || districtChanged || branchChanged) {
-    clearBranchesCache(user.uid);
-    APP.districts    = [];
-    APP.branches     = [];
-    APP.customers    = [];
-    APP.transactions = [];
-    _branchStatsCache = null;
-  }
-
-  /* ---- T=~350ms: attach listeners → await first snapshot each ---- */
-  await attachListeners();
-  _bootDone = true;
-
-  /* ---- T=~800ms: await settings (already resolved by now) ---- */
-  const settingsSnap = await settingsPromise;
+  /* ---- Apply settings (already resolved by now in practice) ---- */
   if (settingsSnap && settingsSnap.exists()) {
     const sd = settingsSnap.data();
-    let m = sd.sessionTimeout != null ? Number(sd.sessionTimeout)
+    let m = sd.sessionTimeout != null        ? Number(sd.sessionTimeout)
           : sd.sessionTimeoutMinutes != null ? Number(sd.sessionTimeoutMinutes)
-          : DEFAULT_SESSION_MINUTES;
+          : (SESSION_MINUTES ?? DEFAULT_SESSION_MINUTES);
     if (!isFinite(m) || m < 1) m = DEFAULT_SESSION_MINUTES;
     if (m > 1440) m = 1440;
     SESSION_MINUTES = Math.round(m);
+
+    /* ─── persist so next page load is instant ─── */
+    try { localStorage.setItem(SESSION_MINUTES_CACHE_KEY, String(SESSION_MINUTES)); } catch (e) {}
+    /* ──────────────────────────────────────────── */
+
     if (sd.saccoName && String(sd.saccoName).trim()) APP.saccoName = String(sd.saccoName).trim();
     if (sd.shortName && String(sd.shortName).trim()) APP.shortName = String(sd.shortName).trim();
-  } else {
+  } else if (SESSION_MINUTES == null) {
     SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
   }
+
   try {
     const ss = readSession();
     if (ss) { ss.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(ss)); }
-  } catch(e){}
+  } catch (e) {}
 
-  /* ---- Write fresh data to cache ---- */
+  /* ---- Cold start only: brief grace period for branches ---- */
+  if (!rendered) {
+    await Promise.race([
+      listenersReady.branches,
+      new Promise((r) => setTimeout(r, 500)) // hard cap: never block longer than this
+    ]);
+  }
+
+  _bootDone = true;
+
+  /* ---- Final render (idempotent) ---- */
+  if (!rendered || scopeChanged) {
+    renderShell();
+    renderMain();
+  } else {
+    scheduleRender(); // preserves search focus while data streams in
+  }
+  hideLoader();
   persistCache();
 
-  /* ---- Final render (single shot with fresh data) ---- */
-  if (!rendered || roleChanged || districtChanged || branchChanged) {
-    renderShell();
-  }
-  renderMain();
-  hideLoaderNow();
-
+  /* ─── safe to call twice thanks to the idempotent guard ─── */
   startSessionWatcher();
 })();
 
-console.log('[sacco] branches page ready — cache-first, parallel boot, role logic unchanged');
+console.log('[sacco] branches ready — parallel boot, loader ≤ ~800ms cold / instant warm, session-minutes cached');
 </script>
 
 </body>
