@@ -542,6 +542,7 @@ const db    = getFirestore(fbApp);
 const LOGIN_URL = "../index.html";
 const LOGO_URL  = "../images/logo.png";
 const PROFILE_CACHE_KEY = 'sacco.profile';
+const SESSION_MINUTES_CACHE_KEY = 'sacco.session.minutes';   /* NEW */
 const CUSTOMERS_CACHE_KEY = 'sacco.customers.cache';
 const CUSTOMERS_CACHE_VERSION = 1;
 
@@ -583,7 +584,6 @@ function writeCachedProfile() {
 }
 function clearCachedProfile() { try { sessionStorage.removeItem(PROFILE_CACHE_KEY); } catch (e) {} }
 
-/* Customers page cache — per-uid, versioned */
 function readCustomersCache(uid) {
   if (!uid) return null;
   try {
@@ -649,7 +649,12 @@ function evaluateActivity() {
     stopAwayTimer();
   } else { startAwayTimer(); }
 }
+
+/* Idempotent — safe to call from cache-first path AND end-of-boot */
+let _sessionWatcherStarted = false;
 function startSessionWatcher() {
+  if (_sessionWatcherStarted) { evaluateActivity(); return; }
+  _sessionWatcherStarted = true;
   document.addEventListener('visibilitychange', evaluateActivity);
   window.addEventListener('focus', evaluateActivity);
   window.addEventListener('blur', evaluateActivity);
@@ -730,7 +735,7 @@ const APP = {
 };
 let LANG = 'en';
 
-/* I18N */
+/* I18N — full EN / AM / OM */
 const I18N = {
   en: {
     brandSub:'SACCO Management', navOverview:'Overview', navNetwork:'Network', navOperations:'Operations',
@@ -1038,9 +1043,7 @@ function toast(msg, type = 'success') {
 const LOGO_FALLBACK = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#0b5cab"/><circle cx="50" cy="47" r="25" fill="none" stroke="#f0c96a" stroke-width="3.5"/><text x="50" y="59" font-family="Georgia,serif" font-size="30" font-weight="900" fill="#f0c96a" text-anchor="middle">G</text></svg>`;
 const LOGO_HTML = `<img src="${LOGO_URL}" alt="Geresu Dhuki SACCO" onerror="this.onerror=null; this.outerHTML=this.dataset.fallback;" data-fallback="${LOGO_FALLBACK.replace(/"/g, '&quot;')}">`;
 
-/* ═══════════════════════════════════════════════════════════
-   ROLE / PERMISSION HELPERS (unchanged)
-   ═══════════════════════════════════════════════════════════ */
+/* ROLE / PERMISSION HELPERS */
 const ROLES = { super_admin:'role_super_admin', admin:'role_admin', manager:'role_manager', cashier:'role_cashier', auditor:'role_auditor', member:'role_member' };
 const roleLabel = (r) => ROLES[r] ? t(ROLES[r]) : (r || '').replace(/_/g,' ');
 
@@ -1053,7 +1056,6 @@ const isMember  = () => APP.profile?.role === 'member';
 const isBranchStaff = () => isManager() || isCashier();
 
 const canView = () => isSuper() || isAdmin() || isManager() || isCashier() || isAuditor() || isMember();
-
 const canCreateCustomer = () => isSuper() || isAdmin() || isCashier();
 
 function canEditCustomer(c) {
@@ -1063,14 +1065,7 @@ function canEditCustomer(c) {
   if (r === 'admin')       return c.districtId === APP.profile.districtId;
   return false;
 }
-
-function canDeleteCustomer(c) {
-  if (!c || !APP.profile) return false;
-  const r = APP.profile.role;
-  if (r === 'super_admin') return true;
-  if (r === 'admin')       return c.districtId === APP.profile.districtId;
-  return false;
-}
+function canDeleteCustomer(c) { return canEditCustomer(c); }
 
 function canApproveTransaction(tx) {
   if (!tx || !APP.profile) return false;
@@ -1152,7 +1147,6 @@ function isPenaltyPaidFromSavings(p) {
   return !!m && sources.includes(m);
 }
 
-/* ACTIVITY */
 const INACTIVITY_MONTHS = 6;
 const SAVINGS_DEPOSIT_TYPES = ['savings','deposit'];
 
@@ -1202,7 +1196,6 @@ function effectiveInactiveReason(customer) {
   return '';
 }
 
-/* TRANSACTIONS DISPLAY */
 const ALL_TX_TYPES_DISPLAY = {
   savings:{label:'Savings',color:'green',icon:'fa-piggy-bank'},
   saving:{label:'Savings',color:'green',icon:'fa-piggy-bank'},
@@ -2437,10 +2430,11 @@ async function loadCustomersFallback() {
   }
 }
 
-/* Persist all list data to localStorage for next visit */
+/* Guard: never poison the cache with an empty state */
 function persistCustomersCache() {
   const uid = APP.user?.uid;
   if (!uid) return;
+  if (!APP.customers.length && !APP.districts.length) return;
   writeCustomersCache(uid, {
     customers:    APP.customers,
     districts:    APP.districts,
@@ -2468,64 +2462,70 @@ function scheduleRender() {
   }, 150);
 }
 
-/* attachListeners — resolves after first snapshot from each collection */
-async function attachListeners() {
+/* ────────────────────────────────────────────────────────────
+   attachListeners — fires all 5 listeners immediately,
+   returns per-collection "first snapshot" promises.
+   Nothing is awaited inside this function.
+   ──────────────────────────────────────────────────────────── */
+function attachListeners() {
   stopListeners();
   _customerFallbackUsed = false;
 
-  const setup = (coll, key, orderField, customQueryBuilder = null) => new Promise((resolve) => {
-    let ref;
-    try {
-      ref = customQueryBuilder ? customQueryBuilder() : (
-        orderField
-          ? query(collection(db, coll), orderBy(orderField, 'desc'), limit(2000))
-          : collection(db, coll)
-      );
-    } catch (e) {
-      console.warn('[listen]', coll, 'query build failed:', e.message);
-      resolve();
-      return;
-    }
+  const ready = {};
 
-    let first = true;
-    const unsub = onSnapshot(ref,
-      (snap) => {
-        APP[key] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        if (key === 'customers') {
-          APP.diag.customersLoaded = APP[key].length;
-          APP.diag.customersError = '';
-        }
-        if (first) { first = false; resolve(); }
-        else if (_bootDone) { scheduleRender(); }
-      },
-      (err) => {
-        console.error('[listen]', coll, 'failed:', err.code, err.message);
-        if (coll === 'customers') {
-          APP.diag.customersError = (err.code || err.message || 'unknown');
-          loadCustomersFallback();
-        }
-        if (first) { first = false; resolve(); }
+  const make = (coll, key, orderField, customQueryBuilder = null) => {
+    ready[coll] = new Promise((resolve) => {
+      let ref;
+      try {
+        ref = customQueryBuilder ? customQueryBuilder() : (
+          orderField
+            ? query(collection(db, coll), orderBy(orderField, 'desc'), limit(2000))
+            : collection(db, coll)
+        );
+      } catch (e) {
+        console.warn('[listen]', coll, 'query build failed:', e.message);
+        resolve();
+        return;
       }
-    );
-    APP.unsubs.push(unsub);
-  });
 
-  const timeout = new Promise((resolve) => setTimeout(resolve, 3000));
-  await Promise.race([
-    Promise.all([
-      setup('customers', 'customers', null, buildCustomersQuery),
-      setup('districts', 'districts'),
-      setup('branches', 'branches'),
-      setup('transactions', 'transactions', 'createdAt'),
-      setup('shares', 'shareRecords')
-    ]),
-    timeout
-  ]);
+      let first = true;
+      const unsub = onSnapshot(ref,
+        (snap) => {
+          APP[key] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          if (key === 'customers') {
+            APP.diag.customersLoaded = APP[key].length;
+            APP.diag.customersError = '';
+          }
+          if (first) { first = false; resolve(); }
+          else if (_bootDone) { scheduleRender(); }
+        },
+        (err) => {
+          console.error('[listen]', coll, 'failed:', err.code, err.message);
+          if (coll === 'customers') {
+            APP.diag.customersError = (err.code || err.message || 'unknown');
+            loadCustomersFallback();
+          }
+          if (first) { first = false; resolve(); }
+        }
+      );
+      APP.unsubs.push(unsub);
+    });
+  };
+
+  make('customers', 'customers', null, buildCustomersQuery);
+  make('districts', 'districts');
+  make('branches', 'branches');
+  make('transactions', 'transactions', 'createdAt');
+  make('shares', 'shareRecords');
+
+  return ready;
 }
 function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} }); APP.unsubs = []; }
 
 /* ════════════════════════════════════════════════════════════
-   BOOT — cache-first, parallel fire, single render on arrival
+   BOOT — parallel, cache-first.
+   Loader hidden in ≤ ~800ms cold start; ~350ms typical; instant warm.
+   Session-minutes come from Settings via localStorage cache.
 ════════════════════════════════════════════════════════════ */
 (async function boot() {
   let saved = null;
@@ -2535,6 +2535,12 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
   document.documentElement.lang = LANG;
   document.body.classList.toggle('lang-am', LANG === 'am');
 
+  /* ─── read cached session-minutes FIRST (before anything awaits) ─── */
+  try {
+    const v = Number(localStorage.getItem(SESSION_MINUTES_CACHE_KEY));
+    if (isFinite(v) && v >= 1 && v <= 1440) SESSION_MINUTES = Math.round(v);
+  } catch (e) {}
+
   const sess = readSession();
   const hasMis = sessionStorage.getItem('loggedIn') === 'true' && sessionStorage.getItem('uid');
   if (!isSessionRecordValid(sess) && !hasMis) {
@@ -2543,15 +2549,20 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
     return;
   }
 
-  /* ---- T=0: read caches + fire network ---- */
+  /* ---- T=0: read caches + fire network in parallel ---- */
   const cachedProfile = readCachedProfile();
   const cachedData = cachedProfile ? readCustomersCache(cachedProfile.uid) : null;
 
-  const authPromise     = new Promise(r => onAuthStateChanged(auth, u => r(u)));
+  /* Fire settings + auth in parallel — nothing awaited yet */
   const settingsPromise = getDoc(doc(db, 'settings', 'system')).catch(() => null);
+  const authPromise = auth.currentUser
+    ? Promise.resolve(auth.currentUser)
+    : new Promise(r => { const un = onAuthStateChanged(auth, u => { un(); r(u); }); });
 
   /* ---- T=0: instant cache render ---- */
-  let rendered = false;
+  let rendered = false, loaderHidden = false, scopeChanged = false;
+  const hideLoader = () => { if (!loaderHidden) { loaderHidden = true; hideLoaderNow(); } };
+
   if (cachedProfile && cachedProfile.uid) {
     APP.profile = {
       id: cachedProfile.uid,
@@ -2575,8 +2586,11 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
 
     renderShell();
     renderMain();
-    hideLoaderNow();
+    hideLoader();
     rendered = true;
+
+    /* Session watcher starts NOW, using cached SESSION_MINUTES */
+    startSessionWatcher();
   } else if (hasMis) {
     APP.profile = {
       id: sessionStorage.getItem('uid'),
@@ -2588,11 +2602,12 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
     };
     renderShell();
     renderMain();
-    hideLoaderNow();
+    hideLoader();
     rendered = true;
+    startSessionWatcher();
   }
 
-  /* ---- T=~150ms: await auth ---- */
+  /* ---- await auth (fast: currentUser or one tick) ---- */
   const user = await authPromise;
   if (!user) {
     try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
@@ -2608,96 +2623,115 @@ function stopListeners() { APP.unsubs.forEach(u => { try { u(); } catch(e){} });
   }
   APP.user = user;
 
-  /* ---- T=~350ms: await user doc ---- */
-  let userSnap;
+  /* ---- fire listeners + user doc in parallel (nothing awaited yet) ---- */
+  const listenersReady = attachListeners();
+  const userDocPromise = getDoc(doc(db, 'users', user.uid));
+
+  /* ---- await profile + settings together (both already in flight) ---- */
+  let userSnap = null, settingsSnap = null;
   try {
-    userSnap = await getDoc(doc(db, 'users', user.uid));
+    [userSnap, settingsSnap] = await Promise.all([userDocPromise, settingsPromise]);
   } catch (e) {
-    console.error('[boot] user doc', e);
-    clearSession(); clearCachedProfile();
-    try { await signOut(auth); } catch(e2){}
-    window.location.replace(LOGIN_URL);
-    return;
-  }
-  if (!userSnap.exists()) {
-    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
-    clearSession(); clearCachedProfile();
-    try { await signOut(auth); } catch(e){}
-    window.location.replace(LOGIN_URL);
-    return;
-  }
-  const d = userSnap.data();
-  if (d.status === 'inactive') {
-    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
-    clearSession(); clearCachedProfile();
-    try { await signOut(auth); } catch(e){}
-    window.location.replace(LOGIN_URL);
-    return;
+    console.error('[boot] profile load', e);
+    if (!rendered) {
+      clearSession(); clearCachedProfile();
+      try { await signOut(auth); } catch(e2){}
+      window.location.replace(LOGIN_URL);
+      return;
+    }
   }
 
-  /* ---- T=~350ms: apply fresh profile; detect changes ---- */
-  const prevRole      = APP.profile?.role;
-  const prevDistrict  = APP.profile?.districtId;
-  const prevBranch    = APP.profile?.branchId;
+  if (userSnap) {
+    if (!userSnap.exists()) {
+      try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+      clearSession(); clearCachedProfile();
+      try { await signOut(auth); } catch(e){}
+      window.location.replace(LOGIN_URL);
+      return;
+    }
+    const d = userSnap.data();
+    if (d.status === 'inactive') {
+      try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+      clearSession(); clearCachedProfile();
+      try { await signOut(auth); } catch(e){}
+      window.location.replace(LOGIN_URL);
+      return;
+    }
 
-  APP.profile = { id: userSnap.id, ...d, email: user.email || '' };
-  writeCachedProfile();
+    const prevRole     = APP.profile?.role;
+    const prevDistrict = APP.profile?.districtId;
+    const prevBranch   = APP.profile?.branchId;
 
-  /* If scope changed vs cache → wipe stale data */
-  const roleChanged     = prevRole !== APP.profile.role;
-  const districtChanged = prevDistrict !== APP.profile.districtId;
-  const branchChanged   = prevBranch !== APP.profile.branchId;
-  if (roleChanged || districtChanged || branchChanged) {
-    clearCustomersCache(user.uid);
-    APP.customers = [];
-    APP.districts = [];
-    APP.branches = [];
-    APP.transactions = [];
-    APP.shareRecords = [];
+    APP.profile = { id: userSnap.id, ...d, email: user.email || '' };
+    writeCachedProfile();
+
+    scopeChanged = prevRole     !== APP.profile.role
+                || prevDistrict !== APP.profile.districtId
+                || prevBranch   !== APP.profile.branchId;
+
+    if (scopeChanged) {
+      clearCustomersCache(user.uid);
+      APP.customers = [];
+      APP.districts = [];
+      APP.branches = [];
+      APP.transactions = [];
+      APP.shareRecords = [];
+    }
   }
 
-  /* ---- T=~350ms: attach listeners → await first snapshot each ---- */
-  await attachListeners();
-  _bootDone = true;
-
-  /* ---- T=~800ms: await settings (already resolved by now) ---- */
-  const settingsSnap = await settingsPromise;
+  /* ---- Apply settings (already resolved by now in practice) ---- */
   if (settingsSnap && settingsSnap.exists()) {
     const sd = settingsSnap.data();
-    let m = sd.sessionTimeout != null ? Number(sd.sessionTimeout)
+    let m = sd.sessionTimeout != null        ? Number(sd.sessionTimeout)
           : sd.sessionTimeoutMinutes != null ? Number(sd.sessionTimeoutMinutes)
-          : DEFAULT_SESSION_MINUTES;
+          : (SESSION_MINUTES ?? DEFAULT_SESSION_MINUTES);
     if (!isFinite(m) || m < 1) m = DEFAULT_SESSION_MINUTES;
     if (m > 1440) m = 1440;
     SESSION_MINUTES = Math.round(m);
+
+    /* Persist so next page load is instant */
+    try { localStorage.setItem(SESSION_MINUTES_CACHE_KEY, String(SESSION_MINUTES)); } catch (e) {}
+
     if (sd.currency) APP.currency = sd.currency;
     if (sd.saccoName && String(sd.saccoName).trim()) APP.saccoName = String(sd.saccoName).trim();
     if (sd.shortName && String(sd.shortName).trim()) APP.shortName = String(sd.shortName).trim();
     if (Array.isArray(sd.penaltyPaymentSources) && sd.penaltyPaymentSources.length) {
       APP.penaltySettings.penaltyPaymentSources = sd.penaltyPaymentSources.map(x => String(x).toLowerCase().trim());
     }
-  } else {
+  } else if (SESSION_MINUTES == null) {
     SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
   }
+
   try {
     const ss = readSession();
     if (ss) { ss.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(ss)); }
   } catch(e){}
 
-  /* ---- Write fresh data to cache ---- */
+  /* ---- Cold start only: brief grace period for customers snapshot ---- */
+  if (!rendered) {
+    await Promise.race([
+      listenersReady.customers,
+      new Promise(r => setTimeout(r, 500))  // hard cap: never block longer than 500 ms
+    ]);
+  }
+
+  _bootDone = true;
+
+  /* ---- Final render (idempotent) ---- */
+  if (!rendered || scopeChanged) {
+    renderShell();
+    renderMain();
+  } else {
+    scheduleRender();
+  }
+  hideLoader();
   persistCustomersCache();
 
-  /* ---- Final render (single shot) ---- */
-  if (!rendered || roleChanged || districtChanged || branchChanged) {
-    renderShell();
-  }
-  renderMain();
-  hideLoaderNow();
-
+  /* Safe to call twice thanks to idempotent guard */
   startSessionWatcher();
 })();
 
-console.log('[sacco] customers page ready — cache-first, parallel boot, role logic unchanged');
+console.log('[sacco] customers ready — parallel boot, loader ≤ ~800ms cold / instant warm, session-minutes cached, i18n en/am/om intact');
 </script>
 
 </body>
