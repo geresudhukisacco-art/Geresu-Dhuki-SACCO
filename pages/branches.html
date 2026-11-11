@@ -13,13 +13,11 @@
 (function preTheme(){try{const t=localStorage.getItem("sacco.theme")||"light";if(t==="dark")document.documentElement.classList.add("theme-dark");else if(t==="auto"&&window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)document.documentElement.classList.add("theme-dark");const l=localStorage.getItem("sacco.lang")||"en";document.documentElement.setAttribute("lang",l);if(l==="am")document.documentElement.setAttribute("data-ethiopic","true");}catch(e){}})();
 </script>
 <script type="importmap">
-{
-  "imports": {
-    "firebase/app":       "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js",
-    "firebase/auth":      "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js",
-    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js"
-  }
-}
+{ "imports": {
+  "firebase/app":       "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js",
+  "firebase/auth":      "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js",
+  "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js"
+}}
 </script>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
@@ -426,8 +424,7 @@ body.sb-open .overlay-mobile{display:block;}
 import { initializeApp } from "firebase/app";
 import { getAuth, signOut, onAuthStateChanged } from "firebase/auth";
 import {
-  initializeFirestore,
-  doc, getDoc, setDoc, updateDoc, deleteDoc,
+  getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
   collection, onSnapshot, query, orderBy, serverTimestamp,
   getDocs, limit
 } from "firebase/firestore";
@@ -442,12 +439,7 @@ const firebaseConfig = {
 };
 const fbApp = initializeApp(firebaseConfig);
 const auth  = getAuth(fbApp);
-
-/* ── Force long-polling: avoids the broken Listen WebSocket ── */
-const db = initializeFirestore(fbApp, {
-  experimentalForceLongPolling: true,
-  experimentalLongPollingOptions: { timeoutSeconds: 30 }
-});
+const db    = getFirestore(fbApp);
 
 const LOGIN_URL = "../index.html";
 const LOGO_URL  = "../images/logo.png";
@@ -457,18 +449,12 @@ const SESSION_MINUTES_CACHE_KEY = 'sacco.session.minutes';
 const BRANCHES_CACHE_KEY        = 'sacco.branches.cache';
 const BRANCHES_CACHE_VERSION    = 1;
 
+/* SESSION */
 const SESSION_KEY = "sacco.session";
 const DEFAULT_SESSION_MINUTES = 30;
 let SESSION_MINUTES = null;
 let awayStartedAt = null, awayCheckInterval = null;
 let _bootDone = false;
-
-function withTimeout(promise, ms, fallback = null) {
-  return Promise.race([
-    promise,
-    new Promise(r => setTimeout(() => r(fallback), ms))
-  ]);
-}
 
 function readSession() { try { const r = sessionStorage.getItem(SESSION_KEY); if (!r) return null; const s = JSON.parse(r); return (s && s.uid) ? s : null; } catch (e) { return null; } }
 function clearSession() { try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {} }
@@ -573,7 +559,7 @@ function startSessionWatcher() {
   evaluateActivity();
 }
 
-/* TRANSLATIONS (en/am/om) */
+/* TRANSLATIONS */
 const I18N = {
   en: {
     brandSub:'SACCO Management',
@@ -625,10 +611,9 @@ const I18N = {
     noPermission:'Permission denied. Check your Firestore rules.',
     scopeAll:'All branches', scopeDistrict:'Your district', scopeBranch:'Your branch',
     diagTitle:'Could not load data',
-    diagHint:'Verify that /users/{uid} exists in Firestore with role = "super_admin" and that the updated Firestore rules have been deployed.',
+    diagHint:'Verify that /users/{uid} exists in Firestore and that the updated Firestore rules have been deployed.',
     diagYourUid:'Your UID', diagYourRole:'Your role',
-    diagFailedCollections:'Failed collections',
-    diagRetry:'Retry',
+    diagFailedCollections:'Failed collections', diagRetry:'Retry',
     profileMissingTitle:'User profile missing',
     profileMissingBody:'No document at /users/{uid}. Create it in Firestore Console with: { role: "super_admin", status: "active" }.',
     loadingData:'Loading branches…',
@@ -687,8 +672,7 @@ const I18N = {
     diagTitle:'ውሂብ መጫን አልተቻለም',
     diagHint:'እባክዎ በ Firestore /users/{uid} ሰነዱ መኖሩን እና አዲሱ የ Firestore ደንቦች መለቀቃቸውን ያረጋግጡ።',
     diagYourUid:'የእርስዎ UID', diagYourRole:'የእርስዎ ሚና',
-    diagFailedCollections:'ያልተሳኩ ስብስቦች',
-    diagRetry:'እንደገና ሞክር',
+    diagFailedCollections:'ያልተሳኩ ስብስቦች', diagRetry:'እንደገና ሞክር',
     profileMissingTitle:'የተጠቃሚ መገለጫ አልተገኘም',
     profileMissingBody:'በ /users/{uid} ሰነድ የለም። በ Firestore Console ውስጥ ይፍጠሩት፦ { role: "super_admin", status: "active" }።',
     loadingData:'ቅርንጫፎችን በመጫን ላይ…',
@@ -747,8 +731,7 @@ const I18N = {
     diagTitle:'Daataan fe\'amuu hin dandeenye',
     diagHint:'Mirkaneessi /users/{uid} Firestore keessa jiraachuu fi seerotni Firestore haaraan maxxanfamanii jiraachuu.',
     diagYourUid:'UID keessan', diagYourRole:'Gahee keessan',
-    diagFailedCollections:'Walitti qabaa\'ina kufe',
-    diagRetry:'Irra deebi\'i',
+    diagFailedCollections:'Walitti qabaa\'ina kufe', diagRetry:'Irra deebi\'i',
     profileMissingTitle:'Profaayilii fayyadamaa hin argamne',
     profileMissingBody:'/users/{uid} irratti galmeen hin jiru. Firestore Console keessatti uumi: { role: "super_admin", status: "active" }.',
     loadingData:'Dameewwan fe\'aa jira…',
@@ -1738,6 +1721,7 @@ function setLang(lang) {
   renderMain();
 }
 
+/* ── Cache persistence (guarded — never write empty) ── */
 function persistCache() {
   const uid = APP.user?.uid;
   if (!uid) return;
@@ -1768,15 +1752,15 @@ function scheduleRender() {
 }
 
 /* ============================================================
-   attachListeners — onSnapshot for LIVE updates only.
-   Only counts a snapshot as "loaded" when it has data from
-   server (not an empty cache snapshot).
+   attachListeners — background live updates ONLY.
+   Boot already loaded data via getDocs. Never wipe non-empty data
+   with an empty snapshot. Always re-render when _bootDone.
    ============================================================ */
 function attachListeners() {
   stopListeners();
   _branchStatsCache = null;
 
-  const make = (coll, orderField, retried = false) => {
+  const setup = (coll, orderField) => {
     let ref = collection(db, coll);
     if (orderField) ref = query(ref, orderBy(orderField, 'desc'), limit(500));
 
@@ -1785,45 +1769,33 @@ function attachListeners() {
       (snap) => {
         const incoming = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        /* Skip empty cache snapshots */
-        if (incoming.length === 0 && !snap.metadata.fromCache) {
-          /* Server says 0 — that's authoritative */
-          APP[coll] = [];
-          if (coll === 'branches') APP._loading = false;
-          delete APP._errors[coll];
+        if (incoming.length === 0 && APP[coll].length > 0) {
           if (_bootDone) scheduleRender();
-          return;
-        }
-        if (incoming.length === 0 && snap.metadata.fromCache) {
-          /* Empty cache — do nothing; boot's getDocs will fill this */
           return;
         }
 
         APP[coll] = incoming;
         delete APP._errors[coll];
-
         if (coll === 'branches') APP._loading = false;
         if (coll === 'customers' || coll === 'branches' || coll === 'transactions') {
           _branchStatsCache = null;
         }
+
         if (_bootDone) scheduleRender();
       },
       (err) => {
         console.warn(`[listen] ${coll}:`, err.code, err.message);
         APP._errors[coll] = err.code || err.message;
-        if (coll === 'branches') APP._loading = false;
-        if (!retried && (err.code === 'unavailable' || /stream|network/i.test(err.message || ''))) {
-          setTimeout(() => { try { make(coll, orderField, true); } catch(e){} }, 2000);
-        }
+        if (_bootDone) scheduleRender();
       }
     );
     APP.unsubs.push(unsub);
   };
 
-  make('districts');
-  make('branches');
-  make('customers');
-  make('transactions', 'createdAt');
+  setup('districts');
+  setup('branches');
+  setup('customers');
+  setup('transactions', 'createdAt');
 }
 function stopListeners() {
   APP.unsubs.forEach(u => { try { u(); } catch(e){} });
@@ -1831,10 +1803,11 @@ function stopListeners() {
 }
 
 /* ════════════════════════════════════════════════════════════
-   BOOT — getDocs FIRST (plain HTTPS), THEN onSnapshot for live.
-   Data on screen in <1.5s.
+   BOOT — settings.html-style: cache-first, no auth timeout,
+   parallel fetch, single re-render, then background onSnapshot.
 ════════════════════════════════════════════════════════════ */
 (async function boot() {
+  /* 1. Language */
   let saved = null;
   try { saved = localStorage.getItem(LANG_KEY); } catch (e) {}
   const b = (navigator.language || 'en').slice(0, 2);
@@ -1842,12 +1815,14 @@ function stopListeners() {
   document.documentElement.lang = LANG;
   document.body.classList.toggle('lang-am', LANG === 'am');
 
+  /* 2. Cached session minutes */
   try {
     const v = Number(localStorage.getItem(SESSION_MINUTES_CACHE_KEY));
     if (isFinite(v) && v >= 1 && v <= 1440) SESSION_MINUTES = Math.round(v);
   } catch (e) {}
 
-  const sess   = readSession();
+  /* 3. Session record check */
+  const sess = readSession();
   const hasMis = sessionStorage.getItem('loggedIn') === 'true' && sessionStorage.getItem('uid');
   if (!isSessionRecordValid(sess) && !hasMis) {
     try { sessionStorage.setItem('__redirectReason', 'expired'); } catch (e) {}
@@ -1855,10 +1830,12 @@ function stopListeners() {
     return;
   }
 
+  /* 4. Read caches */
   const cachedProfile = readCachedProfile();
   const cachedData    = cachedProfile ? readBranchesCache(cachedProfile.uid) : null;
 
-  /* ── T=0: cache render ── */
+  /* 5. Cache-first render — hide loader immediately if cached */
+  let earlyRendered = false;
   if (cachedProfile && cachedProfile.uid) {
     APP.profile = {
       id: cachedProfile.uid,
@@ -1872,9 +1849,9 @@ function stopListeners() {
       branchName: cachedProfile.branchName || ''
     };
     if (cachedData) {
-      APP.districts    = cachedData.districts || [];
-      APP.branches     = cachedData.branches  || [];
-      APP.customers    = cachedData.customers || [];
+      APP.districts    = cachedData.districts    || [];
+      APP.branches     = cachedData.branches     || [];
+      APP.customers    = cachedData.customers    || [];
       APP.transactions = cachedData.transactions || [];
       _branchStatsCache = null;
       if (APP.branches.length > 0) APP._loading = false;
@@ -1882,14 +1859,15 @@ function stopListeners() {
     renderShell();
     renderMain();
     hideLoaderNow();
+    earlyRendered = true;
     startSessionWatcher();
   }
 
-  /* ── Auth ── */
-  const authPromise = auth.currentUser
-    ? Promise.resolve(auth.currentUser)
-    : new Promise((r) => { const un = onAuthStateChanged(auth, (u) => { un(); r(u); }); });
-  const user = await withTimeout(authPromise, 3000);
+  /* 6. Auth — NO TIMEOUT */
+  const user = await new Promise((resolve) => {
+    const unsub = onAuthStateChanged(auth, (u) => { unsub(); resolve(u); });
+  });
+
   if (!user) {
     try { sessionStorage.setItem('__redirectReason', 'expired'); } catch (e) {}
     clearSession(); clearCachedProfile();
@@ -1904,130 +1882,108 @@ function stopListeners() {
   }
   APP.user = user;
 
-  if (!document.querySelector('.app')) {
-    APP.profile = APP.profile || {
-      id: user.uid, role: 'viewer', email: user.email || '',
-      fullName: 'User', photoURL: null,
-      districtId: '', districtName: '', branchId: '', branchName: ''
-    };
-    renderShell();
-    renderMain();
-    hideLoaderNow();
-    startSessionWatcher();
+  /* 7. Parallel fetch */
+  let userSnap = null, settingsSnap = null;
+  let districtsData = [], branchesData = [], customersData = [], transactionsData = [];
+
+  try {
+    const [uS, sS, dS, bS, cS, tS] = await Promise.all([
+      getDoc(doc(db, 'users', user.uid)),
+      getDoc(doc(db, 'settings', 'system')),
+      getDocs(collection(db, 'districts')),
+      getDocs(collection(db, 'branches')),
+      getDocs(query(collection(db, 'customers'), limit(2000))),
+      getDocs(query(collection(db, 'transactions'), orderBy('createdAt', 'desc'), limit(500)))
+    ]);
+    userSnap = uS;
+    settingsSnap = sS;
+    districtsData    = dS.docs.map(d => ({ id: d.id, ...d.data() }));
+    branchesData     = bS.docs.map(d => ({ id: d.id, ...d.data() }));
+    customersData    = cS.docs.map(d => ({ id: d.id, ...d.data() }));
+    transactionsData = tS.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) {
+    console.warn('[boot] parallel fetch failed', e.code || e.message);
   }
 
-  /* ─────────────────────────────────────────────────────────
-     KEY: fetch via getDocs FIRST — plain HTTPS RunQuery,
-     no WebSocket handshake, no long-poll retries.
-     Capped at 1.5s per collection; renders what comes back.
-     ───────────────────────────────────────────────────────── */
-  const cap15 = (p) => Promise.race([p, new Promise(r => setTimeout(() => r(null), 1500))]);
+  /* 8. Validate user */
+  if (!userSnap || !userSnap.exists()) {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch (e) {}
+    clearSession(); clearCachedProfile();
+    try { await signOut(auth); } catch (e) {}
+    window.location.replace(LOGIN_URL);
+    return;
+  }
+  const userData = userSnap.data();
+  if (userData.status === 'inactive') {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch (e) {}
+    clearSession(); clearCachedProfile();
+    try { await signOut(auth); } catch (e) {}
+    window.location.replace(LOGIN_URL);
+    return;
+  }
 
-  console.log('[boot] fetching data via getDocs…');
-  const [distRes, brRes, custRes, txRes] = await Promise.allSettled([
-    cap15(getDocs(collection(db, 'districts'))),
-    cap15(getDocs(collection(db, 'branches'))),
-    cap15(getDocs(query(collection(db, 'customers'), limit(2000)))),
-    cap15(getDocs(query(collection(db, 'transactions'), orderBy('createdAt', 'desc'), limit(500))))
-  ]);
+  /* 9. Detect scope changes */
+  const prevRole     = APP.profile?.role;
+  const prevDistrict = APP.profile?.districtId;
+  const prevBranch   = APP.profile?.branchId;
 
-  const apply = (res, key) => {
-    if (res.status === 'fulfilled' && res.value) {
-      APP[key] = res.value.docs.map(d => ({ id: d.id, ...d.data() }));
-      console.log(`[boot] getDocs(${key}): ${APP[key].length} docs`);
-    } else {
-      console.warn(`[boot] getDocs(${key}) failed/slow:`, res.reason?.code);
-    }
-  };
-  apply(distRes, 'districts');
-  apply(brRes,   'branches');
-  apply(custRes, 'customers');
-  apply(txRes,   'transactions');
+  APP.profile = { id: userSnap.id, ...userData, email: user.email || '' };
+  writeCachedProfile();
 
+  if (isMember()) { window.location.replace('dashboard.html'); return; }
+
+  const scopeChanged =
+    prevRole     !== APP.profile.role     ||
+    prevDistrict !== APP.profile.districtId ||
+    prevBranch   !== APP.profile.branchId;
+
+  if (scopeChanged) clearBranchesCache(user.uid);
+
+  /* 10. Apply fresh data */
+  APP.districts    = districtsData;
+  APP.branches     = branchesData;
+  APP.customers    = customersData;
+  APP.transactions = transactionsData;
   _branchStatsCache = null;
   APP._loading = false;
-  renderMain();
-  persistCache();
-  console.log('[boot] rendered —', APP.branches.length, 'branches,', APP.customers.length, 'customers');
 
-  /* ── Now attach onSnapshot for live updates (slow is fine) ── */
-  attachListeners();
-
-  /* ── User doc ── */
-  let userSnap = null;
-  try { userSnap = await withTimeout(getDoc(doc(db, 'users', user.uid)), 3000); } catch (e) {}
-
-  if (userSnap && userSnap.exists()) {
-    const d = userSnap.data();
-    if (d.status === 'inactive') {
-      try { sessionStorage.setItem('__redirectReason', 'expired'); } catch (e) {}
-      clearSession(); clearCachedProfile();
-      try { await signOut(auth); } catch (e) {}
-      window.location.replace(LOGIN_URL);
-      return;
-    }
-    const prevRole     = APP.profile?.role;
-    const prevDistrict = APP.profile?.districtId;
-    const prevBranch   = APP.profile?.branchId;
-    APP.profile = { id: userSnap.id, ...d, email: user.email || '' };
-    writeCachedProfile();
-    if (isMember()) { window.location.replace('dashboard.html'); return; }
-    const scopeChanged = prevRole     !== APP.profile.role
-                      || prevDistrict !== APP.profile.districtId
-                      || prevBranch   !== APP.profile.branchId;
-    if (scopeChanged) {
-      clearBranchesCache(user.uid);
-      APP.districts = []; APP.branches = []; APP.customers = []; APP.transactions = [];
-      _branchStatsCache = null;
-      renderShell(); renderMain();
-      try {
-        const [d2, b2, c2, t2] = await Promise.all([
-          getDocs(collection(db, 'districts')),
-          getDocs(collection(db, 'branches')),
-          getDocs(query(collection(db, 'customers'), limit(2000))),
-          getDocs(query(collection(db, 'transactions'), orderBy('createdAt', 'desc'), limit(500)))
-        ]);
-        APP.districts    = d2.docs.map(d => ({ id: d.id, ...d.data() }));
-        APP.branches     = b2.docs.map(d => ({ id: d.id, ...d.data() }));
-        APP.customers    = c2.docs.map(d => ({ id: d.id, ...d.data() }));
-        APP.transactions = t2.docs.map(d => ({ id: d.id, ...d.data() }));
-        _branchStatsCache = null;
-        renderMain();
-      } catch (e) { console.warn('[boot] scope-refetch failed:', e.code); }
-    }
+  /* 11. Apply settings */
+  if (settingsSnap && settingsSnap.exists()) {
+    const sd = settingsSnap.data();
+    let m = sd.sessionTimeout != null        ? Number(sd.sessionTimeout)
+          : sd.sessionTimeoutMinutes != null ? Number(sd.sessionTimeoutMinutes)
+          : DEFAULT_SESSION_MINUTES;
+    if (!isFinite(m) || m < 1) m = DEFAULT_SESSION_MINUTES;
+    if (m > 1440) m = 1440;
+    SESSION_MINUTES = Math.round(m);
+    try { localStorage.setItem(SESSION_MINUTES_CACHE_KEY, String(SESSION_MINUTES)); } catch (e) {}
+    if (sd.saccoName && String(sd.saccoName).trim()) APP.saccoName = String(sd.saccoName).trim();
+    if (sd.shortName && String(sd.shortName).trim()) APP.shortName = String(sd.shortName).trim();
+  } else if (SESSION_MINUTES == null) {
+    SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
   }
-
-  /* ── Settings ── */
-  try {
-    const settingsSnap = await withTimeout(getDoc(doc(db, 'settings', 'system')), 3000);
-    if (settingsSnap && settingsSnap.exists()) {
-      const sd = settingsSnap.data();
-      let m = sd.sessionTimeout != null        ? Number(sd.sessionTimeout)
-            : sd.sessionTimeoutMinutes != null ? Number(sd.sessionTimeoutMinutes)
-            : (SESSION_MINUTES ?? DEFAULT_SESSION_MINUTES);
-      if (!isFinite(m) || m < 1) m = DEFAULT_SESSION_MINUTES;
-      if (m > 1440) m = 1440;
-      SESSION_MINUTES = Math.round(m);
-      try { localStorage.setItem(SESSION_MINUTES_CACHE_KEY, String(SESSION_MINUTES)); } catch (e) {}
-      if (sd.saccoName && String(sd.saccoName).trim()) APP.saccoName = String(sd.saccoName).trim();
-      if (sd.shortName && String(sd.shortName).trim()) APP.shortName = String(sd.shortName).trim();
-    } else if (SESSION_MINUTES == null) {
-      SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
-    }
-  } catch (e) {
-    if (SESSION_MINUTES == null) SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
-  }
-
   try {
     const ss = readSession();
     if (ss) { ss.minutes = SESSION_MINUTES; sessionStorage.setItem(SESSION_KEY, JSON.stringify(ss)); }
   } catch (e) {}
 
+  /* 12. Persist */
+  persistCache();
+
+  /* 13. Single re-render if needed */
+  const needsRerender = !earlyRendered || scopeChanged;
+  if (needsRerender) renderShell();
+  renderMain();
+  hideLoaderNow();
+
+  /* 14. Live updates (fire and forget) */
   _bootDone = true;
+  attachListeners();
+
   startSessionWatcher();
 })();
 
-console.log('[sacco] branches ready — getDocs first (data <1.5s), onSnapshot for live');
+console.log('[sacco] branches ready — cache-first, parallel fetch, single re-render');
 </script>
 
 </body>
