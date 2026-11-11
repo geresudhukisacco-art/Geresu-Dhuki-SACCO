@@ -55,8 +55,8 @@ a{color:inherit;text-decoration:none;}
 h1,h2,h3,h4{line-height:1.25;letter-spacing:-.02em;font-weight:800;}
 :focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px;}
 .hidden{display:none !important;}
-#loader{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:9999;}
-#loader.hide{display:none;}
+#loader{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:9999;transition:opacity .25s;}
+#loader.hide{opacity:0;pointer-events:none;visibility:hidden;}
 .spin{width:44px;height:44px;border:4px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 @keyframes shimmer{0%{background-position:-200% 0;}100%{background-position:200% 0;}}
@@ -432,12 +432,18 @@ function readDashboardCache() {
   } catch (e) { return null; }
 }
 function writeDashboardCache(payload) {
+  // Strip heavy photo fields before caching — keeps us under quota
+  const slim = (arr) => (arr || []).map(x => {
+    if (!x || typeof x !== 'object') return x;
+    const { photoURL, photo, ...rest } = x;
+    return rest;
+  });
   try {
     const data = {
       v: DASHBOARD_CACHE_VERSION, ts: Date.now(),
       districts: payload.districts || [],
       branches: payload.branches || [],
-      customers: payload.customers || [],
+      customers: slim(payload.customers),
       transactions: payload.transactions || [],
       loans: payload.loans || [],
       shares: payload.shares || []
@@ -445,8 +451,8 @@ function writeDashboardCache(payload) {
     localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify(data));
   } catch (e) {
     if (e && e.name === 'QuotaExceededError') {
-      console.warn('[cache] quota exceeded — cache disabled');
-      try { localStorage.removeItem(DASHBOARD_CACHE_KEY); } catch(_) {}
+      // Do NOT delete the previous cache — it is still consistent and useful
+      console.warn('[cache] quota exceeded — keeping previous cache');
     } else {
       console.warn('[cache] write failed', e && e.message);
     }
@@ -482,7 +488,7 @@ function startSessionWatcher() {
 }
 
 /* ============================================================
-   I18N
+   I18N  (unchanged — same dictionary as before)
 ============================================================ */
 const I18N = {
   en: {
@@ -550,7 +556,7 @@ const I18N = {
 };
 I18N.am = {
   brandSub:'የሳኮ አስተዳደር',
-  navSecOverview:'አጠቃላይ እይታ', navSecNetwork:'ኔትወርክ', navSecOperations:'ክንውኖች',
+  navSecOverview:'አጠቃላይ እይታ', navSecNetwork:'ኔትወርክ', navSecOperations:'ክንውነች',
   navSecFinance:'ፋይናንስ', navSecAdmin:'አስተዳደር',
   dashboard:'ዳሽቦርድ', districts:'ወረዳዎች', branches:'ቅርንጫፎች', customers:'ደንበኞች',
   savings:'ቁጠባ', deposits:'ተቀማጭ', loans:'ብድር', repayments:'ክፍያዎች',
@@ -834,6 +840,9 @@ const APP = {
   dataLoading: false,
   workarea: { districtId: '', branchId: '' },
   districts: [], branches: [], customers: [], shareRecords: [],
+  _errors: {},       // per-collection error tracking
+  _rawLoans: null,   // preserves raw loans across partial updates
+  _slow: false,
   txn: { savings: [], loans: [], repayments: [], profitIncome: [], profitWithdrawal: [], withdrawals: [], leaving: [], penalties: [], serviceWithdrawals: [], dividends: [], saccoCapital: [], shares: [], recent: [], pendingLoans: [], allTxns: [] }
 };
 const CUSTOMER_MAP = new Map();
@@ -851,12 +860,18 @@ async function fetchMemberCollection(coll, fields) {
   if (!S || !S.customerId) return [];
   const fs = fields || ['customerId', 'memberId', 'customerDocId'];
   const merged = new Map();
+  let anySuccess = false, lastError = null;
   await Promise.all(fs.map(async (field) => {
     try {
       const snap = await getDocs(query(collection(db, coll), where(field, '==', S.customerId)));
       snap.forEach(d => { if (!merged.has(d.id)) merged.set(d.id, { id: d.id, ...d.data() }); });
-    } catch (e) { console.warn('[fetch-member]', coll, field, e.code || e.message); }
+      anySuccess = true;
+    } catch (e) {
+      lastError = e;
+      console.warn('[fetch-member]', coll, field, e.code || e.message);
+    }
   }));
+  if (!anySuccess && lastError) throw lastError;
   return Array.from(merged.values());
 }
 
@@ -865,34 +880,27 @@ async function fetchMemberCustomers() {
   try {
     const snap = await getDoc(doc(db, 'customers', S.customerId));
     if (snap.exists()) return [{ id: snap.id, ...snap.data() }];
-  } catch (e) { console.warn('[member-customer-doc]', e.code || e.message); }
-  const merged = new Map();
-  for (const field of ['customerId', 'memberId']) {
-    try {
-      const snap = await getDocs(query(collection(db, 'customers'), where(field, '==', S.customerId), limit(5)));
-      snap.forEach(d => { if (!merged.has(d.id)) merged.set(d.id, { id: d.id, ...d.data() }); });
-    } catch (e) { console.warn('[member-customer-query]', field, e.code || e.message); }
+    return [];
+  } catch (e) {
+    // Transport failure — propagate so safe() catches it and preserves cache
+    console.warn('[member-customer-doc]', e.code || e.message);
+    throw e;
   }
-  return Array.from(merged.values());
 }
 
 async function scopedFetchAll(coll, extra = []) {
   if (isMember()) return fetchMemberCollection(coll);
-  try {
-    const base = collection(db, coll);
-    const cs = [...scopeConstraints(), ...extra];
-    const ref = cs.length ? query(base, ...cs) : base;
-    const snap = await getDocs(ref);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch (e) { console.warn('[fetch]', coll, e.code || e.message); return []; }
+  const base = collection(db, coll);
+  const cs = [...scopeConstraints(), ...extra];
+  const ref = cs.length ? query(base, ...cs) : base;
+  const snap = await getDocs(ref);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 async function fetchAllNoScope(coll, extra = []) {
-  try {
-    const base = collection(db, coll);
-    const ref = extra.length ? query(base, ...extra) : base;
-    const snap = await getDocs(ref);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch (e) { console.warn('[fetchAllNoScope]', coll, e.code || e.message); return []; }
+  const base = collection(db, coll);
+  const ref = extra.length ? query(base, ...extra) : base;
+  const snap = await getDocs(ref);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 function assignableDistricts() {
@@ -1342,6 +1350,23 @@ function renderWorkareaBar() {
 
 function renderDiagnostics() {
   const host = document.getElementById('diagHost'); if (!host) return;
+  const errKeys = Object.keys(APP._errors || {});
+  if (errKeys.length > 0) {
+    const list = errKeys.map(k => esc(k)).join(', ');
+    const slow = APP._slow ? `<div style="margin-top:6px;color:#b45309">Connection may be slow — cached values shown where available.</div>` : '';
+    host.innerHTML = `
+      <div class="diag-box">
+        <strong>⚠️ Some data could not be refreshed</strong>
+        <div style="margin-top:8px">
+          Failed: <code>${list}</code>
+          ${slow}
+        </div>
+        <div style="margin-top:10px">
+          <button class="btn btn--sm" onclick="location.reload()"><i class="fas fa-redo"></i> Retry</button>
+        </div>
+      </div>`;
+    return;
+  }
   const total = APP.districts.length + APP.branches.length + APP.customers.length + APP.txn.allTxns.length + APP.shareRecords.length;
   if (total > 0) { host.innerHTML = ''; return; }
   host.innerHTML = `
@@ -2402,13 +2427,23 @@ function wireMainEvents() {
 }
 
 /* ============================================================
-   DATA APPLICATION (shared by fresh fetch + cache hydration)
+   DATA APPLICATION — partial-safe merge.
+   Only overwrites a collection when the caller passes it.
+   Prevents "cache rendered → fetch failed → cards read 0".
 ============================================================ */
-function applyDashboardData({ districts, branches, customers, txns, loansRaw, shareRecords }) {
+function applyDashboardData(partial) {
+  const districts    = partial.districts    !== undefined ? partial.districts    : APP.districts;
+  const branches     = partial.branches     !== undefined ? partial.branches     : APP.branches;
+  const customers    = partial.customers    !== undefined ? partial.customers    : APP.customers;
+  const shareRecords = partial.shareRecords !== undefined ? partial.shareRecords : APP.shareRecords;
+  const txns         = partial.txns         !== undefined ? partial.txns         : APP.txn.allTxns;
+  const loansRaw     = partial.loansRaw     !== undefined ? partial.loansRaw     : APP._rawLoans;
+
   APP.districts = districts || [];
   APP.branches = branches || [];
   APP.customers = customers || [];
   APP.shareRecords = shareRecords || [];
+  APP._rawLoans = loansRaw || null;
 
   CUSTOMER_MAP.clear();
   APP.customers.forEach(c => {
@@ -2434,7 +2469,7 @@ function applyDashboardData({ districts, branches, customers, txns, loansRaw, sh
       createdAt: l.createdAt || l.disbursementDate || l.date };
   });
 
-  const byType = (names) => allTxns.filter(t => names.includes(String(t.type || '').toLowerCase()));
+  const byType = (names) => APP.txn.allTxns.filter(t => names.includes(String(t.type || '').toLowerCase()));
 
   APP.txn.savings           = byType(['savings','saving','deposit']);
   APP.txn.loans             = [...byType(['loan']), ...normalizedLoans];
@@ -2450,10 +2485,10 @@ function applyDashboardData({ districts, branches, customers, txns, loansRaw, sh
   APP.txn.shares            = byType([...BUY_SHARE_TYPES, ...SELL_SHARE_TYPES, ...IN_SHARE_TYPES, ...OUT_SHARE_TYPES]);
 
   APP.txn.pendingLoans = [
-    ...allTxns.filter(t => String(t.type || '').toLowerCase() === 'loan' && String(t.status || '').toLowerCase() === 'pending'),
+    ...APP.txn.allTxns.filter(t => String(t.type || '').toLowerCase() === 'loan' && String(t.status || '').toLowerCase() === 'pending'),
     ...normalizedLoans.filter(l => String(l.status || '').toLowerCase() === 'pending')
   ];
-  APP.txn.recent = allTxns.slice().sort((a, b) => {
+  APP.txn.recent = APP.txn.allTxns.slice().sort((a, b) => {
     const ta = toDateSafe(b.createdAt || b.date)?.getTime() || 0;
     const tb = toDateSafe(a.createdAt || a.date)?.getTime() || 0;
     return ta - tb;
@@ -2489,7 +2524,9 @@ function applyDashboardData({ districts, branches, customers, txns, loansRaw, sh
 }
 
 /* ============================================================
-   BOOT — everything parallel, cache-first, renderAll on refresh
+   BOOT — safe-fetch, cache-first, transport-fail ≠ auth-fail.
+   Network error preserves cache & shows retry banner.
+   Only definitive auth failures (no user / no doc / inactive) log out.
 ============================================================ */
 (async function boot() {
   let saved = null;
@@ -2511,13 +2548,32 @@ function applyDashboardData({ districts, branches, customers, txns, loansRaw, sh
   const dashCache = readDashboardCache();
   let rendered = false;
 
-  /* ---- T=0: FIRE ALL NON-SCOPED NETWORK CALLS IN PARALLEL ---- */
-  const authPromise        = new Promise(r => onAuthStateChanged(auth, u => r(u)));
-  const settingsPromise    = getDoc(doc(db, 'settings', 'system')).catch(() => null);
-  const districtsPromise   = fetchAllNoScope('districts').catch(() => []);
-  const branchesPromise    = fetchAllNoScope('branches').catch(() => []);
+  // Slow-network flag — banner shows "cached values" hint
+  APP._slow = false;
+  const slowTimer = setTimeout(() => { APP._slow = true; }, 3000);
 
-  /* ---- INSTANT RENDER from cache + fire scoped calls (if we have S) ---- */
+  const T = 15000;
+  const safe = (p) => p.then(v => ({ ok: true, v })).catch(e => ({ ok: false, e }));
+  const timed = async (p, ms, label) => {
+    let timer;
+    const timeoutPromise = new Promise((_, rej) => {
+      timer = setTimeout(() => {
+        const e = new Error(`${label || 'request'} timed out`);
+        e.code = 'deadline-exceeded';
+        rej(e);
+      }, ms);
+    });
+    try { return await Promise.race([p, timeoutPromise]); }
+    finally { clearTimeout(timer); }
+  };
+  const fetchT = (p, label) => safe(timed(p, T, label));
+
+  // Fire non-scoped calls in parallel immediately
+  const authPromise     = new Promise(r => onAuthStateChanged(auth, u => r(u)));
+  const settingsPromise = fetchT(getDoc(doc(db, 'settings', 'system')), 'settings');
+  const districtsPromise= fetchT(fetchAllNoScope('districts'), 'districts');
+  const branchesPromise = fetchT(fetchAllNoScope('branches'), 'branches');
+
   let userDocPromise = null, custPromise = null, sharPromise = null, txnPromise = null, loanPromise = null;
 
   if (cachedProfile) {
@@ -2538,14 +2594,12 @@ function applyDashboardData({ districts, branches, customers, txns, loansRaw, sh
     };
     initWorkarea();
 
-    // Fire scoped fetches NOW using cached scope
-    userDocPromise = getDoc(doc(db, 'users', S.uid)).catch(() => null);
-    custPromise = (isMember() ? fetchMemberCustomers() : fetchAllNoScope('customers')).catch(() => []);
-    sharPromise = (isMember() ? fetchMemberCollection('shares', ['customerId','memberId']) : fetchAllNoScope('shares')).catch(() => []);
-    txnPromise  = scopedFetchAll('transactions', [limit(3000)]).catch(() => []);
-    loanPromise = scopedFetchAll('loans').catch(() => []);
+    userDocPromise = fetchT(getDoc(doc(db, 'users', S.uid)), 'users');
+    custPromise    = fetchT(isMember() ? fetchMemberCustomers() : fetchAllNoScope('customers'), 'customers');
+    sharPromise    = fetchT(isMember() ? fetchMemberCollection('shares', ['customerId','memberId']) : fetchAllNoScope('shares'), 'shares');
+    txnPromise     = fetchT(scopedFetchAll('transactions', [limit(3000)]), 'transactions');
+    loanPromise    = fetchT(scopedFetchAll('loans'), 'loans');
 
-    // Instant render from cache
     if (dashCache) {
       try {
         applyDashboardData({
@@ -2574,15 +2628,14 @@ function applyDashboardData({ districts, branches, customers, txns, loansRaw, sh
       customerId:'', customerCode:'', savingsBalance:0, shares:0
     };
     initWorkarea();
-    // No scope available yet — wait for user doc
-    userDocPromise = getDoc(doc(db, 'users', S.uid)).catch(() => null);
+    userDocPromise = fetchT(getDoc(doc(db, 'users', S.uid)), 'users');
     renderShell();
     renderMain();
     hideLoaderNow();
     rendered = true;
   }
 
-  /* ---- T=~150ms: AWAIT AUTH ---- */
+  // Auth — only DEFINITIVE failure logs out
   const user = await authPromise;
   if (!user) {
     try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
@@ -2598,57 +2651,59 @@ function applyDashboardData({ districts, branches, customers, txns, loansRaw, sh
   }
   APP.user = user;
 
-  // If no cache at all — fire user doc now
   if (!userDocPromise) {
-    userDocPromise = getDoc(doc(db, 'users', user.uid)).catch(() => null);
+    userDocPromise = fetchT(getDoc(doc(db, 'users', user.uid)), 'users');
   }
 
-  /* ---- T=~400ms: AWAIT USER DOC ---- */
-  const userSnap = await userDocPromise;
-  if (!userSnap || !userSnap.exists()) {
-    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
-    clearSession(); clearCachedProfile();
-    try { await signOut(auth); } catch(e){}
-    window.location.replace(LOGIN_URL);
-    return;
-  }
-  const d = userSnap.data();
-  if (d.status === 'inactive') {
-    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
-    clearSession(); clearCachedProfile();
-    try { await signOut(auth); } catch(e){}
-    window.location.replace(LOGIN_URL);
-    return;
-  }
-
-  /* ---- Update S with fresh user doc ---- */
+  // Await user doc — distinguish transport vs auth failure
+  const userR = await userDocPromise;
+  let authFailed = false;
   const prevRole   = S?.role;
   const prevName   = S?.name;
   const prevPhoto  = S?.photoURL;
   const prevDist   = S?.districtId;
   const prevBranch = S?.branchId;
 
-  S = {
-    uid: user.uid, role: d.role || 'viewer', email: user.email || '',
-    name: d.fullName || d.name || user.email?.split('@')[0] || 'User',
-    photoURL: d.photoURL || null,
-    districtId: d.districtId || '', districtName: d.districtName || '',
-    branchId: d.branchId || '', branchName: d.branchName || '',
-    customerId: d.customerId || d.memberId || '',
-    customerCode: d.customerCode || d.memberCode || '',
-    savingsBalance: num(d.savingsBalance), shares: num(d.shares)
-  };
-  writeCachedProfile();
+  if (!userR.ok) {
+    // Transport failure — do NOT logout; preserve cache
+    APP._errors.users = (userR.e && userR.e.code) || 'network';
+    console.warn('[boot] users doc fetch failed:', userR.e);
+  } else if (!userR.v || !userR.v.exists()) {
+    authFailed = true;
+  } else {
+    const d = userR.v.data();
+    if (d.status === 'inactive') {
+      authFailed = true;
+    } else {
+      S = {
+        uid: user.uid, role: d.role || 'viewer', email: user.email || '',
+        name: d.fullName || d.name || (user.email ? user.email.split('@')[0] : '') || 'User',
+        photoURL: d.photoURL || null,
+        districtId: d.districtId || '', districtName: d.districtName || '',
+        branchId: d.branchId || '', branchName: d.branchName || '',
+        customerId: d.customerId || d.memberId || '',
+        customerCode: d.customerCode || d.memberCode || '',
+        savingsBalance: num(d.savingsBalance), shares: num(d.shares)
+      };
+      writeCachedProfile();
+    }
+  }
 
-  /* ---- Fire scoped fetches if we didn't yet (hasMis case) ---- */
-  const scopeChanged = (prevRole !== S.role) || (prevDist !== S.districtId) || (prevBranch !== S.branchId);
+  if (authFailed) {
+    try { sessionStorage.setItem('__redirectReason', 'expired'); } catch(e){}
+    clearSession(); clearCachedProfile();
+    try { await signOut(auth); } catch(e){}
+    window.location.replace(LOGIN_URL);
+    return;
+  }
+
+  // Fire scoped fetches if hasMis path skipped them
   if (!custPromise) {
-    custPromise = (isMember() ? fetchMemberCustomers() : fetchAllNoScope('customers')).catch(() => []);
-    sharPromise = (isMember() ? fetchMemberCollection('shares', ['customerId','memberId']) : fetchAllNoScope('shares')).catch(() => []);
-    txnPromise  = scopedFetchAll('transactions', [limit(3000)]).catch(() => []);
-    loanPromise = scopedFetchAll('loans').catch(() => []);
+    custPromise = fetchT(isMember() ? fetchMemberCustomers() : fetchAllNoScope('customers'), 'customers');
+    sharPromise = fetchT(isMember() ? fetchMemberCollection('shares', ['customerId','memberId']) : fetchAllNoScope('shares'), 'shares');
+    txnPromise  = fetchT(scopedFetchAll('transactions', [limit(3000)]), 'transactions');
+    loanPromise = fetchT(scopedFetchAll('loans'), 'loans');
 
-    // Skeleton render now — layout visible, values still loading
     initWorkarea();
     renderShell();
     renderMain();
@@ -2656,20 +2711,17 @@ function applyDashboardData({ districts, branches, customers, txns, loansRaw, sh
     rendered = true;
   }
 
-  /* ---- T=~800ms: AWAIT EVERYTHING IN PARALLEL ---- */
-  const [settingsSnap, districts, branches, customers, shares, txns, loansRaw] = await Promise.all([
-    settingsPromise,
-    districtsPromise,
-    branchesPromise,
-    custPromise,
-    sharPromise,
-    txnPromise,
-    loanPromise
+  // Await everything
+  const [settingsR, districtsR, branchesR, customersR, sharesR, txnsR, loansR] = await Promise.all([
+    settingsPromise, districtsPromise, branchesPromise,
+    custPromise, sharPromise, txnPromise, loanPromise
   ]);
 
-  /* ---- Apply settings (session timeout + sacco name) from the single fetch ---- */
-  if (settingsSnap && settingsSnap.exists()) {
-    const sd = settingsSnap.data();
+  clearTimeout(slowTimer);
+
+  // Settings
+  if (settingsR.ok && settingsR.v && settingsR.v.exists()) {
+    const sd = settingsR.v.data();
     let m = sd.sessionTimeout != null ? Number(sd.sessionTimeout)
           : sd.sessionTimeoutMinutes != null ? Number(sd.sessionTimeoutMinutes)
           : DEFAULT_SESSION_MINUTES;
@@ -2677,7 +2729,7 @@ function applyDashboardData({ districts, branches, customers, txns, loansRaw, sh
     if (m > 1440) m = 1440;
     SESSION_MINUTES = Math.round(m);
     if (sd.saccoName && String(sd.saccoName).trim()) APP.saccoName = String(sd.saccoName).trim();
-  } else {
+  } else if (SESSION_MINUTES == null) {
     SESSION_MINUTES = DEFAULT_SESSION_MINUTES;
   }
   try {
@@ -2686,32 +2738,70 @@ function applyDashboardData({ districts, branches, customers, txns, loansRaw, sh
   } catch(e){}
   startSessionWatcher();
 
-  /* ---- If scope changed AND we prefetched with wrong scope, refetch ---- */
-  let finalCust = customers, finalShar = shares, finalTxn = txns, finalLoan = loansRaw;
+  // Track per-collection errors
+  if (!settingsR.ok)  APP._errors.settings     = (settingsR.e  && settingsR.e.code)  || 'network';
+  if (!districtsR.ok) APP._errors.districts    = (districtsR.e && districtsR.e.code) || 'network';
+  if (!branchesR.ok)  APP._errors.branches     = (branchesR.e  && branchesR.e.code)  || 'network';
+  if (!customersR.ok) APP._errors.customers    = (customersR.e && customersR.e.code) || 'network';
+  if (!sharesR.ok)    APP._errors.shares       = (sharesR.e    && sharesR.e.code)    || 'network';
+  if (!txnsR.ok)      APP._errors.transactions = (txnsR.e      && txnsR.e.code)      || 'network';
+  if (!loansR.ok)     APP._errors.loans        = (loansR.e     && loansR.e.code)     || 'network';
+
+  const scopeChanged =
+    (prevRole   != null && prevRole   !== S.role)       ||
+    (prevDist   != null && prevDist   !== S.districtId) ||
+    (prevBranch != null && prevBranch !== S.branchId);
+
+  let finalCust = customersR.ok ? customersR.v : undefined;
+  let finalShar = sharesR.ok    ? sharesR.v    : undefined;
+  let finalTxn  = txnsR.ok      ? txnsR.v      : undefined;
+  let finalLoan = loansR.ok     ? loansR.v     : undefined;
+
   if (scopeChanged && rendered) {
     try {
-      [finalCust, finalShar, finalTxn, finalLoan] = await Promise.all([
-        isMember() ? fetchMemberCustomers() : fetchAllNoScope('customers'),
-        isMember() ? fetchMemberCollection('shares', ['customerId','memberId']) : fetchAllNoScope('shares'),
-        scopedFetchAll('transactions', [limit(3000)]),
-        scopedFetchAll('loans')
+      const [c2, s2, t2, l2] = await Promise.all([
+        fetchT(isMember() ? fetchMemberCustomers() : fetchAllNoScope('customers'), 'customers'),
+        fetchT(isMember() ? fetchMemberCollection('shares', ['customerId','memberId']) : fetchAllNoScope('shares'), 'shares'),
+        fetchT(scopedFetchAll('transactions', [limit(3000)]), 'transactions'),
+        fetchT(scopedFetchAll('loans'), 'loans')
       ]);
+      if (c2.ok) finalCust = c2.v;
+      if (s2.ok) finalShar = s2.v;
+      if (t2.ok) finalTxn  = t2.v;
+      if (l2.ok) finalLoan = l2.v;
     } catch (e) { console.warn('[boot] scope refetch', e); }
   }
 
-  /* ---- Apply data ---- */
-  applyDashboardData({
-    districts, branches,
-    customers: finalCust, txns: finalTxn,
-    loansRaw: finalLoan, shareRecords: finalShar
-  });
-  writeDashboardCache({
-    districts, branches, customers: finalCust,
-    transactions: finalTxn, loans: finalLoan, shares: finalShar
-  });
+  // Apply only successful collections — cache-safe
+  const partial = {};
+  if (districtsR.ok) partial.districts = districtsR.v;
+  if (branchesR.ok)  partial.branches  = branchesR.v;
+  if (finalCust !== undefined) partial.customers = finalCust;
+  if (finalShar !== undefined) partial.shareRecords = finalShar;
+  if (finalTxn !== undefined)  partial.txns = finalTxn;
+  if (finalLoan !== undefined) partial.loansRaw = finalLoan;
 
-  /* ---- Re-render ---- */
-  const profileChanged = !rendered || prevRole !== S.role || prevName !== S.name || prevPhoto !== S.photoURL;
+  applyDashboardData(partial);
+
+  // Persist cache only if all core collections refreshed — keeps last consistent snapshot
+  const fullyRefreshed =
+    districtsR.ok && branchesR.ok && finalCust !== undefined && finalTxn !== undefined;
+  if (fullyRefreshed) {
+    writeDashboardCache({
+      districts:    partial.districts || APP.districts,
+      branches:     partial.branches  || APP.branches,
+      customers:    finalCust,
+      transactions: finalTxn,
+      loans:        finalLoan !== undefined ? finalLoan : (APP._rawLoans || []),
+      shares:       finalShar !== undefined ? finalShar : APP.shareRecords
+    });
+  }
+
+  // Render strategy
+  const profileChanged =
+    (prevRole  != null && prevRole  !== S.role) ||
+    (prevName  != null && prevName  !== S.name) ||
+    (prevPhoto != null && prevPhoto !== S.photoURL);
 
   if (!rendered) {
     initWorkarea();
@@ -2723,8 +2813,12 @@ function applyDashboardData({ districts, branches, customers, txns, loansRaw, sh
     renderShell();
     renderMain();
   } else {
-    // Fast path: refresh data in place, no DOM rebuild
-    renderAll();
+    renderAll(); // fast path — data updated, only re-render stats/charts/tables
+  }
+
+  // Surface partial-failure banner if any collection failed
+  if (Object.keys(APP._errors).length > 0) {
+    renderDiagnostics();
   }
 })();
 </script>
